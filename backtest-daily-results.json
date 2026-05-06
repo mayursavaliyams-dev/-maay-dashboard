@@ -1,0 +1,181 @@
+{
+  "generatedAt": "2026-05-05T02:53:28.090Z",
+  "dataSource": "Dhan HQ (real option candles)",
+  "totalExpiries": 1,
+  "expiriesWithTrades": 1,
+  "skipped": {
+    "noSpotData": 0,
+    "noSignal": 0,
+    "noOptionData": 0,
+    "noEntry": 0,
+    "fetchError": 0
+  },
+  "stats": {
+    "totalTrades": 4,
+    "wins": 0,
+    "losses": 4,
+    "winRate": 0,
+    "avgMultiplier": 2.269,
+    "maxMultiplier": 4.9,
+    "medianMultiplier": 1.623,
+    "avgPnlPct": 126.94,
+    "hit2x": 2,
+    "hit5x": 0,
+    "hit10x": 0,
+    "hit50x": 0,
+    "byYear": {
+      "2026": {
+        "trades": 4,
+        "wins": 0,
+        "totalPnl": 507.76000000000005
+      }
+    },
+    "byEra": {
+      "pre-cutover": {
+        "trades": 0,
+        "wins": 0
+      },
+      "post-cutover": {
+        "trades": 0,
+        "wins": 0
+      }
+    },
+    "byType": {
+      "CALL": {
+        "trades": 4,
+        "wins": 0
+      },
+      "PUT": {
+        "trades": 0,
+        "wins": 0
+      }
+    },
+    "byReason": {
+      "TARGET": 1,
+      "STOP_LOSS": 2,
+      "TRAIL_STOP": 1
+    }
+  },
+  "trades": [
+    {
+      "status": "OK",
+      "type": "CALL",
+      "score": 85,
+      "entryTimestamp": 1777867500,
+      "entryPrice": 0.17313011967155728,
+      "exitTimestamp": 1777867800,
+      "exitPrice": 0.8483375863906307,
+      "multiplier": 4.9,
+      "pnlPct": 390,
+      "netPnlPct": -143.17,
+      "grossPnlAbs": 43.89,
+      "brokerageAbs": 60,
+      "netPnlAbs": -16.11,
+      "lotSize": 65,
+      "reason": "TARGET",
+      "win": false,
+      "strike": 24500,
+      "spotAtEntry": 24261,
+      "date": "2026-05-04",
+      "weekday": "MON"
+    },
+    {
+      "status": "OK",
+      "type": "CALL",
+      "score": 85,
+      "entryTimestamp": 1777867800,
+      "entryPrice": 0.5596533267217849,
+      "exitTimestamp": 1777868400,
+      "exitPrice": 0.5210372471779817,
+      "multiplier": 0.931,
+      "pnlPct": -6.9,
+      "netPnlPct": -171.84,
+      "grossPnlAbs": -2.51,
+      "brokerageAbs": 60,
+      "netPnlAbs": -62.51,
+      "lotSize": 65,
+      "reason": "STOP_LOSS",
+      "win": false,
+      "strike": 24500,
+      "spotAtEntry": 24276.65,
+      "date": "2026-05-04",
+      "weekday": "MON"
+    },
+    {
+      "status": "OK",
+      "type": "CALL",
+      "score": 85,
+      "entryTimestamp": 1777868100,
+      "entryPrice": 0.9558797055419891,
+      "exitTimestamp": 1777868400,
+      "exitPrice": 0.8899240058595917,
+      "multiplier": 0.931,
+      "pnlPct": -6.9,
+      "netPnlPct": -103.47,
+      "grossPnlAbs": -4.29,
+      "brokerageAbs": 60,
+      "netPnlAbs": -64.29,
+      "lotSize": 65,
+      "reason": "STOP_LOSS",
+      "win": false,
+      "strike": 24500,
+      "spotAtEntry": 24269.35,
+      "date": "2026-05-04",
+      "weekday": "MON"
+    },
+    {
+      "status": "OK",
+      "type": "CALL",
+      "score": 85,
+      "entryTimestamp": 1777868700,
+      "entryPrice": 0.15008169524258352,
+      "exitTimestamp": 1777869000,
+      "exitPrice": 0.3475322047419881,
+      "multiplier": 2.316,
+      "pnlPct": 131.56,
+      "netPnlPct": -483.49,
+      "grossPnlAbs": 12.83,
+      "brokerageAbs": 60,
+      "netPnlAbs": -47.17,
+      "lotSize": 65,
+      "reason": "TRAIL_STOP",
+      "win": false,
+      "strike": 24500,
+      "spotAtEntry": 24246.2,
+      "date": "2026-05-04",
+      "weekday": "MON"
+    }
+  ],
+  "expirySummaries": [
+    {
+      "date": "2026-05-04",
+      "weekday": "MON",
+      "traded": true,
+      "bestMultiplier": 4.9,
+      "numTrades": 4
+    }
+  ],
+  "config": {
+    "instrument": "NIFTY",
+    "optionExchangeSegment": "NSE_FNO",
+    "numDays": 1,
+    "startDate": "2026-05-04",
+    "endDate": "2026-05-04",
+    "maxTradesPerDay": 6,
+    "stopAtCutover": false,
+    "cutover": "2024-10-28",
+    "dowFilter": null,
+    "interval": 5,
+    "strikeOffset": 2,
+    "cacheDir": "C:\\Users\\Admin\\Downloads\\Expiry-Friday-5x\\data\\dhan-cache-nifty-daily",
+    "risk": {
+      "stopLossPct": 5,
+      "targetPct": 400,
+      "trailAfterMultiple": 2,
+      "trailLockPct": 90,
+      "slippagePct": 2,
+      "lotSize": 65,
+      "brokeragePerOrder": 30
+    }
+  }
+}

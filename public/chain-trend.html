@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Option Chain — Trend Engine</title>
+<style>
+  :root {
+    --bg: #0b0f19;
+    --panel: #111827;
+    --row: #0f1424;
+    --row-alt: #11172a;
+    --muted: #6b7280;
+    --text: #e5e7eb;
+    --bull: #10b981;
+    --bull-dim: #064e3b;
+    --bear: #ef4444;
+    --bear-dim: #4c1d24;
+    --neutral: #9ca3af;
+    --atm: #fbbf24;
+    --itm: rgba(255,255,255,.04);
+    --otm: rgba(255,255,255,0);
+    --border: #1f2937;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size:12px; }
+  /* Tuned for 1280×720 viewport — content stacks one-by-one, never overflows */
+  .wrap { width: 100%; max-width: 1248px; margin: 0 auto; padding: 8px 12px; }
+
+  /* ── Top banner (row 1) ─────────────────────────────────────── */
+  .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; min-height:24px; }
+  .topbar h1 { font-size: .85rem; font-weight: 600; margin:0; letter-spacing:.5px; color:#cbd5e1; }
+  .meta { font-size:.68rem; color:var(--muted); }
+  .meta b { color:var(--text); font-weight:500; }
+
+  /* ── Global trend (row 2) ──────────────────────────────────── */
+  .global-trend {
+    display:flex; align-items:center; gap:12px;
+    padding:8px 14px; border-radius:8px; background:var(--panel);
+    border:1px solid var(--border);
+    margin-bottom:8px;
+    min-height:48px;
+  }
+  .gt-label { color:var(--muted); font-size:.62rem; text-transform:uppercase; letter-spacing:.5px; line-height:1; }
+  .gt-value { font-size:1.05rem; font-weight:700; padding:3px 10px; border-radius:5px; margin-top:2px; }
+  .gt-value.bull        { color:var(--bull); background:rgba(16,185,129,.10); }
+  .gt-value.strong-bull { color:#fff; background:var(--bull); }
+  .gt-value.bear        { color:var(--bear); background:rgba(239,68,68,.10); }
+  .gt-value.strong-bear { color:#fff; background:var(--bear); }
+  .gt-value.flat        { color:var(--neutral); background:rgba(156,163,175,.08); }
+  .gt-detail { color:var(--muted); font-size:.68rem; flex:1; }
+  .gt-detail .pill { display:inline-block; margin-right:5px; padding:1px 5px; border-radius:3px; background:#1f2937; color:#cbd5e1; font-size:.6rem; }
+  .gt-detail .pill.bull { color:var(--bull); }
+  .gt-detail .pill.bear { color:var(--bear); }
+
+  /* ── Chain grid (row 3) ─────────────────────────────────────── */
+  /* Strict fixed columns. CE fields (left), Strike (center), PE fields (right), Trend.
+     Sized to fit cleanly in a 1248px content area: total ≈ 924px → comfortable margin. */
+  .chain {
+    display:grid;
+    grid-template-columns:
+      78px 60px 72px 72px      /* CE  : OI  | OI%  | Volume | LTP   */
+      110px                    /* Strike (center)                   */
+      72px 72px 60px 78px      /* PE  : LTP | Volume | OI%  | OI    */
+      130px;                   /* TREND                             */
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .chain .hdr, .chain .cell { padding:4px 8px; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums; line-height:1.25; }
+  .chain .hdr {
+    background:#0a0f1c; color:var(--muted); font-size:.55rem; text-transform:uppercase;
+    letter-spacing:.4px; text-align:right; font-weight:600; padding-top:6px; padding-bottom:6px;
+  }
+  .chain .hdr.center { text-align:center; }
+  .chain .cell { text-align:right; }
+  .chain .cell.center { text-align:center; font-weight:700; color:#cbd5e1; }
+  .chain .cell.ce-ltp { color:var(--bull); font-weight:600; }
+  .chain .cell.pe-ltp { color:var(--bear); font-weight:600; }
+
+  /* Row band: every CE+Strike+PE+Trend share a row via grid-row inheritance.
+     We use a wrapper row class via background assignment. */
+  .chain .row-bg-atm    { background: rgba(251,191,36,.10) !important; border-left: 3px solid var(--atm); }
+  .chain .row-bg-itm-ce { background: rgba(16,185,129,.05); }
+  .chain .row-bg-itm-pe { background: rgba(239,68,68,.05);  }
+  .chain .row-bg-otm    { background: transparent; }
+
+  .strike-cell { display:flex; align-items:center; justify-content:center; gap:6px; }
+  .strike-cell .star { color:var(--atm); font-size:.85rem; }
+  .strike-cell.itm-ce { color:var(--bull); }
+  .strike-cell.itm-pe { color:var(--bear); }
+
+  /* OI bar visualization */
+  .oi-cell { display:flex; align-items:center; justify-content:flex-end; gap:4px; }
+  .oi-cell .bar { height:4px; border-radius:2px; flex-shrink:0; }
+  .oi-cell.ce .bar { background:var(--bull); }
+  .oi-cell.pe .bar { background:var(--bear); }
+
+  .oi-pct      { color:var(--muted); font-size:.72rem; }
+  .oi-pct.up   { color:var(--bull); }
+  .oi-pct.down { color:var(--bear); }
+
+  /* Trend pill */
+  .trend {
+    display:flex; align-items:center; justify-content:center; gap:5px;
+    font-weight:600; font-size:.65rem;
+  }
+  .trend .pill { padding:2px 6px; border-radius:5px; white-space:nowrap; min-width:78px; text-align:center; font-size:.62rem; }
+  .trend .pill.strong-bull { background:var(--bull); color:#022c1d; }
+  .trend .pill.bull        { background:rgba(16,185,129,.18); color:var(--bull); }
+  .trend .pill.flat        { background:rgba(156,163,175,.12); color:var(--neutral); }
+  .trend .pill.bear        { background:rgba(239,68,68,.18); color:var(--bear); }
+  .trend .pill.strong-bear { background:var(--bear); color:#2c0a0a; }
+  .trend .score            { color:var(--muted); font-size:.58rem; min-width:24px; }
+
+  /* status footer (row 4) */
+  .footer { color:var(--muted); font-size:.62rem; margin-top:6px; text-align:right; }
+  .footer .ok  { color:var(--bull); }
+  .footer .err { color:var(--bear); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
+  <div class="topbar">
+    <h1>OPTION CHAIN — TREND ENGINE</h1>
+    <div class="meta" id="topmeta">loading…</div>
+  </div>
+
+  <!-- ── GLOBAL TREND BANNER ───────────────────────────────── -->
+  <div class="global-trend">
+    <div>
+      <div class="gt-label">Market Trend</div>
+      <div class="gt-value flat" id="globalTrendValue">…</div>
+    </div>
+    <div class="gt-detail" id="globalTrendDetail">collecting signals…</div>
+  </div>
+
+  <!-- ── CHAIN GRID ───────────────────────────────────────── -->
+  <div class="chain" id="chain">
+    <!-- Headers (always fixed) -->
+    <div class="hdr">CE OI</div>
+    <div class="hdr">CE OI%</div>
+    <div class="hdr">CE VOL</div>
+    <div class="hdr">CE LTP</div>
+    <div class="hdr center">STRIKE</div>
+    <div class="hdr">PE LTP</div>
+    <div class="hdr">PE VOL</div>
+    <div class="hdr">PE OI%</div>
+    <div class="hdr">PE OI</div>
+    <div class="hdr center">TREND</div>
+    <!-- rows injected by JS below -->
+  </div>
+
+  <div class="footer" id="footer">—</div>
+</div>
+
+<script>
+  // ════════════════════════════════════════════════════════════
+  // CONFIG
+  // ════════════════════════════════════════════════════════════
+  const API_BASE  = window.location.origin;
+  const INST      = new URLSearchParams(location.search).get('inst') || 'SENSEX';
+  // Default depth=5 → 11 strikes (ATM ± 5). Fits cleanly in a 720px viewport
+  // without vertical scroll. Override with ?depth=N (max 15).
+  const DEPTH     = parseInt(new URLSearchParams(location.search).get('depth')) || 5;
+  // 1s default. Server caches Dhan option-chain for 1.5s, so the marginal
+  // cost on the API is near zero — most polls are cache hits.
+  const POLL_MS   = parseInt(new URLSearchParams(location.search).get('poll'))  || 1000;
+
+  // Snapshot of last poll for delta-based signals (price/OI/volume/IV change)
+  let _prev = new Map();   // strike -> { ce, pe, ts }
+
+  // ════════════════════════════════════════════════════════════
+  // CORE: detectATM
+  // ════════════════════════════════════════════════════════════
+  // Find the strike closest to spot. Server already flags isATM, but we
+  // recompute here so the page doesn't depend on server's choice.
+  function detectATM(rows, spot) {
+    if (!rows || !rows.length) return null;
+    return rows.reduce((best, r) =>
+      Math.abs(r.strike - spot) < Math.abs(best.strike - spot) ? r : best
+    , rows[0]).strike;
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // CORE: processOptionData
+  // ════════════════════════════════════════════════════════════
+  // Normalize server payload + attach prev-snapshot deltas needed for trend.
+  function processOptionData(payload) {
+    const spot = payload.spot;
+    const atm  = detectATM(payload.rows, spot);
+    const out  = payload.rows.map(r => {
+      const ce = r.ce || {};
+      const pe = r.pe || {};
+      const prev = _prev.get(r.strike) || {};
+      const dCE = computeDelta(ce, prev.ce);
+      const dPE = computeDelta(pe, prev.pe);
+      return {
+        strike: r.strike,
+        isATM:  r.strike === atm,
+        // CE side = ITM when strike < spot (call has intrinsic value)
+        itmCE:  r.strike <  atm,
+        itmPE:  r.strike >  atm,
+        ce, pe,
+        // deltas vs previous poll
+        dCE, dPE
+      };
+    });
+    // Snapshot for next poll
+    _prev = new Map(payload.rows.map(r => [r.strike, { ce: r.ce, pe: r.pe, ts: payload.ts }]));
+    return { spot, atm, rows: out, ts: payload.ts };
+  }
+
+  function computeDelta(curr, prev) {
+    if (!curr || !prev) return { dPx: 0, dOI: 0, dVol: 0, dIV: 0 };
+    return {
+      dPx:  (curr.ltp    || 0) - (prev.ltp    || 0),
+      dOI:  (curr.oi     || 0) - (prev.oi     || 0),
+      dVol: (curr.volume || 0) - (prev.volume || 0),
+      dIV:  (curr.iv     || 0) - (prev.iv     || 0)
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // CORE: calculateTrend  (per strike)
+  // ════════════════════════════════════════════════════════════
+  // Multi-factor trend. Each factor adds +1 (bull) / -1 (bear) / 0.
+  // Score:   ≥+3 STRONG BULL   |  +2 BULL   |  -1..+1 FLAT
+  //          ≤-3 STRONG BEAR   |  -2 BEAR
+  function calculateTrend(row) {
+    const { ce, pe, dCE, dPE } = row;
+    let score = 0;
+    const factors = [];
+
+    // ── A) PRICE STRENGTH (delta vs last poll, normalized) ──
+    const pxCE = ce.ltp ? dCE.dPx / ce.ltp : 0;
+    const pxPE = pe.ltp ? dPE.dPx / pe.ltp : 0;
+    if (pxCE >  0.005 && pxCE > pxPE) { score += 1; factors.push('price↑CE'); }
+    else if (pxPE >  0.005 && pxPE > pxCE) { score -= 1; factors.push('price↑PE'); }
+
+    // ── B) OPEN INTEREST: CE OI ↓ + PE OI ↑ → bull (writers exiting calls, buying puts) ──
+    if (dCE.dOI < 0 && dPE.dOI > 0) { score += 1; factors.push('OI:CE↓PE↑'); }
+    else if (dCE.dOI > 0 && dPE.dOI < 0) { score -= 1; factors.push('OI:CE↑PE↓'); }
+
+    // ── C) VOLUME: which side has more activity right now ──
+    if ((ce.volume || 0) > (pe.volume || 0) * 1.2) { score += 1; factors.push('vol:CE>PE'); }
+    else if ((pe.volume || 0) > (ce.volume || 0) * 1.2) { score -= 1; factors.push('vol:PE>CE'); }
+
+    // ── D) IV expansion paired with price strength ──
+    if (dCE.dIV > 0 && pxCE > 0) { score += 1; factors.push('IV+CE'); }
+    else if (dPE.dIV > 0 && pxPE > 0) { score -= 1; factors.push('IV+PE'); }
+
+    // ── classify ──
+    let label, cls;
+    if (score >=  3) { label = '🟢 STRONG BULL'; cls = 'strong-bull'; }
+    else if (score ===  2) { label = '🟢 BULL';        cls = 'bull';        }
+    else if (score === -2) { label = '🔴 BEAR';        cls = 'bear';        }
+    else if (score <= -3) { label = '🔴 STRONG BEAR'; cls = 'strong-bear'; }
+    else                  { label = '⚪ SIDEWAYS';    cls = 'flat';        }
+
+    return { score, label, cls, factors };
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // CORE: calculateGlobalTrend (ATM ± 3 strikes)
+  // ════════════════════════════════════════════════════════════
+  function calculateGlobalTrend(processed, atmIdx) {
+    const window = processed.rows.slice(Math.max(0, atmIdx - 3), atmIdx + 4);
+    let bullCount = 0, bearCount = 0, sumScore = 0;
+    for (const r of window) {
+      const t = calculateTrend(r);
+      sumScore += t.score;
+      if (t.score >  0) bullCount++;
+      else if (t.score <  0) bearCount++;
+    }
+    let label, cls;
+    if (sumScore >=  6) { label = '🟢 STRONG BULLISH'; cls = 'strong-bull'; }
+    else if (sumScore >=  2) { label = '🟢 BULLISH';        cls = 'bull';        }
+    else if (sumScore <= -6) { label = '🔴 STRONG BEARISH'; cls = 'strong-bear'; }
+    else if (sumScore <= -2) { label = '🔴 BEARISH';        cls = 'bear';        }
+    else                     { label = '⚪ SIDEWAYS';       cls = 'flat';        }
+    return { label, cls, sumScore, bullCount, bearCount, sampleSize: window.length };
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════════════════════
+  const fmtNum = (n) => {
+    if (n == null || !isFinite(n)) return '—';
+    if (n >= 1e7) return (n / 1e7).toFixed(2) + 'Cr';
+    if (n >= 1e5) return (n / 1e5).toFixed(2) + 'L';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return String(n);
+  };
+  const fmtPx = (n) => (n == null ? '—' : (+n).toFixed(2));
+
+  function rowBgClass(row) {
+    if (row.isATM)  return 'row-bg-atm';
+    if (row.itmCE)  return 'row-bg-itm-ce';
+    if (row.itmPE)  return 'row-bg-itm-pe';
+    return 'row-bg-otm';
+  }
+
+  function render(processed) {
+    const { spot, atm, rows, ts } = processed;
+    const atmIdx = rows.findIndex(r => r.isATM);
+
+    // Global trend
+    const gt = calculateGlobalTrend(processed, atmIdx);
+    const gtEl = document.getElementById('globalTrendValue');
+    gtEl.className = 'gt-value ' + gt.cls;
+    gtEl.textContent = gt.label;
+    document.getElementById('globalTrendDetail').innerHTML =
+      `<span class="pill">spot ${fmtPx(spot)}</span>` +
+      `<span class="pill">ATM ${atm}</span>` +
+      `<span class="pill bull">${gt.bullCount} bullish</span>` +
+      `<span class="pill bear">${gt.bearCount} bearish</span>` +
+      `<span class="pill">sum-score ${gt.sumScore >= 0 ? '+' : ''}${gt.sumScore}</span>` +
+      `<span class="pill">window ATM±3 (${gt.sampleSize})</span>`;
+
+    document.getElementById('topmeta').innerHTML =
+      `<b>${INST}</b> · spot <b>${fmtPx(spot)}</b> · ATM <b>${atm}</b> · ${rows.length} strikes · poll ${POLL_MS}ms`;
+
+    // Find max OI across visible window so bar widths normalize
+    const maxCeOI = Math.max(1, ...rows.map(r => r.ce?.oi || 0));
+    const maxPeOI = Math.max(1, ...rows.map(r => r.pe?.oi || 0));
+
+    // Render rows. Each strike contributes 10 grid cells (4 CE + 1 strike + 4 PE + 1 trend).
+    // We rebuild only the cells (headers stay above).
+    const chain = document.getElementById('chain');
+    // Wipe everything past the 10 header cells
+    while (chain.children.length > 10) chain.removeChild(chain.lastChild);
+
+    for (const r of rows) {
+      const t = calculateTrend(r);
+      const bg = rowBgClass(r);
+      const ceOI = r.ce?.oi || 0;
+      const peOI = r.pe?.oi || 0;
+      const ceOIPct = (r.ce?.oi || 0) > 0 ? ((r.ce.changeOI / r.ce.oi) * 100).toFixed(1) : '0.0';
+      const peOIPct = (r.pe?.oi || 0) > 0 ? ((r.pe.changeOI / r.pe.oi) * 100).toFixed(1) : '0.0';
+      const ceBarW = Math.round((ceOI / maxCeOI) * 50);
+      const peBarW = Math.round((peOI / maxPeOI) * 50);
+      const strikeCls = r.isATM ? '' : (r.itmCE ? 'itm-ce' : r.itmPE ? 'itm-pe' : '');
+
+      chain.insertAdjacentHTML('beforeend', `
+        <div class="cell ${bg}"><div class="oi-cell ce"><span>${fmtNum(ceOI)}</span><div class="bar" style="width:${ceBarW}px"></div></div></div>
+        <div class="cell ${bg} oi-pct ${(r.ce?.changeOI || 0) >= 0 ? 'up' : 'down'}">${ceOIPct}%</div>
+        <div class="cell ${bg}">${fmtNum(r.ce?.volume || 0)}</div>
+        <div class="cell ${bg} ce-ltp">${fmtPx(r.ce?.ltp)}</div>
+        <div class="cell ${bg} center">
+          <div class="strike-cell ${strikeCls}">
+            ${r.isATM ? '<span class="star">★</span>' : ''}<span>${r.strike}</span>
+          </div>
+        </div>
+        <div class="cell ${bg} pe-ltp" style="text-align:left;">${fmtPx(r.pe?.ltp)}</div>
+        <div class="cell ${bg}" style="text-align:left;">${fmtNum(r.pe?.volume || 0)}</div>
+        <div class="cell ${bg} oi-pct ${(r.pe?.changeOI || 0) >= 0 ? 'up' : 'down'}" style="text-align:left;">${peOIPct}%</div>
+        <div class="cell ${bg}" style="text-align:left;"><div class="oi-cell pe"><div class="bar" style="width:${peBarW}px"></div><span>${fmtNum(peOI)}</span></div></div>
+        <div class="cell ${bg} center"><div class="trend"><span class="pill ${t.cls}">${t.label}</span><span class="score">${t.score >= 0 ? '+' : ''}${t.score}</span></div></div>
+      `);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // POLLER
+  // ════════════════════════════════════════════════════════════
+  let _consecErr = 0;
+  async function poll() {
+    const t0 = performance.now();
+    try {
+      const res = await fetch(`${API_BASE}/api/option-chain-full?inst=${INST}&depth=${DEPTH}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      const processed = processOptionData(payload);
+      render(processed);
+      _consecErr = 0;
+      const dur = (performance.now() - t0).toFixed(0);
+      document.getElementById('footer').innerHTML =
+        `<span class="ok">●</span> live · last ${new Date().toLocaleTimeString('en-IN', { hour12: false })} · ${dur}ms`;
+    } catch (err) {
+      _consecErr++;
+      document.getElementById('footer').innerHTML =
+        `<span class="err">●</span> ${err.message} · retry ${_consecErr}`;
+    }
+  }
+  poll();
+  setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>

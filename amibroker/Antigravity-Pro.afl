@@ -1,0 +1,322 @@
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  ANTIGRAVITY PRO — AmiBroker AFL Bridge  [LANDSCAPE]        ║
+// ║                                                              ║
+// ║  SETUP:                                                      ║
+// ║    1. Copy to AmiBroker\Formulas\Custom\                     ║
+// ║    2. Tools > Preferences > AFL > Allow External Execution   ║
+// ║    3. Start server: node server.js                           ║
+// ║    4. Apply to SENSEX chart (any timeframe)                  ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ==================== CONFIGURATION ====================
+SERVER_URL    = "http://localhost:3000";
+API_KEY       = "antigravity";
+POLL_INTERVAL = 2;   // seconds between polls
+
+// ==================== STATIC VAR RESTORE ====================
+lastPollTime = Nz(StaticVarGet("AG_LastPollTime"));
+curSignal    = StaticVarGetText("AG_Signal");
+curConf      = Nz(StaticVarGet("AG_Confidence"));
+curStrike    = StaticVarGetText("AG_Strike");
+curTarget    = StaticVarGetText("AG_Target");
+curPrice     = Nz(StaticVarGet("AG_Price"));
+curEntry     = Nz(StaticVarGet("AG_Entry"));
+curSL        = Nz(StaticVarGet("AG_SL"));
+curT2        = Nz(StaticVarGet("AG_T2"));
+curT3        = Nz(StaticVarGet("AG_T3"));
+curReason    = StaticVarGetText("AG_Reason");
+posType      = StaticVarGetText("AG_PosType");
+posMult      = Nz(StaticVarGet("AG_PosMult"));
+posStatus    = StaticVarGetText("AG_PosStatus");
+posEntry     = Nz(StaticVarGet("AG_PosEntry"));
+posCurrent   = Nz(StaticVarGet("AG_PosCurrent"));
+
+// ==================== POLL SIGNAL ====================
+function PollSignal()
+{
+    global SERVER_URL, API_KEY;
+    url = SERVER_URL + "/api/amibroker/signal?key=" + API_KEY;
+    ih  = InternetOpenURL(url);
+    if (ih)
+    {
+        response = "";
+        while ((line = InternetReadString(ih)) != "")
+            response = response + line;
+        InternetClose(ih);
+
+        if (response != "" AND StrFind(response, "|") > 0)
+        {
+            // SIGNAL|CONFIDENCE|STRIKE|TARGET|PRICE|TIME
+            p1 = StrFind(response, "|");
+            sig = StrLeft(response, p1 - 1);
+            r   = StrMid(response, p1);
+
+            p2 = StrFind(r, "|"); conf = Val(StrLeft(r, p2-1)); r = StrMid(r, p2);
+            p3 = StrFind(r, "|"); strike = StrLeft(r, p3-1);    r = StrMid(r, p3);
+            p4 = StrFind(r, "|"); target = StrLeft(r, p4-1);    r = StrMid(r, p4);
+            p5 = StrFind(r, "|"); price  = Val(StrLeft(r, p5-1));
+
+            StaticVarSetText("AG_Signal",   sig);
+            StaticVarSet    ("AG_Confidence", conf);
+            StaticVarSetText("AG_Strike",   strike);
+            StaticVarSetText("AG_Target",   target);
+            StaticVarSet    ("AG_Price",    price);
+            return sig;
+        }
+    }
+    return "";
+}
+
+// ==================== POLL SIGNAL DETAIL ====================
+function PollSignalDetail()
+{
+    global SERVER_URL, API_KEY;
+    url = SERVER_URL + "/api/signal?key=" + API_KEY;
+    ih  = InternetOpenURL(url);
+    if (ih)
+    {
+        response = "";
+        while ((line = InternetReadString(ih)) != "")
+            response = response + line;
+        InternetClose(ih);
+
+        // Try to parse entry/SL/T2/T3 from JSON
+        // Fields: "entry":148.5,"sl":104.8,"t2":297,"t3":445,"reason":"POWER_TREND"
+        ePos = StrFind(response, "\"entry\":");
+        if (ePos > 0)
+        {
+            eStr = StrMid(response, ePos + 7);
+            StaticVarSet("AG_Entry", Val(StrLeft(eStr, StrFind(eStr, ",") - 1)));
+        }
+        slPos = StrFind(response, "\"sl\":");
+        if (slPos > 0)
+        {
+            slStr = StrMid(response, slPos + 4);
+            StaticVarSet("AG_SL", Val(StrLeft(slStr, StrFind(slStr, ",") - 1)));
+        }
+        t2Pos = StrFind(response, "\"t2\":");
+        if (t2Pos > 0)
+        {
+            t2Str = StrMid(response, t2Pos + 4);
+            StaticVarSet("AG_T2", Val(StrLeft(t2Str, StrFind(t2Str, ",") - 1)));
+        }
+        t3Pos = StrFind(response, "\"t3\":");
+        if (t3Pos > 0)
+        {
+            t3Str = StrMid(response, t3Pos + 4);
+            StaticVarSet("AG_T3", Val(StrLeft(t3Str, StrFind(t3Str, ",") - 1)));
+        }
+        rPos = StrFind(response, "\"reason\":\"");
+        if (rPos > 0)
+        {
+            rStr = StrMid(response, rPos + 9);
+            StaticVarSetText("AG_Reason", StrLeft(rStr, StrFind(rStr, "\"") - 1));
+        }
+    }
+}
+
+// ==================== POLL POSITION ====================
+function PollPosition()
+{
+    global SERVER_URL, API_KEY;
+    url = SERVER_URL + "/api/amibroker/position?key=" + API_KEY;
+    ih  = InternetOpenURL(url);
+    if (ih)
+    {
+        response = "";
+        while ((line = InternetReadString(ih)) != "")
+            response = response + line;
+        InternetClose(ih);
+
+        if (response != "" AND StrFind(response, "|") > 0)
+        {
+            p1 = StrFind(response, "|"); pType = StrLeft(response, p1-1); r = StrMid(response, p1);
+            p2 = StrFind(r, "|"); r = StrMid(r, p2);
+            p3 = StrFind(r, "|"); pEntry   = Val(StrLeft(r, p3-1)); r = StrMid(r, p3);
+            p4 = StrFind(r, "|"); pCurrent = Val(StrLeft(r, p4-1)); r = StrMid(r, p4);
+            p5 = StrFind(r, "|"); pMult    = Val(StrLeft(r, p5-1)); pStatus = StrMid(r, p5);
+
+            StaticVarSetText("AG_PosType",   pType);
+            StaticVarSet    ("AG_PosEntry",   pEntry);
+            StaticVarSet    ("AG_PosCurrent", pCurrent);
+            StaticVarSet    ("AG_PosMult",    pMult);
+            StaticVarSetText("AG_PosStatus",  pStatus);
+        }
+    }
+}
+
+// ==================== SEND ORDER ====================
+function SendOrder(action, symbol, strike, price, qty)
+{
+    global SERVER_URL, API_KEY;
+    url  = SERVER_URL + "/api/amibroker/order";
+    data = "key=" + API_KEY + "&action=" + action + "&symbol=" + symbol +
+           "&strike=" + strike + "&price=" + NumToStr(price, 1.2) +
+           "&quantity=" + NumToStr(qty, 1.0) + "&orderType=MARKET";
+    ih = InternetPostRequest(url, data);
+    if (ih)
+    {
+        resp = "";
+        while ((line = InternetReadString(ih)) != "") resp = resp + line;
+        InternetClose(ih);
+        _TRACE("[AG] Order " + action + " " + strike + " → " + resp);
+        return 1;
+    }
+    _TRACE("[AG] Order FAILED: " + action + " " + symbol);
+    return 0;
+}
+
+// ==================== RATE-LIMITED POLLING ====================
+now = GetPerformanceCounter() / 1000;
+if (now - lastPollTime >= POLL_INTERVAL)
+{
+    StaticVarSet("AG_LastPollTime", now);
+    PollSignal();
+    PollPosition();
+    PollSignalDetail();
+}
+
+// Refresh all vars after poll
+curSignal = StaticVarGetText("AG_Signal");
+curConf   = Nz(StaticVarGet("AG_Confidence"));
+curStrike = StaticVarGetText("AG_Strike");
+curTarget = StaticVarGetText("AG_Target");
+curPrice  = Nz(StaticVarGet("AG_Price"));
+curEntry  = Nz(StaticVarGet("AG_Entry"));
+curSL     = Nz(StaticVarGet("AG_SL"));
+curT2     = Nz(StaticVarGet("AG_T2"));
+curT3     = Nz(StaticVarGet("AG_T3"));
+curReason = StaticVarGetText("AG_Reason");
+posType   = StaticVarGetText("AG_PosType");
+posMult   = Nz(StaticVarGet("AG_PosMult"));
+posStatus = StaticVarGetText("AG_PosStatus");
+posEntry  = Nz(StaticVarGet("AG_PosEntry"));
+posCurrent= Nz(StaticVarGet("AG_PosCurrent"));
+
+// ==================== CHART BACKGROUND ====================
+if (curSignal == "CALL")
+    SetChartBkColor(ColorRGB(0, 25, 0));
+else if (curSignal == "PUT")
+    SetChartBkColor(ColorRGB(30, 0, 0));
+else
+    SetChartBkColor(ColorRGB(12, 12, 20));
+
+// ==================== PRICE PLOT ====================
+Plot(Close, "SENSEX", colorWhite, styleLine | styleThick);
+Plot(MA(Close, 10), "EMA10", colorYellow, styleLine, 0, 0, 0, -1, 1);
+
+// ==================== LANDSCAPE TITLE — ALL IN ONE WIDE ROW ====================
+if (curSignal == "CALL")      sigColor = colorBrightGreen;
+else if (curSignal == "PUT")  sigColor = colorRed;
+else                          sigColor = colorGrey50;
+
+// Confidence bar (20 blocks for landscape width)
+confBar = "";
+confBlocks = floor(curConf / 5);
+for (i = 0; i < 20; i++)
+    confBar = confBar + IIf(i < confBlocks, "█", "░");
+
+// Position P&L
+hasPosStr = posType != "" AND posType != "NONE";
+if (hasPosStr)
+{
+    pnlPct   = (posMult - 1) * 100;
+    posColor = IIf(posMult >= 1, colorBrightGreen, colorRed);
+    posBlock =
+        "  │  POSITION: " + EncodeColor(posColor) + posType + " " + curStrike +
+        EncodeColor(colorWhite) +
+        "  Entry ₹" + NumToStr(posEntry, 1.1) +
+        "  Now ₹"   + NumToStr(posCurrent, 1.1) +
+        "  " + EncodeColor(posColor) + NumToStr(posMult, 1.2) + "x  (" + NumToStr(pnlPct, 1.1) + "%)" +
+        EncodeColor(colorWhite) +
+        "  [" + posStatus + "]";
+}
+else
+    posBlock = "  │  No open position";
+
+// Entry / SL / Targets (from detail poll)
+if (curEntry > 0)
+    levelsBlock =
+        "  Entry ₹" + NumToStr(curEntry, 1.1) +
+        "  │  SL ₹"  + NumToStr(curSL, 1.1) +
+        "  │  2× ₹"  + NumToStr(curT2, 1.1) +
+        "  │  5× ₹"  + NumToStr(curT3, 1.1);
+else
+    levelsBlock = "  Waiting for signal data...";
+
+// ── LANDSCAPE TITLE: single wide line per row ──
+Title =
+    // Row 1: Signal + Conf bar + SENSEX price + time
+    "  ══ ANTIGRAVITY PRO ══  " +
+    EncodeColor(sigColor) + curSignal + EncodeColor(colorWhite) +
+    "  [" + curReason + "]" +
+    "  Strike: " + curStrike +
+    "  Conf: [" + confBar + "] " + NumToStr(curConf, 1.0) + "%" +
+    "  SENSEX: ₹" + NumToStr(curPrice, 1.0) +
+    "  │  " + Now(5) +
+
+    // Row 2: Levels (entry/SL/targets)
+    "\n  " + levelsBlock +
+
+    // Row 3: Position
+    "\n" + posBlock +
+
+    // Row 4: Server status
+    "\n  └─ Server: localhost:3000  │  Mode: LIVE (Dhan)  │  Poll: " + NumToStr(POLL_INTERVAL, 1.0) + "s";
+
+// ==================== BUY / SELL ARROWS ====================
+prevSignal = StaticVarGetText("AG_PrevSignal");
+
+Buy = 0; Sell = 0; Short = 0; Cover = 0;
+
+if (curSignal == "CALL" AND prevSignal != "CALL" AND curConf >= 70)
+{
+    Buy = 1; BuyPrice = Close;
+    _TRACE("[AG] BUY  CALL " + curStrike + "  conf=" + NumToStr(curConf,1.0));
+    PlotShapes(IIf(BarIndex() == LastValue(BarIndex()), shapeUpArrow, shapeNone),
+               colorBrightGreen, 0, Low, -15);
+    PlotText("▲ CALL\n" + curStrike, BarCount-1, Low * 0.998, colorBrightGreen);
+}
+
+if (curSignal == "PUT" AND prevSignal != "PUT" AND curConf >= 70)
+{
+    Short = 1; ShortPrice = Close;
+    _TRACE("[AG] SELL PUT  " + curStrike + "  conf=" + NumToStr(curConf,1.0));
+    PlotShapes(IIf(BarIndex() == LastValue(BarIndex()), shapeDownArrow, shapeNone),
+               colorRed, 0, High, 15);
+    PlotText("▼ PUT\n" + curStrike, BarCount-1, High * 1.002, colorRed);
+}
+
+if (curSignal == "WAIT" AND (prevSignal == "CALL" OR prevSignal == "PUT"))
+{
+    Sell  = (prevSignal == "CALL");
+    Cover = (prevSignal == "PUT");
+}
+
+StaticVarSetText("AG_PrevSignal", curSignal);
+
+// ==================== AUTO-EXECUTE ====================
+autoExec = ParamToggle("Auto-Execute Orders", "OFF|ON", 0);
+
+if (autoExec)
+{
+    if (Buy   AND LastValue(Buy))   SendOrder("BUY",  "SENSEX", curStrike, LastValue(Close), 1);
+    if (Short AND LastValue(Short)) SendOrder("BUY",  "SENSEX", curStrike, LastValue(Close), 1);
+    if (Sell  AND LastValue(Sell))  SendOrder("SELL", "SENSEX", curStrike, LastValue(Close), 1);
+    if (Cover AND LastValue(Cover)) SendOrder("SELL", "SENSEX", curStrike, LastValue(Close), 1);
+}
+
+// ==================== LANDSCAPE SIGNAL BAR (bottom panel) ====================
+// Draw a solid colored bar at fixed y=50 showing BUY/SELL/WAIT
+sigBarColor = IIf(curSignal == "CALL", colorBrightGreen,
+              IIf(curSignal == "PUT",  colorRed, colorGrey50));
+
+Plot(50, "Signal",
+     IIf(BarIndex() == LastValue(BarIndex()), sigBarColor, colorBlack),
+     styleHistogram | styleOwnScale | styleNoLabel, 0, 100);
+
+// ==================== CONFIDENCE AREA (bottom sub-panel) ====================
+Plot(curConf, "Confidence",
+     IIf(curConf >= 80, colorBrightGreen,
+     IIf(curConf >= 65, colorYellow, colorGrey50)),
+     styleLine | styleArea | styleOwnScale | styleNoLabel, 0, 100);

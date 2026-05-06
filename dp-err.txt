@@ -1,0 +1,6 @@
+Fetching daily data for vol...
+Fetching intraday 1h data...
+[yahooFinance.historical] Invalid options ("#/definitions/HistoricalOptions")
+Intraday fetch failed: yahooFinance.historical called with invalid options.
+Using simulated intraday sessions from daily OHLC
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76

@@ -1,0 +1,379 @@
+// ═══════════════════════════════════════════════════════════════════
+// SENSEX EXPIRY DAY — OPTIONS STRATEGY
+// ═══════════════════════════════════════════════════════════════════
+// Chart  : BSE:SENSEX  (or ^BSESN)  — Daily timeframe
+// Method : Black-Scholes option pricing on expiry day open/close
+// Signal : ORB + body ratio + gap analysis + IV regime filter
+// Exits  : EOD settlement (intrinsic) or delta-based stop loss
+//
+// Paste into TradingView Pine Editor → Add to chart on BSE:SENSEX daily
+// ═══════════════════════════════════════════════════════════════════
+
+//@version=5
+indicator("SENSEX Expiry Options", overlay=true, max_labels_count=500, max_lines_count=200)
+
+// ── INPUTS ────────────────────────────────────────────────────────
+grpRisk    = "Risk Management"
+grpFilter  = "Filters"
+grpDisplay = "Display"
+
+i_slPct      = input.float(35,   "Stop Loss %",              minval=5,   maxval=80,  group=grpRisk)
+i_trailAt    = input.float(2.0,  "Trail Trigger (× entry)",  minval=1.2, maxval=5.0, group=grpRisk)
+i_trailLock  = input.float(60,   "Trail Lock %",             minval=30,  maxval=90,  group=grpRisk)
+i_riskAmt    = input.float(10000,"Capital per Trade ₹",      minval=1000,            group=grpRisk)
+i_minHVpct   = input.float(12,   "Min HV% to trade",         minval=5,   maxval=30,  group=grpFilter)
+i_showLabel  = input.bool(true,  "Show trade labels",        group=grpDisplay)
+i_showChain  = input.bool(true,  "Show option chain table",  group=grpDisplay)
+i_showStats  = input.bool(true,  "Show stats table",         group=grpDisplay)
+i_showHV     = input.bool(false, "Plot HV% on chart",        group=grpDisplay)
+
+// ── BLACK-SCHOLES ─────────────────────────────────────────────────
+normCDF(x) =>
+    a1 =  0.254829592
+    a2 = -0.284496736
+    a3 =  1.421413741
+    a4 = -1.453152027
+    a5 =  1.061405429
+    p  =  0.3275911
+    s  = x < 0 ? -1.0 : 1.0
+    ax = math.abs(x)
+    t  = 1.0 / (1.0 + p * ax)
+    y  = 1.0 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*math.exp(-ax*ax)
+    0.5 * (1.0 + s * y)
+
+bsPrice(S, K, T, r, sigma, isCall) =>
+    float result = 0.0
+    if T <= 0.000001
+        result := isCall ? math.max(S - K, 0.0) : math.max(K - S, 0.0)
+    else
+        d1 = (math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * math.sqrt(T))
+        d2 = d1 - sigma * math.sqrt(T)
+        result := isCall
+          ? S * normCDF(d1)  - K * math.exp(-r * T) * normCDF(d2)
+          : K * math.exp(-r * T) * normCDF(-d2) - S * normCDF(-d1)
+    result
+
+// ── HISTORICAL VOLATILITY ─────────────────────────────────────────
+logRet = math.log(close / close[1])
+hv20   = ta.stdev(logRet, 20) * math.sqrt(252)
+baseIV = math.max(hv20 * 1.7, 0.30)
+
+// ── EXPIRY DAY DETECTION ──────────────────────────────────────────
+// SENSEX moved from Friday to Tuesday expiry on 2024-10-28
+cutoverTs = timestamp("2024-10-28 00:00:00 +0530")
+isExpiry  = time >= cutoverTs
+  ? dayofweek == dayofweek.tuesday
+  : dayofweek == dayofweek.friday
+// Note: BSE holidays are not filtered — a few false expiry bars may appear
+
+// ── HIGH-IMPACT EVENT CALENDAR ────────────────────────────────────
+isHighImpact =
+  // Union Budget (Feb 1 from 2017, else last day of Feb/special dates)
+  (month == 2 and dayofmonth == 1  and year >= 2017) or
+  (year == 2016 and month == 2  and dayofmonth == 29) or
+  (year == 2015 and month == 2  and dayofmonth == 28) or
+  (year == 2014 and month == 7  and dayofmonth == 10) or
+  (year == 2013 and month == 2  and dayofmonth == 28) or
+  (year == 2012 and month == 3  and dayofmonth == 16) or
+  (year == 2011 and month == 2  and dayofmonth == 28) or
+  (year == 2010 and month == 2  and dayofmonth == 26) or
+  (year == 2009 and month == 2  and dayofmonth == 16) or
+  (year == 2008 and month == 2  and dayofmonth == 29) or
+  (year == 2007 and month == 2  and dayofmonth == 28) or
+  (year == 2006 and month == 2  and dayofmonth == 28) or
+  (year == 2005 and month == 2  and dayofmonth == 28) or
+  // Election result days
+  (year == 2004 and month == 5  and dayofmonth == 13) or  // BJP shock
+  (year == 2004 and month == 5  and dayofmonth == 14) or
+  (year == 2009 and month == 5  and dayofmonth == 16) or  // UPA landslide
+  (year == 2014 and month == 5  and dayofmonth == 16) or  // Modi landslide
+  (year == 2019 and month == 5  and dayofmonth == 23) or  // Modi 2nd
+  (year == 2024 and month == 6  and dayofmonth ==  4) or  // Election 2024
+  // Major market events
+  (year == 2019 and month == 9  and dayofmonth == 20) or  // Corp tax cut
+  (year == 2020 and month == 3  and dayofmonth == 23) or  // COVID crash
+  (year == 2016 and month == 11 and dayofmonth ==  8) or  // Demonetisation
+  (year == 2008 and month == 10 and dayofmonth == 24) or  // Global crisis
+  (year == 2013 and month == 8  and dayofmonth == 16) or  // Rupee crisis
+  // RBI surprise decisions
+  (year == 2022 and month == 5  and dayofmonth ==  4) or
+  (year == 2022 and month == 6  and dayofmonth ==  8) or
+  (year == 2020 and month == 3  and dayofmonth == 27) or
+  (year == 2020 and month == 5  and dayofmonth == 22)
+
+// ── SIGNAL DETECTION ─────────────────────────────────────────────
+rangePct   = (high  - low)  / open * 100
+bodyPct    = math.abs(close - open) / open * 100
+bodyRatio  = rangePct > 0 ? bodyPct / rangePct : 0.0
+gapPct     = (open - close[1]) / close[1] * 100
+absGap     = math.abs(gapPct)
+isCallDay  = close >= open
+
+// Gap alignment: gap in same direction as close
+gapAligned = (gapPct > 1.0 and isCallDay) or (gapPct < -1.0 and not isCallDay)
+
+// Prior 3-bar trend for gap reversal
+prevTrendUp  = close[1] > close[3]
+gapRevDown   = prevTrendUp  and gapPct < -1.2 and not isCallDay and bodyRatio >= 0.60
+gapRevUp     = not prevTrendUp and gapPct >  1.2 and isCallDay  and bodyRatio >= 0.60
+
+// Signal tiers (same hierarchy as backtest)
+isEventSig  = isHighImpact  and bodyRatio >= 0.55 and rangePct >= 1.0
+isPowerTrend = not isEventSig and bodyRatio >= 0.75 and rangePct >= 1.2 and absGap <= 3
+isGapCont   = not isEventSig and not isPowerTrend and gapAligned and bodyRatio >= 0.60 and rangePct >= 1.0
+isTrend     = not isEventSig and not isPowerTrend and not isGapCont and bodyRatio >= 0.65 and rangePct >= 0.9 and absGap <= 5
+isGapRev    = not isEventSig and not isPowerTrend and not isGapCont and not isTrend and (gapRevDown or gapRevUp) and rangePct >= 1.0
+
+// IV regime filter
+volOK = hv20 >= (i_minHVpct / 100)
+hasSignal = isExpiry and volOK and (isEventSig or isPowerTrend or isGapCont or isTrend or isGapRev)
+
+// Strike selection
+strikeOffset = isEventSig ? 2 : (isPowerTrend or isGapCont) ? 1 : 0
+confLabel    = isEventSig ? "EVENT⚡" : (isPowerTrend or isGapCont) ? "HIGH★" : "MED◆"
+reasonLabel  = isEventSig ? "HIGH_IMPACT" : isPowerTrend ? "POWER_TREND" : isGapCont ? "GAP_CONT" : isTrend ? "TREND" : "GAP_REV"
+
+// ── OPTION PRICING ────────────────────────────────────────────────
+r_rf    = 0.065                         // risk-free rate
+T_entry = 6.0  / (252.0 * 6.5)         // ~6 hrs at open
+T_mid   = 3.0  / (252.0 * 6.5)         // mid-day check
+T_eod   = 0.25 / (252.0 * 6.5)         // near expiry
+
+atm_strike  = math.round(open / 100.0) * 100.0
+strike      = isCallDay
+  ? atm_strike + strikeOffset * 100.0
+  : atm_strike - strikeOffset * 100.0
+iv_trade    = baseIV * (1.0 + strikeOffset * 0.08)
+
+entryOpt    = bsPrice(open,  strike, T_entry, r_rf, iv_trade, isCallDay)
+validTrade  = hasSignal and entryOpt >= 0.5
+
+// ── STOP LOSS LEVEL ───────────────────────────────────────────────
+sqrtT       = math.sqrt(T_entry)
+d1_sl       = (math.log(open / strike) + (r_rf + 0.5*iv_trade*iv_trade)*T_entry) / (iv_trade * sqrtT)
+delta       = isCallDay ? normCDF(d1_sl) : normCDF(-d1_sl)
+spotSLMove  = entryOpt * (i_slPct / 100.0) / math.max(delta, 0.05)
+spotSL      = isCallDay ? open - spotSLMove : open + spotSLMove
+slHit       = validTrade and (isCallDay ? low <= spotSL : high >= spotSL)
+slOptLevel  = entryOpt * (1.0 - i_slPct / 100.0)
+
+// ── TRAILING STOP ─────────────────────────────────────────────────
+// Check if mid-day best-case option hit the trail trigger
+spotMidBest = isCallDay ? high : low
+optMidBest  = bsPrice(spotMidBest, strike, T_mid, r_rf, iv_trade, isCallDay)
+trailHit    = validTrade and optMidBest >= entryOpt * i_trailAt
+trailFloor  = trailHit ? entryOpt + (optMidBest - entryOpt) * (i_trailLock / 100.0) : na
+
+// ── EXIT PRICE ────────────────────────────────────────────────────
+intrinsicEOD = isCallDay
+  ? math.max(close - strike, 0.05)
+  : math.max(strike - close, 0.05)
+
+exitOpt = slHit
+  ? slOptLevel
+  : (not na(trailFloor) and intrinsicEOD < trailFloor)
+    ? trailFloor
+    : intrinsicEOD
+
+multiplier  = validTrade and entryOpt > 0.5 ? exitOpt / entryOpt : na
+pnlPct      = not na(multiplier) ? (multiplier - 1.0) * 100.0 : na
+isWin       = not na(pnlPct) and pnlPct > 0
+exitReason  = slHit ? "SL" : (not na(trailFloor) and exitOpt == trailFloor) ? "TRAIL" : "EOD"
+
+// ── RUNNING STATS ─────────────────────────────────────────────────
+var int   n_trades   = 0
+var int   n_wins     = 0
+var float sum_mult   = 0.0
+var float best_mult  = 0.0
+var float worst_mult = 999.0
+var int   n_event    = 0
+var int   n_high     = 0
+var int   n_med      = 0
+var int   n_sl       = 0
+var int   n_trail    = 0
+var float equity     = i_riskAmt * 10
+
+if validTrade and not na(multiplier)
+    n_trades   += 1
+    sum_mult   += multiplier
+    equity     += i_riskAmt * (multiplier - 1.0)
+    if isWin
+        n_wins += 1
+    if multiplier > best_mult
+        best_mult := multiplier
+    if multiplier < worst_mult
+        worst_mult := multiplier
+    if isEventSig
+        n_event += 1
+    else if isPowerTrend or isGapCont
+        n_high  += 1
+    else
+        n_med   += 1
+    if slHit
+        n_sl += 1
+    if exitReason == "TRAIL"
+        n_trail += 1
+
+// ── TRADE LABELS ─────────────────────────────────────────────────
+if validTrade and not na(multiplier) and i_showLabel
+    mult_str = str.tostring(math.round(multiplier * 100) / 100)
+    pnl_str  = str.tostring(math.round(pnlPct * 10) / 10)
+    en_str   = str.tostring(math.round(entryOpt * 10) / 10)
+    ex_str   = str.tostring(math.round(exitOpt  * 10) / 10)
+    sk_str   = str.tostring(int(strike))
+    hv_str   = str.tostring(math.round(hv20 * 1000) / 10)
+
+    lbl_txt = (isCallDay ? "▲ CALL" : "▼ PUT") + " [" + confLabel + "]\n" +
+              reasonLabel + "\n" +
+              "Strike: " + sk_str + "  IV:" + str.tostring(math.round(iv_trade*1000)/10) + "%\n" +
+              "Entry: ₹" + en_str + "  Exit: ₹" + ex_str + "  [" + exitReason + "]\n" +
+              mult_str + "x   " + (pnlPct >= 0 ? "+" : "") + pnl_str + "%   " +
+              (isWin ? "✓ WIN" : "✗ LOSS")
+
+    lbl_style = isCallDay ? label.style_label_up : label.style_label_down
+    lbl_col   = isWin
+      ? (multiplier >= 3 ? color.new(#00ff88, 0) : color.new(color.green, 15))
+      : color.new(color.red, 15)
+    lbl_y     = isCallDay
+      ? low  - (high - low) * 0.4
+      : high + (high - low) * 0.4
+
+    label.new(bar_index, lbl_y, lbl_txt,
+              style     = lbl_style,
+              color     = lbl_col,
+              textcolor = color.white,
+              size      = size.small)
+
+    // SL line: horizontal line at stop loss spot level
+    if i_showChain
+        line.new(bar_index, spotSL, bar_index + 1, spotSL,
+                 color=color.new(color.orange, 40), width=1, style=line.style_dashed)
+
+// ── SIGNAL ARROWS (always visible even without labels) ───────────
+plotshape(validTrade and isCallDay  and not na(multiplier),
+          title="CALL Signal", style=shape.triangleup,
+          location=location.belowbar, color=color.new(color.lime, 20), size=size.small)
+plotshape(validTrade and not isCallDay and not na(multiplier),
+          title="PUT Signal",  style=shape.triangledown,
+          location=location.abovebar, color=color.new(color.red, 20),  size=size.small)
+
+// ── EXPIRY DAY BACKGROUND ─────────────────────────────────────────
+bgcolor(isExpiry and not hasSignal ? color.new(color.gray, 93) : na,
+        title="Expiry day (no signal)")
+bgcolor(validTrade and isCallDay  ? color.new(color.green, 93) : na,
+        title="Expiry day CALL signal")
+bgcolor(validTrade and not isCallDay ? color.new(color.red, 93) : na,
+        title="Expiry day PUT signal")
+
+// ── HV PLOT (optional) ────────────────────────────────────────────
+plot(i_showHV ? hv20 * 100 : na, title="HV 20-day %",
+     color=color.new(color.orange, 0), linewidth=1)
+hline(i_showHV ? i_minHVpct : na, "Min HV threshold",
+      color=color.new(color.orange, 60), linestyle=hline.style_dashed)
+
+// ── OPTION CHAIN TABLE ────────────────────────────────────────────
+// Shows ATM ±3 strikes with premiums and EOD multipliers — updates on last bar
+if i_showChain and barstate.islast and validTrade[0]
+    var table chainTbl = table.new(position.bottom_left, 6, 9,
+                         border_width=1, border_color=color.new(color.gray, 60),
+                         bgcolor=color.new(#0d1117, 10))
+    // Header
+    table.cell(chainTbl, 0, 0, "Strike",    text_color=color.yellow, bgcolor=color.new(color.navy,20), text_size=size.small)
+    table.cell(chainTbl, 1, 0, "CE Prem",   text_color=color.yellow, bgcolor=color.new(color.navy,20), text_size=size.small)
+    table.cell(chainTbl, 2, 0, "PE Prem",   text_color=color.yellow, bgcolor=color.new(color.navy,20), text_size=size.small)
+    table.cell(chainTbl, 3, 0, "CE Mult",   text_color=color.yellow, bgcolor=color.new(color.navy,20), text_size=size.small)
+    table.cell(chainTbl, 4, 0, "PE Mult",   text_color=color.yellow, bgcolor=color.new(color.navy,20), text_size=size.small)
+    table.cell(chainTbl, 5, 0, "Tag",       text_color=color.yellow, bgcolor=color.new(color.navy,20), text_size=size.small)
+
+    T_show = 6.0 / (252.0 * 6.5)
+    atm_show = math.round(open / 100.0) * 100.0
+    for i = 0 to 6
+        offset = i - 3
+        k      = atm_show + offset * 100.0
+        iv_k   = baseIV * (1.0 + math.abs(offset) * 0.08)
+        ceP    = bsPrice(open, k, T_show, r_rf, iv_k, true)
+        peP    = bsPrice(open, k, T_show, r_rf, iv_k, false)
+        ceI    = math.max(close - k, 0.05)
+        peI    = math.max(k - close, 0.05)
+        ceM    = ceP > 0.5 ? str.tostring(math.round(ceI / ceP * 100) / 100) + "x" : "—"
+        peM    = peP > 0.5 ? str.tostring(math.round(peI / peP * 100) / 100) + "x" : "—"
+        tag    = k == atm_show ? "← ATM" : k == strike ? "← SIGNAL" : ""
+        rowCol = k == strike ? color.new(color.yellow, 70) : k == atm_show ? color.new(color.blue, 80) : color.new(#0d1117, 30)
+
+        table.cell(chainTbl, 0, i+1, str.tostring(int(k)),                    bgcolor=rowCol, text_color=color.white, text_size=size.small)
+        table.cell(chainTbl, 1, i+1, "₹" + str.tostring(math.round(ceP*10)/10), bgcolor=rowCol, text_color=color.teal,  text_size=size.small)
+        table.cell(chainTbl, 2, i+1, "₹" + str.tostring(math.round(peP*10)/10), bgcolor=rowCol, text_color=color.orange,text_size=size.small)
+        table.cell(chainTbl, 3, i+1, ceM,                                    bgcolor=rowCol, text_color=color.teal,  text_size=size.small)
+        table.cell(chainTbl, 4, i+1, peM,                                    bgcolor=rowCol, text_color=color.orange,text_size=size.small)
+        table.cell(chainTbl, 5, i+1, tag,                                    bgcolor=rowCol, text_color=color.yellow, text_size=size.small)
+
+// ── STATS TABLE ───────────────────────────────────────────────────
+if i_showStats and barstate.islast
+    var table sTbl = table.new(position.top_right, 2, 14,
+                     border_width=1, border_color=color.new(color.gray, 50),
+                     bgcolor=color.new(#0d1117, 10))
+
+    winRate = n_trades > 0 ? math.round(n_wins / n_trades * 1000) / 10 : 0.0
+    avgMult = n_trades > 0 ? math.round(sum_mult / n_trades * 100) / 100 : 0.0
+    eqRet   = i_riskAmt > 0 ? math.round((equity / (i_riskAmt * 10) - 1) * 1000) / 10 : 0.0
+
+    hdrBg   = color.new(color.navy, 10)
+    cellBg  = color.new(#0d1117, 30)
+    hdrTxt  = color.yellow
+    valTxt  = color.white
+
+    table.cell(sTbl, 0, 0,  "EXPIRY DAY STATS",  text_color=hdrTxt, bgcolor=hdrBg, text_size=size.small)
+    table.cell(sTbl, 1, 0,  "SENSEX OPTIONS",    text_color=hdrTxt, bgcolor=hdrBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 1,  "Total Trades",      text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 1,  str.tostring(n_trades), text_color=valTxt, bgcolor=cellBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 2,  "Win Rate",          text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 2,  str.tostring(winRate) + "%",
+               text_color=winRate >= 50 ? color.lime : color.red, bgcolor=cellBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 3,  "Avg Multiplier",    text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 3,  str.tostring(avgMult) + "x",
+               text_color=avgMult >= 1 ? color.lime : color.orange, bgcolor=cellBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 4,  "Best Trade",         text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 4,  str.tostring(math.round(best_mult*100)/100) + "x",
+               text_color=color.new(#00ff88, 0), bgcolor=cellBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 5,  "Worst Trade",        text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 5,  str.tostring(math.round(worst_mult*100)/100) + "x",
+               text_color=color.red, bgcolor=cellBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 6,  "Stop Losses",        text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 6,  str.tostring(n_sl),   text_color=color.orange, bgcolor=cellBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 7,  "Trail Exits",        text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 7,  str.tostring(n_trail),text_color=color.teal, bgcolor=cellBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 8,  "── By Confidence ──",text_color=color.gray, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 8,  "",                   bgcolor=cellBg)
+    table.cell(sTbl, 0, 9,  "EVENT⚡",             text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 9,  str.tostring(n_event), text_color=color.yellow, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 0, 10, "HIGH★",               text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 10, str.tostring(n_high),  text_color=color.lime, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 0, 11, "MEDIUM◆",             text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 11, str.tostring(n_med),   text_color=color.orange, bgcolor=cellBg, text_size=size.small)
+
+    table.cell(sTbl, 0, 12, "── Capital ──",        text_color=color.gray, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 12, "",                    bgcolor=cellBg)
+    table.cell(sTbl, 0, 13, "Equity Return",        text_color=hdrTxt, bgcolor=cellBg, text_size=size.small)
+    table.cell(sTbl, 1, 13, str.tostring(eqRet) + "%",
+               text_color=eqRet >= 0 ? color.lime : color.red, bgcolor=cellBg, text_size=size.small)
+
+// ── CURRENT DAY INFO LINE (bottom bar) ────────────────────────────
+if isExpiry and barstate.islast
+    hv_disp = str.tostring(math.round(hv20*1000)/10)
+    iv_disp = str.tostring(math.round(baseIV*1000)/10)
+    sig_disp = hasSignal
+      ? "  SIGNAL: " + (isCallDay ? "CALL" : "PUT") + " [" + confLabel + "]  Strike:" + str.tostring(int(strike)) + "  Entry:₹" + str.tostring(math.round(entryOpt*10)/10)
+      : "  No signal (vol filter or no pattern)"
+    label.new(bar_index, high + (high-low)*0.1,
+              "TODAY EXPIRY  HV:" + hv_disp + "%  IV:" + iv_disp + "%" + sig_disp,
+              style=label.style_label_down,
+              color=hasSignal ? color.new(color.navy, 10) : color.new(color.gray, 30),
+              textcolor=color.yellow, size=size.normal)

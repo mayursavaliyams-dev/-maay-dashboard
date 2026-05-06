@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Antigravity — Trading Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Tailwind via Play CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+        colors: {
+          bg:      '#0B0F1A',
+          sidebar: '#0E1420',
+          card:    '#121826',
+          border:  '#1E293B',
+          accent:  { green: '#00FFB2', red: '#FF4D4D' }
+        },
+        borderRadius: { card: '12px' }
+      }
+    }
+  };
+</script>
+
+<style>
+  body { background:#0B0F1A; color:#e5e7eb; font-family:'Inter', system-ui, sans-serif; }
+  /* hide vertical scrollbar but keep scroll */
+  .nice-scroll::-webkit-scrollbar { width:6px; height:6px; }
+  .nice-scroll::-webkit-scrollbar-track { background:transparent; }
+  .nice-scroll::-webkit-scrollbar-thumb { background:#1E293B; border-radius:3px; }
+  iframe.embed { width:100%; height:100%; border:0; background:#0B0F1A; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div id="root"></div>
+
+<script type="module">
+import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@18.3.1';
+import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
+
+const e = React.createElement;
+
+// ──────────────────────────────────────────────────────────────────
+// API hooks — wrap existing Express endpoints. Zero changes to backend.
+// ──────────────────────────────────────────────────────────────────
+const API = window.location.origin;
+
+function useFetch(path, intervalMs = 5000) {
+  const [data, setData] = useState(null);
+  const [err, setErr]   = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const run = async () => {
+      try {
+        const r = await fetch(`${API}${path}`, { cache: 'no-store' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const j = await r.json();
+        if (alive) { setData(j); setErr(null); }
+      } catch (e) {
+        if (alive) setErr(e.message);
+      }
+    };
+    run();
+    const id = setInterval(run, intervalMs);
+    return () => { alive = false; clearInterval(id); };
+  }, [path, intervalMs]);
+  return { data, err };
+}
+
+// ──────────────────────────────────────────────────────────────────
+// NAVBAR
+// ──────────────────────────────────────────────────────────────────
+function Navbar() {
+  // Spot price + market status — 1s polling, the price-of-truth for the whole UI
+  const { data: sensex } = useFetch('/api/sensex', 1000);
+  // Risk panel changes slowly (token expiry, capital, halts) — 10s is fine
+  const { data: risk }   = useFetch('/api/risk', 10000);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const istHM  = new Date().getUTCHours() * 60 + 330 + new Date().getUTCMinutes();
+  const marketOpen = istHM >= 9*60+15 && istHM <= 15*60+30 && [1,2,3,4,5].includes(new Date().getUTCDay());
+  const navItems = ['Home', 'Portfolio', 'Positions', 'Orders', 'Money'];
+
+  // Notification = anything risk-y the user should look at right now
+  const notifs = [];
+  if (risk?.tokenExpired)               notifs.push({ kind: 'red',    text: 'Dhan token EXPIRED — refresh now' });
+  else if ((risk?.tokenExpiryHours ?? 99) < 2) notifs.push({ kind: 'yellow', text: `Dhan token expires in ${risk.tokenExpiryHours}h` });
+  if (risk?.limitBreached)              notifs.push({ kind: 'red',    text: 'Daily loss limit breached — bot halted' });
+  if ((risk?.sensexConsecLosses ?? 0) >= 3) notifs.push({ kind: 'yellow', text: `${risk.sensexConsecLosses} losses in a row` });
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onDoc = () => setProfileOpen(false);
+    setTimeout(() => document.addEventListener('click', onDoc, { once: true }), 0);
+    return () => document.removeEventListener('click', onDoc);
+  }, [profileOpen]);
+
+  return e('header', {
+    className: 'sticky top-0 z-30 flex items-center justify-between px-5 py-3 bg-sidebar border-b border-border'
+  },
+    // Left: logo + nav
+    e('div', { className: 'flex items-center gap-8' },
+      e('div', { className: 'flex items-center gap-2' },
+        e('div', { className: 'w-7 h-7 rounded-lg bg-gradient-to-br from-accent-green to-cyan-400 flex items-center justify-center text-bg font-bold text-sm' }, 'A'),
+        e('span', { className: 'font-semibold text-sm tracking-wide' }, 'ANTIGRAVITY')
+      ),
+      e('nav', { className: 'flex items-center gap-1 text-[13px]' },
+        navItems.map(label => e('a', {
+          key: label, href: '#',
+          className: 'px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-card transition'
+        }, label))
+      )
+    ),
+    // Right: market status + spot + notifications + profile
+    e('div', { className: 'flex items-center gap-3 text-[12px]' },
+      e('div', { className: 'flex items-center gap-2 px-3 py-1.5 rounded-md bg-card border border-border' },
+        e('span', { className: `w-2 h-2 rounded-full ${marketOpen ? 'bg-accent-green animate-pulse' : 'bg-accent-red'}` }),
+        e('span', { className: 'text-gray-300' }, marketOpen ? 'MARKET OPEN' : 'MARKET CLOSED')
+      ),
+      sensex && e('div', { className: 'text-gray-400' },
+        'SENSEX ', e('b', { className: 'text-white tabular-nums' }, sensex.price)
+      ),
+      // Notifications bell
+      e('div', { className: 'relative group' },
+        e('div', {
+          className: 'w-8 h-8 rounded-md bg-card border border-border flex items-center justify-center cursor-pointer hover:border-gray-600 transition'
+        }, '🔔'),
+        notifs.length > 0 && e('span', {
+          className: 'absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-accent-red text-[10px] font-bold text-white flex items-center justify-center'
+        }, notifs.length),
+        notifs.length > 0 && e('div', {
+          className: 'absolute right-0 top-10 w-72 bg-card border border-border rounded-card p-2 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition'
+        },
+          e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold px-2 py-1' }, 'Alerts'),
+          notifs.map((n, i) => e('div', {
+            key: i,
+            className: `text-[12px] px-2 py-2 rounded-md ${n.kind === 'red' ? 'text-accent-red' : 'text-yellow-400'}`
+          }, '• ' + n.text))
+        )
+      ),
+      // Profile dropdown
+      e('div', { className: 'relative' },
+        e('div', {
+          onClick: ev => { ev.stopPropagation(); setProfileOpen(o => !o); },
+          className: 'w-8 h-8 rounded-full bg-gradient-to-br from-accent-green to-cyan-400 flex items-center justify-center text-xs font-bold text-bg cursor-pointer'
+        }, 'MS'),
+        profileOpen && e('div', {
+          onClick: ev => ev.stopPropagation(),
+          className: 'absolute right-0 top-10 w-52 bg-card border border-border rounded-card py-1 shadow-xl z-40'
+        },
+          [
+            { label: 'Profile',      href: '#',                 hint: 'Mayur Savaliya' },
+            { label: 'Reports',      href: '/dashboard.html#performance', hint: 'P&L · trades · stats' },
+            { label: 'API settings', href: '/api/config',       hint: 'Endpoints + tokens' },
+            { label: 'Backtest',     href: '/api/backtest/real', hint: 'Last results JSON' },
+          ].map(item => e('a', {
+            key: item.label, href: item.href, target: item.href.startsWith('/api') ? '_blank' : '_self',
+            className: 'flex items-center justify-between px-3 py-2 hover:bg-sidebar transition'
+          },
+            e('span', { className: 'text-[13px] text-white' }, item.label),
+            e('span', { className: 'text-[10px] text-gray-500' }, item.hint)
+          )),
+          e('div', { className: 'border-t border-border my-1' }),
+          e('a', {
+            href: '#',
+            className: 'flex items-center px-3 py-2 hover:bg-sidebar transition text-[13px] text-accent-red'
+          }, 'Logout')
+        )
+      )
+    )
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// SIDEBAR — Watchlist (calls /api/watchlist)
+// ──────────────────────────────────────────────────────────────────
+function Sidebar() {
+  const [tab, setTab] = useState(1);
+  const [search, setSearch] = useState('');
+  const { data: wl } = useFetch('/api/watchlist?inst=SENSEX', 5000);
+  const rows = (wl?.rows || []).filter(r =>
+    !search || (r.label || '').toLowerCase().includes(search.toLowerCase())
+  );
+  return e('aside', {
+    style: { width: '260px' },
+    className: 'shrink-0 bg-sidebar border-r border-border flex flex-col h-full'
+  },
+    // Search
+    e('div', { className: 'p-3 border-b border-border' },
+      e('input', {
+        value: search,
+        onChange: ev => setSearch(ev.target.value),
+        placeholder: 'Search SENSEX strikes…',
+        className: 'w-full px-3 py-2 text-[12px] bg-card border border-border rounded-md placeholder-gray-500 focus:outline-none focus:border-gray-500'
+      })
+    ),
+    // Watchlist tabs (4 per spec)
+    e('div', { className: 'flex border-b border-border' },
+      [1,2,3,4].map(t => e('button', {
+        key: t,
+        onClick: () => setTab(t),
+        className: `flex-1 py-2 text-[11px] font-semibold transition ${tab === t ? 'text-accent-green border-b-2 border-accent-green' : 'text-gray-500 hover:text-gray-300'}`
+      }, t))
+    ),
+    // Stock list
+    e('div', { className: 'flex-1 overflow-y-auto nice-scroll' },
+      rows.length === 0
+        ? e('div', { className: 'p-4 text-[12px] text-gray-500' }, wl ? 'No matches' : 'Loading…')
+        : rows.slice(0, 30).map((r, i) => {
+            const chg = parseFloat(r.chngPct || 0);
+            const positive = chg >= 0;
+            return e('div', {
+              key: r.label || i,
+              className: 'flex items-center justify-between px-3 py-2 border-b border-border/50 hover:bg-card cursor-pointer transition'
+            },
+              e('div', { className: 'flex flex-col' },
+                e('span', { className: 'text-[12px] font-medium text-white' }, r.label || '—'),
+                e('span', { className: 'text-[10px] text-gray-500 mt-0.5' }, 'BSE_FNO')
+              ),
+              e('div', { className: 'flex flex-col items-end' },
+                e('span', { className: 'text-[12px] font-medium text-white tabular-nums' }, (r.ltp ?? '—').toString()),
+                e('span', {
+                  className: `text-[10px] tabular-nums ${positive ? 'text-accent-green' : 'text-accent-red'}`
+                }, `${positive ? '+' : ''}${chg.toFixed(2)}%`)
+              )
+            );
+          })
+    )
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// SUMMARY BAR (calls /api/risk + /api/pnl)
+// ──────────────────────────────────────────────────────────────────
+function SummaryBar() {
+  const { data: risk } = useFetch('/api/risk', 5000);
+  const { data: pnl }  = useFetch('/api/pnl',  10000);
+  if (!risk) return null;
+
+  // Total P&L = sum of all closed trades' P&L (lifetime). /api/pnl returns netPnl.
+  const totalPnl = pnl?.netPnl ?? null;
+  // Margin available = capital - capital tied up in open positions
+  const openCount = (risk.sensexTradesToday || 0) + (risk.niftyTradesToday || 0);
+  const capital   = risk.capital || 0;
+  const marginUsed = openCount * (capital * 0.05);  // 5% per trade per env
+  const marginAvail = Math.max(0, capital + (totalPnl || 0) - marginUsed);
+
+  const cards = [
+    { label: 'Total P&L', value: totalPnl != null ? `₹${totalPnl.toLocaleString('en-IN')}` : '—',
+      tone: totalPnl > 0 ? 'green' : totalPnl < 0 ? 'red' : 'gray' },
+    { label: "Today's P&L", value: risk.totalTodayPnl != null ? `₹${risk.totalTodayPnl.toLocaleString('en-IN')}` : '—',
+      tone: risk.totalTodayPnl > 0 ? 'green' : risk.totalTodayPnl < 0 ? 'red' : 'gray' },
+    { label: 'Open Positions', value: openCount, tone: 'gray' },
+    { label: 'Margin Available', value: `₹${marginAvail.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, tone: 'gray' },
+    { label: 'Token Expires', value: risk.tokenExpiryHours != null ? `${risk.tokenExpiryHours}h` : '—',
+      tone: (risk.tokenExpiryHours ?? 99) < 2 ? 'red' : (risk.tokenExpiryHours ?? 99) < 6 ? 'yellow' : 'gray' }
+  ];
+  const toneColor = { green: 'text-accent-green', red: 'text-accent-red', yellow: 'text-yellow-400', gray: 'text-white' };
+  return e('div', { className: 'grid grid-cols-5 gap-3' },
+    cards.map(c => e('div', { key: c.label, className: 'bg-card border border-border rounded-card p-4 hover:border-gray-600 transition' },
+      e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide font-semibold' }, c.label),
+      e('div', { className: `text-xl font-semibold mt-2 tabular-nums ${toneColor[c.tone]}` }, c.value)
+    ))
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// ACTION CARDS (UI only, no logic)
+// ──────────────────────────────────────────────────────────────────
+function ActionCards() {
+  const items = [
+    { label: 'Equities',    icon: '📈', tint: 'from-blue-500/20 to-blue-500/5'   },
+    { label: 'Options',     icon: '⚡', tint: 'from-emerald-500/20 to-emerald-500/5' },
+    { label: 'Futures',     icon: '🎯', tint: 'from-purple-500/20 to-purple-500/5' },
+    { label: 'ETFs',        icon: '📊', tint: 'from-pink-500/20 to-pink-500/5'    },
+    { label: 'Commodities', icon: '🥇', tint: 'from-amber-500/20 to-amber-500/5'  }
+  ];
+  return e('div', { className: 'grid grid-cols-5 gap-3' },
+    items.map(it => e('div', {
+      key: it.label,
+      className: `bg-card border border-border rounded-card p-4 cursor-pointer hover:border-gray-600 transition bg-gradient-to-br ${it.tint}`
+    },
+      e('div', { className: 'text-2xl mb-2' }, it.icon),
+      e('div', { className: 'text-sm font-semibold text-white' }, it.label)
+    ))
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// TRADING TOOLS
+// ──────────────────────────────────────────────────────────────────
+function TradingTools({ onOpenChain }) {
+  const tools = [
+    { label: 'Option Chain',     desc: 'Live strike-by-strike with trend',  href: '/chain-trend.html' },
+    { label: 'Strategy Builder', desc: 'Backtest your own params',         href: '/dashboard.html#strategy' },
+    { label: 'Price Alerts',     desc: 'Browser push on threshold cross',  href: '/dashboard.html#alerts' },
+    { label: 'TradingView Webhook', desc: 'POST to /api/webhook/tradingview', href: '/dashboard.html#webhook' }
+  ];
+  return e('div', { className: 'grid grid-cols-4 gap-3' },
+    tools.map(t => e('a', {
+      key: t.label,
+      href: t.href,
+      target: t.label === 'Option Chain' ? '_self' : '_self',
+      className: 'bg-card border border-border rounded-card p-4 hover:border-accent-green/50 transition group'
+    },
+      e('div', { className: 'text-sm font-semibold text-white group-hover:text-accent-green' }, t.label),
+      e('div', { className: 'text-[11px] text-gray-500 mt-1' }, t.desc)
+    ))
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// NATIVE REACT: SIGNAL CARD  (replaces iframe Signal Check section)
+// Reads /api/sensex — same endpoint, no backend change.
+// ──────────────────────────────────────────────────────────────────
+function SignalCard() {
+  // Signal + spot — 1s polling. Server caches Dhan response for 1.2s anyway,
+  // so most of these hits are cache reads (no rate-limit pressure).
+  const { data: s } = useFetch('/api/sensex', 1000);
+  if (!s) return e('div', { className: 'bg-card border border-border rounded-card p-5 text-gray-500 text-sm' }, 'Loading signal…');
+
+  const signal = s.signal || 'WAIT';
+  const isCall = signal === 'CALL', isPut = signal === 'PUT';
+  const tone = isCall ? 'bg-accent-green text-bg' : isPut ? 'bg-accent-red text-white' : 'bg-card border border-border text-gray-400';
+  const conf = Number(s.confidence || 0);
+  const orbReady = s.orbHigh !== '--' && s.orbLow !== '--';
+
+  return e('div', { className: 'bg-card border border-border rounded-card p-5' },
+    // Top row: signal badge + spot
+    e('div', { className: 'flex items-start justify-between' },
+      e('div', null,
+        e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold' }, 'Live Signal'),
+        e('div', { className: `inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-lg font-bold text-lg ${tone}` },
+          isCall ? '🚀' : isPut ? '🔻' : '⏸',
+          e('span', null, signal)
+        ),
+        signal !== 'WAIT' && e('div', { className: 'mt-3 flex items-center gap-3' },
+          e('div', null,
+            e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Suggested Strike'),
+            e('div', { className: 'text-base font-semibold text-white tabular-nums' }, s.suggestedStrike)
+          ),
+          e('div', null,
+            e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Target Mult'),
+            e('div', { className: 'text-base font-semibold text-accent-green tabular-nums' }, s.target)
+          ),
+          e('div', null,
+            e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Confidence'),
+            e('div', { className: 'text-base font-semibold text-white tabular-nums' }, `${conf}%`)
+          )
+        )
+      ),
+      e('div', { className: 'text-right' },
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'SENSEX'),
+        e('div', { className: 'text-3xl font-bold text-white tabular-nums' }, s.price),
+        e('div', { className: 'text-[11px] text-gray-500 mt-1' }, s.time)
+      )
+    ),
+    // Bottom row: ORB + VWAP + bot status
+    e('div', { className: 'mt-4 pt-4 border-t border-border grid grid-cols-4 gap-3 text-[12px]' },
+      e('div', null,
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'ORB High'),
+        e('div', { className: 'text-white font-medium tabular-nums' }, orbReady ? s.orbHigh : '—')
+      ),
+      e('div', null,
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'ORB Low'),
+        e('div', { className: 'text-white font-medium tabular-nums' }, orbReady ? s.orbLow : '—')
+      ),
+      e('div', null,
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'VWAP'),
+        e('div', { className: 'text-white font-medium tabular-nums' }, s.vwap)
+      ),
+      e('div', null,
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Bot'),
+        e('div', { className: `font-medium ${s.botRunning ? 'text-accent-green' : 'text-gray-500'}` },
+          s.botRunning ? '● RUNNING' : '○ IDLE'
+        )
+      )
+    )
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// NATIVE REACT: POSITION CARD  (replaces iframe position section)
+// Reads /api/position — same endpoint, no backend change.
+// ──────────────────────────────────────────────────────────────────
+function PositionCard() {
+  // Open-position P&L — 1s polling. When you have skin in the game,
+  // every second matters; otherwise the endpoint just returns "no open".
+  const { data: p } = useFetch('/api/position', 1000);
+  if (!p) return null;
+
+  if (!p.open) {
+    return e('div', { className: 'bg-card border border-border rounded-card p-5' },
+      e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold mb-2' }, 'Position'),
+      e('div', { className: 'flex items-center gap-2 text-gray-500 text-sm' },
+        e('span', { className: 'w-2 h-2 rounded-full bg-gray-600' }),
+        'No open position'
+      ),
+      p.closed && p.closed.length > 0 && e('div', { className: 'mt-4 pt-4 border-t border-border' },
+        e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold mb-2' }, 'Last 5 closed'),
+        e('div', { className: 'space-y-1' },
+          p.closed.slice(-5).reverse().map((c, i) => {
+            const pnlPct = parseFloat(c.finalPnlPct || c.pnlPct || 0);
+            return e('div', { key: i, className: 'flex justify-between text-[12px] py-1' },
+              e('span', { className: 'text-gray-300' }, `${c.type || '?'} ${c.strike || ''}`),
+              e('span', { className: `tabular-nums font-medium ${pnlPct >= 0 ? 'text-accent-green' : 'text-accent-red'}` },
+                `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%`
+              )
+            );
+          })
+        )
+      )
+    );
+  }
+
+  const pos = p.position || p;
+  const entry  = parseFloat(pos.entryPrice || pos.entry || 0);
+  const curr   = parseFloat(pos.currentPrice || pos.current || entry);
+  const mult   = entry > 0 ? curr / entry : 1;
+  const pnlPct = (mult - 1) * 100;
+  const profit = pnlPct >= 0;
+
+  return e('div', { className: 'bg-card border border-border rounded-card p-5' },
+    e('div', { className: 'flex items-start justify-between mb-3' },
+      e('div', null,
+        e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold' }, 'Open Position'),
+        e('div', { className: 'flex items-center gap-2 mt-2' },
+          e('span', { className: `text-lg font-bold ${pos.type === 'CE' ? 'text-accent-green' : 'text-accent-red'}` }, pos.type || '?'),
+          e('span', { className: 'text-base text-white tabular-nums' }, pos.strike || '?')
+        )
+      ),
+      e('div', { className: `text-right` },
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Live P&L'),
+        e('div', { className: `text-2xl font-bold tabular-nums ${profit ? 'text-accent-green' : 'text-accent-red'}` },
+          `${profit ? '+' : ''}${pnlPct.toFixed(1)}%`
+        ),
+        e('div', { className: `text-[12px] tabular-nums ${profit ? 'text-accent-green/80' : 'text-accent-red/80'}` },
+          `${mult.toFixed(3)}×`
+        )
+      )
+    ),
+    // Entry / Current / SL / Status row
+    e('div', { className: 'grid grid-cols-4 gap-3 text-[12px] pt-3 border-t border-border' },
+      e('div', null,
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Entry'),
+        e('div', { className: 'text-white font-medium tabular-nums' }, `₹${entry.toFixed(2)}`)
+      ),
+      e('div', null,
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Current'),
+        e('div', { className: 'text-white font-medium tabular-nums' }, `₹${curr.toFixed(2)}`)
+      ),
+      e('div', null,
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Stop Loss'),
+        e('div', { className: 'text-accent-red font-medium tabular-nums' },
+          pos.sl ? `₹${parseFloat(pos.sl).toFixed(2)}` : '—'
+        )
+      ),
+      e('div', null,
+        e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Status'),
+        e('div', { className: 'text-yellow-400 font-medium' }, pos.status || 'OPEN')
+      )
+    )
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// TRADING MODULE — tabs over a single container (Option Chain / Chart / Signals)
+// Reuses your existing pages via iframe — zero logic rewrite.
+// ──────────────────────────────────────────────────────────────────
+function TradingModule() {
+  const [tab, setTab] = useState('signals');
+  const tabs = [
+    { id: 'signals', label: 'Signals',      kind: 'native' },
+    { id: 'chain',   label: 'Option Chain', kind: 'iframe', src: '/chain-trend.html' },
+    { id: 'chart',   label: 'Chart',        kind: 'iframe', src: '/dashboard.html#chart' },
+    { id: 'full',    label: 'Full System',  kind: 'iframe', src: '/dashboard.html' }
+  ];
+  const active = tabs.find(t => t.id === tab) || tabs[0];
+
+  return e('div', { className: 'bg-card border border-border rounded-card overflow-hidden' },
+    // Tab bar
+    e('div', { className: 'flex items-center justify-between border-b border-border bg-sidebar' },
+      e('div', { className: 'flex' },
+        tabs.map(t => e('button', {
+          key: t.id, onClick: () => setTab(t.id),
+          className: `px-5 py-3 text-[13px] font-medium transition ${tab === t.id ? 'text-accent-green border-b-2 border-accent-green bg-card' : 'text-gray-400 hover:text-white'}`
+        }, t.label))
+      ),
+      e('a', { href: active.src || '/dashboard.html', target: '_blank',
+        className: 'text-[11px] text-gray-500 hover:text-accent-green px-4'
+      }, 'Open in new tab ↗')
+    ),
+    // Tab body
+    e('div', { style: { height: '720px' }, className: 'overflow-auto nice-scroll' },
+      active.kind === 'native'
+        ? e('div', { className: 'p-4 grid grid-cols-2 gap-4' }, e(SignalCard), e(PositionCard))
+        : e('iframe', { className: 'embed', src: active.src, style: { height: '100%' } })
+    )
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// RIGHT PANEL — Market movers (uses /api/watchlist data)
+// ──────────────────────────────────────────────────────────────────
+function RightPanel() {
+  const { data: wl } = useFetch('/api/watchlist?inst=SENSEX', 5000);
+  const rows = (wl?.rows || []).filter(r => r.chngPct != null);
+  const gainers = [...rows].sort((a, b) => (b.chngPct || 0) - (a.chngPct || 0)).slice(0, 5);
+  const losers  = [...rows].sort((a, b) => (a.chngPct || 0) - (b.chngPct || 0)).slice(0, 5);
+
+  const Section = (title, items, accent) =>
+    e('div', { className: 'bg-card border border-border rounded-card p-3' },
+      e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold mb-2' }, title),
+      items.length === 0
+        ? e('div', { className: 'text-[12px] text-gray-600' }, 'No data')
+        : items.map((r, i) => e('div', {
+            key: i, className: 'flex justify-between py-1.5 border-b border-border/40 last:border-0'
+          },
+            e('span', { className: 'text-[12px] text-white truncate max-w-[120px]' }, r.label || '—'),
+            e('span', { className: `text-[12px] tabular-nums font-medium ${accent}` },
+              `${(r.chngPct || 0) >= 0 ? '+' : ''}${(r.chngPct || 0).toFixed(2)}%`
+            )
+          ))
+    );
+
+  return e('aside', { className: 'w-72 shrink-0 bg-sidebar border-l border-border p-3 flex flex-col gap-3 overflow-y-auto nice-scroll' },
+    Section('Top Gainers',  gainers, 'text-accent-green'),
+    Section('Top Losers',   losers,  'text-accent-red'),
+    e('div', { className: 'bg-card border border-border rounded-card p-3' },
+      e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold mb-2' }, 'Quick Links'),
+      e('div', { className: 'flex flex-col gap-2 text-[12px]' },
+        e('a', { href: '/chain-trend.html',  className: 'text-gray-300 hover:text-accent-green' }, '→ Option chain (trend)'),
+        e('a', { href: '/dashboard.html',    className: 'text-gray-300 hover:text-accent-green' }, '→ Full dashboard'),
+        e('a', { href: '/api/health',        className: 'text-gray-300 hover:text-accent-green', target: '_blank' }, '→ API health'),
+        e('a', { href: '/api/risk',          className: 'text-gray-300 hover:text-accent-green', target: '_blank' }, '→ Risk JSON')
+      )
+    )
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// ROOT LAYOUT
+// ──────────────────────────────────────────────────────────────────
+function App() {
+  return e(React.Fragment, null,
+    e(Navbar),
+    e('div', { className: 'flex h-[calc(100vh-58px)]' },
+      e(Sidebar),
+      // Main scroll area
+      e('main', { className: 'flex-1 overflow-y-auto nice-scroll p-4 space-y-4' },
+        e(SummaryBar),
+        e('div', null,
+          e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold mb-2' }, 'Trade'),
+          e(ActionCards)
+        ),
+        e('div', null,
+          e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold mb-2' }, 'Trading Tools'),
+          e(TradingTools)
+        ),
+        // Trading Module — single container with tabs (Signals / Chain / Chart / Full)
+        e('div', null,
+          e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold mb-2' }, 'Trading Module'),
+          e(TradingModule)
+        )
+      ),
+      e(RightPanel)
+    )
+  );
+}
+
+createRoot(document.getElementById('root')).render(e(App));
+</script>
+
+</body>
+</html>

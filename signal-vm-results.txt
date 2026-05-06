@@ -1,0 +1,60 @@
+
+================================================================================
+  STRATEGY SIGNAL vs BEST-POSSIBLE MULTIPLIER  — 1200 EXPIRY WEEKS
+================================================================================
+Threshold   Possible  Caught    Missed    Catch%    Notes
+--------------------------------------------------------------------------------
+5X+         1         1         0         100.0%    
+3X+         6         5         1         83.3%     
+2X+         31        29        2         93.5%     
+1.5X+       96        81        15        84.4%     
+1X+         237       172       65        72.6%     
+================================================================================
+
+
+── CAUGHT: 2X+ weeks where strategy fired correct signal ──────────────────
+Date        BestMult  Signal  Confidence  Reason              Event
+--------------------------------------------------------------------------------
+2004-05-14  7.65x     PUT     HIGH        POWER_TREND         ELECTION BJP shock
+2019-09-20  4.74x     CALL    EVENT       HIGH_IMPACT_EVENT   CORP TAX CUT
+2004-07-09  3.97x     CALL    HIGH        POWER_TREND         
+2013-08-16  3.71x     PUT     EVENT       HIGH_IMPACT_EVENT   RUPEE CRISIS
+2007-02-23  3.03x     PUT     HIGH        POWER_TREND         
+2008-06-20  2.73x     PUT     HIGH        POWER_TREND         
+2010-02-05  2.68x     PUT     HIGH        POWER_TREND         
+2006-05-19  2.57x     PUT     MEDIUM      TREND               
+2020-06-12  2.57x     CALL    MEDIUM      TREND               
+2011-08-12  2.39x     PUT     HIGH        POWER_TREND         
+2021-01-29  2.38x     PUT     HIGH        POWER_TREND         
+2011-06-24  2.36x     CALL    HIGH        POWER_TREND         
+2008-01-18  2.35x     PUT     MEDIUM      TREND               
+2008-10-24  2.32x     PUT     EVENT       HIGH_IMPACT_EVENT   GLOBAL CRISIS
+2011-01-07  2.29x     PUT     HIGH        POWER_TREND         
+2005-01-28  2.27x     CALL    HIGH        POWER_TREND         
+2006-04-07  2.17x     PUT     MEDIUM      TREND               
+2006-06-09  2.16x     CALL    HIGH        POWER_TREND         
+2015-03-13  2.15x     PUT     HIGH        POWER_TREND         
+2008-10-17  2.15x     PUT     HIGH        POWER_TREND         
+2013-05-31  2.08x     PUT     HIGH        POWER_TREND         
+2026-03-02  2.08x     CALL    MEDIUM      TREND               
+2016-01-29  2.07x     CALL    HIGH        POWER_TREND         
+2022-09-30  2.04x     CALL    EVENT       HIGH_IMPACT_EVENT   
+2018-10-05  2.03x     PUT     HIGH        POWER_TREND         
+2011-02-04  2.02x     PUT     MEDIUM      TREND               
+2007-01-12  2.01x     CALL    HIGH        POWER_TREND         
+2015-01-30  2.01x     PUT     HIGH        POWER_TREND         
+2008-01-25  2.00x     CALL    HIGH        POWER_TREND         
+
+
+── MISSED: 2X+ weeks where strategy had NO signal (or wrong direction) ────
+Date        BestMult  Status              Move%   Range%  Event
+--------------------------------------------------------------------------------
+2020-03-13  4.25x     NO_SIGNAL           +9.26%  17.24%  
+2014-05-09  2.71x     NO_SIGNAL           +2.77%  3.27%   
+
+
+── SIGNAL QUALITY: of all weeks strategy fired correct-direction signal ────
+  Total correct-direction signals : 262
+  Of those, 1X+ multiplier weeks  : 172  (65.6%)
+  Of those, 2X+ multiplier weeks  : 29  (11.1%)
+================================================================================

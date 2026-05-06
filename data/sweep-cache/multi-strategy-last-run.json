@@ -1,0 +1,2382 @@
+{
+  "NIFTY": {
+    "ORB+VWAP": {
+      "trades": [
+        {
+          "date": "2026-04-01",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22300,
+          "offset": 10,
+          "premium": 290.1,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -814.2600000000027
+        },
+        {
+          "date": "2026-04-02",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22000,
+          "offset": 4,
+          "premium": 427.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1460.1565500000027
+        },
+        {
+          "date": "2026-04-06",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22000,
+          "offset": 12,
+          "premium": 429.1,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1465.396902000004
+        },
+        {
+          "date": "2026-04-07",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23800,
+          "offset": 18,
+          "premium": 279.1,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -974.1139020000003
+        },
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24100,
+          "offset": 3,
+          "premium": 425.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1454.261154000002
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23750,
+          "offset": 1,
+          "premium": 388.25,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1077.2399999999989
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24100,
+          "offset": 2,
+          "premium": 418,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1429.04196
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23850,
+          "offset": 3,
+          "premium": 425,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 3520.1350000000007
+        },
+        {
+          "date": "2026-04-15",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24100,
+          "offset": 1,
+          "premium": 344.8,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1189.2958560000025
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24300,
+          "offset": 1,
+          "premium": 351.95,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 2722.7150000000024
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24500,
+          "offset": 1,
+          "premium": 326,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1127.7217200000005
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24550,
+          "offset": 1,
+          "premium": 319.35,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 2285.1349999999966
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24350,
+          "offset": 1,
+          "premium": 311,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1078.5934199999986
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24300,
+          "offset": 1,
+          "premium": 297,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1032.740340000004
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24000,
+          "offset": 1,
+          "premium": 276.1,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 2926.294999999999
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24100,
+          "offset": 1,
+          "premium": 273.25,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -954.9538650000013
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24200,
+          "offset": 1,
+          "premium": 205.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -734.2040370000001
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23800,
+          "offset": 1,
+          "premium": 157.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -575.5196279999994
+        }
+      ],
+      "counts": {
+        "signals": 24,
+        "trades": 18,
+        "noFit": 6,
+        "noSig": 3,
+        "noData": 3
+      }
+    },
+    "EMA-9/21": {
+      "trades": [
+        {
+          "date": "2026-04-01",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23800,
+          "offset": 18,
+          "premium": 318.15,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1102.0112430000017
+        },
+        {
+          "date": "2026-04-02",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22000,
+          "offset": 5,
+          "premium": 427.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1460.1565500000027
+        },
+        {
+          "date": "2026-04-06",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22000,
+          "offset": 12,
+          "premium": 400.05,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1370.2517610000014
+        },
+        {
+          "date": "2026-04-07",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22250,
+          "offset": 11,
+          "premium": 412.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1411.683294
+        },
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23850,
+          "offset": 1,
+          "premium": 412.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1412.1745770000005
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24050,
+          "offset": 4,
+          "premium": 435,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1484.7207000000017
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23900,
+          "offset": 1,
+          "premium": 395.95,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1356.823359000004
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23600,
+          "offset": 1,
+          "premium": 428.6,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1463.7592920000002
+        },
+        {
+          "date": "2026-04-15",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24250,
+          "offset": 1,
+          "premium": 418.45,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1430.5158090000011
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24350,
+          "offset": 1,
+          "premium": 374.35,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1286.0786070000015
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24250,
+          "offset": 1,
+          "premium": 369,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 3280.349999999999
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24300,
+          "offset": 1,
+          "premium": 319.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1107.5791170000007
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24450,
+          "offset": 1,
+          "premium": 309.95,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1075.154439
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24450,
+          "offset": 1,
+          "premium": 318,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1101.5199600000014
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24200,
+          "offset": 1,
+          "premium": 293.25,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1020.4582650000026
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24050,
+          "offset": 1,
+          "premium": 308.95,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1071.879219
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24100,
+          "offset": 1,
+          "premium": 264.75,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -927.1144950000024
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24100,
+          "offset": 1,
+          "premium": 190.45,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -683.7656490000016
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24200,
+          "offset": 1,
+          "premium": 153.65,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -563.2375530000018
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24000,
+          "offset": 1,
+          "premium": 142.75,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -527.5376550000009
+        }
+      ],
+      "counts": {
+        "signals": 27,
+        "trades": 20,
+        "noFit": 7,
+        "noSig": 0,
+        "noData": 3
+      }
+    },
+    "EMA+ORB": {
+      "trades": [
+        {
+          "date": "2026-04-01",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22300,
+          "offset": 9,
+          "premium": 290.1,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -814.2600000000027
+        },
+        {
+          "date": "2026-04-02",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22000,
+          "offset": 4,
+          "premium": 427.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1460.1565500000027
+        },
+        {
+          "date": "2026-04-06",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23800,
+          "offset": 18,
+          "premium": 307.75,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1067.9489550000008
+        },
+        {
+          "date": "2026-04-07",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23800,
+          "offset": 17,
+          "premium": 297,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1032.740340000004
+        },
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24100,
+          "offset": 2,
+          "premium": 440.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1502.4068880000032
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23700,
+          "offset": 1,
+          "premium": 418.1,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1429.3694820000017
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24100,
+          "offset": 2,
+          "premium": 433,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1478.1702599999983
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23900,
+          "offset": 3,
+          "premium": 431.2,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1207.629999999997
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24250,
+          "offset": 1,
+          "premium": 337.2,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1164.404184000002
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24300,
+          "offset": 1,
+          "premium": 368.45,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1628.7649999999996
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24500,
+          "offset": 1,
+          "premium": 336.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1161.7840080000014
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24600,
+          "offset": 1,
+          "premium": 310.45,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1011.9800000000012
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24350,
+          "offset": 1,
+          "premium": 308.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1071.715458000001
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24350,
+          "offset": 1,
+          "premium": 294.95,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1026.026138999998
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23950,
+          "offset": 1,
+          "premium": 284.8,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -992.7826559999988
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24150,
+          "offset": 1,
+          "premium": 258.15,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -905.4980430000018
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24200,
+          "offset": 1,
+          "premium": 202.35,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -722.7407670000005
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24300,
+          "offset": 1,
+          "premium": 201.45,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -719.7930690000003
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23750,
+          "offset": 1,
+          "premium": 151.55,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -556.3595910000005
+        }
+      ],
+      "counts": {
+        "signals": 24,
+        "trades": 19,
+        "noFit": 5,
+        "noSig": 3,
+        "noData": 3
+      }
+    },
+    "HL-Reversal": {
+      "trades": [
+        {
+          "date": "2026-04-01",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23800,
+          "offset": 20,
+          "premium": 286.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -998.3505300000015
+        },
+        {
+          "date": "2026-04-06",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23350,
+          "offset": 15,
+          "premium": 413.75,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1415.1222750000024
+        },
+        {
+          "date": "2026-04-07",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 22250,
+          "offset": 13,
+          "premium": 412.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1411.683294
+        },
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23950,
+          "offset": 1,
+          "premium": 393.35,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -213.2050000000018
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24050,
+          "offset": 5,
+          "premium": 440,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1501.0968000000012
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23950,
+          "offset": 1,
+          "premium": 392,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1343.8862399999996
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23600,
+          "offset": 2,
+          "premium": 393,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1347.1614599999996
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24300,
+          "offset": 1,
+          "premium": 359.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1238.7516780000021
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24200,
+          "offset": 1,
+          "premium": 324.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1124.118977999999
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24400,
+          "offset": 1,
+          "premium": 324,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1121.1712800000007
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24450,
+          "offset": 1,
+          "premium": 308.35,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1069.9140870000022
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24400,
+          "offset": 1,
+          "premium": 333.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1153.4321970000028
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24200,
+          "offset": 1,
+          "premium": 294.25,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1023.7334850000025
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24000,
+          "offset": 1,
+          "premium": 323.25,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1118.7148650000026
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24050,
+          "offset": 1,
+          "premium": 222.15,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -787.5901230000006
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24100,
+          "offset": 1,
+          "premium": 198.2,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -709.1486040000007
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 24150,
+          "offset": 1,
+          "premium": 140.45,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -520.0046490000004
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 23900,
+          "offset": 1,
+          "premium": 158,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -577.4847600000008
+        }
+      ],
+      "counts": {
+        "signals": 26,
+        "trades": 18,
+        "noFit": 8,
+        "noSig": 1,
+        "noData": 3
+      }
+    },
+    "HL+Volume": {
+      "trades": [
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 24550,
+          "offset": 11,
+          "premium": 43.6,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -202.79959200000025
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 23850,
+          "offset": 9,
+          "premium": 45,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -207.3849
+        }
+      ],
+      "counts": {
+        "signals": 9,
+        "trades": 2,
+        "noFit": 7,
+        "noSig": 18,
+        "noData": 3
+      }
+    }
+  },
+  "BANKNIFTY": {
+    "ORB+VWAP": {
+      "trades": [
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57100,
+          "offset": 19,
+          "premium": 955.85,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 3032.46
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 53900,
+          "offset": 13,
+          "premium": 946.85,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 5918.5799999999945
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57400,
+          "offset": 17,
+          "premium": 960,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1212.0000000000027
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 56800,
+          "offset": 19,
+          "premium": 826.4,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 10287.899999999998
+        },
+        {
+          "date": "2026-04-15",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55600,
+          "offset": 7,
+          "premium": 943,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1485.4765200000008
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55600,
+          "offset": 9,
+          "premium": 945,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1488.4998000000007
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57500,
+          "offset": 13,
+          "premium": 952.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1499.837100000002
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 58000,
+          "offset": 11,
+          "premium": 938,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1477.9183200000011
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 58000,
+          "offset": 9,
+          "premium": 948,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 3100.68
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 56500,
+          "offset": 5,
+          "premium": 955.3,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1504.0696920000005
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57800,
+          "offset": 10,
+          "premium": 940.65,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1481.9241660000012
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55400,
+          "offset": 7,
+          "premium": 905.45,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1012.7700000000038
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55800,
+          "offset": 3,
+          "premium": 926.15,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1460.0053860000003
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57000,
+          "offset": 9,
+          "premium": 900.25,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1420.8539100000007
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55100,
+          "offset": 3,
+          "premium": 923.65,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1456.2262860000021
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 54000,
+          "offset": 5,
+          "premium": 934.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1472.476416000004
+        }
+      ],
+      "counts": {
+        "signals": 23,
+        "trades": 16,
+        "noFit": 7,
+        "noSig": 4,
+        "noData": 3
+      }
+    },
+    "EMA-9/21": {
+      "trades": [
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 53300,
+          "offset": 19,
+          "premium": 919.8,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1163.7600000000043
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57100,
+          "offset": 18,
+          "premium": 813,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1035.5999999999995
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 54300,
+          "offset": 14,
+          "premium": 940.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1481.5462560000003
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 53600,
+          "offset": 11,
+          "premium": 850,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1080
+        },
+        {
+          "date": "2026-04-15",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57800,
+          "offset": 13,
+          "premium": 877.75,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 90.62999999999874
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57800,
+          "offset": 12,
+          "premium": 944.25,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1487.3660700000016
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55400,
+          "offset": 7,
+          "premium": 780,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -996.0000000000014
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 56000,
+          "offset": 6,
+          "premium": 922.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1454.7902280000017
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 56500,
+          "offset": 7,
+          "premium": 939,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1479.429960000001
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 58200,
+          "offset": 10,
+          "premium": 883.55,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -342.6300000000015
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 56100,
+          "offset": 6,
+          "premium": 916,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 5339.669999999997
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57200,
+          "offset": 12,
+          "premium": 950,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1496.0580000000004
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57300,
+          "offset": 10,
+          "premium": 935,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1473.3834000000013
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55700,
+          "offset": 3,
+          "premium": 940,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1480.941600000001
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 56200,
+          "offset": 7,
+          "premium": 954.35,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1502.633634
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 55400,
+          "offset": 7,
+          "premium": 943.1,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1485.6276840000032
+        }
+      ],
+      "counts": {
+        "signals": 27,
+        "trades": 16,
+        "noFit": 11,
+        "noSig": 0,
+        "noData": 3
+      }
+    },
+    "EMA+ORB": {
+      "trades": [
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57000,
+          "offset": 18,
+          "premium": 958.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1509.511596000001
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 53500,
+          "offset": 17,
+          "premium": 931.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1468.6973160000025
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57400,
+          "offset": 16,
+          "premium": 960,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1212.0000000000027
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 56800,
+          "offset": 18,
+          "premium": 950.3,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 6496.56
+        },
+        {
+          "date": "2026-04-15",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55300,
+          "offset": 10,
+          "premium": 951.35,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1201.6200000000026
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55100,
+          "offset": 9,
+          "premium": 910,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1435.5923999999993
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57500,
+          "offset": 12,
+          "premium": 929.45,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1876.379999999998
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 58100,
+          "offset": 11,
+          "premium": 907.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1432.115627999999
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 58100,
+          "offset": 9,
+          "premium": 956.25,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1391.4600000000019
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55700,
+          "offset": 7,
+          "premium": 888.1,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1934.8199999999974
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55300,
+          "offset": 7,
+          "premium": 945.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1489.7846940000022
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55600,
+          "offset": 5,
+          "premium": 928,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1462.8019200000017
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57000,
+          "offset": 9,
+          "premium": 912,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1438.6156799999992
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 56600,
+          "offset": 7,
+          "premium": 911.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1438.1621879999989
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 54000,
+          "offset": 5,
+          "premium": 927.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1462.348427999998
+        }
+      ],
+      "counts": {
+        "signals": 23,
+        "trades": 15,
+        "noFit": 8,
+        "noSig": 4,
+        "noData": 3
+      }
+    },
+    "HL-Reversal": {
+      "trades": [
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 53300,
+          "offset": 19,
+          "premium": 950,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1496.0580000000004
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57100,
+          "offset": 18,
+          "premium": 813,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1035.5999999999995
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 54300,
+          "offset": 15,
+          "premium": 940.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1481.5462560000003
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 53600,
+          "offset": 12,
+          "premium": 850,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1080
+        },
+        {
+          "date": "2026-04-15",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57700,
+          "offset": 14,
+          "premium": 935.3,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1473.8368920000016
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57800,
+          "offset": 13,
+          "premium": 946.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1491.3719160000016
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55400,
+          "offset": 8,
+          "premium": 780,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -996.0000000000014
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 56400,
+          "offset": 5,
+          "premium": 945,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1488.4998000000007
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 56600,
+          "offset": 6,
+          "premium": 934.15,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1472.0985060000032
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 58100,
+          "offset": 10,
+          "premium": 929.95,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 589.5299999999952
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 56200,
+          "offset": 6,
+          "premium": 950,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 5294.459999999999
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57100,
+          "offset": 12,
+          "premium": 956.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1506.488316000001
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 57100,
+          "offset": 10,
+          "premium": 950,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1496.0580000000004
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 56600,
+          "offset": 9,
+          "premium": 933.45,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1471.0403580000002
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 55600,
+          "offset": 1,
+          "premium": 950,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1496.0580000000004
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 55300,
+          "offset": 7,
+          "premium": 933.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1471.418268000001
+        }
+      ],
+      "counts": {
+        "signals": 27,
+        "trades": 16,
+        "noFit": 11,
+        "noSig": 0,
+        "noData": 3
+      }
+    },
+    "HL+Volume": {
+      "trades": [],
+      "counts": {
+        "signals": 12,
+        "trades": 0,
+        "noFit": 12,
+        "noSig": 15,
+        "noData": 3
+      }
+    }
+  },
+  "SENSEX": {
+    "ORB+VWAP": {
+      "trades": [
+        {
+          "date": "2026-03-18",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78500,
+          "offset": 19,
+          "premium": 1243,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1042.7999999999975
+        },
+        {
+          "date": "2026-04-01",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 75700,
+          "offset": 18,
+          "premium": 1334.95,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1405.309212000002
+        },
+        {
+          "date": "2026-04-02",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 71400,
+          "offset": 2,
+          "premium": 1347.55,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1418.006988000002
+        },
+        {
+          "date": "2026-04-06",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 71900,
+          "offset": 10,
+          "premium": 1384.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1455.6468240000004
+        },
+        {
+          "date": "2026-04-07",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 75100,
+          "offset": 12,
+          "premium": 1437.2,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 5902.1
+        },
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77500,
+          "offset": 1,
+          "premium": 1027.8,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 10411.280000000002
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 76800,
+          "offset": 1,
+          "premium": 1347.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1418.1581520000009
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77400,
+          "offset": 1,
+          "premium": 1313,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1383.1888799999979
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 76400,
+          "offset": 1,
+          "premium": 1408,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 4221.239999999998
+        },
+        {
+          "date": "2026-04-15",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77800,
+          "offset": 1,
+          "premium": 984,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1051.6358400000013
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78400,
+          "offset": 1,
+          "premium": 954.5,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 3641.2799999999993
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78300,
+          "offset": 1,
+          "premium": 1035,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1103.0316000000016
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78800,
+          "offset": 1,
+          "premium": 999,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1066.7522400000007
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 79100,
+          "offset": 1,
+          "premium": 929.85,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 1761.7600000000016
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78600,
+          "offset": 1,
+          "premium": 848.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -915.0843600000007
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78100,
+          "offset": 1,
+          "premium": 764.8,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -830.7348479999996
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77000,
+          "offset": 1,
+          "premium": 626.25,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 4931.900000000001
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77300,
+          "offset": 1,
+          "premium": 585.2,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -649.7411519999991
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77400,
+          "offset": 1,
+          "premium": 444,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -507.4454400000002
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 76400,
+          "offset": 1,
+          "premium": 121.15,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -182.09012400000006
+        }
+      ],
+      "counts": {
+        "signals": 24,
+        "trades": 20,
+        "noFit": 4,
+        "noSig": 3,
+        "noData": 3
+      }
+    },
+    "EMA-9/21": {
+      "trades": [
+        {
+          "date": "2026-03-18",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 75500,
+          "offset": 9,
+          "premium": 1396.8,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1467.6391680000006
+        },
+        {
+          "date": "2026-03-19",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77000,
+          "offset": 20,
+          "premium": 1387.05,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1457.8135079999993
+        },
+        {
+          "date": "2026-04-01",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 75500,
+          "offset": 17,
+          "premium": 1434.55,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1505.6821080000009
+        },
+        {
+          "date": "2026-04-02",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 71400,
+          "offset": 3,
+          "premium": 1347.55,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1418.006988000002
+        },
+        {
+          "date": "2026-04-06",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 71900,
+          "offset": 10,
+          "premium": 1384.9,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1455.6468240000004
+        },
+        {
+          "date": "2026-04-07",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 72700,
+          "offset": 9,
+          "premium": 1431.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1502.9611560000012
+        },
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77000,
+          "offset": 3,
+          "premium": 1225.45,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1294.9594919999981
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77300,
+          "offset": 4,
+          "premium": 1397.3,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1468.1430480000017
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77000,
+          "offset": 1,
+          "premium": 1140,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1208.8464000000022
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 76000,
+          "offset": 2,
+          "premium": 1214.05,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1283.471027999999
+        },
+        {
+          "date": "2026-04-15",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78200,
+          "offset": 1,
+          "premium": 1171.75,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1240.8427799999981
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78500,
+          "offset": 1,
+          "premium": 1076.35,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1144.7024760000022
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78200,
+          "offset": 1,
+          "premium": 1029.95,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 3275.1600000000008
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78400,
+          "offset": 1,
+          "premium": 905,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -972.0227999999997
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78900,
+          "offset": 1,
+          "premium": 857.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -924.3557520000013
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78700,
+          "offset": 1,
+          "premium": 845,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -911.5571999999997
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77800,
+          "offset": 1,
+          "premium": 821.05,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -887.4213480000003
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77100,
+          "offset": 1,
+          "premium": 742.1,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -807.8586960000007
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77300,
+          "offset": 1,
+          "premium": 557.05,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -621.3727080000012
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77300,
+          "offset": 1,
+          "premium": 373.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -436.3983600000006
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77600,
+          "offset": 1,
+          "premium": 241.7,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -303.5755919999997
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 76800,
+          "offset": 1,
+          "premium": 132.75,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -193.78014000000007
+        }
+      ],
+      "counts": {
+        "signals": 27,
+        "trades": 22,
+        "noFit": 5,
+        "noSig": 0,
+        "noData": 3
+      }
+    },
+    "EMA+ORB": {
+      "trades": [
+        {
+          "date": "2026-03-18",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78500,
+          "offset": 17,
+          "premium": 1300,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -120
+        },
+        {
+          "date": "2026-04-01",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 72200,
+          "offset": 12,
+          "premium": 1433.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1504.5231839999997
+        },
+        {
+          "date": "2026-04-02",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 71400,
+          "offset": 2,
+          "premium": 1347.55,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1418.006988000002
+        },
+        {
+          "date": "2026-04-06",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 75400,
+          "offset": 16,
+          "premium": 1393.55,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -1174.8400000000038
+        },
+        {
+          "date": "2026-04-07",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 75100,
+          "offset": 11,
+          "premium": 1437.2,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 5902.1
+        },
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77600,
+          "offset": 1,
+          "premium": 701,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -620.7999999999993
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 76800,
+          "offset": 1,
+          "premium": 1200,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1269.312
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77400,
+          "offset": 1,
+          "premium": 1350,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1420.4759999999987
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 76700,
+          "offset": 2,
+          "premium": 1286.65,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 5052.339999999999
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78200,
+          "offset": 1,
+          "premium": 1000,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1067.7600000000007
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78400,
+          "offset": 1,
+          "premium": 999,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1066.7522400000007
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78900,
+          "offset": 1,
+          "premium": 1005.45,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1073.252292000002
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 79200,
+          "offset": 1,
+          "premium": 924.6,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 872.2000000000003
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78500,
+          "offset": 1,
+          "premium": 818.3,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -884.650008000001
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78200,
+          "offset": 1,
+          "premium": 788.35,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -854.4675959999995
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 76800,
+          "offset": 1,
+          "premium": 652.6,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -717.6641760000007
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77300,
+          "offset": 1,
+          "premium": 554.05,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -618.3494280000014
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77500,
+          "offset": 1,
+          "premium": 403.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -466.53038400000014
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77900,
+          "offset": 1,
+          "premium": 310.95,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -373.3629719999999
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 76300,
+          "offset": 1,
+          "premium": 113,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -173.87688000000026
+        }
+      ],
+      "counts": {
+        "signals": 24,
+        "trades": 20,
+        "noFit": 4,
+        "noSig": 3,
+        "noData": 3
+      }
+    },
+    "HL-Reversal": {
+      "trades": [
+        {
+          "date": "2026-03-18",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 75500,
+          "offset": 12,
+          "premium": 1371.15,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1441.7901240000037
+        },
+        {
+          "date": "2026-04-06",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 74600,
+          "offset": 16,
+          "premium": 1389.2,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": 5203.539999999998
+        },
+        {
+          "date": "2026-04-07",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 72700,
+          "offset": 12,
+          "premium": 1431.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1502.9611560000012
+        },
+        {
+          "date": "2026-04-08",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77000,
+          "offset": 5,
+          "premium": 1095,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1163.4972000000016
+        },
+        {
+          "date": "2026-04-09",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77500,
+          "offset": 5,
+          "premium": 1328.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1398.8091600000007
+        },
+        {
+          "date": "2026-04-10",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77200,
+          "offset": 1,
+          "premium": 1137.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1206.3270000000011
+        },
+        {
+          "date": "2026-04-13",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 76300,
+          "offset": 1,
+          "premium": 1030,
+          "exitReason": "EOD_CLOSE",
+          "netPnL": -606.6599999999971
+        },
+        {
+          "date": "2026-04-16",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78400,
+          "offset": 1,
+          "premium": 1159.4,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -1228.396944000001
+        },
+        {
+          "date": "2026-04-17",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78100,
+          "offset": 1,
+          "premium": 915.8,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -982.9066080000007
+        },
+        {
+          "date": "2026-04-20",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78700,
+          "offset": 1,
+          "premium": 890.95,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -957.8637720000006
+        },
+        {
+          "date": "2026-04-21",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78900,
+          "offset": 1,
+          "premium": 885,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -951.8676000000005
+        },
+        {
+          "date": "2026-04-22",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 78600,
+          "offset": 1,
+          "premium": 889.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -956.7552360000013
+        },
+        {
+          "date": "2026-04-23",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 78000,
+          "offset": 1,
+          "premium": 756.5,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -822.3704399999997
+        },
+        {
+          "date": "2026-04-24",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 77000,
+          "offset": 1,
+          "premium": 751.2,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -817.0293119999997
+        },
+        {
+          "date": "2026-04-27",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77200,
+          "offset": 1,
+          "premium": 483.1,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -546.8488560000003
+        },
+        {
+          "date": "2026-04-28",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77300,
+          "offset": 1,
+          "premium": 366.15,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -428.99132399999985
+        },
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77700,
+          "offset": 1,
+          "premium": 274.85,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -336.9828360000008
+        },
+        {
+          "date": "2026-04-30",
+          "status": "TRADE",
+          "signal": "CALL",
+          "strike": 76600,
+          "offset": 1,
+          "premium": 134,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -195.03984000000003
+        }
+      ],
+      "counts": {
+        "signals": 26,
+        "trades": 18,
+        "noFit": 8,
+        "noSig": 1,
+        "noData": 3
+      }
+    },
+    "HL+Volume": {
+      "trades": [
+        {
+          "date": "2026-04-29",
+          "status": "TRADE",
+          "signal": "PUT",
+          "strike": 77000,
+          "offset": 9,
+          "premium": 59.55,
+          "exitReason": "STOP_LOSS",
+          "netPnL": -120.0121080000001
+        }
+      ],
+      "counts": {
+        "signals": 10,
+        "trades": 1,
+        "noFit": 9,
+        "noSig": 17,
+        "noData": 3
+      }
+    }
+  }
+}
