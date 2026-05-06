@@ -20,6 +20,8 @@ const RISK_PCT     = 0.05;
 const MAX_DAILY_LOSS_PCT = 0.05;
 const MAX_CONSEC_LOSSES  = 8;
 const MAX_LOTS_PER_TRADE = 25;   // hard cap — realistic broker margin + option liquidity ceiling
+const BASE_LOTS          = 2;    // start every fresh streak at 2 lots
+const PYRAMID_ON_WIN     = true; // +1 lot per consecutive win; reset to BASE on loss
 const BROKERAGE_RT = 60;
 
 const ymd = ts => new Date(ts*1000 + 5.5*3600*1000).toISOString().slice(0,10);
@@ -46,6 +48,7 @@ function simulate(name, file) {
   let consecLoss = 0, halted = null;
   let totalWins = 0, totalLoss = 0;
   let peak = equity, maxDD = 0;
+  let nextLots = BASE_LOTS;          // pyramid-up state
   const trades = [];
 
   for (const d of dates) {
@@ -57,15 +60,24 @@ function simulate(name, file) {
       if (halted) break;
       if (dayPnl < -dayStartEq * MAX_DAILY_LOSS_PCT) break;
       const cost = t.entryPrice * lotSz;
-      const lotsRaw = Math.max(1, Math.floor((equity * RISK_PCT) / cost));
-      const lots    = Math.min(lotsRaw, MAX_LOTS_PER_TRADE);   // liquidity/margin cap
+      // Pyramid-up sizing: starts at BASE_LOTS, +1 per consecutive win, resets on loss.
+      // Hard-capped by MAX_LOTS_PER_TRADE (broker margin / liquidity).
+      // Also bounded by equity affordability so we don't exceed available capital.
+      const affordableLots = Math.max(1, Math.floor(equity / cost));
+      const lots = Math.min(nextLots, MAX_LOTS_PER_TRADE, affordableLots);
       const grossPnL = (t.exitPrice - t.entryPrice) * lotSz * lots;
       const netPnL   = grossPnL - BROKERAGE_RT;   // ₹60 round-trip flat per ORDER, not per lot
       const eqBefore = equity;
       equity += netPnL;
       dayPnl += netPnL;
       const win = netPnL > 0;
-      if (win) { totalWins++; consecLoss = 0; } else { totalLoss++; consecLoss++; }
+      if (win) {
+        totalWins++; consecLoss = 0;
+        if (PYRAMID_ON_WIN) nextLots = Math.min(nextLots + 1, MAX_LOTS_PER_TRADE);
+      } else {
+        totalLoss++; consecLoss++;
+        nextLots = BASE_LOTS;            // reset on any loss
+      }
       if (equity > peak) peak = equity;
       const dd = peak - equity; if (dd > maxDD) maxDD = dd;
 
