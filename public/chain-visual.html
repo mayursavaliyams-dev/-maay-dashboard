@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CE/PE Range Visual — Antigravity</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#0b0e13; color:#e0e6ed; margin:0; padding:20px; }
+  header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #1c2733; }
+  h1 { font-size:18px; margin:0; color:#7dd3fc; font-weight:500; }
+  .meta { display:flex; gap:18px; font-size:13px; color:#94a3b8; }
+  .meta b { color:#e0e6ed; font-weight:500; }
+  .controls { display:flex; gap:10px; align-items:center; }
+  .controls select, .controls button { background:#162028; color:#e0e6ed; border:1px solid #1c2733; padding:6px 12px; font-size:13px; border-radius:4px; cursor:pointer; }
+  .controls button:hover { background:#1c2733; }
+
+  table { width:100%; border-collapse:collapse; }
+  th { font-size:11px; color:#64748b; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; padding:8px 6px; text-align:center; border-bottom:1px solid #1c2733; }
+  td { padding:6px; border-bottom:1px solid #131c24; vertical-align:middle; font-size:13px; }
+  tr.atm { background:#141d28; }
+  tr.atm td.strike-cell { background:#1e3a5f; color:#7dd3fc; font-weight:600; }
+
+  /* CE side (left) — green tint */
+  td.ce-low { color:#86efac; text-align:right; font-variant-numeric:tabular-nums; }
+  td.ce-high { color:#fca5a5; text-align:right; font-variant-numeric:tabular-nums; }
+  td.ce-now { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+
+  /* PE side (right) — red tint */
+  td.pe-low { color:#86efac; text-align:left; font-variant-numeric:tabular-nums; }
+  td.pe-high { color:#fca5a5; text-align:left; font-variant-numeric:tabular-nums; }
+  td.pe-now { text-align:left; font-weight:600; font-variant-numeric:tabular-nums; }
+
+  td.strike-cell { text-align:center; color:#cbd5e1; font-weight:500; font-variant-numeric:tabular-nums; min-width:80px; }
+
+  .time-tag { display:inline-block; font-size:10px; color:#64748b; margin-left:4px; }
+
+  /* Range bar — visual position of current price between low & high */
+  .range-bar { height:6px; background:linear-gradient(90deg, #14532d 0%, #1e293b 50%, #7f1d1d 100%); border-radius:3px; position:relative; min-width:80px; max-width:140px; margin:0 auto; }
+  .range-bar .marker { position:absolute; top:-3px; width:2px; height:12px; background:#fbbf24; box-shadow:0 0 4px #fbbf24; }
+  .range-bar.flat { background:#1c2733; }
+
+  .gain-pct { font-size:10px; color:#94a3b8; }
+  .gain-pct.up { color:#86efac; }
+  .gain-pct.down { color:#fca5a5; }
+
+  .footer { margin-top:18px; font-size:11px; color:#475569; text-align:center; }
+  .conn-status { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .conn-status.ok { background:#22c55e; box-shadow:0 0 6px #22c55e; }
+  .conn-status.err { background:#ef4444; }
+  .conn-status.stale { background:#fbbf24; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>CE / PE Day Range Visual</h1>
+    <div style="font-size:11px; color:#475569; margin-top:4px;">
+      Low (₹ + time) ←→ Current (▲) ←→ High (₹ + time) per strike
+    </div>
+  </div>
+  <div class="meta">
+    <span><span id="conn" class="conn-status err"></span><span id="connText">connecting…</span></span>
+    <span>Spot: <b id="spot">–</b></span>
+    <span>ATM: <b id="atm">–</b></span>
+    <span>Updated: <b id="updated">–</b></span>
+  </div>
+  <div class="controls">
+    <select id="inst">
+      <option value="NIFTY">NIFTY</option>
+      <option value="SENSEX">SENSEX</option>
+    </select>
+    <select id="depth">
+      <option value="3">±3</option>
+      <option value="5" selected>±5</option>
+      <option value="7">±7</option>
+      <option value="10">±10</option>
+    </select>
+    <button onclick="refresh()">↻ Refresh</button>
+  </div>
+</header>
+
+<table>
+<thead>
+<tr>
+  <th colspan="4" style="border-bottom:2px solid #14532d;">CALL (CE)</th>
+  <th>STRIKE</th>
+  <th colspan="4" style="border-bottom:2px solid #7f1d1d;">PUT (PE)</th>
+</tr>
+<tr>
+  <th>Low @ time</th>
+  <th>Now</th>
+  <th>Range / Max %</th>
+  <th>High @ time</th>
+  <th>—</th>
+  <th>High @ time</th>
+  <th>Range / Max %</th>
+  <th>Now</th>
+  <th>Low @ time</th>
+</tr>
+</thead>
+<tbody id="tbody">
+  <tr><td colspan="9" style="text-align:center; color:#64748b; padding:30px;">loading…</td></tr>
+</tbody>
+</table>
+
+<div class="footer">
+  Auto-refresh: 3s &nbsp;•&nbsp; Marker (▲) shows current price position within day's range
+</div>
+
+<script>
+function fmt(n) { return n != null ? n.toFixed(2) : '–'; }
+function pct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+
+function rangeBar(low, now, high, side) {
+  if (!low || !high || low === high) return '<div class="range-bar flat"></div>';
+  const pos = Math.max(0, Math.min(100, ((now - low) / (high - low)) * 100));
+  return `<div class="range-bar"><div class="marker" style="left:${pos.toFixed(1)}%"></div></div>`;
+}
+
+function rowHtml(r) {
+  const ce = r.ce || {};
+  const pe = r.pe || {};
+  const ceMaxGain = (ce.high && ce.low) ? ((ce.high - ce.low) / ce.low) * 100 : 0;
+  const peMaxGain = (pe.high && pe.low) ? ((pe.high - pe.low) / pe.low) * 100 : 0;
+  const ceClass = ce.ltp > 0 && ce.high ? (ce.ltp - ce.low) / (ce.high - ce.low) > 0.7 ? 'down' : (ce.ltp - ce.low) / (ce.high - ce.low) < 0.3 ? 'up' : '' : '';
+  const peClass = pe.ltp > 0 && pe.high ? (pe.ltp - pe.low) / (pe.high - pe.low) > 0.7 ? 'down' : (pe.ltp - pe.low) / (pe.high - pe.low) < 0.3 ? 'up' : '' : '';
+  return `<tr class="${r.isATM ? 'atm' : ''}">
+    <td class="ce-low">${fmt(ce.low)}<span class="time-tag">${ce.lowAt || ''}</span></td>
+    <td class="ce-now">${fmt(ce.ltp)}</td>
+    <td>${rangeBar(ce.low, ce.ltp, ce.high, 'ce')}<div class="gain-pct">max ${pct(ceMaxGain)}</div></td>
+    <td class="ce-high">${fmt(ce.high)}<span class="time-tag">${ce.highAt || ''}</span></td>
+    <td class="strike-cell">${r.strike}</td>
+    <td class="pe-high">${fmt(pe.high)}<span class="time-tag">${pe.highAt || ''}</span></td>
+    <td>${rangeBar(pe.low, pe.ltp, pe.high, 'pe')}<div class="gain-pct">max ${pct(peMaxGain)}</div></td>
+    <td class="pe-now">${fmt(pe.ltp)}</td>
+    <td class="pe-low">${fmt(pe.low)}<span class="time-tag">${pe.lowAt || ''}</span></td>
+  </tr>`;
+}
+
+let lastFetchOk = false;
+async function refresh() {
+  const inst = document.getElementById('inst').value;
+  const depth = document.getElementById('depth').value;
+  const c = document.getElementById('conn');
+  try {
+    const r = await fetch(`/api/option-chain-full?inst=${inst}&depth=${depth}`);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    document.getElementById('spot').textContent = '₹' + (data.spot || 0).toFixed(2);
+    document.getElementById('atm').textContent = data.atm || '–';
+    document.getElementById('updated').textContent = new Date(data.ts).toLocaleTimeString();
+    document.getElementById('tbody').innerHTML = (data.rows || []).map(rowHtml).join('');
+    c.className = 'conn-status ok';
+    document.getElementById('connText').textContent = 'live';
+    lastFetchOk = true;
+  } catch (e) {
+    c.className = lastFetchOk ? 'conn-status stale' : 'conn-status err';
+    document.getElementById('connText').textContent = e.message;
+  }
+}
+
+document.getElementById('inst').addEventListener('change', refresh);
+document.getElementById('depth').addEventListener('change', refresh);
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

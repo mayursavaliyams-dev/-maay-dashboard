@@ -8,3 +8,6 @@ exports/
 data/dhan-cache/
 data/trading.db
 backtest-real-results.json
+__pycache__/
+*.pyc
+.pytest_cache/

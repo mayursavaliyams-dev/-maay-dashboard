@@ -119,11 +119,21 @@ class ExecutionEngine {
   // engine when MAX_CONSECUTIVE_LOSSES is hit (defends against the 2023-style
   // 9% win-rate regime burning through the account before it self-corrects).
   recordTradeResult({ pnl }) {
-    // Compound the equity: net P&L from this trade rolls into the capital
-    // base used for next trade's % sizing. Wins grow position size, losses shrink it.
-    const before = this.capital;
-    this.capital += pnl;
-    console.log(`[${this.instrumentName}] Equity: ₹${before.toFixed(0)} ${pnl>=0?'+':''}${pnl.toFixed(0)} = ₹${this.capital.toFixed(0)}`);
+    // Half-compound (Rule B): on a profit, only PROFIT_REINVEST_PCT of the
+    // profit goes back into the active capital used for sizing — the other
+    // half is moved to a "reserve" pile that's protected from later losses.
+    // Losses come out of active capital in full (reserve is safe).
+    const PROFIT_REINVEST_PCT = Number(process.env.PROFIT_REINVEST_PCT || 0.5);
+    if (this.reserve == null) this.reserve = 0;
+    const beforeActive = this.capital, beforeReserve = this.reserve;
+    if (pnl > 0) {
+      const toReserve = pnl * (1 - PROFIT_REINVEST_PCT);
+      this.capital += pnl - toReserve;
+      this.reserve += toReserve;
+    } else {
+      this.capital += pnl;
+    }
+    console.log(`[${this.instrumentName}] Equity: active ₹${beforeActive.toFixed(0)}→₹${this.capital.toFixed(0)}  reserve ₹${beforeReserve.toFixed(0)}→₹${this.reserve.toFixed(0)}  total ₹${(this.capital+this.reserve).toFixed(0)}`);
 
     if (pnl > 0) {
       if (this._consecLosses > 0) {

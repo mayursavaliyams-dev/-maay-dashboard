@@ -159,6 +159,7 @@ function Navbar() {
           [
             { label: 'Profile',      href: '#',                 hint: 'Mayur Savaliya' },
             { label: 'Reports',      href: '/dashboard.html#performance', hint: 'P&L · trades · stats' },
+            { label: 'Quant Backtesting', href: '/backtesting-pro.html', hint: 'FastAPI research lab' },
             { label: 'API settings', href: '/api/config',       hint: 'Endpoints + tokens' },
             { label: 'Backtest',     href: '/api/backtest/real', hint: 'Last results JSON' },
           ].map(item => e('a', {
@@ -301,10 +302,11 @@ function TradingTools({ onOpenChain }) {
   const tools = [
     { label: 'Option Chain',     desc: 'Live strike-by-strike with trend',  href: '/chain-trend.html' },
     { label: 'Strategy Builder', desc: 'Backtest your own params',         href: '/dashboard.html#strategy' },
+    { label: 'Quant Backtesting', desc: 'Full Python research lab',        href: '/backtesting-pro.html' },
     { label: 'Price Alerts',     desc: 'Browser push on threshold cross',  href: '/dashboard.html#alerts' },
     { label: 'TradingView Webhook', desc: 'POST to /api/webhook/tradingview', href: '/dashboard.html#webhook' }
   ];
-  return e('div', { className: 'grid grid-cols-4 gap-3' },
+  return e('div', { className: 'grid grid-cols-5 gap-3' },
     tools.map(t => e('a', {
       key: t.label,
       href: t.href,

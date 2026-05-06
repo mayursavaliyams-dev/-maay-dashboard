@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Quant Backtesting Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/backtesting-pro.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Quant Research Stack</div>
+        <h1>Antigravity Backtesting Lab</h1>
+        <p>Professional index options backtesting and paper-trading for NIFTY, BANKNIFTY, and SENSEX.</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="status-pill" id="apiHealthPill">API: checking</div>
+        <a class="ghost-link" href="/app.html">Open Live Dashboard</a>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="control-panel">
+        <section class="card">
+          <div class="card-title">Backend</div>
+          <label class="field">
+            <span>FastAPI Base URL</span>
+            <input id="apiBase" type="text" value="http://localhost:8000">
+          </label>
+          <div class="stack-row">
+            <button class="btn secondary" id="btnReloadMeta">Reload</button>
+            <button class="btn secondary" id="btnCheckHealth">Health</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title">Historical Data</div>
+          <div class="stack-row">
+            <button class="btn secondary" id="btnLoadDatasets">List Datasets</button>
+          </div>
+          <label class="field">
+            <span>Upload CSV</span>
+            <input id="csvFile" type="file" accept=".csv">
+          </label>
+          <button class="btn" id="btnUpload">Upload Dataset</button>
+          <div class="micro" id="datasetMeta">No dataset uploaded in this session.</div>
+          <label class="field">
+            <span>Available Datasets</span>
+            <select id="datasetSelect">
+              <option value="">Select uploaded dataset</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Dataset ID</span>
+            <input id="datasetId" type="text" placeholder="Auto-filled after upload">
+          </label>
+          <label class="field">
+            <span>Optional Data Path</span>
+            <input id="dataPath" type="text" placeholder="c:\path\to\historical.csv">
+          </label>
+        </section>
+
+        <section class="card">
+          <div class="card-title">Backtest Controls</div>
+          <div class="grid two">
+            <label class="field">
+              <span>Index</span>
+              <select id="index">
+                <option value="NIFTY">NIFTY</option>
+                <option value="BANKNIFTY">BANKNIFTY</option>
+                <option value="SENSEX">SENSEX</option>
+                <option value="ALL">ALL</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Timeframe</span>
+              <select id="timeframe">
+                <option value="1m">1 Minute</option>
+                <option value="3m">3 Minute</option>
+                <option value="5m" selected>5 Minute</option>
+                <option value="15m">15 Minute</option>
+                <option value="1d">Daily</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span>Strategy</span>
+            <select id="strategy"></select>
+          </label>
+          <div class="grid two">
+            <label class="field">
+              <span>Start Date</span>
+              <input id="startDate" type="date" value="2006-01-01">
+            </label>
+            <label class="field">
+              <span>End Date</span>
+              <input id="endDate" type="date">
+            </label>
+          </div>
+          <div class="grid two">
+            <label class="field">
+              <span>Capital</span>
+              <input id="capital" type="number" value="500000">
+            </label>
+            <label class="field">
+              <span>Lot Size</span>
+              <input id="lotSize" type="number" value="50">
+            </label>
+          </div>
+          <div class="grid three">
+            <label class="field">
+              <span>Stop Loss %</span>
+              <input id="stopLoss" type="number" value="25">
+            </label>
+            <label class="field">
+              <span>Target %</span>
+              <input id="target" type="number" value="40">
+            </label>
+            <label class="field">
+              <span>Trailing SL %</span>
+              <input id="trailingSl" type="number" value="12">
+            </label>
+          </div>
+          <div class="grid three">
+            <label class="field">
+              <span>Brokerage</span>
+              <input id="brokerage" type="number" value="40">
+            </label>
+            <label class="field">
+              <span>Slippage %</span>
+              <input id="slippage" type="number" step="0.1" value="0.3">
+            </label>
+            <label class="field">
+              <span>Capital Allocation</span>
+              <input id="capitalAllocation" type="number" step="0.01" value="0.1">
+            </label>
+          </div>
+          <div class="stack-row">
+            <button class="btn" id="btnRun">Run Backtest</button>
+            <button class="btn secondary" id="btnPaperStart">Paper Start</button>
+            <button class="btn danger" id="btnPaperStop">Paper Stop</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="content">
+        <section class="hero card">
+          <div>
+            <div class="card-title">Execution Status</div>
+            <div class="hero-status">
+              <div class="status-dot" id="jobDot"></div>
+              <div>
+                <div class="hero-headline" id="jobStatus">Idle</div>
+                <div class="micro" id="jobMessage">Upload data or point to a CSV, then launch a run.</div>
+              </div>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <a class="btn secondary disabled-link" id="downloadReport" href="#" target="_blank">Download Excel</a>
+          </div>
+        </section>
+
+        <section class="metrics-grid" id="rankingCards"></section>
+
+        <section class="card highlight-card" id="bestStrategyCard">
+          <div class="card-title">Best Strategy</div>
+          <div class="empty">Run a backtest to populate AI ranking and best-strategy insights.</div>
+        </section>
+
+        <section class="charts-grid">
+          <div class="card chart-card">
+            <div class="card-title">Equity Curve</div>
+            <canvas id="equityChart"></canvas>
+          </div>
+          <div class="card chart-card">
+            <div class="card-title">Drawdown</div>
+            <canvas id="drawdownChart"></canvas>
+          </div>
+          <div class="card chart-card wide">
+            <div class="card-title">Monthly P&amp;L</div>
+            <canvas id="monthlyChart"></canvas>
+          </div>
+        </section>
+
+        <section class="split-grid">
+          <div class="card">
+            <div class="card-title">Trade Book</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Entry</th>
+                    <th>Strategy</th>
+                    <th>Index</th>
+                    <th>Signal</th>
+                    <th>Qty</th>
+                    <th>Entry</th>
+                    <th>Exit</th>
+                    <th>Net P&amp;L</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="tradeTableBody">
+                  <tr><td colspan="9" class="empty-cell">No trades loaded.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">AI Signal Explanation</div>
+            <div class="signal-stack" id="aiExplanations">
+              <div class="empty">Signal explanations will appear after a completed run.</div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="/backtesting-pro.js"></script>
+</body>
+</html>

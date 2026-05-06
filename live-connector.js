@@ -5,11 +5,13 @@
  */
 
 const DhanClient = require('./backtest-real/dhan-client');
+const DhanWsFeed = require('./dhan-ws-feed');
 
 const SENSEX_SECURITY_ID = process.env.DHAN_SENSEX_SECURITY_ID || '51';
 const NIFTY_SECURITY_ID  = process.env.DHAN_NIFTY_SECURITY_ID  || '13';
 const IDX_SEGMENT = 'IDX_I';
 const SENSEX_SEGMENT = IDX_SEGMENT;
+const WS_TICK_MAX_AGE_MS = 10000;   // accept WS tick if it arrived in the last 10s
 
 class LiveConnector {
   constructor(config = {}) {
@@ -36,6 +38,22 @@ class LiveConnector {
     this.client = new DhanClient({ clientId, accessToken });
     this.connected = true;
     console.log('[live] Connected to Dhan HQ v2');
+
+    // Start WebSocket live tick feed for the three indices.
+    if (process.env.DHAN_WS_ENABLED !== 'false') {
+      try {
+        this.ws = new DhanWsFeed({ clientId, accessToken });
+        this.ws.start();
+        this.ws.subscribe([
+          { exchangeSegment: IDX_SEGMENT, securityId: NIFTY_SECURITY_ID  },
+          { exchangeSegment: IDX_SEGMENT, securityId: SENSEX_SECURITY_ID },
+          { exchangeSegment: IDX_SEGMENT, securityId: '25' /* BANKNIFTY */ },
+        ]);
+      } catch (e) {
+        console.warn('[live] WS feed failed to start, falling back to REST polling:', e.message);
+        this.ws = null;
+      }
+    }
   }
 
   _assertConnected() {
@@ -51,7 +69,23 @@ class LiveConnector {
   // working fallback — gives same OHLCV for both indices with proper volume.
   async _getIndexPriceFromCharts(securityId, segment, cacheKey, atKey) {
     this._assertConnected();
-    if (this[cacheKey] && Date.now() - this[atKey] < 20000) return this[cacheKey];
+    // Prefer WebSocket live tick if it's fresh (≤10s old) — sub-second price feed.
+    if (this.ws) {
+      const tick = this.ws.getLast(securityId, segment);
+      if (tick && tick.ltp > 0 && (Date.now() - tick.timestamp) < WS_TICK_MAX_AGE_MS) {
+        return {
+          price:  Number(tick.ltp),
+          volume: Number(tick.volume || 0),
+          open:   Number(tick.open  || 0),
+          high:   Number(tick.high  || 0),
+          low:    Number(tick.low   || 0),
+          close:  Number(tick.close || 0),
+          timestamp: new Date(tick.timestamp),
+          source: 'dhan-ws',
+        };
+      }
+    }
+    if (this[cacheKey] && Date.now() - this[atKey] < 5000) return this[cacheKey];
     const today = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
     const r = await this.client._post('/v2/charts/intraday', {
       securityId: String(securityId),
