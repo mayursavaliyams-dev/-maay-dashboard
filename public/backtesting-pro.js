@@ -4,9 +4,16 @@ const state = {
   currentJobId: "",
   charts: {},
   lastResult: null,
+  trendTest: {
+    running: false,
+    rows: [],
+    criteria: [],
+  },
 };
 
 const els = {};
+const TREND_TEST_TIMEFRAMES = ["1m", "2m", "3m", "5m", "10m", "15m", "20m", "30m", "60m", "1d"];
+const TREND_TEST_PARALLEL = 2;
 
 document.addEventListener("DOMContentLoaded", () => {
   bindElements();
@@ -23,7 +30,8 @@ function bindElements() {
     "brokerage", "slippage", "capitalAllocation", "apiHealthPill", "jobDot", "jobStatus",
     "jobMessage", "downloadReport", "rankingCards", "bestStrategyCard", "tradeTableBody",
     "aiExplanations", "btnReloadMeta", "btnCheckHealth", "btnUpload", "btnRun", "btnPaperStart", "btnPaperStop",
-    "btnLoadDatasets", "datasetSelect",
+    "btnLoadDatasets", "datasetSelect", "btnTrendTest", "trendPresetList", "trendCriteria",
+    "trendTestStatus", "trendTestTableBody",
   ].forEach((id) => {
     els[id] = document.getElementById(id);
   });
@@ -35,16 +43,19 @@ function attachEvents() {
   els.btnLoadDatasets.addEventListener("click", loadDatasets);
   els.btnUpload.addEventListener("click", uploadCsv);
   els.btnRun.addEventListener("click", runBacktest);
+  els.btnTrendTest.addEventListener("click", runTrendTest);
   els.btnPaperStart.addEventListener("click", startPaperTrading);
   els.btnPaperStop.addEventListener("click", stopPaperTrading);
   els.apiBase.addEventListener("change", () => {
     state.apiBase = els.apiBase.value.trim().replace(/\/$/, "");
     localStorage.setItem("ag_bt_api_base", state.apiBase);
     checkHealth();
+    syncTrendCriteriaPreview();
   });
   els.index.addEventListener("change", () => {
     const map = { NIFTY: 50, BANKNIFTY: 65, SENSEX: 10, ALL: 50 };
     els.lotSize.value = map[els.index.value] || 50;
+    syncTrendCriteriaPreview();
   });
   els.datasetSelect.addEventListener("change", () => {
     const selected = els.datasetSelect.selectedOptions[0];
@@ -55,6 +66,14 @@ function attachEvents() {
     state.datasetId = selected.value;
     localStorage.setItem("ag_bt_dataset_id", state.datasetId);
     els.datasetMeta.textContent = selected.dataset.meta || `Dataset selected: ${selected.value}`;
+    syncTrendCriteriaPreview();
+  });
+  [
+    "datasetId", "dataPath", "timeframe", "strategy", "startDate", "endDate", "capital", "lotSize",
+    "stopLoss", "target", "trailingSl", "brokerage", "slippage", "capitalAllocation",
+  ].forEach((id) => {
+    els[id].addEventListener("input", syncTrendCriteriaPreview);
+    els[id].addEventListener("change", syncTrendCriteriaPreview);
   });
 }
 
@@ -63,6 +82,9 @@ function seedDefaults() {
   els.datasetId.value = state.datasetId;
   els.endDate.value = new Date().toISOString().slice(0, 10);
   renderEmptyCharts();
+  renderTrendPresets();
+  renderTrendCriteria();
+  renderTrendResults();
 }
 
 async function loadStrategies() {
@@ -135,6 +157,7 @@ async function loadDatasets() {
       }
       els.datasetMeta.textContent = `${current.filename} uploaded ${current.uploaded_at}`;
     }
+    syncTrendCriteriaPreview();
   } catch (error) {
     els.datasetMeta.textContent = `Dataset list unavailable: ${simplifyError(error)}`;
   }
@@ -150,31 +173,30 @@ async function runBacktest() {
       body: JSON.stringify(body),
     });
     state.currentJobId = response.job_id;
-    pollJob(response.job_id);
+    const result = await waitForJob(response.job_id, (status) => {
+      setStatus(statusToMode(status.status), status.status, status.message || "");
+    });
+    state.lastResult = result;
+    renderResult(result);
   } catch (error) {
     setStatus("error", "Backtest launch failed", simplifyError(error));
   }
 }
 
-async function pollJob(jobId) {
-  const timer = setInterval(async () => {
-    try {
-      const status = await apiFetch(`/backtest/status/${jobId}`);
-      setStatus(status.status === "completed" ? "done" : status.status === "failed" ? "error" : "running", status.status, status.message || "");
-      if (status.status === "completed") {
-        clearInterval(timer);
-        const result = await apiFetch(`/backtest/result/${jobId}`);
-        state.lastResult = result;
-        renderResult(result);
-      }
-      if (status.status === "failed") {
-        clearInterval(timer);
-      }
-    } catch (error) {
-      clearInterval(timer);
-      setStatus("error", "Polling failed", simplifyError(error));
+async function waitForJob(jobId, onProgress) {
+  for (;;) {
+    const status = await apiFetch(`/backtest/status/${jobId}`);
+    if (onProgress) {
+      onProgress(status);
     }
-  }, 1500);
+    if (status.status === "completed") {
+      return apiFetch(`/backtest/result/${jobId}`);
+    }
+    if (status.status === "failed") {
+      throw new Error(status.message || `Job ${jobId} failed`);
+    }
+    await sleep(1500);
+  }
 }
 
 async function startPaperTrading() {
@@ -224,6 +246,218 @@ function collectRequestBody() {
     dataset_id: els.datasetId.value.trim() || undefined,
     data_path: els.dataPath.value.trim() || undefined,
   };
+}
+
+async function runTrendTest() {
+  if (state.trendTest.running) {
+    return;
+  }
+
+  const body = collectRequestBody();
+  const rows = TREND_TEST_TIMEFRAMES.map((timeframe) => createTrendRow(timeframe));
+  state.trendTest = {
+    running: true,
+    rows,
+    criteria: buildTrendCriteria(body),
+  };
+  renderTrendCriteria();
+  renderTrendResults();
+  setTrendStatus(`Running trend test across ${TREND_TEST_TIMEFRAMES.length} timeframes...`);
+  els.btnTrendTest.disabled = true;
+
+  let nextIndex = 0;
+
+  const runNext = async () => {
+    if (nextIndex >= TREND_TEST_TIMEFRAMES.length) {
+      return;
+    }
+    const timeframe = TREND_TEST_TIMEFRAMES[nextIndex++];
+    try {
+      await runTrendTimeframe(body, timeframe);
+    } finally {
+      if (nextIndex < TREND_TEST_TIMEFRAMES.length) {
+        await runNext();
+      }
+    }
+  };
+
+  try {
+    await Promise.all(
+      Array.from({ length: Math.min(TREND_TEST_PARALLEL, TREND_TEST_TIMEFRAMES.length) }, () => runNext()),
+    );
+    finalizeTrendTest();
+  } catch (error) {
+    setTrendStatus(`Trend test stopped: ${simplifyError(error)}`);
+  } finally {
+    state.trendTest.running = false;
+    els.btnTrendTest.disabled = false;
+    renderTrendResults();
+  }
+}
+
+async function runTrendTimeframe(baseBody, timeframe) {
+  try {
+    updateTrendRow(timeframe, { status: "submitted", note: "Submitting job" });
+    const response = await apiFetch("/backtest/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...baseBody, timeframe }),
+    });
+    updateTrendRow(timeframe, { status: "queued", jobId: response.job_id, note: "Queued" });
+    const result = await waitForJob(response.job_id, (status) => {
+      updateTrendRow(timeframe, {
+        status: status.status,
+        note: status.message || "",
+      });
+    });
+    const summary = summarizeTrendResult(timeframe, result);
+    updateTrendRow(timeframe, summary);
+  } catch (error) {
+    updateTrendRow(timeframe, {
+      status: "failed",
+      note: simplifyError(error),
+    });
+  }
+}
+
+function renderTrendPresets() {
+  els.trendPresetList.innerHTML = TREND_TEST_TIMEFRAMES
+    .map((timeframe) => `<div class="tf-chip">${timeframe.toUpperCase()}</div>`)
+    .join("");
+}
+
+function syncTrendCriteriaPreview() {
+  if (!state.trendTest.running) {
+    state.trendTest.criteria = [];
+  }
+  renderTrendCriteria();
+}
+
+function renderTrendCriteria() {
+  const body = collectRequestBody();
+  const criteria = state.trendTest.criteria.length ? state.trendTest.criteria : buildTrendCriteria(body);
+  els.trendCriteria.innerHTML = criteria
+    .map((item) => `
+      <div class="criteria-pill">
+        <strong>${item.label}</strong>
+        <span>${item.value}</span>
+      </div>
+    `)
+    .join("");
+}
+
+function buildTrendCriteria(body) {
+  return [
+    { label: "Index", value: body.index },
+    { label: "Strategy", value: body.strategy },
+    { label: "Date Range", value: `${body.start_date || "start"} to ${body.end_date || "latest"}` },
+    { label: "Capital", value: formatCurrencyCompact(body.capital) },
+    { label: "Lot Size", value: body.lot_size ?? "Auto" },
+    { label: "Risk", value: `SL ${body.stop_loss}% | TG ${body.target}% | TSL ${body.trailing_sl}%` },
+    { label: "Costs", value: `Brk ${body.brokerage} | Slip ${body.slippage}%` },
+    { label: "Dataset", value: body.dataset_id || body.data_path || "Auto latest match" },
+  ];
+}
+
+function createTrendRow(timeframe) {
+  return {
+    timeframe,
+    status: "pending",
+    strategy: "n/a",
+    index: "n/a",
+    score: null,
+    winRate: null,
+    netPnl: null,
+    drawdown: null,
+    totalTrades: null,
+    note: "Waiting",
+    result: null,
+    jobId: "",
+  };
+}
+
+function updateTrendRow(timeframe, patch) {
+  state.trendTest.rows = state.trendTest.rows.map((row) => (
+    row.timeframe === timeframe ? { ...row, ...patch } : row
+  ));
+  renderTrendResults();
+}
+
+function renderTrendResults() {
+  const rows = state.trendTest.rows || [];
+  if (!rows.length) {
+    els.trendTestTableBody.innerHTML = '<tr><td colspan="10" class="empty-cell">Trend test results will appear here.</td></tr>';
+    return;
+  }
+  els.trendTestTableBody.innerHTML = rows.map((row) => `
+    <tr>
+      <td>${row.timeframe.toUpperCase()}</td>
+      <td class="trend-status ${row.status}">${row.status}${row.note ? ` | ${row.note}` : ""}</td>
+      <td>${row.strategy || "n/a"}</td>
+      <td>${row.index || "n/a"}</td>
+      <td>${row.score == null ? "n/a" : formatNumber(row.score)}</td>
+      <td>${row.winRate == null ? "n/a" : `${formatNumber(row.winRate)}%`}</td>
+      <td>${row.netPnl == null ? "n/a" : `Rs ${formatMoney(row.netPnl)}`}</td>
+      <td>${row.drawdown == null ? "n/a" : `${formatNumber(row.drawdown)}%`}</td>
+      <td>${row.totalTrades == null ? "n/a" : row.totalTrades}</td>
+      <td><button class="trend-view-btn" data-timeframe="${row.timeframe}" ${row.result ? "" : "disabled"}>Load</button></td>
+    </tr>
+  `).join("");
+
+  els.trendTestTableBody.querySelectorAll(".trend-view-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const row = state.trendTest.rows.find((item) => item.timeframe === button.dataset.timeframe);
+      if (!row?.result) {
+        return;
+      }
+      state.lastResult = row.result;
+      renderResult(row.result);
+      setStatus("done", `Loaded ${row.timeframe.toUpperCase()} trend result`, `${row.strategy} | ${row.index}`);
+    });
+  });
+}
+
+function summarizeTrendResult(timeframe, result) {
+  const best = result.ranking?.best_overall_strategy;
+  const strategyResults = result.strategy_results || [];
+  const detail = best
+    ? strategyResults.find((item) => item.strategy === best.strategy && item.index === best.index)
+    : strategyResults[0];
+  const metrics = detail?.metrics || {};
+  return {
+    timeframe,
+    status: "completed",
+    strategy: best?.strategy || detail?.strategy || "n/a",
+    index: best?.index || detail?.index || result.request?.index || "n/a",
+    score: best?.score ?? metrics.strategy_score ?? 0,
+    winRate: metrics.win_rate ?? 0,
+    netPnl: metrics.net_pnl ?? 0,
+    drawdown: Math.abs(metrics.max_drawdown_pct ?? 0),
+    totalTrades: metrics.total_trades ?? 0,
+    note: detail ? "Complete" : "No strategy output",
+    result,
+    jobId: result.job_id,
+  };
+}
+
+function finalizeTrendTest() {
+  const completed = state.trendTest.rows.filter((row) => row.status === "completed" && row.result);
+  const failed = state.trendTest.rows.filter((row) => row.status === "failed").length;
+  if (!completed.length) {
+    setTrendStatus("Trend test finished with no completed results.");
+    return;
+  }
+  const best = completed.reduce((winner, row) => (
+    (row.score ?? -Infinity) > (winner.score ?? -Infinity) ? row : winner
+  ));
+  state.lastResult = best.result;
+  renderResult(best.result);
+  setTrendStatus(`Completed ${completed.length}/${TREND_TEST_TIMEFRAMES.length}. Best timeframe: ${best.timeframe.toUpperCase()} (${best.strategy}, score ${formatNumber(best.score)}). Failed: ${failed}.`);
+  setStatus("done", "Trend test completed", `Best timeframe ${best.timeframe.toUpperCase()} loaded`);
+}
+
+function setTrendStatus(message) {
+  els.trendTestStatus.textContent = message;
 }
 
 function renderResult(result) {
@@ -380,8 +614,22 @@ function setStatus(mode, headline, message) {
   els.jobMessage.textContent = message;
 }
 
+function statusToMode(status) {
+  if (status === "completed") {
+    return "done";
+  }
+  if (status === "failed") {
+    return "error";
+  }
+  return "running";
+}
+
 function formatDateTime(value) {
   return value ? String(value).replace("T", " ").slice(0, 19) : "n/a";
+}
+
+function formatCurrencyCompact(value) {
+  return Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 }
 
 function formatMoney(value) {
@@ -394,4 +642,8 @@ function formatNumber(value) {
 
 function simplifyError(error) {
   return String(error.message || error).replaceAll('"', "");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

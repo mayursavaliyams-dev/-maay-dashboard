@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Any
 
 import numpy as np
@@ -228,7 +229,7 @@ class HistoricalDataEngine:
         return MarketDataset(raw=frame, options=options, spot=spot, futures=futures, metadata=metadata)
 
     def _resample(self, frame: pd.DataFrame, timeframe: str) -> pd.DataFrame:
-        rule = TIMEFRAME_RULES.get(timeframe.lower(), timeframe)
+        rule = normalize_timeframe_rule(timeframe)
         if rule in {"1min", "1m"}:
             return frame.sort_values("datetime").reset_index(drop=True)
         pieces: list[pd.DataFrame] = []
@@ -549,8 +550,31 @@ def _normalize_option_type(value: Any) -> str | None:
     return None
 
 
+def normalize_timeframe_rule(timeframe: str) -> str:
+    text = str(timeframe or "").strip().lower()
+    if not text:
+        return "5min"
+    mapped = TIMEFRAME_RULES.get(text)
+    if mapped:
+        return mapped
+
+    minute_match = re.fullmatch(r"(\d+)\s*(m|min|mins|minute|minutes)", text)
+    if minute_match:
+        return f"{int(minute_match.group(1))}min"
+
+    hour_match = re.fullmatch(r"(\d+)\s*(h|hr|hrs|hour|hours)", text)
+    if hour_match:
+        return f"{int(hour_match.group(1))}h"
+
+    day_match = re.fullmatch(r"(\d+)\s*(d|day|days)", text)
+    if day_match:
+        return f"{int(day_match.group(1))}D"
+
+    return timeframe
+
+
 def _tolerance_for_timeframe(timeframe: str) -> pd.Timedelta:
-    rule = TIMEFRAME_RULES.get(timeframe.lower(), timeframe)
+    rule = normalize_timeframe_rule(timeframe)
     if rule == "1D":
         return pd.Timedelta(days=1)
     return pd.Timedelta(rule)

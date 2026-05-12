@@ -68,6 +68,10 @@ class ExecutionEngine {
     // Forces deeper-OTM strikes that fit the user's per-trade ₹ budget.
     const maxPremEnvKey = `${(this.instrumentName || '').toUpperCase()}_MAX_PREMIUM`;
     this.maxPremium = parseFloat(process.env[maxPremEnvKey] || 0) || null;
+    // Per-instrument premium floor — skip ultra-cheap options where
+    // brokerage (₹60 RT) eats any plausible gain (entry ₹0.05 × 65 lot = ₹3 deployed).
+    const minPremEnvKey = `${(this.instrumentName || '').toUpperCase()}_MIN_PREMIUM`;
+    this.minPremium = parseFloat(process.env[minPremEnvKey] || 0) || null;
     this._getDailyPnl  = null; // injected by server
 
     this._lastSignal      = 'WAIT';
@@ -172,6 +176,21 @@ class ExecutionEngine {
     };
   }
 
+  // Decode JWT payload and check exp claim. Returns true if token is
+  // missing, malformed, or past its expiry. Paper mode never calls this.
+  _isTokenExpired() {
+    try {
+      const token = process.env.DHAN_ACCESS_TOKEN || '';
+      const parts = token.split('.');
+      if (parts.length !== 3) return true;
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(Buffer.from(b64, 'base64').toString());
+      return !payload.exp || payload.exp * 1000 <= Date.now();
+    } catch (_) {
+      return true;
+    }
+  }
+
   // ── Called every 5s by server bot loop ─────────────────────────
   async tick() {
     this._resetIfNewDay();
@@ -203,6 +222,17 @@ class ExecutionEngine {
     if (this._enteredToday)      return;
     if (this.getTradesToday() >= this.getMaxTrades()) return;
 
+    // Live mode + expired Dhan token = no order can succeed; refuse entry
+    // and warn (rate-limited to once per minute) until operator refreshes
+    // via /api/dhan/login. Paper mode bypasses (no broker call).
+    if (!this.paperMode && this._isTokenExpired()) {
+      if (!this._tokenWarnedAt || Date.now() - this._tokenWarnedAt > 60000) {
+        console.warn(`[${this.instrumentName}] ⛔ Dhan token EXPIRED — auto entry paused. Refresh: http://localhost:${process.env.PORT || 3000}/api/dhan/login`);
+        this._tokenWarnedAt = Date.now();
+      }
+      return;
+    }
+
     // Consecutive-loss circuit breaker — bot stays halted across days
     // until operator clears via POST /api/engine/reset.
     if (this._haltedReason === 'CONSEC_LOSSES') return;
@@ -220,8 +250,12 @@ class ExecutionEngine {
       }
     }
 
-    // Only enter in 9:31–10:30 window
-    if (mins > 10 * 60 + 30) return;
+    // Entry window — default 9:31-10:30 (validated by backtest). Override via
+    // ENTRY_WINDOW_END_HOUR / ENTRY_WINDOW_END_MINUTE env vars when you want
+    // the bot to fire later in the day (e.g. exploratory paper sessions).
+    const entryEndH = parseInt(process.env.ENTRY_WINDOW_END_HOUR || 10);
+    const entryEndM = parseInt(process.env.ENTRY_WINDOW_END_MINUTE || 30);
+    if (mins > entryEndH * 60 + entryEndM) return;
 
     // Check for fresh signal
     const signal = this.getSignal();
@@ -287,6 +321,10 @@ class ExecutionEngine {
 
     if (this.maxPremium && ltp > this.maxPremium) {
       console.log(`[${this.instrumentName}] SKIP — option LTP ₹${ltp.toFixed(2)} > cap ₹${this.maxPremium} (${strike}${type})`);
+      return;
+    }
+    if (this.minPremium && ltp < this.minPremium) {
+      console.log(`[${this.instrumentName}] SKIP — option LTP ₹${ltp.toFixed(2)} < floor ₹${this.minPremium} (${strike}${type}) — too cheap, brokerage eats it`);
       return;
     }
     // Compounded position sizing: lots = floor(equity × riskPct / cost-per-lot).

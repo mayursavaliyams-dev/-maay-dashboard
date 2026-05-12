@@ -16,6 +16,7 @@ const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical'] });
 
 const { aggregate } = require('../backtest-real/aggregator');
 const OptionAnalyzer = require('../option-analyzer');
+const { writeBacktestExcel } = require('../export-backtest-excel');
 
 // ================================================================
 // HELPERS
@@ -532,6 +533,10 @@ async function main() {
   const config = { instrument, numExpiries, startDate: startDate || null, risk, cutover, yahoo: indexCfg.yahoo };
   fs.writeFileSync(outPath, JSON.stringify({ ...report, config }, null, 2));
   fs.writeFileSync(instrumentOutPath, JSON.stringify({ ...report, config }, null, 2));
+  const excelOutPath = writeBacktestExcel(outPath, 'exports');
+  const reportWithExcel = { ...report, config: { ...config, excelReportPath: excelOutPath } };
+  fs.writeFileSync(outPath, JSON.stringify(reportWithExcel, null, 2));
+  fs.writeFileSync(instrumentOutPath, JSON.stringify(reportWithExcel, null, 2));
 
   // ---- Print summary ----
   const s = report.stats;
@@ -597,6 +602,7 @@ async function main() {
 
   console.log(`\n  Saved -> ${outPath}`);
   console.log(`  Saved -> ${instrumentOutPath}`);
+  console.log(`  Saved -> ${excelOutPath}`);
   console.log('============================================================\n');
 }
 

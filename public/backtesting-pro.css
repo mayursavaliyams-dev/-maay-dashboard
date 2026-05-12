@@ -143,6 +143,52 @@ select {
   flex-wrap: wrap;
 }
 
+.chip-cloud {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0 16px;
+}
+
+.tf-chip,
+.criteria-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(8, 17, 31, 0.72);
+}
+
+.tf-chip {
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.criteria-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.criteria-pill {
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.criteria-pill strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.criteria-pill span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .btn {
   display: inline-flex;
   justify-content: center;
@@ -278,6 +324,46 @@ canvas {
   overflow: auto;
 }
 
+.trend-table td:last-child,
+.trend-table th:last-child {
+  text-align: right;
+}
+
+.trend-status {
+  text-transform: capitalize;
+}
+
+.trend-status.running,
+.trend-status.queued,
+.trend-status.submitted {
+  color: var(--accent);
+}
+
+.trend-status.completed {
+  color: var(--green);
+}
+
+.trend-status.failed {
+  color: var(--danger);
+}
+
+.trend-view-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(100, 241, 214, 0.24);
+  background: rgba(100, 241, 214, 0.12);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trend-view-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -352,5 +438,8 @@ th {
   .grid.three {
     grid-template-columns: 1fr;
   }
-}
 
+  .criteria-grid {
+    grid-template-columns: 1fr;
+  }
+}

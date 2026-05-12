@@ -1,0 +1,230 @@
+{
+  "generatedAt": "2026-05-12T14:38:04.471Z",
+  "sourceReport": "C:\\Users\\Admin\\Downloads\\Expiry-Friday-5x\\backtest-real-results.json",
+  "sourceConfig": {
+    "instrument": "NIFTY",
+    "numExpiries": 200,
+    "startDate": "2024-12-28",
+    "risk": {
+      "stopLossPct": 5,
+      "targetPct": 400,
+      "trailAfterMultiple": 2,
+      "trailLockPct": 90
+    },
+    "cutover": "2024-10-28",
+    "yahoo": "^NSEI",
+    "excelReportPath": "C:\\Users\\Admin\\Downloads\\Expiry-Friday-5x\\exports\\backtest-nifty-71-expiries.xlsx"
+  },
+  "tradesCount": 3,
+  "config": {
+    "instrument": "NIFTY",
+    "capital": 100000,
+    "capitalPerTradePercent": 5,
+    "interval": 5,
+    "strikeOffset": 2,
+    "cacheDir": "C:\\Users\\Admin\\Downloads\\Expiry-Friday-5x\\data\\dhan-cache"
+  },
+  "bucketSummary": [
+    {
+      "bucket": "0",
+      "count": 3,
+      "wins": 0,
+      "losses": 3,
+      "winPct": 0,
+      "avgPnlPct": -4.3,
+      "sumPnlPct": -12.8
+    },
+    {
+      "bucket": ">=+3",
+      "count": 0,
+      "wins": 0,
+      "losses": 0,
+      "winPct": 0,
+      "avgPnlPct": 0,
+      "sumPnlPct": 0
+    },
+    {
+      "bucket": "+1..+2",
+      "count": 0,
+      "wins": 0,
+      "losses": 0,
+      "winPct": 0,
+      "avgPnlPct": 0,
+      "sumPnlPct": 0
+    },
+    {
+      "bucket": "-1..-2",
+      "count": 0,
+      "wins": 0,
+      "losses": 0,
+      "winPct": 0,
+      "avgPnlPct": 0,
+      "sumPnlPct": 0
+    },
+    {
+      "bucket": "<=-3",
+      "count": 0,
+      "wins": 0,
+      "losses": 0,
+      "winPct": 0,
+      "avgPnlPct": 0,
+      "sumPnlPct": 0
+    }
+  ],
+  "filterSummary": [
+    {
+      "filter": "no filter",
+      "minScore": -99,
+      "trades": 3,
+      "winPct": 0,
+      "avgPnlPct": -4.3,
+      "finalEquity": 99371,
+      "multiple": 0.99,
+      "maxDrawdownPct": 0.6
+    },
+    {
+      "filter": "score >= 0",
+      "minScore": 0,
+      "trades": 3,
+      "winPct": 0,
+      "avgPnlPct": -4.3,
+      "finalEquity": 99371,
+      "multiple": 0.99,
+      "maxDrawdownPct": 0.6
+    },
+    {
+      "filter": "score >= 1",
+      "minScore": 1,
+      "trades": 0,
+      "winPct": 0,
+      "avgPnlPct": 0,
+      "finalEquity": 100000,
+      "multiple": 1,
+      "maxDrawdownPct": 0
+    },
+    {
+      "filter": "score >= 2",
+      "minScore": 2,
+      "trades": 0,
+      "winPct": 0,
+      "avgPnlPct": 0,
+      "finalEquity": 100000,
+      "multiple": 1,
+      "maxDrawdownPct": 0
+    },
+    {
+      "filter": "score >= 3",
+      "minScore": 3,
+      "trades": 0,
+      "winPct": 0,
+      "avgPnlPct": 0,
+      "finalEquity": 100000,
+      "multiple": 1,
+      "maxDrawdownPct": 0
+    }
+  ],
+  "trades": [
+    {
+      "status": "OK",
+      "type": "CALL",
+      "confidence": "HIGH",
+      "strikeOffset": 0,
+      "entryPrice": 290.88,
+      "exitPrice": 278.52,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
+      "strike": 23400,
+      "iv": 0.359,
+      "gammaBlast": {
+        "blastScore": 33,
+        "blastLevel": "LOW",
+        "greekRank": 45,
+        "greekGrade": "C",
+        "gamma": 0.00078338,
+        "delta": 0.5108,
+        "breakdown": {
+          "gammaPower": 6,
+          "deltaSweetSpot": 19,
+          "thetaAccel": 20,
+          "vegaEdge": 0,
+          "gtrRatio": 0
+        }
+      },
+      "date": "2025-04-17",
+      "era": "nifty-thursday",
+      "weekday": "THU",
+      "trendScore": 0,
+      "trendLabel": "FLAT"
+    },
+    {
+      "status": "OK",
+      "type": "CALL",
+      "confidence": "HIGH",
+      "strikeOffset": 0,
+      "entryPrice": 275.1,
+      "exitPrice": 263.41,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
+      "strike": 25400,
+      "iv": 0.3,
+      "gammaBlast": {
+        "blastScore": 32,
+        "blastLevel": "LOW",
+        "greekRank": 44,
+        "greekGrade": "C",
+        "gamma": 0.00086192,
+        "delta": 0.5311,
+        "breakdown": {
+          "gammaPower": 6,
+          "deltaSweetSpot": 18,
+          "thetaAccel": 20,
+          "vegaEdge": 0,
+          "gtrRatio": 0
+        }
+      },
+      "date": "2026-02-16",
+      "era": "nifty-tuesday",
+      "weekday": "MON",
+      "trendScore": 0,
+      "trendLabel": "FLAT"
+    },
+    {
+      "status": "OK",
+      "type": "PUT",
+      "confidence": "HIGH",
+      "strikeOffset": 0,
+      "entryPrice": 228.74,
+      "exitPrice": 219.02,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
+      "strike": 23700,
+      "iv": 0.3,
+      "gammaBlast": {
+        "blastScore": 32,
+        "blastLevel": "LOW",
+        "greekRank": 43,
+        "greekGrade": "C",
+        "gamma": 0.00092363,
+        "delta": 0.4683,
+        "breakdown": {
+          "gammaPower": 6,
+          "deltaSweetSpot": 17,
+          "thetaAccel": 20,
+          "vegaEdge": 0,
+          "gtrRatio": 0
+        }
+      },
+      "date": "2026-05-12",
+      "era": "nifty-tuesday",
+      "weekday": "TUE",
+      "trendScore": 0,
+      "trendLabel": "FLAT"
+    }
+  ]
+}

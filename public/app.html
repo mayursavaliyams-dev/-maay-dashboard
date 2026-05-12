@@ -82,6 +82,10 @@ function Navbar() {
   const { data: sensex } = useFetch('/api/sensex', 1000);
   // Risk panel changes slowly (token expiry, capital, halts) — 10s is fine
   const { data: risk }   = useFetch('/api/risk', 10000);
+  // Trade mode (paper/live) — fetched from /api/health, updates every 10s
+  const { data: health } = useFetch('/api/health', 10000);
+  const tradeMode = (health?.tradeMode || 'paper').toLowerCase();
+  const isLive    = tradeMode === 'live';
   const [profileOpen, setProfileOpen] = useState(false);
 
   const istHM  = new Date().getUTCHours() * 60 + 330 + new Date().getUTCMinutes();
@@ -90,8 +94,8 @@ function Navbar() {
 
   // Notification = anything risk-y the user should look at right now
   const notifs = [];
-  if (risk?.tokenExpired)               notifs.push({ kind: 'red',    text: 'Dhan token EXPIRED — refresh now' });
-  else if ((risk?.tokenExpiryHours ?? 99) < 2) notifs.push({ kind: 'yellow', text: `Dhan token expires in ${risk.tokenExpiryHours}h` });
+  if (risk?.tokenExpired)               notifs.push({ kind: 'red',    text: 'Dhan token EXPIRED — click to refresh', link: '/api/dhan/login' });
+  else if ((risk?.tokenExpiryHours ?? 99) < 2) notifs.push({ kind: 'yellow', text: `Dhan token expires in ${risk.tokenExpiryHours}h — refresh`, link: '/api/dhan/login' });
   if (risk?.limitBreached)              notifs.push({ kind: 'red',    text: 'Daily loss limit breached — bot halted' });
   if ((risk?.sensexConsecLosses ?? 0) >= 3) notifs.push({ kind: 'yellow', text: `${risk.sensexConsecLosses} losses in a row` });
 
@@ -110,7 +114,15 @@ function Navbar() {
     e('div', { className: 'flex items-center gap-8' },
       e('div', { className: 'flex items-center gap-2' },
         e('div', { className: 'w-7 h-7 rounded-lg bg-gradient-to-br from-accent-green to-cyan-400 flex items-center justify-center text-bg font-bold text-sm' }, 'A'),
-        e('span', { className: 'font-semibold text-sm tracking-wide' }, 'ANTIGRAVITY')
+        e('span', { className: 'font-semibold text-sm tracking-wide' }, 'ANTIGRAVITY'),
+        // Trade-mode badge: green PAPER (safe) / red LIVE (real money)
+        // Pulses when LIVE so it's impossible to miss.
+        e('span', {
+          title: isLive ? 'Real-money trading enabled — orders will hit Dhan' : 'Paper mode — simulated orders only, no real money',
+          className: `ml-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest border ${isLive
+            ? 'bg-accent-red/20 text-accent-red border-accent-red animate-pulse'
+            : 'bg-accent-green/15 text-accent-green border-accent-green/60'}`
+        }, isLive ? 'LIVE ⚠' : 'PAPER')
       ),
       e('nav', { className: 'flex items-center gap-1 text-[13px]' },
         navItems.map(label => e('a', {
@@ -119,7 +131,7 @@ function Navbar() {
         }, label))
       )
     ),
-    // Right: market status + spot + notifications + profile
+    // Right: market status + spot + halt-all + notifications + profile
     e('div', { className: 'flex items-center gap-3 text-[12px]' },
       e('div', { className: 'flex items-center gap-2 px-3 py-1.5 rounded-md bg-card border border-border' },
         e('span', { className: `w-2 h-2 rounded-full ${marketOpen ? 'bg-accent-green animate-pulse' : 'bg-accent-red'}` }),
@@ -128,6 +140,9 @@ function Navbar() {
       sensex && e('div', { className: 'text-gray-400' },
         'SENSEX ', e('b', { className: 'text-white tabular-nums' }, sensex.price)
       ),
+      // Emergency HALT ALL — kills auto-trading on both engines in one click.
+      // Open positions are NOT auto-closed; this just stops new entries.
+      e(HaltAllButton),
       // Notifications bell
       e('div', { className: 'relative group' },
         e('div', {
@@ -140,10 +155,18 @@ function Navbar() {
           className: 'absolute right-0 top-10 w-72 bg-card border border-border rounded-card p-2 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition'
         },
           e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold px-2 py-1' }, 'Alerts'),
-          notifs.map((n, i) => e('div', {
-            key: i,
-            className: `text-[12px] px-2 py-2 rounded-md ${n.kind === 'red' ? 'text-accent-red' : 'text-yellow-400'}`
-          }, '• ' + n.text))
+          notifs.map((n, i) => n.link
+            ? e('a', {
+                key: i,
+                href: n.link,
+                target: '_blank',
+                rel: 'noopener',
+                className: `block text-[12px] px-2 py-2 rounded-md hover:bg-bg cursor-pointer ${n.kind === 'red' ? 'text-accent-red' : 'text-yellow-400'}`
+              }, '• ' + n.text + ' →')
+            : e('div', {
+                key: i,
+                className: `text-[12px] px-2 py-2 rounded-md ${n.kind === 'red' ? 'text-accent-red' : 'text-yellow-400'}`
+              }, '• ' + n.text))
         )
       ),
       // Profile dropdown
@@ -549,11 +572,255 @@ function RightPanel() {
 }
 
 // ──────────────────────────────────────────────────────────────────
+// ALERT STRIP — always visible when any condition is active.
+// Mirrors the Navbar bell notifs but renders inline so users can't miss
+// the token-expiry / daily-loss / consec-loss / live-mode warnings.
+// ──────────────────────────────────────────────────────────────────
+function AlertStrip() {
+  const { data: risk }   = useFetch('/api/risk', 5000);
+  const { data: health } = useFetch('/api/health', 10000);
+  const { data: niftyHL } = useFetch('/api/nifty/hl-log', 3000);
+  const { data: sensexHL } = useFetch('/api/sensex/hl-log', 3000);
+  if (!risk) return null;
+
+  const isLive = (health?.tradeMode || 'paper').toLowerCase() === 'live';
+  const alerts = [];
+  if (risk.tokenExpired)
+    alerts.push({ kind: 'red', text: 'Dhan token EXPIRED — auto trading blocked', cta: 'Refresh now', link: '/api/dhan/login' });
+  else if ((risk.tokenExpiryHours ?? 99) < 2)
+    alerts.push({ kind: 'yellow', text: `Dhan token expires in ${risk.tokenExpiryHours}h`, cta: 'Refresh', link: '/api/dhan/login' });
+  if (risk.limitBreached)
+    alerts.push({ kind: 'red', text: `Daily loss limit breached (₹${Math.abs(risk.totalTodayPnl).toLocaleString('en-IN')} / ₹${Math.abs(risk.dailyLossLimit).toLocaleString('en-IN')}) — bot halted` });
+  if ((risk.niftyConsecLosses ?? 0) >= 3)
+    alerts.push({ kind: 'yellow', text: `NIFTY: ${risk.niftyConsecLosses} losses in a row (max ${risk.maxConsecutiveLosses})` });
+  if ((risk.sensexConsecLosses ?? 0) >= 3)
+    alerts.push({ kind: 'yellow', text: `SENSEX: ${risk.sensexConsecLosses} losses in a row (max ${risk.maxConsecutiveLosses})` });
+  if (isLive && (risk.niftyAutoEnabled || risk.sensexAutoEnabled))
+    alerts.push({ kind: 'red', text: 'LIVE auto-trading is ON — real-money orders enabled' });
+
+  // H/L pattern alerts — 3 lower-lows or higher-highs in 10 min
+  for (const [inst, hl] of [['NIFTY', niftyHL], ['SENSEX', sensexHL]]) {
+    if (hl?.pattern) {
+      const p = hl.pattern;
+      const arrow = p.direction === 'LOW' ? '↓↓↓' : '↑↑↑';
+      const kind = p.direction === 'LOW' ? 'red' : 'yellow';
+      const action = p.direction === 'LOW' ? 'PUT bias' : 'CALL bias';
+      alerts.push({
+        kind,
+        text: `${arrow} ${inst}: ${p.name.replace('_', ' ')} — ${p.firstP}→${p.lastP} (${p.movePct}%) | ATM ${p.atmStrike} CE₹${p.legs.at(-1).ce} PE₹${p.legs.at(-1).pe} | ${action}`
+      });
+    }
+  }
+
+  if (alerts.length === 0) return null;
+
+  const tone = {
+    red:    'bg-accent-red/15 border-accent-red/50 text-accent-red',
+    yellow: 'bg-yellow-500/10 border-yellow-500/40 text-yellow-300'
+  };
+  return e('div', {
+    className: 'sticky top-[58px] z-20 flex flex-wrap gap-2 px-5 py-2 bg-sidebar border-b border-border'
+  },
+    alerts.map((a, i) => e('div', {
+      key: i,
+      className: `flex items-center gap-2 px-3 py-1.5 rounded-md border text-[12px] font-medium ${tone[a.kind]}`
+    },
+      e('span', null, '⚠'),
+      e('span', null, a.text),
+      a.link && e('a', {
+        href: a.link, target: '_blank', rel: 'noopener',
+        className: 'underline underline-offset-2 hover:opacity-80 font-semibold'
+      }, a.cta || 'Action →')
+    ))
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// HALT ALL BUTTON — kill switch in header. Disables auto-trading on
+// both engines via POST /api/engine/halt-all. Open positions are NOT
+// auto-closed (use position/exit for that). Confirms before firing.
+// ──────────────────────────────────────────────────────────────────
+function HaltAllButton() {
+  const { data: engN } = useFetch('/api/nifty/engine/status', 5000);
+  const { data: engS } = useFetch('/api/engine/status',       5000);
+  const [busy, setBusy] = useState(false);
+  const [flashOk, setFlashOk] = useState(false);
+  const anyAuto = (engN?.autoEnabled) || (engS?.autoEnabled);
+
+  async function halt() {
+    if (!confirm('HALT ALL auto-trading on NIFTY + SENSEX?\n\nOpen positions are NOT closed — only new entries stop.')) return;
+    setBusy(true);
+    try {
+      const r = await fetch('/api/engine/halt-all', { method: 'POST' });
+      if (r.ok) { setFlashOk(true); setTimeout(() => setFlashOk(false), 2000); }
+    } catch (err) { console.error(err); alert('Halt failed: ' + err.message); }
+    setBusy(false);
+  }
+
+  // When nothing is armed, show a muted "all stopped" indicator instead of an active button
+  if (!anyAuto) return e('div', {
+    title: 'Both engines are already paused. Toggle AUTO on the engine cards to re-arm.',
+    className: 'px-3 py-1.5 rounded-md bg-card border border-gray-700 text-gray-500 text-[11px] font-semibold cursor-default'
+  }, '○ ALL STOPPED');
+
+  return e('button', {
+    onClick: halt,
+    disabled: busy,
+    title: 'Emergency: stop all new auto entries on both NIFTY and SENSEX',
+    className: `px-3 py-1.5 rounded-md font-bold text-[11px] tracking-wider transition ${
+      flashOk
+        ? 'bg-accent-green text-bg'
+        : busy
+          ? 'bg-gray-600 text-gray-300 cursor-wait'
+          : 'bg-accent-red text-white hover:opacity-90 animate-pulse'
+    }`
+  }, flashOk ? '✓ STOPPED' : busy ? '...' : '🛑 HALT ALL')
+}
+
+// ──────────────────────────────────────────────────────────────────
+// SIGNAL PILLS — live CALL/PUT/WAIT pills per instrument.
+// Polls /api/nifty + /api/sensex every 2s. Always visible below alerts.
+// Critical for live monitoring without diving into the trading module.
+// ──────────────────────────────────────────────────────────────────
+function SignalPills() {
+  const { data: nifty }  = useFetch('/api/nifty',  2000);
+  const { data: sensex } = useFetch('/api/sensex', 2000);
+  const { data: engN }   = useFetch('/api/nifty/engine/status', 5000);
+
+  // Confidence-aware coloring
+  const signalTone = (sig, conf) => {
+    if (sig === 'CALL') return { bg: 'bg-accent-green/20 border-accent-green', text: 'text-accent-green', icon: '↑' };
+    if (sig === 'PUT')  return { bg: 'bg-accent-red/20 border-accent-red',     text: 'text-accent-red',   icon: '↓' };
+    return { bg: 'bg-card border-border', text: 'text-gray-400', icon: '○' };
+  };
+
+  const Pill = ({ label, data, eng }) => {
+    if (!data) return e('div', { className: 'flex-1 px-3 py-2 rounded-md bg-card border border-border opacity-50' },
+      e('div', { className: 'text-[10px] uppercase tracking-wider text-gray-500' }, label),
+      e('div', { className: 'text-[12px] text-gray-500' }, 'loading…')
+    );
+    const sig = (data.signal || 'WAIT').toUpperCase();
+    const tone = signalTone(sig, data.confidence);
+    const orbReady = data.orbHigh && data.orbHigh !== '--';
+    return e('div', {
+      className: `flex-1 px-3 py-2 rounded-md border ${tone.bg} flex items-center gap-3`
+    },
+      e('div', { className: 'flex-1' },
+        e('div', { className: 'text-[10px] uppercase tracking-wider text-gray-400' },
+          label,
+          eng?.autoEnabled && e('span', { className: 'ml-2 text-[9px] text-accent-green' }, '● AUTO'),
+          eng && !eng.autoEnabled && e('span', { className: 'ml-2 text-[9px] text-gray-500' }, '○ OFF')
+        ),
+        e('div', { className: 'flex items-baseline gap-3' },
+          e('span', { className: `text-base font-bold ${tone.text}` }, tone.icon + ' ' + sig),
+          e('span', { className: 'text-[11px] tabular-nums text-gray-300' }, '₹' + (data.price || '--')),
+          data.confidence != null && e('span', { className: 'text-[10px] text-gray-500' }, 'conf ' + data.confidence)
+        )
+      ),
+      e('div', { className: 'text-right' },
+        e('div', { className: 'text-[9px] uppercase text-gray-500' }, 'ORB'),
+        e('div', { className: `text-[10px] tabular-nums ${orbReady ? 'text-gray-300' : 'text-gray-600'}` },
+          orbReady ? `${data.orbHigh} / ${data.orbLow}` : 'not formed'
+        )
+      )
+    );
+  };
+
+  return e('div', {
+    className: 'sticky top-[58px] z-10 flex gap-2 px-5 py-2 bg-bg border-b border-border'
+  },
+    e(Pill, { label: 'NIFTY',  data: nifty,  eng: engN }),
+    e(Pill, { label: 'SENSEX', data: sensex, eng: null })
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// ENGINE STATUS PILLS — auto on/off, halt reason, consec losses, today's
+// trades. Shows the operational state of each instrument's engine at a
+// glance. Includes a "RESET" link for halts that need operator clearance.
+// ──────────────────────────────────────────────────────────────────
+function EngineStatusPills() {
+  const { data: engN } = useFetch('/api/nifty/engine/status', 5000);
+  const { data: engS } = useFetch('/api/engine/status',       5000);
+  const { data: risk } = useFetch('/api/risk', 5000);
+
+  async function resetHalt(inst) {
+    if (!confirm(`Clear halt on ${inst}? This re-arms auto-trading.`)) return;
+    try {
+      await fetch(`/api/engine/reset${inst === 'NIFTY' ? '?inst=NIFTY' : ''}`, { method: 'POST' });
+    } catch (err) { console.error(err); }
+  }
+
+  const Card = ({ label, eng, todayCount, consec }) => {
+    if (!eng) return null;
+    const halt = eng.halt || {};
+    const isHalted = halt.halted;
+    const reason = halt.reason; // 'CONSEC_LOSSES' | 'DAILY_LOSS' | null
+    const consecVal = consec ?? halt.consecLosses ?? 0;
+    const maxConsec = halt.maxConsecLosses ?? 8;
+
+    const bg = isHalted
+      ? 'bg-accent-red/15 border-accent-red/60'
+      : eng.autoEnabled
+        ? 'bg-accent-green/10 border-accent-green/40'
+        : 'bg-card border-border';
+
+    return e('div', { className: `flex-1 px-3 py-2 rounded-md border ${bg} flex items-center gap-4` },
+      e('div', { className: 'flex-1' },
+        e('div', { className: 'flex items-center gap-2 text-[10px] uppercase tracking-wider text-gray-400' },
+          label,
+          eng.paperMode
+            ? e('span', { className: 'text-[9px] text-accent-green' }, '· PAPER')
+            : e('span', { className: 'text-[9px] text-accent-red font-bold' }, '· LIVE'),
+          isHalted
+            ? e('span', { className: 'text-[9px] text-accent-red font-bold' }, '· ⛔ HALTED')
+            : eng.autoEnabled
+              ? e('span', { className: 'text-[9px] text-accent-green' }, '· AUTO ON')
+              : e('span', { className: 'text-[9px] text-gray-500' }, '· AUTO OFF')
+        ),
+        e('div', { className: 'flex items-baseline gap-4 text-[11px] mt-0.5' },
+          e('span', { className: 'text-gray-300' },
+            'Trades today: ', e('span', { className: 'tabular-nums font-semibold text-white' }, todayCount ?? 0)
+          ),
+          e('span', { className: consecVal >= 3 ? 'text-yellow-400' : 'text-gray-300' },
+            'Consec losses: ',
+            e('span', { className: 'tabular-nums font-semibold' }, `${consecVal} / ${maxConsec}`)
+          ),
+          eng.enteredToday && e('span', { className: 'text-accent-green' }, '● position open')
+        )
+      ),
+      isHalted && e('button', {
+        onClick: () => resetHalt(label),
+        className: 'px-2 py-1 rounded-md bg-accent-red text-white text-[10px] font-bold hover:opacity-90'
+      }, 'RESET'),
+      isHalted && reason && e('div', {
+        className: 'text-[10px] text-accent-red text-right'
+      }, reason.replace('_', ' '))
+    );
+  };
+
+  if (!engN && !engS) return null;
+  return e('div', { className: 'sticky top-[58px] z-[9] flex gap-2 px-5 py-2 bg-sidebar border-b border-border' },
+    e(Card, {
+      label: 'NIFTY',  eng: engN,
+      todayCount: risk?.niftyTradesToday,  consec: risk?.niftyConsecLosses
+    }),
+    e(Card, {
+      label: 'SENSEX', eng: engS,
+      todayCount: risk?.sensexTradesToday, consec: risk?.sensexConsecLosses
+    })
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
 // ROOT LAYOUT
 // ──────────────────────────────────────────────────────────────────
 function App() {
   return e(React.Fragment, null,
     e(Navbar),
+    e(AlertStrip),
+    e(SignalPills),
+    e(EngineStatusPills),
     e('div', { className: 'flex h-[calc(100vh-58px)]' },
       e(Sidebar),
       // Main scroll area

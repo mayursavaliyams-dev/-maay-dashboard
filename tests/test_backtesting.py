@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 from openpyxl import load_workbook
 
-from backend.backtesting.data_loader import HistoricalDataEngine
+from backend.backtesting.data_loader import HistoricalDataEngine, normalize_timeframe_rule
 from backend.backtesting.engine import BacktestEngine, BacktestRunRequest
 from backend.backtesting.metrics import calculate_metrics
 from backend.backtesting.report_excel import ExcelReportGenerator
@@ -100,6 +100,15 @@ def test_strategy_signal_generation(tmp_path: Path):
     signals = strategy.generate_signals(dataset, context=strategy_context())
     assert signals
     assert {signal.signal for signal in signals}.issubset({"BUY_CALL", "BUY_PUT"})
+
+
+def test_custom_timeframe_normalization_and_resampling(tmp_path: Path):
+    csv_path = build_sample_csv(tmp_path / "sample.csv")
+    dataset = HistoricalDataEngine().load_csv(csv_path, timeframe="10m", index_filter="NIFTY")
+    assert normalize_timeframe_rule("10m") == "10min"
+    assert normalize_timeframe_rule("60m") == "60min"
+    assert not dataset.options.empty
+    assert dataset.metadata["timeframe"] == "10m"
 
 
 def test_backtest_run(tmp_path: Path):

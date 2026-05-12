@@ -81,9 +81,14 @@
               <span>Timeframe</span>
               <select id="timeframe">
                 <option value="1m">1 Minute</option>
+                <option value="2m">2 Minute</option>
                 <option value="3m">3 Minute</option>
                 <option value="5m" selected>5 Minute</option>
+                <option value="10m">10 Minute</option>
                 <option value="15m">15 Minute</option>
+                <option value="20m">20 Minute</option>
+                <option value="30m">30 Minute</option>
+                <option value="60m">60 Minute</option>
                 <option value="1d">Daily</option>
               </select>
             </label>
@@ -142,9 +147,18 @@
           </div>
           <div class="stack-row">
             <button class="btn" id="btnRun">Run Backtest</button>
+            <button class="btn secondary" id="btnTrendTest">Trend Test x10</button>
             <button class="btn secondary" id="btnPaperStart">Paper Start</button>
             <button class="btn danger" id="btnPaperStop">Paper Stop</button>
           </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title">Trend Test Criteria</div>
+          <div class="micro">Batch-compare the current setup across 10 timeframes.</div>
+          <div class="chip-cloud" id="trendPresetList"></div>
+          <div class="criteria-grid" id="trendCriteria"></div>
+          <div class="micro" id="trendTestStatus">Ready to run the timeframe comparison.</div>
         </section>
       </aside>
 
@@ -170,6 +184,31 @@
         <section class="card highlight-card" id="bestStrategyCard">
           <div class="card-title">Best Strategy</div>
           <div class="empty">Run a backtest to populate AI ranking and best-strategy insights.</div>
+        </section>
+
+        <section class="card">
+          <div class="card-title">Trend Test Results</div>
+          <div class="table-wrap">
+            <table class="trend-table">
+              <thead>
+                <tr>
+                  <th>Timeframe</th>
+                  <th>Status</th>
+                  <th>Best Strategy</th>
+                  <th>Index</th>
+                  <th>Score</th>
+                  <th>Win Rate</th>
+                  <th>Net P&amp;L</th>
+                  <th>Max DD</th>
+                  <th>Trades</th>
+                  <th>View</th>
+                </tr>
+              </thead>
+              <tbody id="trendTestTableBody">
+                <tr><td colspan="10" class="empty-cell">Trend test results will appear here.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section class="charts-grid">

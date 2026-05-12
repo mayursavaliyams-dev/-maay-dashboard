@@ -35,6 +35,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .run-btn.start:hover{box-shadow:0 4px 28px rgba(16,185,129,.5);transform:translateY(-1px)}
 .run-btn.stop{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
 .run-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.aux-btn{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;background:var(--bg3);color:var(--text);margin-top:8px}
+.aux-btn:hover{border-color:var(--accent);color:var(--accent)}
 
 /* Status badge */
 .status-row{display:flex;align-items:center;gap:8px}
@@ -150,6 +152,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
               <option value="90">90 days</option>
               <option value="180">180 days</option>
               <option value="365" selected>365 days (1 Year)</option>
+              <option value="500">500 days</option>
             </select>
           </div>
         </div>
@@ -172,6 +175,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <span class="elapsed" id="elapsed"></span>
       </div>
     </div>
+
+    <button class="aux-btn" id="btnExcel" onclick="downloadExcelReport()">Download Excel Report</button>
 
     <div>
       <div class="section-title">Results — CURRENT Config</div>
@@ -327,6 +332,11 @@ function formatMs(ms) {
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
   return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
+}
+
+function downloadExcelReport() {
+  const inst = $('cfgInst').value;
+  window.open(`/api/backtest/report?instrument=${encodeURIComponent(inst)}`, '_blank');
 }
 
 async function loadResults() {
