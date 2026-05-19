@@ -284,6 +284,267 @@
             margin-top:5px; padding:0 2px; }
         .cal-extremes b { font-weight:700; font-variant-numeric:tabular-nums; }
 
+        /* ===== POLISH: STATUS BADGES, HOVER, EMPTY STATES ===== */
+        .pro-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .pro-badge.live  { background: #7f1d1d; color: #fecaca; border: 1px solid #ef4444; }
+        .pro-badge.paper { background: #1e3a5f; color: #7dd3fc; border: 1px solid #3b82f6; }
+        .pro-badge.safe  { background: #14532d; color: #86efac; border: 1px solid #22c55e; }
+        .pro-badge.risk  { background: #78350f; color: #fcd34d; border: 1px solid #f59e0b; }
+        .pro-badge.ai    { background: #4c1d95; color: #ddd6fe; border: 1px solid #8b5cf6; }
+
+        /* Smooth hover for all cards in the bottom grid */
+        .main-grid > .col:nth-child(1) > *:hover,
+        .main-grid > .col:nth-child(3) > *:hover,
+        .dual-levels-card:hover,
+        .max-levels-card:hover,
+        .hl-panel.hl-panel-large:hover {
+            transition: transform 0.15s, box-shadow 0.15s;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        /* Empty-state text styling — appears when no data yet */
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100px; padding: 20px;
+            color: #4b5563; font-size: 0.78rem; font-style: italic;
+            text-align: center;
+        }
+        .empty-state .icon { font-size: 1.6rem; margin-bottom: 6px; opacity: 0.4; }
+
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #1f2937 25%, #2d3748 50%, #1f2937 75%);
+            background-size: 200% 100%;
+            animation: skel 1.4s linear infinite;
+            border-radius: 4px;
+            height: 12px;
+            margin: 4px 0;
+        }
+        @keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Smooth number flash */
+        @keyframes numFlashUp { 0% { color: #86efac; text-shadow: 0 0 6px #22c55e; } 100% { } }
+        @keyframes numFlashDn { 0% { color: #fca5a5; text-shadow: 0 0 6px #ef4444; } 100% { } }
+        .num-flash-up { animation: numFlashUp 0.6s ease-out; }
+        .num-flash-dn { animation: numFlashDn 0.6s ease-out; }
+
+        /* ===== UTILITY: BOTTOM-GRID CARD SIZING =====
+         * Add these classes to any card to control its size in the auto-fit grid.
+         *   .panel-wide  → spans 2 columns when room available
+         *   .panel-full  → spans full width (1 / -1)
+         *   .panel-card  → applies consistent min-height for visual balance
+         */
+        .panel-full { grid-column: 1 / -1; }
+        .panel-wide { grid-column: span 2; }
+        .panel-card { min-height: 220px; height: 100%; display: flex; flex-direction: column; }
+        @media (max-width: 900px) {
+            .panel-wide, .panel-full { grid-column: 1 / -1; }
+        }
+        /* Ensure all .col children fill their grid cell uniformly */
+        .main-grid > .col:nth-child(1) > *,
+        .main-grid > .col:nth-child(3) > * {
+            min-height: 200px;
+        }
+        /* Card-priority sizing — already-wide panels stay wide via utility classes */
+        .levels-sheet, .signal-card { min-height: 220px; }
+        .chart-panel { min-height: 240px; }
+
+        /* ===== DUAL INTRADAY LEVELS (SENSEX + NIFTY) ===== */
+        .dual-levels-card {
+            grid-column: 1 / -1;
+            background: linear-gradient(180deg, #1f2937 0%, #1a232f 100%);
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 14px 16px;
+        }
+        .dual-levels-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        @media (max-width: 700px) {
+            .dual-levels-grid { grid-template-columns: 1fr; }
+        }
+        .dlv-panel {
+            background: #0f1620;
+            border-radius: 10px;
+            padding: 12px 14px;
+            border: 1px solid #1f2937;
+            border-top: 3px solid transparent;
+        }
+        .dlv-panel.sensex { border-top-color: #3b82f6; }
+        .dlv-panel.nifty  { border-top-color: #f59e0b; }
+        .dlv-hdr {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1f2937;
+        }
+        .dlv-badge {
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            padding: 3px 10px;
+            border-radius: 4px;
+            color: #fff;
+        }
+        .dlv-badge.sensex { background: #1e40af; box-shadow: 0 0 6px rgba(59,130,246,.4); }
+        .dlv-badge.nifty  { background: #b45309; box-shadow: 0 0 6px rgba(245,158,11,.4); }
+        .dlv-title {
+            font-size: 0.78rem;
+            color: #e5e7eb;
+            font-weight: 600;
+            flex: 1;
+        }
+        .dlv-status { color: #6b7280; font-size: 0.6rem; }
+        .dlv-status.live { color: #10b981; }
+        .dlv-rows { display: flex; flex-direction: column; gap: 4px; }
+        .dlv-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 5px 8px;
+            background: rgba(255,255,255,0.015);
+            border-radius: 5px;
+            font-size: 0.82rem;
+        }
+        .dlv-row:nth-child(odd) { background: rgba(255,255,255,0.03); }
+        .dlv-k { color: #9ca3af; font-size: 0.74rem; font-weight: 500; }
+        .dlv-v { font-variant-numeric: tabular-nums; font-weight: 700; }
+        .dlv-v.v-yellow { color: #fbbf24; }
+        .dlv-v.v-green  { color: #10b981; }
+        .dlv-v.v-red    { color: #ef4444; }
+        .dlv-v.v-blue   { color: #60a5fa; }
+        .dlv-v.v-purple { color: #a78bfa; }
+
+        /* ===== MAX HIGHER / MAX LOWER PANEL ===== */
+        .max-levels-card {
+            grid-column: 1 / -1;
+            background: linear-gradient(180deg, #1f2937 0%, #1a232f 100%);
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 14px 16px;
+            min-height: 320px;
+        }
+        .mxl-hdr {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #2a3441;
+        }
+        .mxl-title { font-size: 0.85rem; color: #e5e7eb; font-weight: 700; letter-spacing: 0.5px; }
+        .mxl-sub { font-size: 0.65rem; color: #6b7280; }
+        .max-levels-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        @media (max-width: 900px) {
+            .max-levels-content { grid-template-columns: 1fr; }
+        }
+        .mxl-panel {
+            background: #0f1620;
+            border-radius: 10px;
+            padding: 12px 14px;
+            border: 1px solid #1f2937;
+            border-top: 3px solid transparent;
+            display: flex; flex-direction: column; gap: 10px;
+            min-height: 280px;
+        }
+        .mxl-panel.sensex { border-top-color: #3b82f6; }
+        .mxl-panel.nifty  { border-top-color: #f59e0b; }
+        .mxl-idx-hdr {
+            display: flex; align-items: center; gap: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #1f2937;
+        }
+        .mxl-spot { font-size: 0.78rem; color: #9ca3af; flex: 1; }
+        .mxl-spot b { color: #fbbf24; font-variant-numeric: tabular-nums; font-weight: 700; }
+        .mxl-zone {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .mxl-zone.alert-hi {
+            opacity: 1;
+            background: #14532d;
+            color: #86efac;
+            border: 1px solid #22c55e;
+            animation: mxlPulse 1.5s ease-in-out infinite;
+        }
+        .mxl-zone.alert-lo {
+            opacity: 1;
+            background: #7f1d1d;
+            color: #fca5a5;
+            border: 1px solid #ef4444;
+            animation: mxlPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes mxlPulse {
+            0%, 100% { box-shadow: 0 0 0 rgba(255,255,255,0); }
+            50% { box-shadow: 0 0 8px currentColor; }
+        }
+        .mxl-extremes {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .mxl-extreme {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.02);
+        }
+        .mxl-extreme.hi {
+            background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(0,0,0,0) 100%);
+            border-left: 3px solid #10b981;
+        }
+        .mxl-extreme.lo {
+            background: linear-gradient(135deg, rgba(239,68,68,0.08) 0%, rgba(0,0,0,0) 100%);
+            border-left: 3px solid #ef4444;
+        }
+        .mxl-lbl { font-size: 0.68rem; color: #9ca3af; font-weight: 700; letter-spacing: 0.4px; }
+        .mxl-val { font-size: 1.25rem; font-weight: 800; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+        .mxl-val.hi { color: #10b981; }
+        .mxl-val.lo { color: #ef4444; }
+        .mxl-time { font-size: 0.66rem; color: #9ca3af; margin-bottom: 6px; }
+        .mxl-meta {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            font-size: 0.66rem; color: #6b7280;
+            padding-top: 6px;
+            border-top: 1px dashed #1f2937;
+        }
+        .mxl-meta b { color: #e5e7eb; font-variant-numeric: tabular-nums; }
+        .mxl-meta b.dist-hi { color: #10b981; }
+        .mxl-meta b.dist-lo { color: #ef4444; }
+        .mxl-meta b.pct { color: #a78bfa; }
+        .mxl-meta b.bk { color: #fbbf24; }
+
+        .mxl-history {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+            margin-top: 4px;
+            padding-top: 8px;
+            border-top: 1px solid #1f2937;
+        }
+        .mxl-hist-col { background: rgba(255,255,255,0.02); border-radius: 6px; padding: 6px 8px; }
+        .mxl-hist-lbl { font-size: 0.6rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; font-weight: 700; }
+        .mxl-hist-list { max-height: 80px; overflow-y: auto; }
+        .mxl-hist-list::-webkit-scrollbar { width: 3px; }
+        .mxl-hist-list::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+        .mxl-hist-row {
+            display: flex; justify-content: space-between;
+            font-size: 0.68rem; padding: 2px 0;
+            font-variant-numeric: tabular-nums;
+        }
+        .mxl-hist-row span:first-child { color: #6b7280; }
+        .mxl-hist-row.hi span:last-child { color: #10b981; font-weight: 600; }
+        .mxl-hist-row.lo span:last-child { color: #ef4444; font-weight: 600; }
+        .mxl-hist-empty { color: #4b5563; font-size: 0.68rem; padding: 6px; text-align: center; font-style: italic; }
+
         /* ===== HIGH/LOW MAPPING ===== */
         .hl-panel { background:#1f2937; border:1px solid #374151; border-radius:10px; padding:8px 10px; }
         .hl-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
@@ -307,6 +568,142 @@
         .hl-break-row.hi span:last-child { color:#10b981; }
         .hl-break-row.lo span:last-child { color:#ef4444; }
         .hl-empty { text-align:center; color:#4b5563; font-size:0.55rem; padding:6px; font-style:italic; }
+
+        /* ===== H/L RECORD — LARGE VARIANT (full-width bottom card) ===== */
+        .hl-panel.hl-panel-large {
+            grid-column: 1 / -1;             /* span entire bottom grid */
+            padding: 14px 18px;
+            background: linear-gradient(180deg, #1f2937 0%, #1a232f 100%);
+            border: 1px solid #374151;
+            border-radius: 12px;
+        }
+        .hl-panel.hl-panel-large .hl-hdr {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #2a3441;
+        }
+        .hl-panel.hl-panel-large .hl-title {
+            font-size: 0.85rem;
+            color: #e5e7eb;
+            letter-spacing: 0.6px;
+        }
+        .hl-panel.hl-panel-large .hl-range {
+            font-size: 0.78rem;
+            color: #a78bfa;
+            background: #1e1b4b;
+            padding: 3px 10px;
+            border-radius: 12px;
+            border: 1px solid #4c1d95;
+            font-weight: 700;
+        }
+        /* Top H/L boxes — bigger, more breathing room */
+        .hl-panel.hl-panel-large .hl-now {
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .hl-panel.hl-panel-large .hl-now-box {
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left-width: 4px;
+            background: #0f1620;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .hl-panel.hl-panel-large .hl-now-box.hi {
+            background: linear-gradient(135deg, #0f1620 0%, #0a1f1a 100%);
+            border-left-color: #10b981;
+        }
+        .hl-panel.hl-panel-large .hl-now-box.lo {
+            background: linear-gradient(135deg, #0f1620 0%, #1f0a0a 100%);
+            border-left-color: #ef4444;
+        }
+        .hl-panel.hl-panel-large .hl-now-lbl {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #9ca3af;
+            margin-bottom: 6px;
+        }
+        .hl-panel.hl-panel-large .hl-now-val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin: 4px 0 2px;
+            letter-spacing: 0.3px;
+        }
+        .hl-panel.hl-panel-large .hl-now-time {
+            font-size: 0.72rem;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        /* Bottom timeline area — side by side desktop, stacked mobile */
+        .hl-panel.hl-panel-large .hl-breaks {
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .hl-panel.hl-panel-large .hl-break-col-wrap {
+            background: #0f1620;
+            border-radius: 8px;
+            padding: 10px 12px;
+            border: 1px solid #1f2937;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .hl-panel.hl-panel-large .hl-break-col-lbl {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #2a3441;
+        }
+        .hl-panel.hl-panel-large .hl-break-col-lbl.hi { color: #10b981; }
+        .hl-panel.hl-panel-large .hl-break-col-lbl.lo { color: #ef4444; }
+        .hl-panel.hl-panel-large .hl-break-col {
+            background: transparent;
+            padding: 2px 4px;
+            max-height: 260px;             /* taller scroll area */
+            min-height: 200px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #374151 transparent;
+        }
+        .hl-panel.hl-panel-large .hl-break-col::-webkit-scrollbar { width: 5px; }
+        .hl-panel.hl-panel-large .hl-break-col::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        .hl-panel.hl-panel-large .hl-break-row {
+            font-size: 0.82rem;
+            padding: 5px 8px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+        }
+        .hl-panel.hl-panel-large .hl-break-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
+        .hl-panel.hl-panel-large .hl-break-row:first-child {
+            background: rgba(96, 165, 250, 0.08);
+            border-left: 2px solid #60a5fa;
+        }
+        .hl-panel.hl-panel-large .hl-break-row span:first-child {
+            color: #6b7280;
+            font-size: 0.72rem;
+        }
+        .hl-panel.hl-panel-large .hl-break-row.hi span:last-child {
+            color: #10b981;
+            font-weight: 700;
+        }
+        .hl-panel.hl-panel-large .hl-break-row.lo span:last-child {
+            color: #ef4444;
+            font-weight: 700;
+        }
+        .hl-panel.hl-panel-large .hl-empty {
+            font-size: 0.78rem;
+            padding: 30px 10px;
+            color: #4b5563;
+        }
+        /* Mobile: stack timeline columns */
+        @media (max-width: 700px) {
+            .hl-panel.hl-panel-large .hl-breaks { grid-template-columns: 1fr; }
+            .hl-panel.hl-panel-large .hl-now { grid-template-columns: 1fr; }
+            .hl-panel.hl-panel-large .hl-now-val { font-size: 1.3rem; }
+        }
 
         /* ===== INTRADAY CHART ===== */
         .chart-panel { background:#1f2937; border:1px solid #374151; border-radius:10px; padding:8px 10px; }
@@ -563,15 +960,48 @@
         .hk-toast button.cancel  { background:#6b7280; }
         .hk-toast button.danger  { background:#ef4444; }
 
-        /* ===== MAIN GRID — LANDSCAPE 3-COL ===== */
+        /* ===== MAIN GRID — CENTER ON TOP, ALL SIDE CARDS IN BOTTOM GRID =====
+         * Auto-fit grid: center column spans full width on top, then all
+         * cards from both side columns flow into a responsive grid below.
+         *   Desktop ≥1400px: ~4 cards/row
+         *   1000-1400px:    ~3 cards/row
+         *   700-1000px:     ~2 cards/row
+         *   <700px:          1 card/row
+         */
         .main-grid {
             display: grid;
-            grid-template-columns: 230px minmax(0, 1.2fr) 245px;
-            gap: 8px;
-            padding: 6px 8px;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-auto-rows: min-content;
+            gap: 10px;
+            padding: 8px 10px;
             flex: 1 0 auto;
             min-height: calc(100vh - 120px);
             overflow: visible;
+        }
+        /* Center column spans the entire top row */
+        .main-grid > .col:nth-child(2) {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: visible;
+        }
+        /* Left + right wrapper columns: explode their children into the main
+         * grid via display:contents so each card becomes a direct grid item
+         * (no need to restructure HTML).
+         */
+        .main-grid > .col:nth-child(1),
+        .main-grid > .col:nth-child(3) {
+            display: contents;
+        }
+        /* Cards flowing in from left/right cols get min-height auto so they
+         * don't stretch awkwardly to fill grid cells. Smooth spacing.
+         */
+        .main-grid > .col:nth-child(1) > *,
+        .main-grid > .col:nth-child(3) > * {
+            align-self: start;
+            min-height: 0;
+            max-height: none;
         }
         .col { display:flex; flex-direction:column; gap:6px; overflow:hidden; min-height:0; }
 
@@ -953,6 +1383,19 @@
         .gb-m { background:#111827; border-radius:6px; padding:4px 5px; text-align:center; }
         .gb-m-lbl { font-size:0.58rem; color:#6b7280; text-transform:uppercase; letter-spacing:.2px; }
         .gb-m-val { font-size:0.82rem; font-weight:700; color:#e5e7eb; }
+        .gb-ranges { display:grid; grid-template-columns:1fr; gap:6px; margin-top:8px; }
+        .gb-range {
+            background:#111827; border:1px solid #1f2937; border-radius:8px; padding:7px 8px;
+        }
+        .gb-range-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+        .gb-range-lbl { font-size:0.58rem; color:#9ca3af; text-transform:uppercase; letter-spacing:.3px; font-weight:700; }
+        .gb-range-move { font-size:0.62rem; color:#cbd5e1; font-variant-numeric:tabular-nums; }
+        .gb-range-band { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+        .gb-range-low, .gb-range-high { font-size:0.84rem; font-weight:800; font-variant-numeric:tabular-nums; }
+        .gb-range-low { color:#fca5a5; }
+        .gb-range-high { color:#86efac; }
+        .gb-range-mid { font-size:0.56rem; color:#6b7280; text-transform:uppercase; letter-spacing:.2px; }
+        .gb-range-meta { font-size:0.56rem; color:#6b7280; margin-top:4px; text-align:right; }
         .gb-ts { font-size:0.6rem; color:#374151; text-align:center; margin-top:4px; }
 
         /* hidden ladder for JS compat */
@@ -1054,17 +1497,17 @@
         @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
 
         /* ===== RESPONSIVE ===== */
-        @media (max-width:1200px) {
-            .main-grid { grid-template-columns: 240px 1fr 255px; }
+        @media (max-width:1400px) {
+            .main-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
         }
-        @media (max-width:960px) {
-            .main-grid { grid-template-columns: 220px 1fr; }
+        @media (max-width:1000px) {
+            .main-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
             body { height:auto; overflow:auto; }
-            .main-grid { height:auto; }
+            .main-grid { height:auto; min-height:auto; }
             .col { overflow:visible; }
         }
         @media (max-width:700px) {
-            .main-grid { grid-template-columns:1fr; gap:10px; padding:6px; }
+            .main-grid { grid-template-columns: 1fr; gap:10px; padding:6px; }
             body { height:auto; overflow:auto; }
             .top-bar { gap:10px; padding:8px 10px; }
             .top-bar .sep { display:none; }
@@ -1155,10 +1598,140 @@
                 </div>
             </div>
 
+            <!-- ===== DUAL INTRADAY LEVELS (SENSEX + NIFTY side by side) ===== -->
+            <div class="dual-levels-card">
+                <div class="dual-levels-grid">
+                    <!-- SENSEX -->
+                    <div class="dlv-panel sensex">
+                        <div class="dlv-hdr">
+                            <span class="dlv-badge sensex">SENSEX</span>
+                            <span class="dlv-title">Intraday Levels</span>
+                            <span class="dlv-status" id="dlvSensexStatus">·</span>
+                        </div>
+                        <div class="dlv-rows">
+                            <div class="dlv-row"><span class="dlv-k">Spot</span><span class="dlv-v v-yellow" id="dlvSensexSpot">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">ORB High</span><span class="dlv-v v-green" id="dlvSensexOrbH">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">ORB Low</span><span class="dlv-v v-red" id="dlvSensexOrbL">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">VWAP</span><span class="dlv-v v-blue" id="dlvSensexVwap">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">Day High</span><span class="dlv-v v-green" id="dlvSensexDayH">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">Day Low</span><span class="dlv-v v-red" id="dlvSensexDayL">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">Range %</span><span class="dlv-v v-purple" id="dlvSensexRange">--</span></div>
+                        </div>
+                    </div>
+                    <!-- NIFTY -->
+                    <div class="dlv-panel nifty">
+                        <div class="dlv-hdr">
+                            <span class="dlv-badge nifty">NIFTY</span>
+                            <span class="dlv-title">Intraday Levels</span>
+                            <span class="dlv-status" id="dlvNiftyStatus">·</span>
+                        </div>
+                        <div class="dlv-rows">
+                            <div class="dlv-row"><span class="dlv-k">Spot</span><span class="dlv-v v-yellow" id="dlvNiftySpot">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">ORB High</span><span class="dlv-v v-green" id="dlvNiftyOrbH">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">ORB Low</span><span class="dlv-v v-red" id="dlvNiftyOrbL">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">VWAP</span><span class="dlv-v v-blue" id="dlvNiftyVwap">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">Day High</span><span class="dlv-v v-green" id="dlvNiftyDayH">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">Day Low</span><span class="dlv-v v-red" id="dlvNiftyDayL">--</span></div>
+                            <div class="dlv-row"><span class="dlv-k">Range %</span><span class="dlv-v v-purple" id="dlvNiftyRange">--</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== MAX HIGHER / MAX LOWER PANEL ===== -->
+            <div class="max-levels-card">
+                <div class="mxl-hdr">
+                    <span class="mxl-title">🎯 Max Higher / Max Lower</span>
+                    <span class="mxl-sub">strongest session extremes • near-zone alerts</span>
+                </div>
+                <div class="max-levels-content">
+                    <!-- SENSEX side -->
+                    <div class="mxl-panel sensex">
+                        <div class="mxl-idx-hdr">
+                            <span class="dlv-badge sensex">SENSEX</span>
+                            <span class="mxl-spot">Spot: <b id="mxlSensexSpot">--</b></span>
+                            <span class="mxl-zone" id="mxlSensexZone"></span>
+                        </div>
+                        <div class="mxl-extremes">
+                            <div class="mxl-extreme hi">
+                                <div class="mxl-lbl">📈 MAX HIGHER</div>
+                                <div class="mxl-val hi" id="mxlSensexMaxH">--</div>
+                                <div class="mxl-time" id="mxlSensexMaxHTime">@ —</div>
+                                <div class="mxl-meta">
+                                    <span>Distance: <b class="dist-hi" id="mxlSensexDistH">--</b></span>
+                                    <span>%: <b class="pct" id="mxlSensexPctH">--</b></span>
+                                    <span>Breaks: <b class="bk" id="mxlSensexBkH">0</b></span>
+                                </div>
+                            </div>
+                            <div class="mxl-extreme lo">
+                                <div class="mxl-lbl">📉 MAX LOWER</div>
+                                <div class="mxl-val lo" id="mxlSensexMaxL">--</div>
+                                <div class="mxl-time" id="mxlSensexMaxLTime">@ —</div>
+                                <div class="mxl-meta">
+                                    <span>Distance: <b class="dist-lo" id="mxlSensexDistL">--</b></span>
+                                    <span>%: <b class="pct" id="mxlSensexPctL">--</b></span>
+                                    <span>Breaks: <b class="bk" id="mxlSensexBkL">0</b></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mxl-history">
+                            <div class="mxl-hist-col">
+                                <div class="mxl-hist-lbl">Recent High updates</div>
+                                <div class="mxl-hist-list" id="mxlSensexHistH"><div class="mxl-hist-empty">—</div></div>
+                            </div>
+                            <div class="mxl-hist-col">
+                                <div class="mxl-hist-lbl">Recent Low updates</div>
+                                <div class="mxl-hist-list" id="mxlSensexHistL"><div class="mxl-hist-empty">—</div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- NIFTY side -->
+                    <div class="mxl-panel nifty">
+                        <div class="mxl-idx-hdr">
+                            <span class="dlv-badge nifty">NIFTY</span>
+                            <span class="mxl-spot">Spot: <b id="mxlNiftySpot">--</b></span>
+                            <span class="mxl-zone" id="mxlNiftyZone"></span>
+                        </div>
+                        <div class="mxl-extremes">
+                            <div class="mxl-extreme hi">
+                                <div class="mxl-lbl">📈 MAX HIGHER</div>
+                                <div class="mxl-val hi" id="mxlNiftyMaxH">--</div>
+                                <div class="mxl-time" id="mxlNiftyMaxHTime">@ —</div>
+                                <div class="mxl-meta">
+                                    <span>Distance: <b class="dist-hi" id="mxlNiftyDistH">--</b></span>
+                                    <span>%: <b class="pct" id="mxlNiftyPctH">--</b></span>
+                                    <span>Breaks: <b class="bk" id="mxlNiftyBkH">0</b></span>
+                                </div>
+                            </div>
+                            <div class="mxl-extreme lo">
+                                <div class="mxl-lbl">📉 MAX LOWER</div>
+                                <div class="mxl-val lo" id="mxlNiftyMaxL">--</div>
+                                <div class="mxl-time" id="mxlNiftyMaxLTime">@ —</div>
+                                <div class="mxl-meta">
+                                    <span>Distance: <b class="dist-lo" id="mxlNiftyDistL">--</b></span>
+                                    <span>%: <b class="pct" id="mxlNiftyPctL">--</b></span>
+                                    <span>Breaks: <b class="bk" id="mxlNiftyBkL">0</b></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mxl-history">
+                            <div class="mxl-hist-col">
+                                <div class="mxl-hist-lbl">Recent High updates</div>
+                                <div class="mxl-hist-list" id="mxlNiftyHistH"><div class="mxl-hist-empty">—</div></div>
+                            </div>
+                            <div class="mxl-hist-col">
+                                <div class="mxl-hist-lbl">Recent Low updates</div>
+                                <div class="mxl-hist-list" id="mxlNiftyHistL"><div class="mxl-hist-empty">—</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Intraday Levels Sheet -->
             <div class="levels-sheet">
                 <div class="levels-sheet-head">
-                    <span class="levels-sheet-title">Intraday Levels</span>
+                    <span class="levels-sheet-title">Intraday Levels (active: <span id="lvsActiveLabel">--</span>)</span>
                     <span class="levels-sheet-sub">live sheet</span>
                 </div>
                 <table class="levels-table">
@@ -1227,30 +1800,35 @@
             </div>
 
             <!-- HIGH/LOW MAPPING RECORD -->
-            <div class="hl-panel" id="hlPanel">
+            <div class="hl-panel hl-panel-large" id="hlPanel">
                 <div class="hl-hdr">
                     <span class="hl-title">📊 H/L Record</span>
                     <span class="hl-range" id="hlRange">range —</span>
                 </div>
                 <div class="hl-now">
                     <div class="hl-now-box hi">
-                        <div class="hl-now-lbl">Day High</div>
+                        <div class="hl-now-lbl">📈 Day High</div>
                         <div class="hl-now-val hi" id="hlHigh">--</div>
                         <div class="hl-now-time" id="hlHighTime">@ —</div>
                     </div>
                     <div class="hl-now-box lo">
-                        <div class="hl-now-lbl">Day Low</div>
+                        <div class="hl-now-lbl">📉 Day Low</div>
                         <div class="hl-now-val lo" id="hlLow">--</div>
                         <div class="hl-now-time" id="hlLowTime">@ —</div>
                     </div>
                 </div>
-                <div class="hl-breaks-lbl">Break Timeline</div>
                 <div class="hl-breaks">
-                    <div class="hl-break-col" id="hlHighBreaks">
-                        <div class="hl-empty">no new highs yet</div>
+                    <div class="hl-break-col-wrap">
+                        <div class="hl-break-col-lbl hi">📈 High Break Timeline</div>
+                        <div class="hl-break-col" id="hlHighBreaks">
+                            <div class="hl-empty">no new highs yet</div>
+                        </div>
                     </div>
-                    <div class="hl-break-col" id="hlLowBreaks">
-                        <div class="hl-empty">no new lows yet</div>
+                    <div class="hl-break-col-wrap">
+                        <div class="hl-break-col-lbl lo">📉 Low Break Timeline</div>
+                        <div class="hl-break-col" id="hlLowBreaks">
+                            <div class="hl-empty">no new lows yet</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1835,6 +2413,21 @@
                     <div class="gb-m"><div class="gb-m-lbl">Γ/Δ</div><div class="gb-m-val" id="gbmGperD">--</div></div>
                     <div class="gb-m"><div class="gb-m-lbl">GTR</div><div class="gb-m-val" id="gbmGTR">--</div></div>
                     <div class="gb-m"><div class="gb-m-lbl">IV</div><div class="gb-m-val" id="gbmIV">--</div></div>
+                </div>
+
+                <div class="gb-ranges" id="gbRanges">
+                    <div class="gb-range">
+                        <div class="gb-range-top">
+                            <span class="gb-range-lbl">Reaction</span>
+                            <span class="gb-range-move">--</span>
+                        </div>
+                        <div class="gb-range-band">
+                            <span class="gb-range-low">--</span>
+                            <span class="gb-range-mid">spot band</span>
+                            <span class="gb-range-high">--</span>
+                        </div>
+                        <div class="gb-range-meta">Waiting for gamma range data</div>
+                    </div>
                 </div>
 
                 <div class="gb-ts" id="gbTimestamp"></div>
@@ -2811,7 +3404,178 @@
             // H/L record — refresh every 3s during market, otherwise still cheap
             loadHLRecord();
             setInterval(loadHLRecord, 3000);
+            // Dual intraday levels — independent SENSEX + NIFTY snapshots, refresh 3s
+            loadDualLevels();
+            setInterval(loadDualLevels, 3000);
         });
+
+        // ==================== DUAL INTRADAY LEVELS (SENSEX + NIFTY) ====================
+        // Fetches /api/sensex AND /api/nifty independently and updates each panel
+        // with its own data — never mixes the two indexes.
+        const _dualLevelsState = { sensex: null, nifty: null };
+
+        async function loadDualLevels() {
+            // Active label for the legacy levels-sheet card header
+            try { document.getElementById('lvsActiveLabel').textContent = (_inst || 'SENSEX'); } catch(e) {}
+            await Promise.all([
+                _fetchAndRenderDual('sensex', '/api/sensex'),
+                _fetchAndRenderDual('nifty',  '/api/nifty'),
+            ]);
+        }
+
+        async function _fetchAndRenderDual(key, url) {
+            try {
+                const r = await fetch(`${API_BASE}${url}`, { cache: 'no-store' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const d = await r.json();
+                _dualLevelsState[key] = d;
+                _renderDualPanel(key, d);
+                // Feed the Max Higher/Lower tracker
+                _updateMaxLevels(key, d);
+            } catch (err) {
+                // Mark status dot stale; leave last good values in place
+                const s = document.getElementById(key === 'sensex' ? 'dlvSensexStatus' : 'dlvNiftyStatus');
+                if (s) { s.textContent = '✗'; s.className = 'dlv-status'; s.style.color = '#ef4444'; }
+            }
+        }
+
+        // ==================== MAX HIGHER / MAX LOWER TRACKER ====================
+        // Per-index session state — never mixes SENSEX and NIFTY.
+        // Tracks the absolute extremes seen since page load, distance from
+        // current spot, break count, and a small history of updates.
+        const _maxLevels = {
+            sensex: { maxH: null, maxHTime: null, maxL: null, maxLTime: null, bkH: 0, bkL: 0, histH: [], histL: [] },
+            nifty:  { maxH: null, maxHTime: null, maxL: null, maxLTime: null, bkH: 0, bkL: 0, histH: [], histL: [] },
+        };
+        const NEAR_ZONE_PCT = 0.10;  // alert when spot within 0.10% of max
+        const HIST_LIMIT = 5;
+
+        function _updateMaxLevels(key, d) {
+            const state = _maxLevels[key];
+            if (!state) return;
+            const spot = parseFloat(d.price);
+            const dH   = parseFloat(d.dayHigh);
+            const dL   = parseFloat(d.dayLow);
+            const t    = d.time || new Date().toLocaleTimeString('en-IN', { hour12: false });
+
+            // Update max higher if new high seen
+            if (isFinite(dH) && dH > 0) {
+                if (state.maxH === null || dH > state.maxH) {
+                    state.maxH = dH;
+                    state.maxHTime = t;
+                    state.bkH += 1;
+                    state.histH.unshift({ time: t, price: dH });
+                    if (state.histH.length > HIST_LIMIT) state.histH.length = HIST_LIMIT;
+                }
+            }
+            // Update max lower if new low seen
+            if (isFinite(dL) && dL > 0) {
+                if (state.maxL === null || dL < state.maxL) {
+                    state.maxL = dL;
+                    state.maxLTime = t;
+                    state.bkL += 1;
+                    state.histL.unshift({ time: t, price: dL });
+                    if (state.histL.length > HIST_LIMIT) state.histL.length = HIST_LIMIT;
+                }
+            }
+            _renderMaxLevels(key, spot);
+        }
+
+        function _renderMaxLevels(key, spot) {
+            const state = _maxLevels[key];
+            const prefix = key === 'sensex' ? 'mxlSensex' : 'mxlNifty';
+            const $ = (id) => document.getElementById(id);
+            const fmt = (n) => (n != null && isFinite(n))
+                ? n.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })
+                : '--';
+
+            if ($(prefix+'Spot') && isFinite(spot)) $(prefix+'Spot').textContent = '₹' + fmt(spot);
+
+            // High side
+            $(prefix+'MaxH').textContent = state.maxH != null ? fmt(state.maxH) : '--';
+            $(prefix+'MaxHTime').textContent = state.maxHTime ? '@ ' + state.maxHTime : '@ —';
+            $(prefix+'BkH').textContent = state.bkH;
+            if (state.maxH != null && isFinite(spot) && spot > 0) {
+                const distH = state.maxH - spot;
+                const pctH  = (distH / spot) * 100;
+                $(prefix+'DistH').textContent = (distH >= 0 ? '+' : '') + fmt(distH);
+                $(prefix+'PctH').textContent  = (pctH  >= 0 ? '+' : '') + pctH.toFixed(2) + '%';
+            } else {
+                $(prefix+'DistH').textContent = '--';
+                $(prefix+'PctH').textContent  = '--';
+            }
+
+            // Low side
+            $(prefix+'MaxL').textContent = state.maxL != null ? fmt(state.maxL) : '--';
+            $(prefix+'MaxLTime').textContent = state.maxLTime ? '@ ' + state.maxLTime : '@ —';
+            $(prefix+'BkL').textContent = state.bkL;
+            if (state.maxL != null && isFinite(spot) && spot > 0) {
+                const distL = spot - state.maxL;
+                const pctL  = (distL / spot) * 100;
+                $(prefix+'DistL').textContent = (distL >= 0 ? '-' : '+') + fmt(Math.abs(distL));
+                $(prefix+'PctL').textContent  = '-' + Math.abs(pctL).toFixed(2) + '%';
+            } else {
+                $(prefix+'DistL').textContent = '--';
+                $(prefix+'PctL').textContent  = '--';
+            }
+
+            // Near-zone alert badge
+            const zone = $(prefix+'Zone');
+            if (zone) {
+                zone.className = 'mxl-zone';
+                zone.textContent = '';
+                if (state.maxH != null && isFinite(spot) && spot > 0) {
+                    const nearH = Math.abs(state.maxH - spot) / spot * 100 <= NEAR_ZONE_PCT;
+                    if (nearH) { zone.className = 'mxl-zone alert-hi'; zone.textContent = '⚠ Near Strong High Zone'; return; }
+                }
+                if (state.maxL != null && isFinite(spot) && spot > 0) {
+                    const nearL = Math.abs(spot - state.maxL) / spot * 100 <= NEAR_ZONE_PCT;
+                    if (nearL) { zone.className = 'mxl-zone alert-lo'; zone.textContent = '⚠ Near Strong Low Zone'; return; }
+                }
+            }
+
+            // History lists
+            const renderHist = (id, arr, cls) => {
+                const el = $(id); if (!el) return;
+                if (!arr || !arr.length) { el.innerHTML = '<div class="mxl-hist-empty">—</div>'; return; }
+                el.innerHTML = arr.map(h =>
+                    `<div class="mxl-hist-row ${cls}"><span>${h.time}</span><span>${fmt(h.price)}</span></div>`
+                ).join('');
+            };
+            renderHist(prefix+'HistH', state.histH, 'hi');
+            renderHist(prefix+'HistL', state.histL, 'lo');
+        }
+
+        function _renderDualPanel(key, d) {
+            const prefix = key === 'sensex' ? 'dlvSensex' : 'dlvNifty';
+            const set = (suffix, value, dashIfEmpty) => {
+                const el = document.getElementById(prefix + suffix);
+                if (!el) return;
+                el.textContent = (value && value !== '--') ? value : (dashIfEmpty || '--');
+            };
+            set('Spot',  d.price);
+            set('OrbH',  d.orbHigh);
+            set('OrbL',  d.orbLow);
+            set('Vwap',  d.vwap);
+            set('DayH',  d.dayHigh);
+            set('DayL',  d.dayLow);
+
+            // Range % computed from dayHigh / dayLow (only when both numeric)
+            const dH = parseFloat(d.dayHigh), dL = parseFloat(d.dayLow);
+            if (isFinite(dH) && isFinite(dL) && dL > 0) {
+                const pct = ((dH - dL) / dL * 100).toFixed(2);
+                set('Range', pct + '%');
+            } else {
+                set('Range', '--');
+            }
+
+            const s = document.getElementById(prefix + 'Status');
+            if (s) {
+                s.textContent = d.marketOpen ? '● live' : '○ closed';
+                s.className = 'dlv-status' + (d.marketOpen ? ' live' : '');
+                s.style.color = '';
+            }
+        }
 
         // ==================== SENSIBULL INDICATORS ====================
         let sbData = null;
@@ -3747,6 +4511,7 @@
                 document.getElementById('gbScoreVal').textContent = '--';
                 document.getElementById('gbDesc').textContent = 'Market opens 9:15 AM IST. Gamma Blast activates during trading hours.';
                 document.getElementById('gbGradeLabel').textContent = 'Next open: 9:15 AM IST';
+                renderGammaRanges(null);
                 return;
             }
             try {
@@ -3756,6 +4521,7 @@
             } catch(e) {
                 document.getElementById('gbLevelBadge').textContent = '⚠️ UNAVAILABLE';
                 document.getElementById('gbDesc').textContent = 'Option chain data unavailable. Try during market hours.';
+                renderGammaRanges(null);
                 console.error('Gamma Blast load failed:', e);
             }
         }
@@ -3814,6 +4580,7 @@
             // Color code metrics
             document.getElementById('gbmGamma').style.color = m.atmGamma > 0.00003 ? '#f97316' : '#e5e7eb';
             document.getElementById('gbmGTR').style.color   = m.gammaThetaRatio > 0.01 ? '#22d3ee' : '#e5e7eb';
+            renderGammaRanges(d.possibleRanges);
 
             // Strike ladder
             if (d.ladder && d.ladder.length) {
@@ -3846,6 +4613,42 @@
             const pct = max > 0 ? (score / max) * 100 : 0;
             document.getElementById('gbBar' + name).style.width = pct + '%';
             document.getElementById('gbPts' + name).textContent = score + '/' + max;
+        }
+
+        function renderGammaRanges(ranges) {
+            const wrap = document.getElementById('gbRanges');
+            if (!wrap) return;
+            if (!ranges || !ranges.bands || !ranges.bands.length) {
+                wrap.innerHTML = `<div class="gb-range">
+                    <div class="gb-range-top">
+                        <span class="gb-range-lbl">Possible Ranges</span>
+                        <span class="gb-range-move">--</span>
+                    </div>
+                    <div class="gb-range-band">
+                        <span class="gb-range-low">--</span>
+                        <span class="gb-range-mid">spot band</span>
+                        <span class="gb-range-high">--</span>
+                    </div>
+                    <div class="gb-range-meta">Waiting for gamma range data</div>
+                </div>`;
+                return;
+            }
+
+            const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+            wrap.innerHTML = ranges.bands.map(b => `
+                <div class="gb-range">
+                    <div class="gb-range-top">
+                        <span class="gb-range-lbl">${b.label}</span>
+                        <span class="gb-range-move">+/- ${fmt(b.movePts)} pts (${b.movePct}%)</span>
+                    </div>
+                    <div class="gb-range-band">
+                        <span class="gb-range-low">${fmt(b.low)}</span>
+                        <span class="gb-range-mid">spot band</span>
+                        <span class="gb-range-high">${fmt(b.high)}</span>
+                    </div>
+                    <div class="gb-range-meta">ATM ${fmt(ranges.atmStrike)} | step ${fmt(ranges.interval)} | straddle ${ranges.straddleWidth}</div>
+                </div>
+            `).join('');
         }
 
         // ==================== PAPER TRADE P&L TRACKER ====================
@@ -5169,6 +5972,383 @@
                 }
             });
         });
+    </script>
+
+    <!-- ============================================================
+         TRADE CONFIRMATION MODAL + RISK/REWARD CALCULATOR
+         Wraps existing executeTrade() with a safety confirmation step.
+         Does NOT replace trade logic — only adds a confirmation layer.
+         ============================================================ -->
+    <style>
+        .tcm-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+            z-index: 1100; display: none; align-items: center; justify-content: center;
+            padding: 24px; backdrop-filter: blur(4px);
+        }
+        .tcm-overlay.show { display: flex; }
+        .tcm-modal {
+            background: linear-gradient(180deg, #1a232f 0%, #0f1620 100%);
+            border: 1px solid #374151; border-radius: 14px;
+            max-width: 520px; width: 100%;
+            box-shadow: 0 24px 60px rgba(0,0,0,.7);
+            max-height: 90vh; overflow-y: auto;
+        }
+        .tcm-hdr {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 18px; border-bottom: 1px solid #2a3441;
+        }
+        .tcm-title { font-size: 0.95rem; color: #e5e7eb; font-weight: 700; }
+        .tcm-mode-badge {
+            font-size: 0.66rem; padding: 3px 10px; border-radius: 10px;
+            font-weight: 800; letter-spacing: 0.5px;
+        }
+        .tcm-mode-badge.paper { background: #1e3a5f; color: #7dd3fc; border: 1px solid #3b82f6; }
+        .tcm-mode-badge.live  { background: #7f1d1d; color: #fecaca; border: 1px solid #ef4444; animation: tcmLivePulse 1.5s ease-in-out infinite; }
+        @keyframes tcmLivePulse { 0%,100% { box-shadow: 0 0 0 rgba(239,68,68,0); } 50% { box-shadow: 0 0 10px rgba(239,68,68,0.6); } }
+        .tcm-body { padding: 14px 18px; }
+        .tcm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .tcm-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 10px; background: #0f1620; border-radius: 6px;
+            font-size: 0.78rem;
+        }
+        .tcm-row.full { grid-column: 1 / -1; }
+        .tcm-k { color: #9ca3af; font-size: 0.72rem; }
+        .tcm-v { color: #e5e7eb; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .tcm-v.green  { color: #10b981; }
+        .tcm-v.red    { color: #ef4444; }
+        .tcm-v.amber  { color: #fbbf24; }
+        .tcm-v.purple { color: #a78bfa; }
+        .tcm-input {
+            background: #0a0f15; border: 1px solid #374151; color: #e5e7eb;
+            padding: 4px 8px; font-size: 0.74rem; border-radius: 4px;
+            width: 70px; text-align: right; font-variant-numeric: tabular-nums;
+        }
+        .tcm-input:focus { outline: 1px solid #3b82f6; }
+        .tcm-rr-box {
+            margin-top: 10px; padding: 12px 14px;
+            background: #0a1018; border-radius: 8px; border: 1px solid #1f2937;
+        }
+        .tcm-rr-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
+        .tcm-rr-cell { padding: 6px; background: rgba(255,255,255,0.02); border-radius: 5px; }
+        .tcm-rr-cell .l { font-size: 0.62rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3px; }
+        .tcm-rr-cell .v { font-size: 1.05rem; font-weight: 800; margin-top: 2px; }
+        .tcm-rr-verdict {
+            margin-top: 8px; padding: 6px 10px; text-align: center;
+            font-size: 0.74rem; border-radius: 5px; font-weight: 700;
+        }
+        .tcm-rr-verdict.good { background: #14532d; color: #86efac; border: 1px solid #22c55e; }
+        .tcm-rr-verdict.low  { background: #78350f; color: #fcd34d; border: 1px solid #f59e0b; }
+        .tcm-warns {
+            margin-top: 10px; padding: 0;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .tcm-warn {
+            background: #7f1d1d; color: #fecaca; border: 1px solid #ef4444;
+            padding: 6px 10px; border-radius: 5px;
+            font-size: 0.72rem; font-weight: 600;
+        }
+        .tcm-actions {
+            display: flex; gap: 8px; padding: 14px 18px;
+            border-top: 1px solid #2a3441;
+        }
+        .tcm-btn {
+            flex: 1; padding: 10px 14px;
+            border: 1px solid transparent; border-radius: 6px;
+            font-size: 0.82rem; font-weight: 700; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .tcm-btn.confirm { background: #14532d; color: #86efac; border-color: #22c55e; }
+        .tcm-btn.confirm:hover:not(:disabled) { background: #166534; box-shadow: 0 0 12px rgba(34,197,94,0.4); }
+        .tcm-btn.confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+        .tcm-btn.cancel  { background: #1f2937; color: #d1d5db; border-color: #374151; }
+        .tcm-btn.cancel:hover { background: #374151; }
+
+        /* Trade Setup compact card */
+        .trade-setup-card {
+            background: #0f1620; border: 1px solid #1f2937; border-radius: 10px;
+            padding: 10px 12px; min-height: 200px;
+        }
+        .tsc-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1f2937; }
+        .tsc-title { font-size: 0.72rem; color: #e5e7eb; font-weight: 700; }
+        .tsc-rows { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+        .tsc-row { display: flex; justify-content: space-between; font-size: 0.72rem; padding: 3px 0; }
+        .tsc-k { color: #9ca3af; }
+        .tsc-v { color: #e5e7eb; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .tsc-btns { display: flex; gap: 5px; }
+        .tsc-btn {
+            flex: 1; padding: 6px; font-size: 0.7rem; font-weight: 700;
+            border: 1px solid; border-radius: 5px; cursor: pointer;
+        }
+        .tsc-btn.call { background: #14532d; color: #86efac; border-color: #22c55e; }
+        .tsc-btn.put  { background: #7f1d1d; color: #fecaca; border-color: #ef4444; }
+        .tsc-btn:hover { filter: brightness(1.15); }
+    </style>
+
+    <div class="tcm-overlay" id="tcmOverlay" onclick="if(event.target===this) closeTradeConfirm()">
+      <div class="tcm-modal">
+        <div class="tcm-hdr">
+          <div class="tcm-title">📋 Trade Confirmation — <span id="tcmType">--</span></div>
+          <div class="tcm-mode-badge" id="tcmModeBadge">--</div>
+        </div>
+        <div class="tcm-body">
+          <div class="tcm-grid">
+            <div class="tcm-row"><span class="tcm-k">Index</span><span class="tcm-v" id="tcmIndex">--</span></div>
+            <div class="tcm-row"><span class="tcm-k">Option Type</span><span class="tcm-v" id="tcmOptType">--</span></div>
+            <div class="tcm-row"><span class="tcm-k">Strike</span><span class="tcm-v amber" id="tcmStrike">--</span></div>
+            <div class="tcm-row"><span class="tcm-k">Current LTP</span><span class="tcm-v" id="tcmLtp">--</span></div>
+            <div class="tcm-row">
+              <span class="tcm-k">Entry Price (₹)</span>
+              <input type="number" class="tcm-input" id="tcmEntry" step="0.05" oninput="_tcmRecalc()">
+            </div>
+            <div class="tcm-row">
+              <span class="tcm-k">Quantity (1 lot = <span id="tcmLotSize">--</span>)</span>
+              <input type="number" class="tcm-input" id="tcmQty" step="1" oninput="_tcmRecalc()">
+            </div>
+            <div class="tcm-row">
+              <span class="tcm-k">Stop Loss (₹) <span style="color:#6b7280">SL %: <input type="number" id="tcmSlPct" class="tcm-input" style="width:50px" step="1" value="20" oninput="_tcmApplySlPct()"></span></span>
+              <input type="number" class="tcm-input" id="tcmSl" step="0.05" oninput="_tcmRecalc()">
+            </div>
+            <div class="tcm-row">
+              <span class="tcm-k">Target 1 (₹) <span style="color:#6b7280">T1 %: <input type="number" id="tcmTgtPct" class="tcm-input" style="width:50px" step="1" value="30" oninput="_tcmApplyTgtPct()"></span></span>
+              <input type="number" class="tcm-input" id="tcmTgt" step="0.05" oninput="_tcmRecalc()">
+            </div>
+            <div class="tcm-row">
+              <span class="tcm-k">Target 2 (₹) <span style="color:#6b7280">T2 %: <input type="number" id="tcmTgt2Pct" class="tcm-input" style="width:50px" step="1" value="50" oninput="_tcmApplyTgt2Pct()"></span></span>
+              <input type="number" class="tcm-input" id="tcmTgt2" step="0.05" oninput="_tcmRecalc()">
+            </div>
+            <div class="tcm-row full"><span class="tcm-k">Capital deployed</span><span class="tcm-v amber" id="tcmCapital">--</span></div>
+            <div class="tcm-row"><span class="tcm-k">Time</span><span class="tcm-v" id="tcmTime">--</span></div>
+            <div class="tcm-row"><span class="tcm-k">Trail SL after</span><span class="tcm-v">+20% profit</span></div>
+          </div>
+          <div class="tcm-rr-box">
+            <div class="tcm-rr-row" style="grid-template-columns: 1fr 1fr 1fr 1fr">
+              <div class="tcm-rr-cell"><div class="l">Risk (Max Loss)</div><div class="v" style="color:#fca5a5" id="tcmMaxLoss">--</div></div>
+              <div class="tcm-rr-cell"><div class="l">Reward @ T1</div><div class="v" style="color:#86efac" id="tcmExpProfit">--</div></div>
+              <div class="tcm-rr-cell"><div class="l">Reward @ T2</div><div class="v" style="color:#86efac" id="tcmExpProfit2">--</div></div>
+              <div class="tcm-rr-cell"><div class="l">R : R (T1)</div><div class="v" style="color:#a78bfa" id="tcmRR">--</div></div>
+            </div>
+            <div class="tcm-rr-verdict" id="tcmVerdict">—</div>
+          </div>
+          <div class="tcm-warns" id="tcmWarns"></div>
+        </div>
+        <div class="tcm-actions">
+          <button class="tcm-btn cancel" onclick="closeTradeConfirm()">Cancel</button>
+          <button class="tcm-btn confirm" id="tcmConfirmBtn" onclick="_tcmDoConfirm()">✓ Confirm Trade</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    (function() {
+        const $ = (id) => document.getElementById(id);
+        const fmt = (n) => isFinite(n) ? Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 }) : '--';
+        const fmtINR = (n) => isFinite(n) ? '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '--';
+        const LOT_BY_INST = { NIFTY: 65, BANKNIFTY: 30, SENSEX: 20 };
+
+        let _tcmCtx = null;  // { type, inst, strike, ltp, mode, qty, ... }
+
+        // Public entry — replaces direct executeTrade call
+        window.openTradeConfirm = function(type) {
+            // Resolve current instrument + selected strike via existing state
+            const inst   = (window._inst || 'SENSEX').toUpperCase();
+            const strike = window.suggestedStrike || $('strikeSuggestion')?.textContent || '--';
+            if (!strike || strike === '--') {
+                alert('No strike selected. Wait for a signal or pick from the chain.');
+                return;
+            }
+            // Best-effort LTP: pulled from /api/<inst> price field
+            const ltpEl = inst === 'NIFTY' ? $('niftyPriceTop') : $('price');
+            const tradeMode = (typeof currentTradeMode !== 'undefined' && currentTradeMode) ? currentTradeMode
+                              : (document.getElementById('modeBadge')?.textContent || 'PAPER').toLowerCase();
+
+            // Approximate entry as the suggested strike's option LTP — fetch from chain if available
+            const entry = _tcmGuessEntry(type, inst, strike);
+            const lot   = LOT_BY_INST[inst] || 1;
+
+            _tcmCtx = { type, inst, strike, mode: tradeMode, lot };
+
+            $('tcmType').textContent = type;
+            $('tcmIndex').textContent = inst;
+            $('tcmOptType').textContent = type === 'CALL' ? 'CE' : 'PE';
+            $('tcmStrike').textContent = strike;
+            $('tcmLtp').textContent = entry > 0 ? '₹' + fmt(entry) : '--';
+            $('tcmLotSize').textContent = lot;
+            $('tcmModeBadge').textContent = tradeMode.toUpperCase();
+            $('tcmModeBadge').className = 'tcm-mode-badge ' + (tradeMode === 'live' ? 'live' : 'paper');
+            $('tcmEntry').value = entry > 0 ? entry.toFixed(2) : '';
+            $('tcmQty').value = lot;
+            $('tcmSlPct').value = 20;
+            $('tcmTgtPct').value = 30;
+            $('tcmTime').textContent = new Date().toLocaleTimeString('en-IN', { hour12: false });
+
+            _tcmApplySlPct(); _tcmApplyTgtPct();
+            $('tcmOverlay').classList.add('show');
+        };
+
+        window.closeTradeConfirm = function() {
+            $('tcmOverlay').classList.remove('show');
+            _tcmCtx = null;
+        };
+
+        function _tcmGuessEntry(type, inst, strike) {
+            // Try to read from option-chain data already on page
+            try {
+                const wantedCls = type === 'CALL' ? '.ltp.ce' : '.ltp.pe';
+                const rows = document.querySelectorAll('.oc-table tr');
+                for (const r of rows) {
+                    const sc = r.querySelector('.strike-cell');
+                    if (sc && sc.textContent.trim() === String(strike)) {
+                        const cell = r.querySelector(wantedCls);
+                        if (cell) {
+                            const v = parseFloat(cell.textContent.replace(/[^\d.-]/g, ''));
+                            if (isFinite(v) && v > 0) return v;
+                        }
+                    }
+                }
+            } catch(e) {}
+            return 0;
+        }
+
+        window._tcmApplySlPct = function() {
+            const entry = parseFloat($('tcmEntry').value) || 0;
+            const slPct = parseFloat($('tcmSlPct').value) || 0;
+            if (entry > 0 && slPct > 0) {
+                $('tcmSl').value = (entry * (1 - slPct/100)).toFixed(2);
+            }
+            _tcmRecalc();
+        };
+        window._tcmApplyTgtPct = function() {
+            const entry = parseFloat($('tcmEntry').value) || 0;
+            const tgtPct = parseFloat($('tcmTgtPct').value) || 0;
+            if (entry > 0 && tgtPct > 0) {
+                $('tcmTgt').value = (entry * (1 + tgtPct/100)).toFixed(2);
+            }
+            _tcmRecalc();
+        };
+        window._tcmApplyTgt2Pct = function() {
+            const entry = parseFloat($('tcmEntry').value) || 0;
+            const tgt2Pct = parseFloat($('tcmTgt2Pct').value) || 0;
+            if (entry > 0 && tgt2Pct > 0) {
+                $('tcmTgt2').value = (entry * (1 + tgt2Pct/100)).toFixed(2);
+            }
+            _tcmRecalc();
+        };
+
+        window._tcmRecalc = function() {
+            const entry = parseFloat($('tcmEntry').value) || 0;
+            const sl    = parseFloat($('tcmSl').value) || 0;
+            const tgt   = parseFloat($('tcmTgt').value) || 0;
+            const tgt2  = parseFloat($('tcmTgt2').value) || 0;
+            const qty   = parseFloat($('tcmQty').value) || 0;
+
+            const capital = entry * qty;
+            const riskPerUnit = Math.max(0, entry - sl);
+            const rewardPerUnit = Math.max(0, tgt - entry);
+            const reward2PerUnit = Math.max(0, tgt2 - entry);
+            const maxLoss = riskPerUnit * qty;
+            const expProfit = rewardPerUnit * qty;
+            const expProfit2 = reward2PerUnit * qty;
+            const rr = riskPerUnit > 0 ? rewardPerUnit / riskPerUnit : 0;
+
+            $('tcmCapital').textContent = fmtINR(capital);
+            $('tcmMaxLoss').textContent = '-' + fmtINR(maxLoss);
+            $('tcmExpProfit').textContent = '+' + fmtINR(expProfit);
+            if ($('tcmExpProfit2')) $('tcmExpProfit2').textContent = '+' + fmtINR(expProfit2);
+            $('tcmRR').textContent = rr > 0 ? '1 : ' + rr.toFixed(2) : '--';
+
+            // R:R verdict
+            const verdict = $('tcmVerdict');
+            if (rr >= 2) { verdict.className = 'tcm-rr-verdict good'; verdict.textContent = '✓ Good Risk/Reward Setup'; }
+            else if (rr >= 1.5) { verdict.className = 'tcm-rr-verdict'; verdict.textContent = 'Acceptable R:R'; verdict.style.background = '#1f2937'; verdict.style.color = '#d1d5db'; }
+            else if (rr > 0) { verdict.className = 'tcm-rr-verdict low'; verdict.textContent = '⚠ Low Risk/Reward Trade'; }
+            else { verdict.className = 'tcm-rr-verdict'; verdict.textContent = '—'; verdict.style.background = ''; verdict.style.color = ''; }
+
+            // Safety checks
+            const warns = [];
+            if (entry <= 0) warns.push('Entry price must be > 0');
+            if (sl <= 0) warns.push('Stop loss must be > 0');
+            if (tgt <= 0) warns.push('Target must be > 0');
+            if (sl >= entry) warns.push('Stop loss must be BELOW entry for buy trade');
+            if (tgt <= entry) warns.push('Target must be ABOVE entry for buy trade');
+            if (qty <= 0) warns.push('Quantity must be > 0');
+            // Daily risk limit check — uses _dualLevelsState capital if exposed
+            try {
+                const dailyLimit = window._dailyLossLimit || 2000;
+                if (maxLoss > Math.abs(dailyLimit)) warns.push('Max loss ₹' + maxLoss.toFixed(0) + ' exceeds daily limit ₹' + Math.abs(dailyLimit));
+            } catch(e) {}
+            if (_tcmCtx && _tcmCtx.mode === 'live') warns.push('⚠ LIVE TRADE — real Dhan order will be placed. Verify all fields.');
+
+            const warnsEl = $('tcmWarns');
+            warnsEl.innerHTML = warns.map(w => `<div class="tcm-warn">${w}</div>`).join('');
+            $('tcmConfirmBtn').disabled = warns.some(w => !w.startsWith('⚠ LIVE'));
+        };
+
+        window._tcmDoConfirm = async function() {
+            if (!_tcmCtx) return;
+            const entry = parseFloat($('tcmEntry').value);
+            const sl    = parseFloat($('tcmSl').value);
+            const tgt   = parseFloat($('tcmTgt').value);
+            const tgt2  = parseFloat($('tcmTgt2').value);
+            const qty   = parseFloat($('tcmQty').value);
+            const ctx   = _tcmCtx;
+
+            // Journal entry (append to localStorage; existing journal endpoint reads from server,
+            // so this is a client-side audit log — never overwrites server data)
+            try {
+                const journal = JSON.parse(localStorage.getItem('antigravity-trade-journal') || '[]');
+                journal.unshift({
+                    at: new Date().toISOString(),
+                    inst: ctx.inst, type: ctx.type, opt: ctx.type === 'CALL' ? 'CE' : 'PE',
+                    strike: ctx.strike, entry, sl, tgt, tgt2, qty, lotSize: ctx.lot, mode: ctx.mode,
+                    risk: (entry - sl) * qty,
+                    reward: (tgt - entry) * qty,
+                    reward2: (tgt2 - entry) * qty,
+                    rr: sl < entry ? +((tgt-entry)/(entry-sl)).toFixed(2) : 0,
+                    rr2: sl < entry ? +((tgt2-entry)/(entry-sl)).toFixed(2) : 0,
+                    status: 'OPEN',
+                    exitPrice: null,
+                    pnl: null,
+                    signalReason: window.currentSignal || 'manual',
+                });
+                if (journal.length > 200) journal.length = 200;
+                localStorage.setItem('antigravity-trade-journal', JSON.stringify(journal));
+            } catch(e) {}
+
+            // Fire the existing trade pipeline
+            $('tcmConfirmBtn').disabled = true;
+            $('tcmConfirmBtn').textContent = '⏳ submitting…';
+            try {
+                if (typeof window.executeTradeRaw === 'function') {
+                    await window.executeTradeRaw(ctx.type);
+                } else {
+                    // Fallback: hit the trade execute endpoint directly with overrides
+                    const r = await fetch(`${API_BASE || ''}/api/trade/execute`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ strike: ctx.strike, type: ctx.type, entry, sl, tgt, qty }),
+                    });
+                    if (!r.ok) {
+                        const j = await r.json().catch(()=>({}));
+                        throw new Error(j.error || `HTTP ${r.status}`);
+                    }
+                    if (typeof loadTradeHistory === 'function') loadTradeHistory();
+                }
+                if (typeof showAlert === 'function') showAlert(`✓ ${ctx.type} confirmed: ${ctx.strike}`, 'success');
+                closeTradeConfirm();
+            } catch(e) {
+                if (typeof showAlert === 'function') showAlert('Trade failed: ' + e.message, 'error');
+                $('tcmConfirmBtn').disabled = false;
+                $('tcmConfirmBtn').textContent = '✓ Confirm Trade';
+            }
+        };
+
+        // Preserve original executeTrade as executeTradeRaw, redirect main flow through confirm
+        if (typeof window.executeTrade === 'function' && typeof window.executeTradeRaw === 'undefined') {
+            window.executeTradeRaw = window.executeTrade;
+            window.executeTrade = function(type) { window.openTradeConfirm(type); };
+        }
+    })();
     </script>
 </body>
 </html>

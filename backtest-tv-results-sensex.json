@@ -1,93 +1,73 @@
 {
-  "generatedAt": "2026-05-03T05:53:18.965Z",
+  "generatedAt": "2026-05-19T04:13:14.681Z",
   "dataSource": "Yahoo Finance / TradingView (^BSESN daily + Black-Scholes settlement)",
-  "totalExpiries": 1421,
-  "expiriesWithTrades": 224,
+  "totalExpiries": 1200,
+  "expiriesWithTrades": 166,
   "skipped": {
-    "noSpotData": 53,
-    "noSignal": 1144,
+    "noSpotData": 38,
+    "noSignal": 996,
     "noOptionData": 0,
     "noEntry": 0,
     "fetchError": 0
   },
   "stats": {
-    "totalTrades": 224,
-    "wins": 173,
-    "losses": 51,
-    "winRate": 77.23,
-    "avgMultiplier": 1.444,
-    "maxMultiplier": 2.5,
-    "medianMultiplier": 1.399,
-    "avgPnlPct": 44.37,
-    "hit2x": 42,
-    "hit5x": 0,
+    "totalTrades": 166,
+    "wins": 81,
+    "losses": 85,
+    "winRate": 48.8,
+    "avgMultiplier": 1.254,
+    "maxMultiplier": 5,
+    "medianMultiplier": 0.984,
+    "avgPnlPct": 25.42,
+    "hit2x": 16,
+    "hit5x": 1,
     "hit10x": 0,
     "hit50x": 0,
     "byYear": {
-      "1999": {
-        "trades": 16,
-        "wins": 13,
-        "totalPnl": 939.34
-      },
-      "2000": {
-        "trades": 18,
-        "wins": 10,
-        "totalPnl": 816.27
-      },
-      "2001": {
-        "trades": 12,
-        "wins": 11,
-        "totalPnl": 935.8000000000001
-      },
-      "2002": {
-        "trades": 13,
-        "wins": 10,
-        "totalPnl": 549.26
-      },
       "2003": {
         "trades": 10,
-        "wins": 7,
-        "totalPnl": 201.36
+        "wins": 4,
+        "totalPnl": -30.959999999999997
       },
       "2004": {
         "trades": 13,
-        "wins": 7,
-        "totalPnl": 357.33
+        "wins": 4,
+        "totalPnl": 450.96000000000004
       },
       "2005": {
         "trades": 10,
-        "wins": 10,
-        "totalPnl": 528
+        "wins": 7,
+        "totalPnl": 410.64
       },
       "2006": {
         "trades": 7,
-        "wins": 5,
-        "totalPnl": 294.03
+        "wins": 4,
+        "totalPnl": 205.57999999999998
       },
       "2007": {
         "trades": 7,
-        "wins": 5,
-        "totalPnl": 390.75999999999993
+        "wins": 3,
+        "totalPnl": 305.34999999999997
       },
       "2008": {
         "trades": 26,
-        "wins": 18,
-        "totalPnl": 762.7800000000002
+        "wins": 12,
+        "totalPnl": 476.48
       },
       "2009": {
         "trades": 10,
-        "wins": 6,
-        "totalPnl": 235.19
+        "wins": 2,
+        "totalPnl": 45.33999999999999
       },
       "2010": {
         "trades": 7,
-        "wins": 7,
-        "totalPnl": 518.11
+        "wins": 5,
+        "totalPnl": 360.3
       },
       "2011": {
         "trades": 11,
-        "wins": 10,
-        "totalPnl": 717.29
+        "wins": 5,
+        "totalPnl": 351.97999999999996
       },
       "2012": {
         "trades": 5,
@@ -96,48 +76,48 @@
       },
       "2013": {
         "trades": 7,
-        "wins": 6,
-        "totalPnl": 400.85
+        "wins": 5,
+        "totalPnl": 485.34000000000003
       },
       "2014": {
         "trades": 3,
-        "wins": 3,
-        "totalPnl": 207.59000000000003
+        "wins": 2,
+        "totalPnl": 122.94
       },
       "2015": {
         "trades": 9,
-        "wins": 9,
-        "totalPnl": 381.6300000000001
+        "wins": 5,
+        "totalPnl": 99.65
       },
       "2016": {
         "trades": 6,
-        "wins": 5,
-        "totalPnl": 317.33
+        "wins": 3,
+        "totalPnl": 209.7
       },
       "2018": {
         "trades": 5,
-        "wins": 5,
-        "totalPnl": 329.2
+        "wins": 4,
+        "totalPnl": 186.65999999999997
       },
       "2019": {
         "trades": 3,
-        "wins": 3,
-        "totalPnl": 186.26
+        "wins": 2,
+        "totalPnl": 31.26
       },
       "2020": {
         "trades": 7,
-        "wins": 3,
-        "totalPnl": -70.40999999999998
+        "wins": 1,
+        "totalPnl": -56.78999999999999
       },
       "2021": {
         "trades": 6,
-        "wins": 6,
-        "totalPnl": 455.63
+        "wins": 4,
+        "totalPnl": 321.03999999999996
       },
       "2022": {
         "trades": 6,
-        "wins": 4,
-        "totalPnl": 107.74000000000001
+        "wins": 0,
+        "totalPnl": -78.13
       },
       "2023": {
         "trades": 1,
@@ -147,1934 +127,46 @@
       "2024": {
         "trades": 2,
         "wins": 1,
-        "totalPnl": 17.64
+        "totalPnl": 13.84
       },
       "2025": {
         "trades": 3,
-        "wins": 3,
-        "totalPnl": 133.24
+        "wins": 1,
+        "totalPnl": 31.380000000000003
       },
       "2026": {
-        "trades": 1,
-        "wins": 0,
-        "totalPnl": -8.02
+        "trades": 2,
+        "wins": 1,
+        "totalPnl": 43.5
       }
     },
     "byEra": {
       "pre-cutover": {
-        "trades": 219,
-        "wins": 170
+        "trades": 160,
+        "wins": 79
       },
       "post-cutover": {
-        "trades": 5,
-        "wins": 3
+        "trades": 6,
+        "wins": 2
       }
     },
     "byType": {
       "CALL": {
-        "trades": 109,
-        "wins": 76
+        "trades": 89,
+        "wins": 42
       },
       "PUT": {
-        "trades": 115,
-        "wins": 97
+        "trades": 77,
+        "wins": 39
       }
     },
     "byReason": {
-      "EOD_CLOSE": 198,
-      "TARGET": 25,
-      "STOP_LOSS": 1
+      "EOD_CLOSE": 109,
+      "STOP_LOSS": 56,
+      "TARGET": 1
     }
   },
   "trades": [
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 30.13,
-      "exitPrice": 0.05,
-      "pnlPct": -99.83,
-      "multiplier": 0.002,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 3400,
-      "iv": 0.444,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 31,
-        "greekGrade": "D",
-        "gamma": 0.003977,
-        "delta": 0.3139,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 5,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-01-08",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 43.4,
-      "exitPrice": 92.15,
-      "pnlPct": 112.35,
-      "multiplier": 2.123,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3300,
-      "iv": 0.488,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 37,
-        "greekGrade": "D",
-        "gamma": 0.00393872,
-        "delta": 0.3932,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 11,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-01-15",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 41.24,
-      "exitPrice": 66.14,
-      "pnlPct": 60.37,
-      "multiplier": 1.604,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3300,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 38,
-        "greekGrade": "D",
-        "gamma": 0.00649719,
-        "delta": 0.6014,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 12,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-02-26",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 40.05,
-      "exitPrice": 58.81,
-      "pnlPct": 46.85,
-      "multiplier": 1.469,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3500,
-      "iv": 0.514,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 32,
-        "greekGrade": "D",
-        "gamma": 0.00331513,
-        "delta": 0.3296,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 6,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-04-09",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 46.56,
-      "exitPrice": 116.4,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 3400,
-      "iv": 0.525,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 38,
-        "greekGrade": "D",
-        "gamma": 0.00361574,
-        "delta": 0.3966,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 12,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-04-16",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 69.67,
-      "exitPrice": 84.25,
-      "pnlPct": 20.93,
-      "multiplier": 1.209,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4100,
-      "iv": 0.537,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 43,
-        "greekGrade": "C",
-        "gamma": 0.00297057,
-        "delta": 0.4574,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 17,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-05-21",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 90.32,
-      "exitPrice": 130.64,
-      "pnlPct": 44.64,
-      "multiplier": 1.446,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4100,
-      "iv": 0.478,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 33,
-        "greekGrade": "D",
-        "gamma": 0.00316081,
-        "delta": 0.6581,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 7,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-06-11",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 89.64,
-      "exitPrice": 127.88,
-      "pnlPct": 42.66,
-      "multiplier": 1.427,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4800,
-      "iv": 0.404,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 33,
-        "greekGrade": "D",
-        "gamma": 0.00318056,
-        "delta": 0.6595,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 7,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-07-23",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 67.45,
-      "exitPrice": 112.13,
-      "pnlPct": 66.25,
-      "multiplier": 1.663,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4600,
-      "iv": 0.329,
-      "gammaBlast": {
-        "blastScore": 29,
-        "blastLevel": "LOW",
-        "greekRank": 35,
-        "greekGrade": "D",
-        "gamma": 0.00414233,
-        "delta": 0.639,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 9,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-08-13",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 46.77,
-      "exitPrice": 116.94,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 4800,
-      "iv": 0.315,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 42,
-        "greekGrade": "C",
-        "gamma": 0.00432312,
-        "delta": 0.4508,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 16,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-10-01",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 71.02,
-      "exitPrice": 177.56,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 5100,
-      "iv": 0.384,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 44,
-        "greekGrade": "C",
-        "gamma": 0.0033696,
-        "delta": 0.5259,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 18,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-10-15",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 105.59,
-      "exitPrice": 98.45,
-      "pnlPct": -6.76,
-      "multiplier": 0.932,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 4500,
-      "iv": 0.68,
-      "gammaBlast": {
-        "blastScore": 33,
-        "blastLevel": "LOW",
-        "greekRank": 45,
-        "greekGrade": "C",
-        "gamma": 0.00215351,
-        "delta": 0.5141,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 19,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-11-05",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 110.26,
-      "exitPrice": 95.01,
-      "pnlPct": -13.83,
-      "multiplier": 0.862,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 4800,
-      "iv": 0.557,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 38,
-        "greekGrade": "D",
-        "gamma": 0.00242553,
-        "delta": 0.5938,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 12,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-11-26",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 66.69,
-      "exitPrice": 111.53,
-      "pnlPct": 67.23,
-      "multiplier": 1.672,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4900,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 29,
-        "blastLevel": "LOW",
-        "greekRank": 34,
-        "greekGrade": "D",
-        "gamma": 0.00422649,
-        "delta": 0.6499,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 8,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-12-10",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 71.16,
-      "exitPrice": 124.15,
-      "pnlPct": 74.46,
-      "multiplier": 1.745,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4800,
-      "iv": 0.33,
-      "gammaBlast": {
-        "blastScore": 29,
-        "blastLevel": "LOW",
-        "greekRank": 34,
-        "greekGrade": "D",
-        "gamma": 0.00394675,
-        "delta": 0.6447,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 8,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-12-17",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 71.98,
-      "exitPrice": 125.27,
-      "pnlPct": 74.02,
-      "multiplier": 1.74,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 5000,
-      "iv": 0.375,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 42,
-        "greekGrade": "C",
-        "gamma": 0.00349597,
-        "delta": 0.5553,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 16,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "1999-12-24",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 109.54,
-      "exitPrice": 64.2,
-      "pnlPct": -41.39,
-      "multiplier": 0.586,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 5400,
-      "iv": 0.644,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 42,
-        "greekGrade": "C",
-        "gamma": 0.00187763,
-        "delta": 0.4539,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 16,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-01-28",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 88.47,
-      "exitPrice": 86.41,
-      "pnlPct": -2.32,
-      "multiplier": 0.977,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 5400,
-      "iv": 0.467,
-      "gammaBlast": {
-        "blastScore": 33,
-        "blastLevel": "LOW",
-        "greekRank": 45,
-        "greekGrade": "C",
-        "gamma": 0.00261452,
-        "delta": 0.5071,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 19,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-02-04",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 88.9,
-      "exitPrice": 178.35,
-      "pnlPct": 100.63,
-      "multiplier": 2.006,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 5900,
-      "iv": 0.431,
-      "gammaBlast": {
-        "blastScore": 33,
-        "blastLevel": "LOW",
-        "greekRank": 45,
-        "greekGrade": "C",
-        "gamma": 0.0025968,
-        "delta": 0.5066,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 19,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-02-18",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 90,
-      "exitPrice": 176.92,
-      "pnlPct": 96.58,
-      "multiplier": 1.966,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 5800,
-      "iv": 0.558,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 38,
-        "greekGrade": "D",
-        "gamma": 0.00197203,
-        "delta": 0.4039,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 12,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-02-25",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 134.23,
-      "exitPrice": 221.73,
-      "pnlPct": 65.18,
-      "multiplier": 1.652,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 5600,
-      "iv": 0.713,
-      "gammaBlast": {
-        "blastScore": 33,
-        "blastLevel": "LOW",
-        "greekRank": 45,
-        "greekGrade": "C",
-        "gamma": 0.00164834,
-        "delta": 0.4833,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 19,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-03-03",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 98.43,
-      "exitPrice": 219.2,
-      "pnlPct": 122.69,
-      "multiplier": 2.227,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 5000,
-      "iv": 0.612,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 44,
-        "greekGrade": "C",
-        "gamma": 0.0021584,
-        "delta": 0.481,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 18,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-04-07",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 165.18,
-      "exitPrice": 142.45,
-      "pnlPct": -13.76,
-      "multiplier": 0.862,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 4800,
-      "iv": 0.917,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 43,
-        "greekGrade": "C",
-        "gamma": 0.00150219,
-        "delta": 0.5377,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 17,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-04-28",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 163.36,
-      "exitPrice": 93.88,
-      "pnlPct": -42.53,
-      "multiplier": 0.575,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 4600,
-      "iv": 1.035,
-      "gammaBlast": {
-        "blastScore": 33,
-        "blastLevel": "LOW",
-        "greekRank": 45,
-        "greekGrade": "C",
-        "gamma": 0.00138353,
-        "delta": 0.5159,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 19,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-05-05",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 102.75,
-      "exitPrice": 92.86,
-      "pnlPct": -9.62,
-      "multiplier": 0.904,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 4200,
-      "iv": 0.867,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 38,
-        "greekGrade": "D",
-        "gamma": 0.00174537,
-        "delta": 0.4046,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 12,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-05-12",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 87.32,
-      "exitPrice": 31.35,
-      "pnlPct": -64.1,
-      "multiplier": 0.359,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 4100,
-      "iv": 0.798,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 37,
-        "greekGrade": "D",
-        "gamma": 0.00191467,
-        "delta": 0.3845,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 11,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-05-19",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 104.2,
-      "exitPrice": 53.47,
-      "pnlPct": -48.68,
-      "multiplier": 0.513,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 4400,
-      "iv": 0.753,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 44,
-        "greekGrade": "C",
-        "gamma": 0.0019945,
-        "delta": 0.473,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 18,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-06-02",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 71.23,
-      "exitPrice": 64.67,
-      "pnlPct": -9.2,
-      "multiplier": 0.908,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 4700,
-      "iv": 0.548,
-      "gammaBlast": {
-        "blastScore": 31,
-        "blastLevel": "LOW",
-        "greekRank": 39,
-        "greekGrade": "D",
-        "gamma": 0.00252953,
-        "delta": 0.418,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 13,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-06-16",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 59.7,
-      "exitPrice": 136.34,
-      "pnlPct": 128.37,
-      "multiplier": 2.284,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4600,
-      "iv": 0.387,
-      "gammaBlast": {
-        "blastScore": 33,
-        "blastLevel": "LOW",
-        "greekRank": 45,
-        "greekGrade": "C",
-        "gamma": 0.00369967,
-        "delta": 0.4864,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 19,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-07-21",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 58.64,
-      "exitPrice": 83.14,
-      "pnlPct": 41.77,
-      "multiplier": 1.418,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4500,
-      "iv": 0.328,
-      "gammaBlast": {
-        "blastScore": 31,
-        "blastLevel": "LOW",
-        "greekRank": 40,
-        "greekGrade": "C",
-        "gamma": 0.0044153,
-        "delta": 0.575,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 14,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-08-25",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 68.37,
-      "exitPrice": 170.92,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 4200,
-      "iv": 0.441,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 43,
-        "greekGrade": "C",
-        "gamma": 0.00355945,
-        "delta": 0.5343,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 17,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-09-22",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 75.18,
-      "exitPrice": 107.25,
-      "pnlPct": 42.65,
-      "multiplier": 1.427,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3800,
-      "iv": 0.582,
-      "gammaBlast": {
-        "blastScore": 33,
-        "blastLevel": "LOW",
-        "greekRank": 45,
-        "greekGrade": "C",
-        "gamma": 0.00297885,
-        "delta": 0.4903,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 19,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-10-20",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 22.6,
-      "exitPrice": 56.51,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 4200,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 26,
-        "blastLevel": "LOW",
-        "greekRank": 27,
-        "greekGrade": "D",
-        "gamma": 0.00442055,
-        "delta": 0.2774,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 2,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-12-15",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 69.57,
-      "exitPrice": 173.92,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 4100,
-      "iv": 0.348,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 31,
-        "greekGrade": "D",
-        "gamma": 0.00417514,
-        "delta": 0.6896,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 5,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2000-12-22",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 67.33,
-      "exitPrice": 83.73,
-      "pnlPct": 24.36,
-      "multiplier": 1.244,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4100,
-      "iv": 0.418,
-      "gammaBlast": {
-        "blastScore": 31,
-        "blastLevel": "LOW",
-        "greekRank": 40,
-        "greekGrade": "C",
-        "gamma": 0.00376771,
-        "delta": 0.5756,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 14,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-01-05",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 44.87,
-      "exitPrice": 52.26,
-      "pnlPct": 16.46,
-      "multiplier": 1.165,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4300,
-      "iv": 0.368,
-      "gammaBlast": {
-        "blastScore": 31,
-        "blastLevel": "LOW",
-        "greekRank": 40,
-        "greekGrade": "C",
-        "gamma": 0.00412119,
-        "delta": 0.4251,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 14,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-02-02",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 74.8,
-      "exitPrice": 169.68,
-      "pnlPct": 126.83,
-      "multiplier": 2.268,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4500,
-      "iv": 0.356,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 33,
-        "greekGrade": "D",
-        "gamma": 0.00382408,
-        "delta": 0.6659,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 7,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-02-16",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 73.84,
-      "exitPrice": 177.84,
-      "pnlPct": 140.83,
-      "multiplier": 2.408,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4300,
-      "iv": 0.377,
-      "gammaBlast": {
-        "blastScore": 29,
-        "blastLevel": "LOW",
-        "greekRank": 34,
-        "greekGrade": "D",
-        "gamma": 0.00383356,
-        "delta": 0.652,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 8,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-02-23",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 52.93,
-      "exitPrice": 132.32,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 4300,
-      "iv": 0.442,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 38,
-        "greekGrade": "D",
-        "gamma": 0.00336734,
-        "delta": 0.4062,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 12,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-03-02",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 76.49,
-      "exitPrice": 118.04,
-      "pnlPct": 54.33,
-      "multiplier": 1.543,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 4000,
-      "iv": 0.516,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 43,
-        "greekGrade": "C",
-        "gamma": 0.00319221,
-        "delta": 0.535,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 17,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-03-09",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 88.95,
-      "exitPrice": 95.62,
-      "pnlPct": 7.49,
-      "multiplier": 1.075,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3700,
-      "iv": 0.762,
-      "gammaBlast": {
-        "blastScore": 32,
-        "blastLevel": "LOW",
-        "greekRank": 42,
-        "greekGrade": "C",
-        "gamma": 0.0023143,
-        "delta": 0.4531,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 16,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-03-30",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 62.35,
-      "exitPrice": 14.59,
-      "pnlPct": -76.6,
-      "multiplier": 0.234,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 3500,
-      "iv": 0.638,
-      "gammaBlast": {
-        "blastScore": 31,
-        "blastLevel": "LOW",
-        "greekRank": 40,
-        "greekGrade": "C",
-        "gamma": 0.00292573,
-        "delta": 0.4229,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 14,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-05-04",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 18.72,
-      "exitPrice": 46.8,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 3600,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 26,
-        "blastLevel": "LOW",
-        "greekRank": 27,
-        "greekGrade": "D",
-        "gamma": 0.00508866,
-        "delta": 0.2698,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 2,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-06-01",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 17.96,
-      "exitPrice": 44.9,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 3400,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 26,
-        "blastLevel": "LOW",
-        "greekRank": 27,
-        "greekGrade": "D",
-        "gamma": 0.00542135,
-        "delta": 0.2732,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 2,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-06-15",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 75.71,
-      "exitPrice": 189.26,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 2800,
-      "iv": 0.555,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 31,
-        "greekGrade": "D",
-        "gamma": 0.00386476,
-        "delta": 0.6898,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 5,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-09-21",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 78.54,
-      "exitPrice": 111.6,
-      "pnlPct": 42.1,
-      "multiplier": 1.421,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 2700,
-      "iv": 0.696,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 37,
-        "greekGrade": "D",
-        "gamma": 0.00335023,
-        "delta": 0.6111,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 11,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2001-09-28",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 18.23,
-      "exitPrice": 2.02,
-      "pnlPct": -88.92,
-      "multiplier": 0.111,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 3600,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 26,
-        "blastLevel": "LOW",
-        "greekRank": 27,
-        "greekGrade": "D",
-        "gamma": 0.00522094,
-        "delta": 0.2724,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 2,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-02-15",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 20.33,
-      "exitPrice": 4.08,
-      "pnlPct": -79.93,
-      "multiplier": 0.201,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 3600,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 27,
-        "blastLevel": "LOW",
-        "greekRank": 29,
-        "greekGrade": "D",
-        "gamma": 0.00542169,
-        "delta": 0.2973,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 4,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-02-22",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 26.61,
-      "exitPrice": 66.52,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 3600,
-      "iv": 0.408,
-      "gammaBlast": {
-        "blastScore": 26,
-        "blastLevel": "LOW",
-        "greekRank": 28,
-        "greekGrade": "D",
-        "gamma": 0.00396188,
-        "delta": 0.2899,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 3,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-03-01",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 77.18,
-      "exitPrice": 83.89,
-      "pnlPct": 8.7,
-      "multiplier": 1.087,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3600,
-      "iv": 0.45,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 32,
-        "greekGrade": "D",
-        "gamma": 0.0037478,
-        "delta": 0.6771,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 6,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-03-22",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 24.57,
-      "exitPrice": 35.6,
-      "pnlPct": 44.87,
-      "multiplier": 1.449,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3400,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 29,
-        "blastLevel": "LOW",
-        "greekRank": 35,
-        "greekGrade": "D",
-        "gamma": 0.00605151,
-        "delta": 0.3571,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 9,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-04-19",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 12.71,
-      "exitPrice": 31.76,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
-      "strike": 3200,
-      "iv": 0.316,
-      "gammaBlast": {
-        "blastScore": 24,
-        "blastLevel": "LOW",
-        "greekRank": 25,
-        "greekGrade": "D",
-        "gamma": 0.00498892,
-        "delta": 0.2181,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 0,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-05-24",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 41.69,
-      "exitPrice": 75.65,
-      "pnlPct": 81.45,
-      "multiplier": 1.815,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3100,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 29,
-        "blastLevel": "LOW",
-        "greekRank": 35,
-        "greekGrade": "D",
-        "gamma": 0.00672013,
-        "delta": 0.6431,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 9,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-07-26",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 48.94,
-      "exitPrice": 65.9,
-      "pnlPct": 34.67,
-      "multiplier": 1.347,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3000,
-      "iv": 0.316,
-      "gammaBlast": {
-        "blastScore": 26,
-        "blastLevel": "LOW",
-        "greekRank": 27,
-        "greekGrade": "D",
-        "gamma": 0.00587442,
-        "delta": 0.7229,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 2,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-08-16",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 23.57,
-      "exitPrice": 19.18,
-      "pnlPct": -18.62,
-      "multiplier": 0.814,
-      "reason": "EOD_CLOSE",
-      "win": false,
-      "strike": 3100,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 30,
-        "blastLevel": "LOW",
-        "greekRank": 37,
-        "greekGrade": "D",
-        "gamma": 0.00685158,
-        "delta": 0.3829,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 11,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-08-23",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 37.68,
-      "exitPrice": 81.23,
-      "pnlPct": 115.6,
-      "multiplier": 2.156,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3100,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 31,
-        "blastLevel": "LOW",
-        "greekRank": 39,
-        "greekGrade": "D",
-        "gamma": 0.00689851,
-        "delta": 0.5912,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 13,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-08-30",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "PUT",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 44.33,
-      "exitPrice": 58.89,
-      "pnlPct": 32.85,
-      "multiplier": 1.329,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3200,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 28,
-        "blastLevel": "LOW",
-        "greekRank": 33,
-        "greekGrade": "D",
-        "gamma": 0.00641164,
-        "delta": 0.6599,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 7,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-09-06",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 29.81,
-      "exitPrice": 33.91,
-      "pnlPct": 13.77,
-      "multiplier": 1.138,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3000,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 33,
-        "blastLevel": "LOW",
-        "greekRank": 45,
-        "greekGrade": "C",
-        "gamma": 0.00732803,
-        "delta": 0.4897,
-        "breakdown": {
-          "gammaPower": 6,
-          "deltaSweetSpot": 19,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-11-15",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
-    {
-      "status": "OK",
-      "type": "CALL",
-      "confidence": "HIGH",
-      "strikeOffset": 0,
-      "entryPrice": 51.89,
-      "exitPrice": 106.29,
-      "pnlPct": 104.82,
-      "multiplier": 2.048,
-      "reason": "EOD_CLOSE",
-      "win": true,
-      "strike": 3200,
-      "iv": 0.3,
-      "gammaBlast": {
-        "blastScore": 25,
-        "blastLevel": "LOW",
-        "greekRank": 25,
-        "greekGrade": "D",
-        "gamma": 0.00555811,
-        "delta": 0.7457,
-        "breakdown": {
-          "gammaPower": 5,
-          "deltaSweetSpot": 0,
-          "thetaAccel": 20,
-          "vegaEdge": 0,
-          "gtrRatio": 0
-        }
-      },
-      "date": "2002-12-06",
-      "era": "pre-cutover",
-      "weekday": "FRI"
-    },
     {
       "status": "OK",
       "type": "CALL",
@@ -2241,11 +333,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 55.08,
-      "exitPrice": 106.87,
-      "pnlPct": 94.03,
-      "multiplier": 1.94,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 52.74,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 4800,
       "iv": 0.373,
       "gammaBlast": {
@@ -2273,11 +365,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 85.33,
-      "exitPrice": 128.43,
-      "pnlPct": 50.51,
-      "multiplier": 1.505,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 81.71,
+      "pnlPct": -4.25,
+      "multiplier": 0.957,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 5100,
       "iv": 0.412,
       "gammaBlast": {
@@ -2305,10 +397,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 42.49,
-      "exitPrice": 34.17,
-      "pnlPct": -19.58,
-      "multiplier": 0.804,
-      "reason": "EOD_CLOSE",
+      "exitPrice": 40.68,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
       "win": false,
       "strike": 4900,
       "iv": 0.399,
@@ -2337,11 +429,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 35.87,
-      "exitPrice": 68.28,
-      "pnlPct": 90.36,
-      "multiplier": 1.904,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 34.34,
+      "pnlPct": -4.25,
+      "multiplier": 0.957,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 5200,
       "iv": 0.331,
       "gammaBlast": {
@@ -2433,11 +525,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 42.39,
-      "exitPrice": 105.99,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
+      "exitPrice": 40.59,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 6200,
       "iv": 0.3,
       "gammaBlast": {
@@ -2497,11 +589,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 92.98,
-      "exitPrice": 104.33,
-      "pnlPct": 12.2,
-      "multiplier": 1.122,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 89.03,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 5800,
       "iv": 0.575,
       "gammaBlast": {
@@ -2529,10 +621,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 132.79,
-      "exitPrice": 111.66,
-      "pnlPct": -15.91,
-      "multiplier": 0.841,
-      "reason": "EOD_CLOSE",
+      "exitPrice": 127.14,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
       "win": false,
       "strike": 5900,
       "iv": 0.563,
@@ -2625,9 +717,9 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 71.04,
-      "exitPrice": 177.6,
-      "pnlPct": 150,
-      "multiplier": 2.5,
+      "exitPrice": 355.19,
+      "pnlPct": 400,
+      "multiplier": 5,
       "reason": "TARGET",
       "win": true,
       "strike": 5400,
@@ -2721,9 +813,9 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 44.9,
-      "exitPrice": 31.54,
-      "pnlPct": -29.75,
-      "multiplier": 0.703,
+      "exitPrice": 42.99,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
       "reason": "STOP_LOSS",
       "win": false,
       "strike": 4800,
@@ -2785,11 +877,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 77.04,
-      "exitPrice": 91.36,
-      "pnlPct": 18.58,
-      "multiplier": 1.186,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 73.77,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 5800,
       "iv": 0.3,
       "gammaBlast": {
@@ -2913,11 +1005,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 70.79,
-      "exitPrice": 71.54,
-      "pnlPct": 1.06,
-      "multiplier": 1.011,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 67.78,
+      "pnlPct": -4.25,
+      "multiplier": 0.957,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 7200,
       "iv": 0.3,
       "gammaBlast": {
@@ -2977,11 +1069,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 122.14,
-      "exitPrice": 168.95,
-      "pnlPct": 38.33,
-      "multiplier": 1.383,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 116.95,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 7900,
       "iv": 0.392,
       "gammaBlast": {
@@ -3105,11 +1197,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 86.61,
-      "exitPrice": 143.09,
-      "pnlPct": 65.22,
-      "multiplier": 1.652,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 82.92,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 9400,
       "iv": 0.3,
       "gammaBlast": {
@@ -3169,11 +1261,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 118.83,
-      "exitPrice": 218.89,
-      "pnlPct": 84.2,
-      "multiplier": 1.842,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 113.78,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 10200,
       "iv": 0.3,
       "gammaBlast": {
@@ -3393,10 +1485,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 160.02,
-      "exitPrice": 400.05,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
+      "exitPrice": 467.47,
+      "pnlPct": 192.14,
+      "multiplier": 2.921,
+      "reason": "EOD_CLOSE",
       "win": true,
       "strike": 14100,
       "iv": 0.306,
@@ -3489,11 +1581,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 132.77,
-      "exitPrice": 238.45,
-      "pnlPct": 79.6,
-      "multiplier": 1.796,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 127.12,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 14100,
       "iv": 0.3,
       "gammaBlast": {
@@ -3553,11 +1645,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 413.23,
-      "exitPrice": 576.23,
-      "pnlPct": 39.45,
-      "multiplier": 1.394,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 395.67,
+      "pnlPct": -4.25,
+      "multiplier": 0.957,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 19400,
       "iv": 0.648,
       "gammaBlast": {
@@ -3649,11 +1741,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 614.09,
-      "exitPrice": 615.25,
-      "pnlPct": 0.19,
-      "multiplier": 1.002,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 587.99,
+      "pnlPct": -4.25,
+      "multiplier": 0.957,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 17500,
       "iv": 0.989,
       "gammaBlast": {
@@ -3777,11 +1869,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 206.07,
-      "exitPrice": 327.82,
-      "pnlPct": 59.08,
-      "multiplier": 1.591,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 197.31,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 15900,
       "iv": 0.396,
       "gammaBlast": {
@@ -3809,10 +1901,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 230.62,
-      "exitPrice": 576.55,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
+      "exitPrice": 628.71,
+      "pnlPct": 172.62,
+      "multiplier": 2.726,
+      "reason": "EOD_CLOSE",
       "win": true,
       "strike": 15200,
       "iv": 0.443,
@@ -4097,10 +2189,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 252.41,
-      "exitPrice": 242.32,
-      "pnlPct": -4,
-      "multiplier": 0.96,
-      "reason": "EOD_CLOSE",
+      "exitPrice": 241.68,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
       "win": false,
       "strike": 13800,
       "iv": 0.571,
@@ -4161,11 +2253,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 308.93,
-      "exitPrice": 373.68,
-      "pnlPct": 20.96,
-      "multiplier": 1.21,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 295.8,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 12900,
       "iv": 0.651,
       "gammaBlast": {
@@ -4225,11 +2317,11 @@
       "confidence": "EVENT",
       "strikeOffset": 1,
       "entryPrice": 319.75,
-      "exitPrice": 799.38,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
+      "exitPrice": 303.77,
+      "pnlPct": -5,
+      "multiplier": 0.95,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 9400,
       "iv": 1.146,
       "gammaBlast": {
@@ -4321,11 +2413,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 387.37,
-      "exitPrice": 415.21,
-      "pnlPct": 7.19,
-      "multiplier": 1.072,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 370.91,
+      "pnlPct": -4.25,
+      "multiplier": 0.957,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 8500,
       "iv": 1.366,
       "gammaBlast": {
@@ -4385,11 +2477,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 255.92,
-      "exitPrice": 371.08,
-      "pnlPct": 45,
-      "multiplier": 1.45,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 245.04,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 9700,
       "iv": 0.71,
       "gammaBlast": {
@@ -4449,11 +2541,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 257.51,
-      "exitPrice": 324.24,
-      "pnlPct": 25.91,
-      "multiplier": 1.259,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 246.57,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 9100,
       "iv": 0.807,
       "gammaBlast": {
@@ -4609,11 +2701,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 220.4,
-      "exitPrice": 313.05,
-      "pnlPct": 42.04,
-      "multiplier": 1.42,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 211.03,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 14600,
       "iv": 0.487,
       "gammaBlast": {
@@ -4641,11 +2733,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 302.26,
-      "exitPrice": 444.92,
-      "pnlPct": 47.2,
-      "multiplier": 1.472,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 289.41,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 14300,
       "iv": 0.589,
       "gammaBlast": {
@@ -4705,11 +2797,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 163.19,
-      "exitPrice": 257.34,
-      "pnlPct": 57.7,
-      "multiplier": 1.577,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 156.25,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 16900,
       "iv": 0.3,
       "gammaBlast": {
@@ -4737,10 +2829,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 152.84,
-      "exitPrice": 382.09,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
+      "exitPrice": 409.07,
+      "pnlPct": 167.65,
+      "multiplier": 2.677,
+      "reason": "EOD_CLOSE",
       "win": true,
       "strike": 16200,
       "iv": 0.3,
@@ -4833,11 +2925,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 198.37,
-      "exitPrice": 374.95,
-      "pnlPct": 89.01,
-      "multiplier": 1.89,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 189.94,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 20500,
       "iv": 0.3,
       "gammaBlast": {
@@ -4897,11 +2989,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 192.81,
-      "exitPrice": 343.11,
-      "pnlPct": 77.95,
-      "multiplier": 1.779,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 184.62,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 20500,
       "iv": 0.3,
       "gammaBlast": {
@@ -4961,11 +3053,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 222.38,
-      "exitPrice": 555.96,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
+      "exitPrice": 212.93,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 20200,
       "iv": 0.3,
       "gammaBlast": {
@@ -5057,11 +3149,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 214.24,
-      "exitPrice": 313.18,
-      "pnlPct": 46.18,
-      "multiplier": 1.462,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 205.14,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 19700,
       "iv": 0.3,
       "gammaBlast": {
@@ -5089,11 +3181,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 184.45,
-      "exitPrice": 218.81,
-      "pnlPct": 18.63,
-      "multiplier": 1.186,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 176.61,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 18300,
       "iv": 0.3,
       "gammaBlast": {
@@ -5153,10 +3245,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 186.93,
-      "exitPrice": 467.32,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
+      "exitPrice": 440.68,
+      "pnlPct": 135.75,
+      "multiplier": 2.357,
+      "reason": "EOD_CLOSE",
       "win": true,
       "strike": 17800,
       "iv": 0.3,
@@ -5185,10 +3277,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 150.94,
-      "exitPrice": 377.35,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
+      "exitPrice": 360.37,
+      "pnlPct": 138.75,
+      "multiplier": 2.387,
+      "reason": "EOD_CLOSE",
       "win": true,
       "strike": 17200,
       "iv": 0.3,
@@ -5217,11 +3309,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 237.87,
-      "exitPrice": 333.03,
-      "pnlPct": 40,
-      "multiplier": 1.4,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 227.77,
+      "pnlPct": -4.25,
+      "multiplier": 0.957,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 17200,
       "iv": 0.4,
       "gammaBlast": {
@@ -5281,11 +3373,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 211.81,
-      "exitPrice": 346.83,
-      "pnlPct": 63.75,
-      "multiplier": 1.637,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 202.8,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 16500,
       "iv": 0.378,
       "gammaBlast": {
@@ -5569,10 +3661,10 @@
       "confidence": "EVENT",
       "strikeOffset": 1,
       "entryPrice": 162.26,
-      "exitPrice": 405.66,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
+      "exitPrice": 601.82,
+      "pnlPct": 270.89,
+      "multiplier": 3.709,
+      "reason": "EOD_CLOSE",
       "win": true,
       "strike": 19200,
       "iv": 0.324,
@@ -5665,11 +3757,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 211.66,
-      "exitPrice": 279.72,
-      "pnlPct": 32.15,
-      "multiplier": 1.322,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 202.67,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 20800,
       "iv": 0.3,
       "gammaBlast": {
@@ -5729,11 +3821,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 263.66,
-      "exitPrice": 475.65,
-      "pnlPct": 80.4,
-      "multiplier": 1.804,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 252.45,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 25500,
       "iv": 0.3,
       "gammaBlast": {
@@ -5825,11 +3917,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 307.59,
-      "exitPrice": 617.05,
-      "pnlPct": 100.61,
-      "multiplier": 2.006,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 294.52,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 29800,
       "iv": 0.307,
       "gammaBlast": {
@@ -5857,11 +3949,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 281.83,
-      "exitPrice": 320.12,
-      "pnlPct": 13.59,
-      "multiplier": 1.136,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 269.85,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 28900,
       "iv": 0.3,
       "gammaBlast": {
@@ -5889,11 +3981,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 277.31,
-      "exitPrice": 596.7,
-      "pnlPct": 115.18,
-      "multiplier": 2.152,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 265.52,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 29100,
       "iv": 0.3,
       "gammaBlast": {
@@ -6017,11 +4109,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 270.88,
-      "exitPrice": 367.31,
-      "pnlPct": 35.6,
-      "multiplier": 1.356,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 259.37,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 27700,
       "iv": 0.3,
       "gammaBlast": {
@@ -6081,11 +4173,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 261.1,
-      "exitPrice": 444.96,
-      "pnlPct": 70.42,
-      "multiplier": 1.704,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 250,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 24900,
       "iv": 0.3,
       "gammaBlast": {
@@ -6241,11 +4333,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 245.78,
-      "exitPrice": 316.34,
-      "pnlPct": 28.71,
-      "multiplier": 1.287,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 235.33,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 26000,
       "iv": 0.3,
       "gammaBlast": {
@@ -6305,10 +4397,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 356.33,
-      "exitPrice": 890.82,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
+      "exitPrice": 723.01,
+      "pnlPct": 102.91,
+      "multiplier": 2.029,
+      "reason": "EOD_CLOSE",
       "win": true,
       "strike": 35100,
       "iv": 0.3,
@@ -6401,11 +4493,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 344.11,
-      "exitPrice": 657.93,
-      "pnlPct": 91.2,
-      "multiplier": 1.912,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 329.49,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 36400,
       "iv": 0.3,
       "gammaBlast": {
@@ -6465,11 +4557,11 @@
       "confidence": "EVENT",
       "strikeOffset": 1,
       "entryPrice": 362.86,
-      "exitPrice": 907.15,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
-      "win": true,
+      "exitPrice": 344.72,
+      "pnlPct": -5,
+      "multiplier": 0.95,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 36300,
       "iv": 0.324,
       "gammaBlast": {
@@ -6593,10 +4685,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 1625.84,
-      "exitPrice": 559.62,
-      "pnlPct": -65.58,
-      "multiplier": 0.344,
-      "reason": "EOD_CLOSE",
+      "exitPrice": 1556.74,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
       "win": false,
       "strike": 30600,
       "iv": 1.568,
@@ -6689,11 +4781,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 402.31,
-      "exitPrice": 520.14,
-      "pnlPct": 29.29,
-      "multiplier": 1.293,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 385.22,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 36500,
       "iv": 0.3,
       "gammaBlast": {
@@ -6721,11 +4813,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 448.54,
-      "exitPrice": 493.06,
-      "pnlPct": 9.92,
-      "multiplier": 1.099,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 429.48,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 41400,
       "iv": 0.3,
       "gammaBlast": {
@@ -6753,10 +4845,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 468.23,
-      "exitPrice": 1170.58,
-      "pnlPct": 150,
-      "multiplier": 2.5,
-      "reason": "TARGET",
+      "exitPrice": 1114.23,
+      "pnlPct": 137.96,
+      "multiplier": 2.38,
+      "reason": "EOD_CLOSE",
       "win": true,
       "strike": 47400,
       "iv": 0.3,
@@ -6785,11 +4877,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 717.81,
-      "exitPrice": 1200.01,
-      "pnlPct": 67.18,
-      "multiplier": 1.672,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 687.31,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 50300,
       "iv": 0.409,
       "gammaBlast": {
@@ -6881,11 +4973,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 615.21,
-      "exitPrice": 903.54,
-      "pnlPct": 46.87,
-      "multiplier": 1.469,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 589.07,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 58600,
       "iv": 0.3,
       "gammaBlast": {
@@ -6977,11 +5069,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 737.71,
-      "exitPrice": 776.69,
-      "pnlPct": 5.28,
-      "multiplier": 1.053,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 706.36,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 58500,
       "iv": 0.358,
       "gammaBlast": {
@@ -7009,11 +5101,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 670.41,
-      "exitPrice": 826.39,
-      "pnlPct": 23.27,
-      "multiplier": 1.233,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 641.91,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 53500,
       "iv": 0.36,
       "gammaBlast": {
@@ -7073,11 +5165,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 594.72,
-      "exitPrice": 901.08,
-      "pnlPct": 51.51,
-      "multiplier": 1.515,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 569.44,
+      "pnlPct": -4.25,
+      "multiplier": 0.957,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 59000,
       "iv": 0.3,
       "gammaBlast": {
@@ -7105,11 +5197,11 @@
       "confidence": "EVENT",
       "strikeOffset": 1,
       "entryPrice": 599.22,
-      "exitPrice": 1126.92,
-      "pnlPct": 88.06,
-      "multiplier": 1.881,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 569.26,
+      "pnlPct": -5,
+      "multiplier": 0.95,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 56300,
       "iv": 0.324,
       "gammaBlast": {
@@ -7201,10 +5293,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 819.21,
-      "exitPrice": 815.55,
-      "pnlPct": -0.45,
-      "multiplier": 0.996,
-      "reason": "EOD_CLOSE",
+      "exitPrice": 784.39,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
       "win": false,
       "strike": 81500,
       "iv": 0.3,
@@ -7233,11 +5325,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 801.48,
-      "exitPrice": 1461.64,
-      "pnlPct": 82.37,
-      "multiplier": 1.824,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 767.42,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 77300,
       "iv": 0.3,
       "gammaBlast": {
@@ -7297,11 +5389,11 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 823.13,
-      "exitPrice": 913.56,
-      "pnlPct": 10.99,
-      "multiplier": 1.11,
-      "reason": "EOD_CLOSE",
-      "win": true,
+      "exitPrice": 788.14,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
+      "win": false,
       "strike": 82100,
       "iv": 0.3,
       "gammaBlast": {
@@ -7329,10 +5421,10 @@
       "confidence": "HIGH",
       "strikeOffset": 0,
       "entryPrice": 844.92,
-      "exitPrice": 777.15,
-      "pnlPct": -8.02,
-      "multiplier": 0.92,
-      "reason": "EOD_CLOSE",
+      "exitPrice": 809.01,
+      "pnlPct": -4.25,
+      "multiplier": 0.958,
+      "reason": "STOP_LOSS",
       "win": false,
       "strike": 82500,
       "iv": 0.3,
@@ -7354,1636 +5446,41 @@
       "date": "2026-02-16",
       "era": "post-cutover",
       "weekday": "MON"
+    },
+    {
+      "status": "OK",
+      "type": "PUT",
+      "confidence": "HIGH",
+      "strikeOffset": 0,
+      "entryPrice": 772.09,
+      "exitPrice": 1140.76,
+      "pnlPct": 47.75,
+      "multiplier": 1.477,
+      "reason": "EOD_CLOSE",
+      "win": true,
+      "strike": 75700,
+      "iv": 0.3,
+      "gammaBlast": {
+        "blastScore": 33,
+        "blastLevel": "LOW",
+        "greekRank": 46,
+        "greekGrade": "C",
+        "gamma": 0.00029027,
+        "delta": 0.4942,
+        "breakdown": {
+          "gammaPower": 6,
+          "deltaSweetSpot": 20,
+          "thetaAccel": 20,
+          "vegaEdge": 0,
+          "gtrRatio": 0
+        }
+      },
+      "date": "2026-05-12",
+      "era": "post-cutover",
+      "weekday": "TUE"
     }
   ],
   "expirySummaries": [
-    {
-      "date": "1999-01-01",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "1999-01-08",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.002,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-01-15",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.123,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-01-22",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-01-29",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-02-05",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-02-12",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-02-19",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-02-26",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.604,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-03-05",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-03-12",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-03-19",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-03-26",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-04-02",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "1999-04-09",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.469,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-04-16",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-04-23",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-04-30",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "1999-05-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-05-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-05-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.209,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-05-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-06-04",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-06-11",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.446,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-06-18",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-06-25",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-07-02",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-07-09",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-07-16",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-07-23",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.427,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-07-30",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-08-06",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-08-13",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.663,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-08-20",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-08-27",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-09-03",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-09-10",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-09-17",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-09-24",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-10-01",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-10-08",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-10-15",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-10-22",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-10-29",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-11-05",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.932,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-11-12",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-11-19",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-11-26",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.862,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-12-03",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "1999-12-10",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.672,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-12-17",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.745,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-12-24",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.74,
-      "numTrades": 1
-    },
-    {
-      "date": "1999-12-31",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2000-01-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-01-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-01-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-01-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.586,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-02-04",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.977,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-02-11",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-02-18",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.006,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-02-25",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.966,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-03-03",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.652,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-03-10",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-03-17",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2000-03-24",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-03-31",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-04-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.227,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-04-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2000-04-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2000-04-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.862,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-05-05",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.575,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-05-12",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.904,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-05-19",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.359,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-05-26",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-06-02",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.513,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-06-09",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-06-16",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.908,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-06-23",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-06-30",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-07-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-07-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-07-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.284,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-07-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-08-04",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-08-11",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-08-18",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-08-25",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.418,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-09-01",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2000-09-08",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-09-15",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-09-22",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-09-29",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-10-06",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-10-13",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-10-20",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.427,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-10-27",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-11-03",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-11-10",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-11-17",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-11-24",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-12-01",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-12-08",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2000-12-15",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-12-22",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2000-12-29",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-01-05",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.244,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-01-12",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-01-19",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-01-26",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2001-02-02",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.165,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-02-09",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-02-16",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.268,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-02-23",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.408,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-03-02",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-03-09",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.543,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-03-16",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-03-23",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-03-30",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.075,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-04-06",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-04-13",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2001-04-20",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-04-27",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-05-04",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.234,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-05-11",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-05-18",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-05-25",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-06-01",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-06-08",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-06-15",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-06-22",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-06-29",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-07-06",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-07-13",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-07-20",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-07-27",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-08-03",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-08-10",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-08-17",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-08-24",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-08-31",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-09-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-09-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-09-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-09-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.421,
-      "numTrades": 1
-    },
-    {
-      "date": "2001-10-05",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-10-12",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-10-19",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-10-26",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2001-11-02",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-11-09",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-11-16",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2001-11-23",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-11-30",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2001-12-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-12-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-12-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2001-12-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-01-04",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-01-11",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-01-18",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-01-25",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-02-01",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-02-08",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-02-15",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.111,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-02-22",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.201,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-03-01",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-03-08",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-03-15",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-03-22",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.087,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-03-29",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2002-04-05",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-04-12",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-04-19",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.449,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-04-26",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-05-03",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-05-10",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-05-17",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-05-24",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.5,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-05-31",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-06-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-06-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-06-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-06-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-07-05",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-07-12",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-07-19",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-07-26",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.815,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-08-02",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-08-09",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-08-16",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.347,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-08-23",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 0.814,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-08-30",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.156,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-09-06",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.329,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-09-13",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-09-20",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-09-27",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-10-04",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-10-11",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-10-18",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-10-25",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-11-01",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-11-08",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-11-15",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 1.138,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-11-22",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-11-29",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-12-06",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": true,
-      "bestMultiplier": 2.048,
-      "numTrades": 1
-    },
-    {
-      "date": "2002-12-13",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-12-20",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2002-12-27",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-01-03",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-01-10",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-01-17",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-01-24",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-01-31",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-02-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-02-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-02-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-02-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-03-07",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-03-14",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SPOT_DATA"
-    },
-    {
-      "date": "2003-03-21",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-03-28",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-04-04",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
-    {
-      "date": "2003-04-11",
-      "era": "pre-cutover",
-      "weekday": "FRI",
-      "traded": false,
-      "skipReason": "NO_SIGNAL"
-    },
     {
       "date": "2003-04-18",
       "era": "pre-cutover",
@@ -9190,7 +5687,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.94,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -9198,7 +5695,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.505,
+      "bestMultiplier": 0.957,
       "numTrades": 1
     },
     {
@@ -9206,7 +5703,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 0.804,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -9228,7 +5725,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.904,
+      "bestMultiplier": 0.957,
       "numTrades": 1
     },
     {
@@ -9266,7 +5763,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -9289,7 +5786,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.122,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -9304,7 +5801,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 0.841,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -9398,7 +5895,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 5,
       "numTrades": 1
     },
     {
@@ -9457,7 +5954,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 0.703,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -9578,7 +6075,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.186,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -9834,7 +6331,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.011,
+      "bestMultiplier": 0.957,
       "numTrades": 1
     },
     {
@@ -9934,7 +6431,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.383,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -10001,7 +6498,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.652,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -10059,7 +6556,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.842,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -10437,7 +6934,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 2.921,
       "numTrades": 1
     },
     {
@@ -10531,7 +7028,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.796,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -10694,7 +7191,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.394,
+      "bestMultiplier": 0.957,
       "numTrades": 1
     },
     {
@@ -10802,7 +7299,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.002,
+      "bestMultiplier": 0.957,
       "numTrades": 1
     },
     {
@@ -10918,7 +7415,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.591,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -10933,7 +7430,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 2.726,
       "numTrades": 1
     },
     {
@@ -11033,7 +7530,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 0.96,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11049,7 +7546,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.21,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11072,7 +7569,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 0.95,
       "numTrades": 1
     },
     {
@@ -11103,7 +7600,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.072,
+      "bestMultiplier": 0.957,
       "numTrades": 1
     },
     {
@@ -11140,7 +7637,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.45,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11177,7 +7674,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.259,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11336,7 +7833,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.42,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11351,7 +7848,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.472,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11437,7 +7934,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.577,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11557,7 +8054,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 2.677,
       "numTrades": 1
     },
     {
@@ -11812,7 +8309,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.89,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11842,7 +8339,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.779,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -11900,7 +8397,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -12001,7 +8498,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.462,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -12023,7 +8520,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.186,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -12074,7 +8571,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 2.357,
       "numTrades": 1
     },
     {
@@ -12124,7 +8621,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 2.387,
       "numTrades": 1
     },
     {
@@ -12153,7 +8650,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.4,
+      "bestMultiplier": 0.957,
       "numTrades": 1
     },
     {
@@ -12239,7 +8736,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.637,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -12871,7 +9368,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 3.709,
       "numTrades": 1
     },
     {
@@ -13000,7 +9497,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.322,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -13205,7 +9702,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.804,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -13411,7 +9908,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.006,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -13440,7 +9937,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.136,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -13455,7 +9952,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.152,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -13613,7 +10110,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.356,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -13769,7 +10266,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.704,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -14082,7 +10579,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.287,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -14749,7 +11246,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 2.029,
       "numTrades": 1
     },
     {
@@ -14829,7 +11326,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.912,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -15104,7 +11601,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 0.95,
       "numTrades": 1
     },
     {
@@ -15311,7 +11808,7 @@
       "era": "pre-cutover",
       "weekday": "THU",
       "traded": true,
-      "bestMultiplier": 0.344,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -15412,7 +11909,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.293,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -15525,7 +12022,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.099,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -15610,7 +12107,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 2.5,
+      "bestMultiplier": 2.38,
       "numTrades": 1
     },
     {
@@ -15639,7 +12136,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.672,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -15915,7 +12412,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.469,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -16037,7 +12534,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.053,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -16080,7 +12577,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.233,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -16208,7 +12705,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.515,
+      "bestMultiplier": 0.957,
       "numTrades": 1
     },
     {
@@ -16216,7 +12713,7 @@
       "era": "pre-cutover",
       "weekday": "FRI",
       "traded": true,
-      "bestMultiplier": 1.881,
+      "bestMultiplier": 0.95,
       "numTrades": 1
     },
     {
@@ -17024,7 +13521,7 @@
       "era": "post-cutover",
       "weekday": "TUE",
       "traded": true,
-      "bestMultiplier": 0.996,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -17060,7 +13557,7 @@
       "era": "post-cutover",
       "weekday": "TUE",
       "traded": true,
-      "bestMultiplier": 1.824,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -17181,7 +13678,7 @@
       "era": "post-cutover",
       "weekday": "TUE",
       "traded": true,
-      "bestMultiplier": 1.11,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -17455,7 +13952,7 @@
       "era": "post-cutover",
       "weekday": "MON",
       "traded": true,
-      "bestMultiplier": 0.92,
+      "bestMultiplier": 0.958,
       "numTrades": 1
     },
     {
@@ -17527,20 +14024,43 @@
       "weekday": "TUE",
       "traded": false,
       "skipReason": "NO_SIGNAL"
+    },
+    {
+      "date": "2026-05-05",
+      "era": "post-cutover",
+      "weekday": "TUE",
+      "traded": false,
+      "skipReason": "NO_SIGNAL"
+    },
+    {
+      "date": "2026-05-12",
+      "era": "post-cutover",
+      "weekday": "TUE",
+      "traded": true,
+      "bestMultiplier": 1.477,
+      "numTrades": 1
+    },
+    {
+      "date": "2026-05-19",
+      "era": "post-cutover",
+      "weekday": "TUE",
+      "traded": false,
+      "skipReason": "NO_SIGNAL"
     }
   ],
   "instrument": "SENSEX",
   "config": {
     "instrument": "SENSEX",
-    "numExpiries": 2000,
+    "numExpiries": 1200,
     "startDate": null,
     "risk": {
-      "stopLossPct": 35,
-      "targetPct": 150,
+      "stopLossPct": 5,
+      "targetPct": 400,
       "trailAfterMultiple": 2,
-      "trailLockPct": 50
+      "trailLockPct": 90
     },
     "cutover": "2024-10-28",
-    "yahoo": "^BSESN"
+    "yahoo": "^BSESN",
+    "excelReportPath": "C:\\Users\\Admin\\Downloads\\Expiry-Friday-5x\\exports\\backtest-sensex-1200-expiries.xlsx"
   }
 }

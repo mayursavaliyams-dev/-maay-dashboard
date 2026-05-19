@@ -744,6 +744,14 @@ class OptionAnalyzer {
 
     // ----- Build alert -----
     const alert = this._buildBlastAlert(blast, greekRank, atmData, spot, atm);
+    const possibleRanges = this._computePossibleRanges({
+      spot,
+      atmStrike: atm,
+      atmData,
+      blast,
+      T,
+      iv: baseIV
+    });
 
     return {
       blastActive: blast.active,
@@ -775,6 +783,7 @@ class OptionAnalyzer {
         peDelta:  +l.pe.delta.toFixed(4),
         peTheta:  +l.pe.theta.toFixed(4)
       })),
+      possibleRanges,
       alert
     };
   }
@@ -929,6 +938,47 @@ class OptionAnalyzer {
         : 'No blast conditions detected. Wait for closer-to-expiry or stronger gamma buildup.',
       grade:       greekRank.grade,
       timestamp:   new Date().toISOString()
+    };
+  }
+
+  _computePossibleRanges({ spot, atmStrike, atmData, blast, T, iv }) {
+    const interval = spot >= 50000 ? 100 : 50;
+    const expectedMovePts = Math.max(spot * iv * Math.sqrt(Math.max(T, 1 / 3650)), 1);
+    const straddleWidth = atmData ? (atmData.cePrice || 0) + (atmData.pePrice || 0) : 0;
+    const baseMovePts = Math.max(expectedMovePts, straddleWidth * 0.85, interval);
+
+    const blastMultiplier = blast.level === 'NUCLEAR' ? 1.8
+      : blast.level === 'EXTREME' ? 1.6
+      : blast.level === 'HIGH' ? 1.35
+      : blast.level === 'MODERATE' ? 1.1
+      : 0.85;
+
+    const roundBand = (value) => Math.round(value / interval) * interval;
+    const buildBand = (key, label, mult) => {
+      const movePts = baseMovePts * mult;
+      const low = roundBand(spot - movePts);
+      const high = roundBand(spot + movePts);
+      return {
+        key,
+        label,
+        movePts: +movePts.toFixed(0),
+        movePct: +((movePts / spot) * 100).toFixed(2),
+        low,
+        high
+      };
+    };
+
+    return {
+      anchor: +spot.toFixed(2),
+      atmStrike,
+      interval,
+      expectedMovePts: +expectedMovePts.toFixed(0),
+      straddleWidth: +straddleWidth.toFixed(2),
+      bands: [
+        buildBand('reaction', 'Reaction', 0.65),
+        buildBand('expected', 'Expected', 1),
+        buildBand('blast', blast.active ? 'Blast' : 'Stretch', blastMultiplier)
+      ]
     };
   }
 

@@ -3,8 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
+from backend.analytics import GammaBlastAnalyzer, GreeksMatrixAnalyzer, OptionsAnalyticsAnalyzer
+from backend.main import app
 from backend.backtesting.data_loader import HistoricalDataEngine, normalize_timeframe_rule
 from backend.backtesting.engine import BacktestEngine, BacktestRunRequest
 from backend.backtesting.metrics import calculate_metrics
@@ -152,6 +155,102 @@ def test_excel_report_generation(tmp_path: Path):
     assert "Strategy Ranking" in workbook.sheetnames
     assert "Trade Book" in workbook.sheetnames
     assert "Best Worst Trades" in workbook.sheetnames
+
+
+def test_gamma_blast_analyzer_ranges():
+    analyzer = GammaBlastAnalyzer()
+    result = analyzer.analyze(spot_price=75000, index="SENSEX", iv_pct=15.0, time_to_expiry_days=1.0)
+    assert result["blastLevel"] in {"LOW", "MODERATE", "HIGH", "EXTREME", "NUCLEAR"}
+    assert result["possibleRanges"]["atmStrike"] % 100 == 0
+    assert len(result["possibleRanges"]["bands"]) == 3
+    assert result["possibleRanges"]["bands"][0]["low"] < result["possibleRanges"]["bands"][0]["high"]
+
+
+def test_gamma_blast_endpoint():
+    client = TestClient(app)
+    response = client.get("/api/options/gamma-blast", params={"spot_price": 75000, "index": "SENSEX", "iv_pct": 15, "time_to_expiry_days": 1})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["index"] == "SENSEX"
+    assert payload["possibleRanges"]["bands"][1]["label"] == "Expected"
+    assert "metrics" in payload and "ladder" in payload
+
+
+def test_greeks_matrix_analyzer():
+    analyzer = GreeksMatrixAnalyzer()
+    result = analyzer.analyze(spot_price=75000, index="SENSEX", iv_pct=15.0, time_to_expiry_days=1.0)
+    assert result["inst"] == "SENSEX"
+    assert result["interval"] == 100
+    assert len(result["rows"]) == 5
+    assert result["summary"]["atmStrike"] == result["atm"]
+    assert result["rows"][2]["isATM"] is True
+
+
+def test_greeks_matrix_endpoint():
+    client = TestClient(app)
+    response = client.get("/api/options/greeks-matrix", params={"spot_price": 75000, "index": "SENSEX", "iv_pct": 15, "time_to_expiry_days": 1})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["inst"] == "SENSEX"
+    assert payload["summary"]["atmStrike"] == payload["atm"]
+    assert len(payload["rows"]) == 5
+
+
+def test_options_analytics_analyzer_complete_payload():
+    analyzer = OptionsAnalyticsAnalyzer()
+    result = analyzer.analyze_complete(spot_price=24530, index="NIFTY", iv_pct=14.0, time_to_expiry_days=2.0)
+    assert result["index"] == "NIFTY"
+    assert result["atmStrike"] % 50 == 0
+    assert len(result["optionChain"]) == 21
+    assert result["pcr"]["interpretation"]["bias"] in {"BULLISH", "BEARISH", "SIDEWAYS"}
+    assert "ivSummary" in result and "topActivity" in result and "oiAnalysis" in result
+
+
+def test_options_analytics_endpoint_supports_inst_alias():
+    client = TestClient(app)
+    response = client.get("/api/options/analytics", params={"inst": "NIFTY", "spot_price": 24530, "iv_pct": 14, "time_to_expiry_days": 2})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["index"] == "NIFTY"
+    assert payload["atmStrike"] % 50 == 0
+    assert payload["dataSource"].startswith("NIFTY")
+
+
+def test_options_greeks_endpoint():
+    client = TestClient(app)
+    response = client.get("/api/options/greeks", params={"inst": "SENSEX", "spot_price": 75000, "strike": 75000, "type": "CE"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["type"] == "CE"
+    assert payload["strike"] == 75000
+    assert 0 < payload["greeks"]["delta"] < 1
+
+
+def test_options_oi_and_iv_endpoints():
+    client = TestClient(app)
+    oi_response = client.get("/api/options/oi-analysis", params={"inst": "SENSEX", "spot_price": 75000})
+    iv_response = client.get("/api/options/iv-analysis", params={"inst": "SENSEX", "spot_price": 75000, "iv_pct": 16})
+    top_activity_response = client.get("/api/options/top-activity", params={"inst": "SENSEX", "spot_price": 75000})
+    assert oi_response.status_code == 200
+    assert iv_response.status_code == 200
+    assert top_activity_response.status_code == 200
+    oi_payload = oi_response.json()
+    iv_payload = iv_response.json()
+    top_activity_payload = top_activity_response.json()
+    assert "callLongBuildup" in oi_payload
+    assert oi_payload["interpretation"]["bias"] in {"BULLISH", "BEARISH", "NEUTRAL"}
+    assert iv_payload["overallIV"] >= 16
+    assert 10 <= iv_payload["ivPercentile"] <= 90
+    assert len(top_activity_payload["highestVolume"]) == 5
+
+
+def test_nifty_options_analytics_route():
+    client = TestClient(app)
+    response = client.get("/api/nifty/options/analytics", params={"spot_price": 24530})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["index"] == "NIFTY"
+    assert payload["atmStrike"] % 50 == 0
 
 
 def strategy_context():
