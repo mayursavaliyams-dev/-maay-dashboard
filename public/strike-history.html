@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strike History</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: #e5e7eb;
+      background:
+        radial-gradient(circle at top left, rgba(245, 158, 11, 0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 24%),
+        linear-gradient(180deg, #09111d 0%, #111827 100%);
+      padding: 24px;
+    }
+    .shell { max-width: 1080px; margin: 0 auto; }
+    .hero {
+      display: flex; justify-content: space-between; align-items: end; gap: 18px; flex-wrap: wrap;
+      margin-bottom: 18px; padding: 18px 20px; border: 1px solid #243041; border-radius: 18px;
+      background: rgba(9, 17, 29, 0.78); backdrop-filter: blur(10px);
+    }
+    .eyebrow { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.16em; color: #94a3b8; }
+    .title { margin-top: 8px; font-size: 2rem; font-weight: 800; color: #f8fafc; }
+    .meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .pill {
+      padding: 7px 12px; border-radius: 999px; background: #0f172a; border: 1px solid #243041;
+      color: #cbd5e1; font-size: 0.84rem;
+    }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .card {
+      border: 1px solid #243041; border-radius: 18px; padding: 18px; background: rgba(15, 23, 42, 0.82);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+    }
+    .card.ce { border-color: rgba(16, 185, 129, 0.35); }
+    .card.pe { border-color: rgba(239, 68, 68, 0.35); }
+    .card.focus { box-shadow: 0 0 0 1px #f8fafc inset, 0 22px 40px rgba(0, 0, 0, 0.26); }
+    .card-hdr { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .card-title { font-size: 1.05rem; font-weight: 800; }
+    .card-title.ce { color: #6ee7b7; }
+    .card-title.pe { color: #fca5a5; }
+    .ltp { margin-top: 14px; font-size: 2rem; font-weight: 800; }
+    .stat-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .stat {
+      background: #0b1220; border: 1px solid #1f2937; border-radius: 14px; padding: 12px;
+    }
+    .stat label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #94a3b8; }
+    .stat strong { display: block; margin-top: 8px; font-size: 1.15rem; }
+    .stat span { display: block; margin-top: 4px; font-size: 0.84rem; color: #9ca3af; }
+    .timeline { margin-top: 18px; display: grid; gap: 10px; }
+    .timeline-block {
+      background: #0b1220; border: 1px solid #1f2937; border-radius: 14px; padding: 12px;
+    }
+    .timeline-title { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .timeline-title.low { color: #fca5a5; }
+    .timeline-title.high { color: #86efac; }
+    .list { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .list li {
+      display: flex; justify-content: space-between; gap: 12px; font-size: 0.92rem; color: #dbe4ef;
+      padding: 8px 10px; border-radius: 10px; background: rgba(30, 41, 59, 0.55);
+    }
+    .empty { margin-top: 10px; color: #64748b; font-size: 0.9rem; }
+    .error {
+      border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(127, 29, 29, 0.22);
+      color: #fecaca; border-radius: 14px; padding: 14px; margin-top: 18px;
+    }
+    .muted { color: #94a3b8; }
+    @media (max-width: 820px) {
+      body { padding: 16px; }
+      .grid { grid-template-columns: 1fr; }
+      .title { font-size: 1.6rem; }
+      .ltp { font-size: 1.7rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Option Strike Details</div>
+        <div class="title" id="heroTitle">Loading...</div>
+        <div class="meta">
+          <div class="pill" id="heroSpot">Spot --</div>
+          <div class="pill" id="heroAtm">ATM --</div>
+          <div class="pill" id="heroTime">Updated --</div>
+        </div>
+      </div>
+      <div class="muted" id="heroFocus">Tracking live strike history</div>
+    </section>
+
+    <section class="grid">
+      <article class="card ce" id="ceCard"></article>
+      <article class="card pe" id="peCard"></article>
+    </section>
+
+    <div id="errorBox"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const INST = (params.get('inst') || 'SENSEX').toUpperCase();
+    const STRIKE = parseInt(params.get('strike') || '0', 10);
+    const TYPE = (params.get('type') || '').toUpperCase();
+    const FOCUS = (params.get('focus') || '').toLowerCase();
+
+    function fmtPrice(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--';
+    }
+    function fmtNum(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toLocaleString('en-IN') : '--';
+    }
+    function fmtHms(hms) {
+      if (!hms) return '--';
+      const [H, m] = String(hms).split(':').map(Number);
+      if (!Number.isFinite(H) || !Number.isFinite(m)) return '--';
+      const h12 = ((H + 11) % 12) + 1;
+      return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${H < 12 ? 'AM' : 'PM'}`;
+    }
+    function renderTimeline(entries) {
+      if (!entries || !entries.length) return '<div class="empty">No record yet</div>';
+      return `<ul class="list">${entries.slice(-10).reverse().map(e => `<li><strong>${fmtPrice(e.price)}</strong><span>${fmtHms(e.time)}</span></li>`).join('')}</ul>`;
+    }
+    function renderCard(type, leg) {
+      const card = document.getElementById(type.toLowerCase() + 'Card');
+      const focusClass = TYPE === type ? ' focus' : '';
+      if (!leg) {
+        card.className = `card ${type.toLowerCase()}${focusClass}`;
+        card.innerHTML = `<div class="card-hdr"><div class="card-title ${type.toLowerCase()}">${type}</div><div class="muted">No data</div></div>`;
+        return;
+      }
+      card.className = `card ${type.toLowerCase()}${focusClass}`;
+      card.innerHTML = `
+        <div class="card-hdr">
+          <div class="card-title ${type.toLowerCase()}">${type}</div>
+          <div class="muted">OI ${fmtNum(leg.oi)} | Vol ${fmtNum(leg.volume)}</div>
+        </div>
+        <div class="ltp">${fmtPrice(leg.ltp)}</div>
+        <div class="stat-row">
+          <div class="stat">
+            <label>Session Low</label>
+            <strong>${fmtPrice(leg.sessionLow != null ? leg.sessionLow : leg.low)}</strong>
+            <span>@ ${fmtHms(leg.lowAt)}</span>
+          </div>
+          <div class="stat">
+            <label>Session High</label>
+            <strong>${fmtPrice(leg.sessionHigh != null ? leg.sessionHigh : leg.high)}</strong>
+            <span>@ ${fmtHms(leg.highAt)}</span>
+          </div>
+          <div class="stat">
+            <label>Bid / Ask</label>
+            <strong>${fmtPrice(leg.bid)} / ${fmtPrice(leg.ask)}</strong>
+            <span>IV ${fmtPrice(leg.iv)}%</span>
+          </div>
+          <div class="stat">
+            <label>Change OI</label>
+            <strong>${fmtNum(leg.changeOI)}</strong>
+            <span>Live option chain</span>
+          </div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-block">
+            <div class="timeline-title low">Low Record Timeline</div>
+            ${renderTimeline(leg.lowHistory)}
+          </div>
+          <div class="timeline-block">
+            <div class="timeline-title high">High Record Timeline</div>
+            ${renderTimeline(leg.highHistory)}
+          </div>
+        </div>`;
+    }
+
+    async function loadStrikeHistory() {
+      document.getElementById('heroTitle').textContent = `${INST} ${STRIKE || '--'} Strike`;
+      document.getElementById('heroFocus').textContent = TYPE
+        ? `${TYPE} ${FOCUS || 'history'} record`
+        : 'Tracking live strike history';
+      try {
+        const res = await fetch(`/api/option-strike-history?inst=${encodeURIComponent(INST)}&strike=${encodeURIComponent(STRIKE)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load strike history');
+
+        document.getElementById('heroTitle').textContent = `${data.inst} ${data.strike}${data.isATM ? ' ATM' : ''}`;
+        document.getElementById('heroSpot').textContent = `Spot ${fmtPrice(data.spot)}`;
+        document.getElementById('heroAtm').textContent = `ATM ${data.atm}`;
+        document.getElementById('heroTime').textContent = `Updated ${new Date(data.ts).toLocaleTimeString()}`;
+        document.getElementById('heroFocus').textContent = TYPE
+          ? `${TYPE} ${FOCUS || 'history'} record with full strike details`
+          : 'Tracking live strike history';
+
+        renderCard('CE', data.ce);
+        renderCard('PE', data.pe);
+        document.getElementById('errorBox').innerHTML = '';
+      } catch (err) {
+        document.getElementById('errorBox').innerHTML = `<div class="error">${err.message}</div>`;
+      }
+    }
+
+    loadStrikeHistory();
+    setInterval(loadStrikeHistory, 15000);
+  </script>
+</body>
+</html>

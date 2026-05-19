@@ -103,6 +103,18 @@
         .sb-chain-table .hl-mark { font-size: 0.55rem; font-weight: 700; padding: 0 2px; border-radius: 2px; }
         .sb-chain-table .hl-mark.h { background: #064e3b; color: #34d399; }
         .sb-chain-table .hl-mark.l { background: #7f1d1d; color: #f87171; }
+        .sb-chain-table .sb-ltp-stack { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+        .sb-chain-table .sb-ltp-stack.left { align-items:flex-start; }
+        .sb-chain-table .sb-hl-line { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
+        .sb-chain-table .sb-ltp-stack.left .sb-hl-line { justify-content:flex-start; }
+        .sb-chain-table .sb-hl-chip {
+            border:none; border-radius:999px; padding:1px 6px; cursor:pointer; font-size:0.54rem;
+            font-weight:700; line-height:1.4; background:#111827; color:#cbd5e1;
+        }
+        .sb-chain-table .sb-hl-chip.low { color:#fca5a5; background:#2a1016; }
+        .sb-chain-table .sb-hl-chip.high { color:#86efac; background:#08271d; }
+        .sb-chain-table .sb-hl-chip:hover { filter:brightness(1.1); }
+        .sb-chain-table .sb-hl-time { color:#6b7280; font-weight:500; }
 
         /* ===== MARKET QUOTES WATCHLIST (landscape table) ===== */
         .wl-wrap { overflow-x:auto; overflow-y:auto; flex-shrink:0; max-height:660px; background:#0b0f19; border-radius:8px; }
@@ -140,6 +152,15 @@
         .wl-dim  { color:#9ca3af; }
         .wl-atm-badge { display:inline-block; background:#1e1b4b; color:#a78bfa; font-size:0.56rem;
             padding:1px 5px; border-radius:3px; margin-left:6px; letter-spacing:.3px; font-weight:600; }
+        .wl-filter-row { display:flex; gap:6px; align-items:center; }
+        .wl-filter-btn {
+            background:#111827; border:1px solid #374151; color:#9ca3af; font-size:0.58rem;
+            padding:4px 10px; border-radius:999px; cursor:pointer; font-weight:700; letter-spacing:.3px;
+        }
+        .wl-filter-btn:hover { color:#e5e7eb; border-color:#4b5563; }
+        .wl-filter-btn.active.all { color:#7dd3fc; border-color:#3b82f6; background:#10233c; }
+        .wl-filter-btn.active.ce  { color:#6ee7b7; border-color:#10b981; background:#052e26; }
+        .wl-filter-btn.active.pe  { color:#fca5a5; border-color:#ef4444; background:#3a1116; }
 
         /* ===== PERFORMANCE ANALYTICS ===== */
         .perf-panel { background:#1f2937; border:1px solid #374151; border-radius:10px; padding:9px 11px; }
@@ -1043,8 +1064,27 @@
             .col { overflow:visible; }
         }
         @media (max-width:700px) {
-            .main-grid { grid-template-columns:1fr; }
+            .main-grid { grid-template-columns:1fr; gap:10px; padding:6px; }
             body { height:auto; overflow:auto; }
+            .top-bar { gap:10px; padding:8px 10px; }
+            .top-bar .sep { display:none; }
+            .top-price { min-width:unset; }
+            .ind-top-row { grid-template-columns:1fr; }
+            .lower-web-strip {
+                display:flex;
+                flex-direction:row;
+                gap:8px;
+                overflow-x:auto;
+                overflow-y:hidden;
+                padding-bottom:4px;
+                scroll-snap-type:x proximity;
+                -webkit-overflow-scrolling:touch;
+            }
+            .lower-web-strip > * {
+                flex:0 0 min(84vw, 320px);
+                min-width:min(84vw, 320px);
+                scroll-snap-align:start;
+            }
         }
     </style>
 </head>
@@ -1419,7 +1459,12 @@
                 <div style="flex-shrink:0;">
                     <div class="ind-block-lbl" style="display:flex;justify-content:space-between;align-items:center;">
                         <span class="wl-headline">Market Quotes &nbsp;<span class="wl-subhead" id="wl-inst-label">SENSEX · BSE_FNO</span></span>
-                        <button class="ind-refresh" onclick="loadWatchlist()">↻</button>
+                        <div class="wl-filter-row">
+                            <button class="wl-filter-btn all active" id="wlFilterAll" onclick="setWatchlistFilter('ALL')">ALL</button>
+                            <button class="wl-filter-btn ce" id="wlFilterCE" onclick="setWatchlistFilter('CE')">CALL</button>
+                            <button class="wl-filter-btn pe" id="wlFilterPE" onclick="setWatchlistFilter('PE')">PUT</button>
+                            <button class="ind-refresh" onclick="loadWatchlist()">↻</button>
+                        </div>
                     </div>
                     <div class="wl-wrap">
                         <table class="wl-table">
@@ -1506,7 +1551,7 @@
 
 
         <!-- ===== RIGHT COLUMN: POSITION + P&L + COMPOUND + GAMMA ===== -->
-        <div class="col col-scroll">
+        <div class="col col-scroll lower-web-strip">
 
             <!-- LIVE POSITION -->
             <div class="pos-panel" id="posPanel">
@@ -3282,6 +3327,7 @@
 
         let _wlSort = { key: 'ltp', dir: 'desc' };
         let _wlLastData = null;
+        let _wlFilter = 'ALL';
 
         async function loadWatchlist() {
             try {
@@ -3294,6 +3340,25 @@
             }
         }
 
+        function setWatchlistFilter(filter) {
+            _wlFilter = filter;
+            updateWatchlistFilterButtons();
+            if (_wlLastData) renderWatchlist(_wlLastData);
+        }
+
+        function updateWatchlistFilterButtons() {
+            const filters = [
+                ['ALL', 'wlFilterAll'],
+                ['CE', 'wlFilterCE'],
+                ['PE', 'wlFilterPE']
+            ];
+            filters.forEach(([filter, id]) => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.classList.toggle('active', _wlFilter === filter);
+            });
+        }
+
         function renderWatchlist(d) {
             const tbody = document.getElementById('wl-body');
             const label = document.getElementById('wl-inst-label');
@@ -3303,6 +3368,7 @@
                     ? `⚠ Dhan error: ${String(d.error).slice(0, 120)}`
                     : 'No data';
                 tbody.innerHTML = `<tr><td colspan="17" style="color:#ef4444;padding:20px;text-align:center;font-size:0.68rem;">${msg}</td></tr>`;
+                updateWatchlistFilterButtons();
                 return;
             }
             const atm = d.atm;
@@ -3313,8 +3379,19 @@
                 }
                 return _wlSort.dir === 'asc' ? (av - bv) : (bv - av);
             });
+            const filteredRows = _wlFilter === 'ALL'
+                ? rows
+                : rows.filter(r => r.type === _wlFilter);
 
-            tbody.innerHTML = rows.map(r => {
+            if (!filteredRows.length) {
+                const filterLabel = _wlFilter === 'CE' ? 'CALL' : _wlFilter === 'PE' ? 'PUT' : 'selected';
+                tbody.innerHTML = `<tr><td colspan="17" style="color:#9ca3af;padding:20px;text-align:center;font-size:0.68rem;">No ${filterLabel} quotes available</td></tr>`;
+                updateWlHeaderArrows();
+                updateWatchlistFilterButtons();
+                return;
+            }
+
+            tbody.innerHTML = filteredRows.map(r => {
                 const isAtm = r.strike === atm;
                 const chngCls = r.chng > 0 ? 'wl-up' : r.chng < 0 ? 'wl-dn' : 'wl-dim';
                 const chngSign = r.chng > 0 ? '+' : '';
@@ -3340,6 +3417,7 @@
                 </tr>`;
             }).join('');
             updateWlHeaderArrows();
+            updateWatchlistFilterButtons();
         }
 
         function updateWlHeaderArrows() {
@@ -3369,6 +3447,40 @@
                     if (_wlLastData) renderWatchlist(_wlLastData);
                 });
             });
+        }
+
+        function sbFmtChainPrice(v) {
+            const n = Number(v);
+            if (!Number.isFinite(n)) return '--';
+            return n.toFixed(2);
+        }
+        function sbFmtHms(hms) {
+            if (!hms) return '--';
+            const [H, m] = String(hms).split(':').map(Number);
+            if (!Number.isFinite(H) || !Number.isFinite(m)) return '--';
+            const h12 = ((H + 11) % 12) + 1;
+            return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${H < 12 ? 'AM' : 'PM'}`;
+        }
+        function sbOpenStrikeHistory(inst, strike, type, focus) {
+            const url = `/strike-history.html?inst=${encodeURIComponent(inst)}&strike=${encodeURIComponent(strike)}&type=${encodeURIComponent(type)}&focus=${encodeURIComponent(focus || '')}`;
+            window.open(url, '_blank', 'noopener');
+        }
+        function sbHistoryChip(inst, strike, type, focus, price, time) {
+            const label = focus === 'low' ? 'L' : 'H';
+            const cls = focus === 'low' ? 'low' : 'high';
+            return `<button class="sb-hl-chip ${cls}" onclick="sbOpenStrikeHistory('${inst}', ${strike}, '${type}', '${focus}')">${label} ${sbFmtChainPrice(price)} <span class="sb-hl-time">@ ${sbFmtHms(time)}</span></button>`;
+        }
+        function sbLtpCell(inst, strike, type, leg, alignClass = '') {
+            if (!leg) return '--';
+            const lowPrice = leg.sessionLow != null ? leg.sessionLow : leg.low;
+            const highPrice = leg.sessionHigh != null ? leg.sessionHigh : leg.high;
+            return `<div class="sb-ltp-stack ${alignClass}">
+                <div>${sbFmtChainPrice(leg.ltp)}</div>
+                <div class="sb-hl-line">
+                    ${sbHistoryChip(inst, strike, type, 'low', lowPrice, leg.lowAt)}
+                    ${sbHistoryChip(inst, strike, type, 'high', highPrice, leg.highAt)}
+                </div>
+            </div>`;
         }
 
         function renderSensibull(d) {
@@ -3426,11 +3538,9 @@
                 document.getElementById('sb-strat-vega').textContent  = parseFloat(stratRow.ce.vega).toFixed(2);
             }
 
-            // ---- OI CHAIN (±5 strikes around ATM) ----
+            // ---- OI CHAIN ----
             const maxOI = Math.max(...d.optionChain.map(s => Math.max(s.ce.oi, s.pe.oi)));
-            const chainSlice = d.optionChain
-                .filter(s => s.strike >= atm - 500 && s.strike <= atm + 500)
-                .sort((a, b) => b.strike - a.strike);
+            const chainSlice = [...d.optionChain].sort((a, b) => b.strike - a.strike);
 
             // High/Low strike mapping
             const dH = parseFloat(document.getElementById('dayHigh').textContent) || 0;
@@ -3468,9 +3578,9 @@
                             <div style="width:${ceW}px;height:4px;background:#10b981;border-radius:2px;flex-shrink:0;"></div>
                         </div>
                     </td>
-                    <td class="ltp-col" style="color:#10b981;text-align:right;">${s.ce.ltp}</td>
+                    <td class="ltp-col" style="color:#10b981;text-align:right;">${sbLtpCell(_inst, s.strike, 'CE', s.ce)}</td>
                     <td style="font-weight:bold;text-align:center;white-space:nowrap;">${strikeLabel}</td>
-                    <td class="ltp-col" style="color:#ef4444;">${s.pe.ltp}</td>
+                    <td class="ltp-col" style="color:#ef4444;">${sbLtpCell(_inst, s.strike, 'PE', s.pe, 'left')}</td>
                     <td>
                         <div style="display:flex;align-items:center;gap:2px;">
                             <div style="width:${peW}px;height:4px;background:#ef4444;border-radius:2px;flex-shrink:0;"></div>

@@ -221,32 +221,155 @@ async function _fetchYahooNiftyPrice() {
 // Each breakthrough appends {t, p} — lets the dashboard show full session history.
 const _optHL = { SENSEX: new Map(), NIFTY: new Map() };
 function _optHLKey(strike, type) { return `${strike}_${type}`; }
+function _fmtHms(ms) {
+  return ms ? new Date(ms + 5.5*3600*1000).toISOString().slice(11, 19) : null;
+}
+function _toOptHLHistory(arr) {
+  return (arr || []).map(e => ({ time: _fmtHms(e.t), price: +Number(e.p || 0).toFixed(2), ts: e.t }));
+}
+// 5-minute bucket id (IST). All ticks within the same 5-min window collapse
+// into one timeline entry showing that window's high (or low).
+const _BUCKET_MS = 5 * 60 * 1000;
+function _bucketId(ms) { return Math.floor((ms + 5.5 * 3600 * 1000) / _BUCKET_MS); }
+function _bucketStartMs(id) { return id * _BUCKET_MS - 5.5 * 3600 * 1000; }
+
 function _updateOptHL(inst, strike, type, ltp) {
   if (!ltp || ltp <= 0 || !isFinite(ltp)) return;
   const store = _optHL[inst];
   if (!store) return;
   const today = _istDateStr();
   const key = _optHLKey(strike, type);
+  const now = Date.now();
+  const bid = _bucketId(now);
   let rec = store.get(key);
   if (!rec || rec.date !== today) {
-    rec = { date: today, high: ltp, highAt: Date.now(), low: ltp, lowAt: Date.now(),
-            highPath: [{ t: Date.now(), p: ltp }], lowPath: [{ t: Date.now(), p: ltp }] };
+    rec = { date: today, high: ltp, highAt: now, low: ltp, lowAt: now,
+            highPath: [], lowPath: [] };
     store.set(key, rec);
     return;
   }
-  if (ltp > rec.high) {
-    rec.high = ltp; rec.highAt = Date.now();
-    rec.highPath.push({ t: Date.now(), p: ltp });
-    if (rec.highPath.length > 20) rec.highPath.shift();
+
+  if (ltp > rec.high) { rec.high = ltp; rec.highAt = now; }
+  if (ltp < rec.low)  { rec.low  = ltp; rec.lowAt  = now; }
+
+  // 5-min bucket rollup: keep one entry per bucket, holding that window's
+  // own high (lowPath holds that window's own low). Each bucket's t is the
+  // bucket start so the timeline reads as 5-min candles.
+  const tailHi = rec.highPath[rec.highPath.length - 1];
+  if (tailHi && tailHi.bid === bid) {
+    if (ltp > tailHi.p) { tailHi.p = ltp; tailHi.at = now; }
+  } else {
+    rec.highPath.push({ bid, t: _bucketStartMs(bid), at: now, p: ltp });
+    if (rec.highPath.length > 96) rec.highPath.shift();
   }
-  if (ltp < rec.low) {
-    rec.low = ltp; rec.lowAt = Date.now();
-    rec.lowPath.push({ t: Date.now(), p: ltp });
-    if (rec.lowPath.length > 20) rec.lowPath.shift();
+  const tailLo = rec.lowPath[rec.lowPath.length - 1];
+  if (tailLo && tailLo.bid === bid) {
+    if (ltp < tailLo.p) { tailLo.p = ltp; tailLo.at = now; }
+  } else {
+    rec.lowPath.push({ bid, t: _bucketStartMs(bid), at: now, p: ltp });
+    if (rec.lowPath.length > 96) rec.lowPath.shift();
   }
 }
 function _getOptHL(inst, strike, type) {
   return _optHL[inst]?.get(_optHLKey(strike, type)) || null;
+}
+
+// One-shot today-backfill: pull 1-min option candles from Dhan and replay
+// them into the 5-min bucket structure, so a freshly-restarted server doesn't
+// show empty H/L timelines. Cached per (inst, strike, type, date) so we never
+// hammer Dhan more than once per contract per day.
+const _backfillAttempts = new Map();   // key: inst|strike|type|date  → 'pending'|'done'|'fail'
+async function _backfillOptHLFromDhan(inst, strike, type, securityId) {
+  if (!securityId) return;
+  const today = _istDateStr();
+  const key = `${inst}|${strike}|${type}|${today}`;
+  if (_backfillAttempts.has(key)) return;
+  _backfillAttempts.set(key, 'pending');
+  const segment = inst === 'SENSEX' ? 'BSE_FNO' : 'NSE_FNO';
+  try {
+    const r = await live.client._post('/v2/charts/intraday', {
+      securityId: String(securityId),
+      exchangeSegment: segment,
+      instrument: 'OPTIDX',
+      interval: '1',
+      fromDate: today,
+      toDate: today,
+    });
+    const ts   = r?.timestamp || [];
+    const high = r?.high || [];
+    const low  = r?.low  || [];
+    if (!ts.length) { _backfillAttempts.set(key, 'fail'); return; }
+
+    // Build a fresh record from history, then merge with any live record
+    // already accumulated since restart.
+    const store = _optHL[inst];
+    const k2 = _optHLKey(strike, type);
+    let rec = store.get(k2);
+    if (!rec || rec.date !== today) {
+      rec = { date: today, high: 0, highAt: 0, low: Infinity, lowAt: 0, highPath: [], lowPath: [] };
+      store.set(k2, rec);
+    }
+
+    // Rebuild paths from history candles. Each candle is 1 min — bucket into 5-min.
+    const histHi = new Map();   // bid → { p, at }
+    const histLo = new Map();
+    for (let i = 0; i < ts.length; i++) {
+      const candleMs = Number(ts[i]) * 1000;
+      const bid = _bucketId(candleMs);
+      const hi = Number(high[i] || 0);
+      const lo = Number(low[i]  || 0);
+      if (hi > 0) {
+        const prev = histHi.get(bid);
+        if (!prev || hi > prev.p) histHi.set(bid, { p: hi, at: candleMs });
+        if (hi > rec.high) { rec.high = hi; rec.highAt = candleMs; }
+      }
+      if (lo > 0) {
+        const prev = histLo.get(bid);
+        if (!prev || lo < prev.p) histLo.set(bid, { p: lo, at: candleMs });
+        if (lo < rec.low || rec.low === Infinity) { rec.low = lo; rec.lowAt = candleMs; }
+      }
+    }
+    const histHiArr = [...histHi.entries()].sort((a,b) => a[0]-b[0])
+      .map(([bid, v]) => ({ bid, t: _bucketStartMs(bid), at: v.at, p: +v.p.toFixed(2) }));
+    const histLoArr = [...histLo.entries()].sort((a,b) => a[0]-b[0])
+      .map(([bid, v]) => ({ bid, t: _bucketStartMs(bid), at: v.at, p: +v.p.toFixed(2) }));
+
+    // Merge: hist buckets win for older bids, live record's tail bucket wins
+    // for current bucket (since live ticks are more recent than 1-min candle).
+    const mergePaths = (histArr, liveArr, pickFn) => {
+      const map = new Map();
+      for (const e of histArr) map.set(e.bid, e);
+      for (const e of liveArr) {
+        const prev = map.get(e.bid);
+        map.set(e.bid, prev ? { ...prev, p: pickFn(prev.p, e.p), at: e.at } : e);
+      }
+      return [...map.values()].sort((a,b) => a.bid - b.bid).slice(-96);
+    };
+    rec.highPath = mergePaths(histHiArr, rec.highPath, Math.max);
+    rec.lowPath  = mergePaths(histLoArr, rec.lowPath, Math.min);
+    if (rec.low === Infinity) rec.low = 0;
+
+    _backfillAttempts.set(key, 'done');
+    console.log(`[${inst} ${strike}${type}] H/L backfill: ${histHiArr.length} high-buckets, ${histLoArr.length} low-buckets`);
+  } catch (err) {
+    _backfillAttempts.set(key, 'fail');
+    console.log(`[${inst} ${strike}${type}] H/L backfill failed: ${err.message}`);
+  }
+}
+function _withLegHistory(inst, strike, leg, type) {
+  if (!leg) return null;
+  const ltp = Number(leg.ltp || 0);
+  _updateOptHL(inst, strike, type, ltp);
+  const hl = _getOptHL(inst, strike, type) || {};
+  return {
+    ...leg,
+    highHistory: _toOptHLHistory(hl.highPath),
+    lowHistory: _toOptHLHistory(hl.lowPath),
+    highAt: hl.highAt ? _fmtHms(hl.highAt) : null,
+    lowAt: hl.lowAt ? _fmtHms(hl.lowAt) : null,
+    sessionHigh: hl.high != null ? +Number(hl.high).toFixed(2) : null,
+    sessionLow: hl.low != null ? +Number(hl.low).toFixed(2) : null
+  };
 }
 
 // ==================== HIGH/LOW MAPPING RECORD ====================
@@ -1183,14 +1306,24 @@ app.get("/api/options/analytics", async (req, res) => {
       const realChain = await getChainAroundATM(price, null, 10);
       optionAnalyzer.initializeFromRealData(realChain, price);
       const analytics = optionAnalyzer.getCompleteAnalytics();
-      res.json({ ...analytics, livePrice: price, priceAt: new Date().toISOString(),
+      const optionChain = (analytics.optionChain || []).map(row => ({
+        ...row,
+        ce: _withLegHistory('SENSEX', row.strike, row.ce, 'CE'),
+        pe: _withLegHistory('SENSEX', row.strike, row.pe, 'PE')
+      }));
+      res.json({ ...analytics, optionChain, livePrice: price, priceAt: new Date().toISOString(),
                  dataSource: 'Sensibull/BFO', expiry: realChain.expiry,
                  lastUpdated: realChain.lastUpdated });
     } catch (sbErr) {
       // Sensibull unavailable — fall back to simulated chain
       optionAnalyzer.initialize(price, 20);
       const analytics = optionAnalyzer.getCompleteAnalytics();
-      res.json({ ...analytics, livePrice: price, priceAt: new Date().toISOString(),
+      const optionChain = (analytics.optionChain || []).map(row => ({
+        ...row,
+        ce: _withLegHistory('SENSEX', row.strike, row.ce, 'CE'),
+        pe: _withLegHistory('SENSEX', row.strike, row.pe, 'PE')
+      }));
+      res.json({ ...analytics, optionChain, livePrice: price, priceAt: new Date().toISOString(),
                  dataSource: 'Simulated (Sensibull unavailable: ' + sbErr.message + ')' });
     }
   } catch (error) {
@@ -1209,12 +1342,12 @@ app.get('/api/nifty/options/analytics', async (req, res) => {
       isATM:  s.strike === atm,
       itmCE:  s.strike < atm,
       itmPE:  s.strike > atm,
-      ce: { ltp: s.ce.ltp, oi: s.ce.oi, changeOI: s.ce.changeOI || 0,
+      ce: _withLegHistory('NIFTY', s.strike, { ltp: s.ce.ltp, oi: s.ce.oi, changeOI: s.ce.changeOI || 0,
             volume: s.ce.volume || 0, iv: s.ce.iv || 12,
-            delta: s.strike < atm ? 0.85 : s.strike === atm ? 0.5 : 0.15 },
-      pe: { ltp: s.pe.ltp, oi: s.pe.oi, changeOI: s.pe.changeOI || 0,
+            delta: s.strike < atm ? 0.85 : s.strike === atm ? 0.5 : 0.15 }, 'CE'),
+      pe: _withLegHistory('NIFTY', s.strike, { ltp: s.pe.ltp, oi: s.pe.oi, changeOI: s.pe.changeOI || 0,
             volume: s.pe.volume || 0, iv: s.pe.iv || 12,
-            delta: s.strike > atm ? -0.85 : s.strike === atm ? -0.5 : -0.15 }
+            delta: s.strike > atm ? -0.85 : s.strike === atm ? -0.5 : -0.15 }, 'PE')
     }));
     const totalCeOI = optionChain.reduce((s, r) => s + r.ce.oi, 0);
     const totalPeOI = optionChain.reduce((s, r) => s + r.pe.oi, 0);
@@ -2578,6 +2711,56 @@ app.get('/api/option-chain-full', async (req, res) => {
     res.json({ inst, spot: +spot.toFixed(2), atm, interval, depth, rows, ts: Date.now() });
   } catch (err) {
     res.status(500).json({ error: err.message, rows: [] });
+  }
+});
+
+app.get('/api/option-strike-history', async (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const strike = parseInt(req.query.strike, 10);
+  if (!Number.isFinite(strike)) {
+    return res.status(400).json({ error: 'strike query is required' });
+  }
+  try {
+    const spot = inst === 'NIFTY' ? await getLiveNiftyPrice() : await getLivePrice();
+    const chain = inst === 'NIFTY' ? await live.getNiftyOptionChain(spot) : await live.getOptionChain(spot);
+    const interval = inst === 'NIFTY' ? 50 : 100;
+    const atm = Math.round(spot / interval) * interval;
+    const row = chain.strikes.find(r => Number(r.strike) === Number(strike));
+    if (!row) {
+      return res.status(404).json({ error: 'Strike not found', inst, strike, atm, spot: +spot.toFixed(2) });
+    }
+    const buildLeg = (leg, type) => {
+      if (!leg) return null;
+      return _withLegHistory(inst, strike, {
+        ltp: +Number(leg.ltp || 0).toFixed(2),
+        high: +Number(leg.high || 0).toFixed(2),
+        low: +Number(leg.low || 0).toFixed(2),
+        bid: +Number(leg.bid || 0).toFixed(2),
+        ask: +Number(leg.ask || 0).toFixed(2),
+        oi: Number(leg.oi || 0),
+        changeOI: Number(leg.changeOI || 0),
+        volume: Number(leg.volume || 0),
+        iv: +Number(leg.iv || 0).toFixed(2)
+      }, type);
+    };
+    // Lazy one-shot backfill from today's 1-min Dhan candles → 5-min bucket paths.
+    // Fire-and-forget; first request seeds the cache, subsequent polls (every 15s
+    // from the dashboard) render the populated timeline.
+    if (row.ce?.securityId) _backfillOptHLFromDhan(inst, strike, 'CE', row.ce.securityId);
+    if (row.pe?.securityId) _backfillOptHLFromDhan(inst, strike, 'PE', row.pe.securityId);
+    res.json({
+      inst,
+      strike,
+      spot: +spot.toFixed(2),
+      atm,
+      interval,
+      isATM: strike === atm,
+      ce: buildLeg(row.ce, 'CE'),
+      pe: buildLeg(row.pe, 'PE'),
+      ts: Date.now()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -35,6 +35,11 @@
   .nice-scroll::-webkit-scrollbar-track { background:transparent; }
   .nice-scroll::-webkit-scrollbar-thumb { background:#1E293B; border-radius:3px; }
   iframe.embed { width:100%; height:100%; border:0; background:#0B0F1A; }
+  .dashboard-shell { min-height:calc(100vh - 65px); }
+  .dashboard-module-body { min-height:520px; }
+  @media (min-width: 1024px) {
+    .dashboard-module-body { height:720px; }
+  }
 </style>
 </head>
 <body class="min-h-screen">
@@ -108,13 +113,13 @@ function Navbar() {
   }, [profileOpen]);
 
   return e('header', {
-    className: 'sticky top-0 z-30 flex items-center justify-between px-5 py-3 bg-sidebar border-b border-border'
+    className: 'sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 bg-sidebar border-b border-border'
   },
     // Left: logo + nav
-    e('div', { className: 'flex items-center gap-8' },
-      e('div', { className: 'flex items-center gap-2' },
+    e('div', { className: 'flex min-w-0 items-center gap-4 sm:gap-8' },
+      e('div', { className: 'flex min-w-0 items-center gap-2' },
         e('div', { className: 'w-7 h-7 rounded-lg bg-gradient-to-br from-accent-green to-cyan-400 flex items-center justify-center text-bg font-bold text-sm' }, 'A'),
-        e('span', { className: 'font-semibold text-sm tracking-wide' }, 'ANTIGRAVITY'),
+        e('span', { className: 'truncate font-semibold text-sm tracking-wide' }, 'ANTIGRAVITY'),
         // Trade-mode badge: green PAPER (safe) / red LIVE (real money)
         // Pulses when LIVE so it's impossible to miss.
         e('span', {
@@ -124,7 +129,7 @@ function Navbar() {
             : 'bg-accent-green/15 text-accent-green border-accent-green/60'}`
         }, isLive ? 'LIVE ⚠' : 'PAPER')
       ),
-      e('nav', { className: 'flex items-center gap-1 text-[13px]' },
+      e('nav', { className: 'hidden xl:flex items-center gap-1 text-[13px]' },
         navItems.map(label => e('a', {
           key: label, href: '#',
           className: 'px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-card transition'
@@ -132,12 +137,12 @@ function Navbar() {
       )
     ),
     // Right: market status + spot + halt-all + notifications + profile
-    e('div', { className: 'flex items-center gap-3 text-[12px]' },
+    e('div', { className: 'ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3 text-[12px]' },
       e('div', { className: 'flex items-center gap-2 px-3 py-1.5 rounded-md bg-card border border-border' },
         e('span', { className: `w-2 h-2 rounded-full ${marketOpen ? 'bg-accent-green animate-pulse' : 'bg-accent-red'}` }),
         e('span', { className: 'text-gray-300' }, marketOpen ? 'MARKET OPEN' : 'MARKET CLOSED')
       ),
-      sensex && e('div', { className: 'text-gray-400' },
+      sensex && e('div', { className: 'hidden sm:block text-gray-400' },
         'SENSEX ', e('b', { className: 'text-white tabular-nums' }, sensex.price)
       ),
       // Emergency HALT ALL — kills auto-trading on both engines in one click.
@@ -214,8 +219,7 @@ function Sidebar() {
     !search || (r.label || '').toLowerCase().includes(search.toLowerCase())
   );
   return e('aside', {
-    style: { width: '260px' },
-    className: 'shrink-0 bg-sidebar border-r border-border flex flex-col h-full'
+    className: 'order-2 w-full shrink-0 bg-sidebar border-b border-border flex flex-col lg:order-1 lg:w-[260px] lg:border-b-0 lg:border-r'
   },
     // Search
     e('div', { className: 'p-3 border-b border-border' },
@@ -288,7 +292,7 @@ function SummaryBar() {
       tone: (risk.tokenExpiryHours ?? 99) < 2 ? 'red' : (risk.tokenExpiryHours ?? 99) < 6 ? 'yellow' : 'gray' }
   ];
   const toneColor = { green: 'text-accent-green', red: 'text-accent-red', yellow: 'text-yellow-400', gray: 'text-white' };
-  return e('div', { className: 'grid grid-cols-5 gap-3' },
+  return e('div', { className: 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5' },
     cards.map(c => e('div', { key: c.label, className: 'bg-card border border-border rounded-card p-4 hover:border-gray-600 transition' },
       e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide font-semibold' }, c.label),
       e('div', { className: `text-xl font-semibold mt-2 tabular-nums ${toneColor[c.tone]}` }, c.value)
@@ -307,7 +311,7 @@ function ActionCards() {
     { label: 'ETFs',        icon: '📊', tint: 'from-pink-500/20 to-pink-500/5'    },
     { label: 'Commodities', icon: '🥇', tint: 'from-amber-500/20 to-amber-500/5'  }
   ];
-  return e('div', { className: 'grid grid-cols-5 gap-3' },
+  return e('div', { className: 'grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-5' },
     items.map(it => e('div', {
       key: it.label,
       className: `bg-card border border-border rounded-card p-4 cursor-pointer hover:border-gray-600 transition bg-gradient-to-br ${it.tint}`
@@ -329,7 +333,7 @@ function TradingTools({ onOpenChain }) {
     { label: 'Price Alerts',     desc: 'Browser push on threshold cross',  href: '/dashboard.html#alerts' },
     { label: 'TradingView Webhook', desc: 'POST to /api/webhook/tradingview', href: '/dashboard.html#webhook' }
   ];
-  return e('div', { className: 'grid grid-cols-5 gap-3' },
+  return e('div', { className: 'grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-5' },
     tools.map(t => e('a', {
       key: t.label,
       href: t.href,
@@ -389,7 +393,7 @@ function SignalCard() {
       )
     ),
     // Bottom row: ORB + VWAP + bot status
-    e('div', { className: 'mt-4 pt-4 border-t border-border grid grid-cols-4 gap-3 text-[12px]' },
+    e('div', { className: 'mt-4 pt-4 border-t border-border grid grid-cols-2 gap-3 text-[12px] xl:grid-cols-4' },
       e('div', null,
         e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'ORB High'),
         e('div', { className: 'text-white font-medium tabular-nums' }, orbReady ? s.orbHigh : '—')
@@ -473,7 +477,7 @@ function PositionCard() {
       )
     ),
     // Entry / Current / SL / Status row
-    e('div', { className: 'grid grid-cols-4 gap-3 text-[12px] pt-3 border-t border-border' },
+    e('div', { className: 'grid grid-cols-2 gap-3 text-[12px] pt-3 border-t border-border xl:grid-cols-4' },
       e('div', null,
         e('div', { className: 'text-[10px] text-gray-500 uppercase tracking-wide' }, 'Entry'),
         e('div', { className: 'text-white font-medium tabular-nums' }, `₹${entry.toFixed(2)}`)
@@ -512,8 +516,8 @@ function TradingModule() {
 
   return e('div', { className: 'bg-card border border-border rounded-card overflow-hidden' },
     // Tab bar
-    e('div', { className: 'flex items-center justify-between border-b border-border bg-sidebar' },
-      e('div', { className: 'flex' },
+    e('div', { className: 'flex flex-wrap items-center justify-between gap-2 border-b border-border bg-sidebar px-2 py-2 sm:px-0 sm:py-0' },
+      e('div', { className: 'flex flex-wrap' },
         tabs.map(t => e('button', {
           key: t.id, onClick: () => setTab(t.id),
           className: `px-5 py-3 text-[13px] font-medium transition ${tab === t.id ? 'text-accent-green border-b-2 border-accent-green bg-card' : 'text-gray-400 hover:text-white'}`
@@ -524,9 +528,9 @@ function TradingModule() {
       }, 'Open in new tab ↗')
     ),
     // Tab body
-    e('div', { style: { height: '720px' }, className: 'overflow-auto nice-scroll' },
+    e('div', { className: 'dashboard-module-body overflow-auto nice-scroll' },
       active.kind === 'native'
-        ? e('div', { className: 'p-4 grid grid-cols-2 gap-4' }, e(SignalCard), e(PositionCard))
+        ? e('div', { className: 'grid grid-cols-1 gap-4 p-4 xl:grid-cols-2' }, e(SignalCard), e(PositionCard))
         : e('iframe', { className: 'embed', src: active.src, style: { height: '100%' } })
     )
   );
@@ -556,7 +560,7 @@ function RightPanel() {
           ))
     );
 
-  return e('aside', { className: 'w-72 shrink-0 bg-sidebar border-l border-border p-3 flex flex-col gap-3 overflow-y-auto nice-scroll' },
+  return e('aside', { className: 'order-3 w-full shrink-0 bg-sidebar border-t border-border p-3 flex flex-col gap-3 overflow-y-auto nice-scroll lg:w-72 lg:border-t-0 lg:border-l' },
     Section('Top Gainers',  gainers, 'text-accent-green'),
     Section('Top Losers',   losers,  'text-accent-red'),
     e('div', { className: 'bg-card border border-border rounded-card p-3' },
@@ -619,7 +623,7 @@ function AlertStrip() {
     yellow: 'bg-yellow-500/10 border-yellow-500/40 text-yellow-300'
   };
   return e('div', {
-    className: 'sticky top-[58px] z-20 flex flex-wrap gap-2 px-5 py-2 bg-sidebar border-b border-border'
+    className: 'flex flex-wrap gap-2 px-4 py-2 sm:px-5 bg-sidebar border-b border-border'
   },
     alerts.map((a, i) => e('div', {
       key: i,
@@ -727,7 +731,7 @@ function SignalPills() {
   };
 
   return e('div', {
-    className: 'sticky top-[58px] z-10 flex gap-2 px-5 py-2 bg-bg border-b border-border'
+    className: 'flex flex-col gap-2 px-4 py-2 sm:px-5 bg-bg border-b border-border md:flex-row'
   },
     e(Pill, { label: 'NIFTY',  data: nifty,  eng: engN }),
     e(Pill, { label: 'SENSEX', data: sensex, eng: null })
@@ -800,7 +804,7 @@ function EngineStatusPills() {
   };
 
   if (!engN && !engS) return null;
-  return e('div', { className: 'sticky top-[58px] z-[9] flex gap-2 px-5 py-2 bg-sidebar border-b border-border' },
+  return e('div', { className: 'flex flex-col gap-2 px-4 py-2 sm:px-5 bg-sidebar border-b border-border md:flex-row' },
     e(Card, {
       label: 'NIFTY',  eng: engN,
       todayCount: risk?.niftyTradesToday,  consec: risk?.niftyConsecLosses
@@ -821,10 +825,9 @@ function App() {
     e(AlertStrip),
     e(SignalPills),
     e(EngineStatusPills),
-    e('div', { className: 'flex h-[calc(100vh-58px)]' },
-      e(Sidebar),
-      // Main scroll area
-      e('main', { className: 'flex-1 overflow-y-auto nice-scroll p-4 space-y-4' },
+    e('div', { className: 'dashboard-shell lg:flex' },
+      // Main content first on small screens, centered between side panels on desktop
+      e('main', { className: 'order-1 min-w-0 flex-1 space-y-4 p-4 sm:p-5 lg:order-2' },
         e(SummaryBar),
         e('div', null,
           e('div', { className: 'text-[10px] uppercase text-gray-500 tracking-wide font-semibold mb-2' }, 'Trade'),
@@ -840,6 +843,7 @@ function App() {
           e(TradingModule)
         )
       ),
+      e(Sidebar),
       e(RightPanel)
     )
   );
