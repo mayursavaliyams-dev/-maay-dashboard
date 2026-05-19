@@ -712,6 +712,16 @@ async function _backfillORBFromCandles() {
     applyHL('NIFTY', nf);
   }
   if (sx || nf) _persistMarketState();
+
+  // Holiday/weekend warning — if both fetches returned but with no ORB data,
+  // it's a non-trading day. Surface explicitly so engine ticks don't fire blind.
+  const istDay = new Date(Date.now() + 5.5 * 3600 * 1000).getUTCDay();
+  const isWeekend = istDay === 0 || istDay === 6;
+  const sxEmpty = !sx?.orbHigh && !sx?.orbLow;
+  const nfEmpty = !nf?.orbHigh && !nf?.orbLow;
+  if (sxEmpty && nfEmpty) {
+    console.log(`⚠ ORB backfill returned no candles — ${isWeekend ? 'weekend' : 'likely market holiday'} or pre-open. Engine signals will WAIT until live ticks build.`);
+  }
 }
 // Fire on boot — give Dhan client 3s to finish handshake first.
 setTimeout(() => { _backfillORBFromCandles().catch(() => {}); }, 3000);
@@ -2221,6 +2231,7 @@ engine._getDailyPnl = () => {
 // Trend gate — engine refuses entries that contradict H/L trend (see execution-engine.js).
 engine.setTrendProvider(() => _computeTrendFromHL('SENSEX',
   prices.at?.(-1) ?? null, orbHigh, orbLow, vwap));
+engine.restoreEquity();
 
 // Engine control endpoints — SENSEX
 app.post('/api/engine/auto', (req, res) => {
@@ -2315,6 +2326,7 @@ niftyEngine._getDailyPnl = () => {
 };
 niftyEngine.setTrendProvider(() => _computeTrendFromHL('NIFTY',
   niftyPrices.at?.(-1) ?? null, niftyOrbHigh, niftyOrbLow, niftyVwap));
+niftyEngine.restoreEquity();
 
 // Engine control endpoints — NIFTY
 app.post('/api/nifty/engine/auto', (req, res) => {

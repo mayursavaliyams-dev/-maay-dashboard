@@ -47,9 +47,11 @@ class ExecutionEngine {
     this.instrumentName  = instrumentName  || 'SENSEX';
 
     // Risk params from env
-    this.capital       = parseFloat(process.env.CAPITAL_TOTAL           || 500000);
+    // Default capital matches .env baseline (₹1,00,000). Was 500000 — a stale
+    // default that would have 5×-oversized positions if .env ever loaded blank.
+    this.capital       = parseFloat(process.env.CAPITAL_TOTAL           || 100000);
     this.riskPct       = parseFloat(process.env.CAPITAL_PER_TRADE_PERCENT|| 5) / 100;
-    this.slPct         = parseFloat(process.env.STOP_LOSS_PERCENT        || 50) / 100;
+    this.slPct         = parseFloat(process.env.STOP_LOSS_PERCENT        ||  5) / 100;
     this.trailMult     = parseFloat(process.env.TRAIL_AFTER_MULTIPLE     || 2);
     this.trailLockPct  = parseFloat(process.env.TRAIL_LOCK_PERCENT       || 50) / 100;
     this.targetMult    = parseFloat(process.env.TARGET_PERCENT           || 150) / 100 + 1; // 2.5x
@@ -142,6 +144,18 @@ class ExecutionEngine {
       this.capital += pnl;
     }
     console.log(`[${this.instrumentName}] Equity: active ₹${beforeActive.toFixed(0)}→₹${this.capital.toFixed(0)}  reserve ₹${beforeReserve.toFixed(0)}→₹${this.reserve.toFixed(0)}  total ₹${(this.capital+this.reserve).toFixed(0)}`);
+
+    // Persist active/reserve across restarts. Half-compound only works if the
+    // reserve pile carries forward — losing it every restart resets sizing back
+    // to baseline and breaks the multi-month compounding curve.
+    try {
+      const _fs = require('fs'); const _path = require('path');
+      const file = _path.resolve(`./data/equity-${this.instrumentName.toLowerCase()}.json`);
+      _fs.writeFileSync(file, JSON.stringify({
+        capital: this.capital, reserve: this.reserve,
+        consecLosses: this._consecLosses, updatedAt: new Date().toISOString()
+      }, null, 2));
+    } catch (e) { console.warn(`[${this.instrumentName}] equity persist failed: ${e.message}`); }
 
     if (pnl > 0) {
       if (this._consecLosses > 0) {
@@ -273,7 +287,8 @@ class ExecutionEngine {
       //      structure shouldn't veto a fresh afternoon break.
       //
       // Override the gate entirely with TREND_GATE_ENABLED=false in .env.
-      if (this._getTrend && (process.env.TREND_GATE_ENABLED ?? 'true').toLowerCase() !== 'false') {
+      // Default: OFF — backtest proved it cuts returns 52% in current form.
+      if (this._getTrend && (process.env.TREND_GATE_ENABLED ?? 'false').toLowerCase() === 'true') {
         try {
           const t = this._getTrend();
           if (t && t.confidence >= 70) {
@@ -295,6 +310,26 @@ class ExecutionEngine {
   }
 
   setTrendProvider(fn) { this._getTrend = fn; }
+
+  // Restore active capital + reserve from disk (called by server after construct).
+  // No-op if file missing or stale (>30 days old — fresh paper run instead).
+  restoreEquity() {
+    try {
+      const _fs = require('fs'); const _path = require('path');
+      const file = _path.resolve(`./data/equity-${this.instrumentName.toLowerCase()}.json`);
+      if (!_fs.existsSync(file)) return;
+      const s = JSON.parse(_fs.readFileSync(file, 'utf8'));
+      const ageMs = Date.now() - new Date(s.updatedAt || 0).getTime();
+      if (ageMs > 30 * 24 * 3600 * 1000) {
+        console.log(`[${this.instrumentName}] equity file stale (${Math.round(ageMs/86400000)} days) — keeping baseline ₹${this.capital}`);
+        return;
+      }
+      if (Number.isFinite(s.capital))      this.capital      = s.capital;
+      if (Number.isFinite(s.reserve))      this.reserve      = s.reserve;
+      if (Number.isFinite(s.consecLosses)) this._consecLosses = s.consecLosses;
+      console.log(`[${this.instrumentName}] 📥 Restored equity: active ₹${this.capital.toFixed(0)} + reserve ₹${(this.reserve||0).toFixed(0)} = ₹${((this.capital + (this.reserve||0))).toFixed(0)} (consec losses: ${this._consecLosses})`);
+    } catch (e) { console.warn(`[${this.instrumentName}] equity restore failed: ${e.message}`); }
+  }
 
   // ── Find option security ID and LTP from live chain ────────────
   async _getOption(signal) {
@@ -388,25 +423,35 @@ class ExecutionEngine {
       console.log(`[${this.instrumentName}] PAPER BUY ${quantity} × ${strike}${type} @ ${ltp.toFixed(1)}`);
     }
 
+    // Apply realistic slippage on entry — backtest builds in 2% slip on every
+    // fill, but live engine was previously using raw LTP. Without parity, live
+    // P&L overstates by ~4% per round-trip vs backtest curves. Reads
+    // SLIPPAGE_PERCENT from .env (default 2%) — both buy fills and exit fills
+    // are adjusted in the unfavorable direction.
+    const slipPct = parseFloat(process.env.SLIPPAGE_PERCENT || 2) / 100;
+    const filledEntry = ltp * (1 + slipPct);    // buy fills above quote
+
     const pos = {
       instrument:   this.instrumentName,
       signal,
       type,
       strike,
       securityId,
-      entryPrice:   ltp,
+      quotedEntry:  ltp,                          // raw quote at signal time
+      slippagePct:  slipPct,
+      entryPrice:   filledEntry,                  // actual book entry incl. slip
       currentPrice: ltp,
       lots,
       quantity,
       deployed,
       orderId,
       enteredAt:    new Date().toISOString(),
-      sl:           ltp * (1 - this.slPct),
-      trailAt:      ltp * this.trailMult,
+      sl:           filledEntry * (1 - this.slPct),
+      trailAt:      filledEntry * this.trailMult,
       trailLocked:  false,
       lockedFloor:  null,
-      peakPrice:    ltp,
-      movingStop:   ltp * (1 - this.slPct),
+      peakPrice:    filledEntry,
+      movingStop:   filledEntry * (1 - this.slPct),
       autoMovingStop: true,
       status:       'OPEN',
       paperMode:    this.paperMode,
@@ -491,7 +536,11 @@ class ExecutionEngine {
   }
 
   // ── Exit trade ──────────────────────────────────────────────────
-  async _exit(pos, exitPrice, reason) {
+  async _exit(pos, rawExitPrice, reason) {
+    // Apply slippage on exit (sell fills below quote). Backtest assumes 2%
+    // haircut per fill; live engine now matches.
+    const slipPct = pos.slippagePct ?? (parseFloat(process.env.SLIPPAGE_PERCENT || 2) / 100);
+    const exitPrice = rawExitPrice * (1 - slipPct);
     if (!this.paperMode && pos.securityId) {
       try {
         await this.live.placeOrder({
