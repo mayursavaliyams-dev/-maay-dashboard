@@ -6,7 +6,7 @@ const MIN_INTERVAL_MS = 220;
 // Per-path override below covers slower-changing feeds (optionchain, marketfeed/quote).
 const DEFAULT_CACHE_TTL_MS = 0;
 const PATH_CACHE_TTL_MS = {
-  '/v2/optionchain':      1500,
+  '/v2/optionchain':      3000,    // raised 1500→3000 to absorb H/L snapshot bursts
   '/v2/marketfeed/quote': 1200,
   '/v2/marketfeed/ltp':    800
 };

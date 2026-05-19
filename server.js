@@ -77,7 +77,13 @@ const amiBridge = new AmiBrokerBridge();
 live.connect().catch(err => console.error('[live] connect failed:', err.message));
 
 // ==================== STATE — SENSEX ====================
-let botRunning = false;
+// Auto-start the bot loop on boot. The per-engine `autoEnabled` flag
+// (NIFTY_AUTO_ENABLED / SENSEX_AUTO_ENABLED in .env) is the real gate for
+// whether a given instrument can place trades — botRunning just controls
+// whether the tick loop runs at all. Defaulting false caused every prior
+// validation attempt to silently no-op because nobody POSTed /api/bot/start
+// after the server boot. Override by setting BOT_AUTOSTART=false in .env.
+let botRunning = String(process.env.BOT_AUTOSTART ?? 'true').toLowerCase() !== 'false';
 let tradesToday = 0;
 let orbHigh = null;
 let orbLow = null;
@@ -388,7 +394,16 @@ function _istDateStr() {
 // Async snapshot — fetches the option chain at the moment of a new H/L break
 // and records { ts, price, dir, atmStrike, ce, pe }. Fire-and-forget; logs
 // errors but never blocks the price-update pipeline.
+//
+// Throttle: during fast moves the same inst can print 5+ H/L breaks per
+// second — each was triggering a chain fetch and getting Dhan 429-rate-limited.
+// Skip if the previous snapshot for this inst was within the cooldown.
+const _hlSnapshotCooldownMs = 5000;
+const _hlLastSnapshotAt = { SENSEX: 0, NIFTY: 0 };
 async function _snapshotChainAtHL(inst, price, dir) {
+  const lastAt = _hlLastSnapshotAt[inst] || 0;
+  if (Date.now() - lastAt < _hlSnapshotCooldownMs) return;
+  _hlLastSnapshotAt[inst] = Date.now();
   try {
     const chain = inst === 'NIFTY'
       ? await live.getNiftyOptionChain(price)
@@ -589,6 +604,117 @@ function _restoreMarketState() {
 }
 // Run restore once at module load (before any API hits)
 _restoreMarketState();
+
+// ==================== ORB BACKFILL ====================
+// If the server starts after 09:30 IST and ORB is still null (no in-process
+// capture this session, no persisted state from earlier today), pull today's
+// 1-min index candles from Dhan and compute the 09:15-09:30 ORB ourselves.
+// Without this, every late restart wastes the trading day (root cause of
+// multiple failed paper-validation attempts).
+async function _backfillORBFromCandles() {
+  const istNow = new Date(Date.now() + 5.5 * 3600 * 1000);
+  const hh = istNow.getUTCHours();
+  const mm = istNow.getUTCMinutes();
+  const afterORBWindow = (hh > 9) || (hh === 9 && mm >= 30);
+  if (!afterORBWindow) return;     // ORB will be captured live by tick handler
+
+  const today = istNow.toISOString().slice(0, 10);
+  const fetchOne = async (securityId, label) => {
+    try {
+      const r = await live.client._post('/v2/charts/intraday', {
+        securityId: String(securityId),
+        exchangeSegment: 'IDX_I',
+        instrument: 'INDEX',
+        interval: '1',
+        fromDate: today,
+        toDate: today,
+      });
+      const ts = r?.timestamp || [];
+      const hi = r?.high || [];
+      const lo = r?.low  || [];
+      let oH = null, oL = null, dH = null, dL = null;
+      // Rolling structures for the H/L break path (post-ORB only — the trend
+      // detector cares about who's breaking *after* the opening range prints).
+      let rollingHi = null, rollingLo = null;
+      const highPath = [], lowPath = [];
+      for (let i = 0; i < ts.length; i++) {
+        const candleMs = Number(ts[i]) * 1000;
+        const istCandle = new Date(candleMs + 5.5 * 3600 * 1000);
+        const ch = istCandle.getUTCHours();
+        const cm = istCandle.getUTCMinutes();
+        const cHi = Number(hi[i]);
+        const cLo = Number(lo[i]);
+        const inORB = (ch === 9 && cm >= 15 && cm < 30);
+        if (inORB) {
+          if (oH === null || cHi > oH) oH = cHi;
+          if (oL === null || cLo < oL) oL = cLo;
+        }
+        if (ch >= 9) {
+          if (dH === null || cHi > dH) dH = cHi;
+          if (dL === null || cLo < dL) dL = cLo;
+        }
+        // Build break path starting from 9:30 (after ORB window)
+        const postORB = ch > 9 || (ch === 9 && cm >= 30);
+        if (postORB) {
+          if (rollingHi === null) { rollingHi = cHi; rollingLo = cLo; }
+          if (cHi > rollingHi) { rollingHi = cHi; highPath.push({ t: candleMs, p: cHi }); }
+          if (cLo < rollingLo) { rollingLo = cLo; lowPath.push ({ t: candleMs, p: cLo }); }
+        }
+      }
+      return { orbHigh: oH, orbLow: oL, dayHigh: dH, dayLow: dL, highPath, lowPath, rollingHi, rollingLo, label };
+    } catch (err) {
+      console.log(`[orb-backfill] ${label} failed: ${err.message}`);
+      return null;
+    }
+  };
+  // Apply break path into _hlRecord so /api/trend has data immediately.
+  const applyHL = (instKey, fetched) => {
+    if (!fetched || (!fetched.highPath.length && !fetched.lowPath.length)) return;
+    const r = _hlRecord[instKey];
+    if (!r) return;
+    r.date = today;
+    if (fetched.rollingHi && (r.high === 0 || fetched.rollingHi > r.high)) {
+      r.high = fetched.rollingHi; r.highAt = fetched.highPath.at(-1)?.t || Date.now();
+    }
+    if (fetched.rollingLo && (r.low === 0 || fetched.rollingLo < r.low)) {
+      r.low = fetched.rollingLo; r.lowAt = fetched.lowPath.at(-1)?.t || Date.now();
+    }
+    // Merge: only append breaks newer than what we already have
+    const lastHiT = r.highPath.at(-1)?.t || 0;
+    const lastLoT = r.lowPath .at(-1)?.t || 0;
+    for (const e of fetched.highPath) if (e.t > lastHiT) r.highPath.push(e);
+    for (const e of fetched.lowPath)  if (e.t > lastLoT) r.lowPath .push(e);
+    if (r.highPath.length > 50) r.highPath = r.highPath.slice(-50);
+    if (r.lowPath .length > 50) r.lowPath  = r.lowPath .slice(-50);
+    console.log(`📈 Backfilled ${instKey} H/L breaks: ${fetched.highPath.length} highs, ${fetched.lowPath.length} lows`);
+  };
+
+  // Always fetch so we can backfill H/L break paths even if ORB was restored
+  // from disk. Skip the ORB write itself if already populated.
+  const sx = await fetchOne(process.env.DHAN_SENSEX_SECURITY_ID || '51', 'SENSEX');
+  if (sx) {
+    if ((orbHigh === null || orbLow === null) && sx.orbHigh && sx.orbLow) {
+      orbHigh = sx.orbHigh; orbLow = sx.orbLow;
+      if (sx.dayHigh) dayHigh = sx.dayHigh;
+      if (sx.dayLow)  dayLow  = sx.dayLow;
+      console.log(`📊 Backfilled SENSEX ORB: ${orbHigh}/${orbLow}  Day H/L: ${dayHigh}/${dayLow}`);
+    }
+    applyHL('SENSEX', sx);
+  }
+  const nf = await fetchOne(process.env.DHAN_NIFTY_SECURITY_ID || '13', 'NIFTY');
+  if (nf) {
+    if ((niftyOrbHigh === null || niftyOrbLow === null) && nf.orbHigh && nf.orbLow) {
+      niftyOrbHigh = nf.orbHigh; niftyOrbLow = nf.orbLow;
+      if (nf.dayHigh) niftyDayHigh = nf.dayHigh;
+      if (nf.dayLow)  niftyDayLow  = nf.dayLow;
+      console.log(`📊 Backfilled NIFTY ORB: ${niftyOrbHigh}/${niftyOrbLow}  Day H/L: ${niftyDayHigh}/${niftyDayLow}`);
+    }
+    applyHL('NIFTY', nf);
+  }
+  if (sx || nf) _persistMarketState();
+}
+// Fire on boot — give Dhan client 3s to finish handshake first.
+setTimeout(() => { _backfillORBFromCandles().catch(() => {}); }, 3000);
 
 // ==================== API ROUTES ====================
 
@@ -1082,6 +1208,58 @@ app.get('/api/dhan/oauth-callback', async (req, res) => {
   }
 });
 
+// Decode the JWT to extract `exp` (seconds since epoch). Returns null on
+// any parse error — token might be missing, malformed, or non-JWT.
+function _decodeDhanTokenExp() {
+  try {
+    const tok = process.env.DHAN_ACCESS_TOKEN;
+    if (!tok || tok.split('.').length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(tok.split('.')[1], 'base64').toString('utf8'));
+    return Number(payload.exp) || null;
+  } catch (_) { return null; }
+}
+
+function _tokenStatus() {
+  const exp = _decodeDhanTokenExp();
+  if (!exp) return { valid: false, reason: 'no token or malformed JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const secsLeft = exp - now;
+  return {
+    valid: secsLeft > 0,
+    expiresAt: new Date(exp * 1000).toISOString(),
+    expiresAtIST: new Date((exp + 5.5 * 3600) * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' IST',
+    hoursLeft: +(secsLeft / 3600).toFixed(2),
+    refreshUrl: '/api/dhan/login'
+  };
+}
+
+app.get('/api/dhan/token-status', (req, res) => res.json(_tokenStatus()));
+
+// Daily 08:30 IST token expiry check. If <2h remain, log a console banner
+// and (if Telegram is wired) fire an alert. Use a 1-minute interval to
+// catch the 08:30 IST window regardless of restart time.
+let _tokenWarnedDate = '';
+setInterval(async () => {
+  try {
+    const istNow = new Date(Date.now() + 5.5 * 3600 * 1000);
+    const hh = istNow.getUTCHours();
+    const mm = istNow.getUTCMinutes();
+    const dayStr = istNow.toISOString().slice(0, 10);
+    if (hh !== 8 || mm !== 30 || _tokenWarnedDate === dayStr) return;
+    _tokenWarnedDate = dayStr;
+    const st = _tokenStatus();
+    if (st.valid && st.hoursLeft > 2) return;
+    const msg = st.valid
+      ? `⚠ Dhan token expires in ${st.hoursLeft}h (${st.expiresAtIST}). Refresh at ${process.env.PUBLIC_API_BASE_URL || ''}/api/dhan/login before market open.`
+      : `⛔ Dhan token INVALID. Refresh now: ${process.env.PUBLIC_API_BASE_URL || ''}/api/dhan/login`;
+    console.log('\n' + '='.repeat(70) + '\n  ' + msg + '\n' + '='.repeat(70) + '\n');
+    if (telegram?.enabled) {
+      try { await telegram.sendAlert(st.valid ? 'Dhan token expiring' : 'Dhan token invalid', msg); }
+      catch (e) { console.log('Telegram alert failed:', e.message); }
+    }
+  } catch (_) { /* never crash on monitor */ }
+}, 60 * 1000);
+
 // Health check
 app.get("/api/health", (req, res) => {
   const source = live instanceof KotakNeoConnector ? 'Kotak Neo' : 'Dhan';
@@ -1095,6 +1273,7 @@ app.get("/api/health", (req, res) => {
     },
     connector: source,
     telegram: telegram ? { enabled: telegram.enabled, connected: telegram.connected, hasToken: !!telegram.botToken, hasChat: !!telegram.chatId } : { enabled: false },
+    token: _tokenStatus(),
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
@@ -2039,6 +2218,9 @@ engine._getDailyPnl = () => {
     .filter(p => new Date(p.exitAt).toDateString() === todayStr)
     .reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
 };
+// Trend gate — engine refuses entries that contradict H/L trend (see execution-engine.js).
+engine.setTrendProvider(() => _computeTrendFromHL('SENSEX',
+  prices.at?.(-1) ?? null, orbHigh, orbLow, vwap));
 
 // Engine control endpoints — SENSEX
 app.post('/api/engine/auto', (req, res) => {
@@ -2131,6 +2313,8 @@ niftyEngine._getDailyPnl = () => {
     .filter(p => new Date(p.exitAt).toDateString() === todayStr)
     .reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
 };
+niftyEngine.setTrendProvider(() => _computeTrendFromHL('NIFTY',
+  niftyPrices.at?.(-1) ?? null, niftyOrbHigh, niftyOrbLow, niftyVwap));
 
 // Engine control endpoints — NIFTY
 app.post('/api/nifty/engine/auto', (req, res) => {
@@ -2256,6 +2440,21 @@ app.get('/api/hl-record', (req, res) => {
   const fmtTime = (ms) => ms ? new Date(ms + 5.5*3600*1000).toISOString().slice(11, 19) : null;
   const path = (arr) => arr.map(e => ({ time: fmtTime(e.t), price: +e.p.toFixed(2), ts: e.t }));
 
+  // Per-break CE/PE premium snapshot (captured by _snapshotChainAtHL when a
+  // new H or L prints). Lets the dashboard show "at that high, ATM CE was X,
+  // ATM PE was Y" — useful for entry-pricing analysis.
+  const callPutLog = (rec.chainLog || []).map(e => ({
+    time:      fmtTime(e.t),
+    ts:        e.t,
+    price:     e.p,
+    dir:       e.dir,                   // 'HIGH' or 'LOW'
+    atmStrike: e.atmStrike,
+    ce:        +Number(e.ce  || 0).toFixed(2),
+    pe:        +Number(e.pe  || 0).toFixed(2),
+    ceVol:     e.ceVol || 0,
+    peVol:     e.peVol || 0
+  }));
+
   res.json({
     inst,
     date: rec.date,
@@ -2267,8 +2466,258 @@ app.get('/api/hl-record', (req, res) => {
     lowAt:      rec.lowAt,
     highBreaks: path(rec.highPath),
     lowBreaks:  path(rec.lowPath),
-    range:      +(rec.high - rec.low).toFixed(2)
+    range:      +(rec.high - rec.low).toFixed(2),
+    callPutLog                          // [{time,price,dir,atmStrike,ce,pe,ceVol,peVol}]
   });
+});
+
+// ==================== TREND FROM H/L BREAK SEQUENCE ====================
+// Merges highBreaks + lowBreaks into a time-ordered event log, then judges
+// trend from the tail. Distinct from the VWAP/momentum detectTrend() —
+// this one is purely structural (HH/HL pattern detection).
+//
+// Rules:
+//   HIGH_TREND  → last 3+ events are HIGH breaks (no LOW since)
+//   LOW_TREND   → last 3+ events are LOW breaks  (no HIGH since)
+//   RANGE       → mixed or insufficient breaks
+//
+// Confidence scaled by: consecutive count, time since opposite break,
+// price-vs-ORB position, price-vs-VWAP alignment.
+function _computeTrendFromHL(inst, currentPrice, orbHigh, orbLow, vwap) {
+  const rec = _hlRecord[inst];
+  if (!rec) return { trend: 'UNKNOWN', confidence: 0, reason: 'no record' };
+
+  // Merge & sort by timestamp
+  const events = [
+    ...rec.highPath.map(e => ({ t: e.t, p: e.p, dir: 'HIGH' })),
+    ...rec.lowPath.map (e => ({ t: e.t, p: e.p, dir: 'LOW'  }))
+  ].sort((a, b) => a.t - b.t);
+  if (events.length < 2) return {
+    trend: 'RANGE', confidence: 10, reason: 'not enough breaks yet',
+    events: events.length, recommend: 'WAIT'
+  };
+
+  // Count tail consecutive same-direction events
+  const tailDir = events[events.length - 1].dir;
+  let consec = 1;
+  for (let i = events.length - 2; i >= 0; i--) {
+    if (events[i].dir === tailDir) consec++;
+    else break;
+  }
+  const oppositeIdx = events.length - 1 - consec;
+  const lastOppositeTime = oppositeIdx >= 0 ? events[oppositeIdx].t : null;
+  const minsSinceOpposite = lastOppositeTime
+    ? Math.round((Date.now() - lastOppositeTime) / 60000)
+    : null;
+
+  // Base label
+  let trend, recommend;
+  if (consec >= 3 && tailDir === 'HIGH')     { trend = 'HIGH_TREND'; recommend = 'BUY_CALL'; }
+  else if (consec >= 3 && tailDir === 'LOW') { trend = 'LOW_TREND';  recommend = 'BUY_PUT';  }
+  else                                       { trend = 'RANGE';      recommend = 'WAIT';     }
+
+  // Confidence scoring 0-100
+  let conf = Math.min(40, consec * 12);                                                // structure
+  if (currentPrice && orbHigh && currentPrice > orbHigh) conf += (tailDir === 'HIGH' ? 25 : -10);  // ORB break align
+  if (currentPrice && orbLow  && currentPrice < orbLow)  conf += (tailDir === 'LOW'  ? 25 : -10);
+  if (vwap && currentPrice) {
+    const aboveVwap = currentPrice > vwap;
+    if (aboveVwap && tailDir === 'HIGH') conf += 15;
+    if (!aboveVwap && tailDir === 'LOW') conf += 15;
+  }
+  if (minsSinceOpposite && minsSinceOpposite > 30) conf += 10;                          // sticky trend
+  conf = Math.max(0, Math.min(100, conf));
+
+  // Structure flags (HH/HL/LH/LL — quick read for the dashboard badge)
+  const lastTwoHighs = rec.highPath.slice(-2);
+  const lastTwoLows  = rec.lowPath.slice(-2);
+  const makingHH = lastTwoHighs.length === 2 && lastTwoHighs[1].p > lastTwoHighs[0].p;
+  const makingLL = lastTwoLows.length  === 2 && lastTwoLows[1].p  < lastTwoLows[0].p;
+  const makingHL = lastTwoLows.length  === 2 && lastTwoLows[1].p  > lastTwoLows[0].p;
+  const makingLH = lastTwoHighs.length === 2 && lastTwoHighs[1].p < lastTwoHighs[0].p;
+
+  return {
+    inst,
+    trend,
+    recommend,
+    confidence: conf,
+    consec,
+    tailDir,
+    lastOppositeMinsAgo: minsSinceOpposite,
+    structure: { higherHighs: makingHH, lowerLows: makingLL, higherLows: makingHL, lowerHighs: makingLH },
+    reason:
+      trend === 'HIGH_TREND' ? `${consec} new highs without a new low${minsSinceOpposite ? ` (${minsSinceOpposite}m since last low)` : ''}` :
+      trend === 'LOW_TREND'  ? `${consec} new lows without a new high${minsSinceOpposite ? ` (${minsSinceOpposite}m since last high)` : ''}` :
+                               `mixed breaks (last ${consec}× ${tailDir})`,
+    currentPrice, orbHigh, orbLow, vwap,
+    eventsCount: events.length
+  };
+}
+
+app.get('/api/trend', (req, res) => {
+  const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+  const isNifty = inst === 'NIFTY';
+  const ctx = {
+    currentPrice: isNifty ? niftyPrices.at?.(-1) ?? null : prices.at?.(-1) ?? null,
+    orbHigh:      isNifty ? niftyOrbHigh : orbHigh,
+    orbLow:       isNifty ? niftyOrbLow  : orbLow,
+    vwap:         isNifty ? niftyVwap    : vwap
+  };
+  res.json(_computeTrendFromHL(inst, ctx.currentPrice, ctx.orbHigh, ctx.orbLow, ctx.vwap));
+});
+
+// ==================== END-OF-DAY SUMMARY ====================
+// Aggregates today's trades + signal accuracy for both instruments. Auto-fires
+// once at 15:35 IST (5 min after market close) — logs banner, can be polled
+// via /api/eod-summary at any time.
+function _eodSummary() {
+  const todayStr = new Date().toDateString();
+  const agg = (positions, label) => {
+    const today = positions.filter(p => p.exitAt && new Date(p.exitAt).toDateString() === todayStr);
+    const wins   = today.filter(p => parseFloat(p.finalPnlAbs || 0) > 0);
+    const losses = today.filter(p => parseFloat(p.finalPnlAbs || 0) < 0);
+    const pnl = today.reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
+    const winRate = today.length ? +(100 * wins.length / today.length).toFixed(1) : null;
+    const grossWin  = wins  .reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
+    const grossLoss = losses.reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
+    return {
+      instrument: label,
+      tradesToday: today.length,
+      wins: wins.length,
+      losses: losses.length,
+      winRate,
+      pnl: +pnl.toFixed(0),
+      grossWin: +grossWin.toFixed(0),
+      grossLoss: +grossLoss.toFixed(0),
+      bestTrade:   today.length ? +Math.max(...today.map(p => parseFloat(p.finalPnlAbs || 0))).toFixed(0) : 0,
+      worstTrade:  today.length ? +Math.min(...today.map(p => parseFloat(p.finalPnlAbs || 0))).toFixed(0) : 0,
+      trades: today.map(p => ({
+        type: p.type, strike: p.strike, entry: p.entryPrice, exit: p.exitPrice,
+        pnl: +parseFloat(p.finalPnlAbs || 0).toFixed(0),
+        pnlPct: p.finalPnlPct, reason: p.exitReason, exitAt: p.exitAt
+      }))
+    };
+  };
+  const sensex = agg(closedPositions,      'SENSEX');
+  const nifty  = agg(niftyClosedPositions, 'NIFTY');
+  const totalPnl = sensex.pnl + nifty.pnl;
+  return {
+    date: todayStr,
+    timestamp: Date.now(),
+    totalPnl,
+    overallWinRate: (sensex.tradesToday + nifty.tradesToday)
+      ? +(100 * (sensex.wins + nifty.wins) / (sensex.tradesToday + nifty.tradesToday)).toFixed(1)
+      : null,
+    sensex, nifty
+  };
+}
+
+app.get('/api/eod-summary', (req, res) => res.json(_eodSummary()));
+
+// 15:35 IST auto-fire — log to console, persist to data/eod-YYYY-MM-DD.json.
+let _eodLoggedDate = '';
+setInterval(() => {
+  try {
+    const ist = new Date(Date.now() + 5.5 * 3600 * 1000);
+    const hh = ist.getUTCHours();
+    const mm = ist.getUTCMinutes();
+    const dayStr = ist.toISOString().slice(0, 10);
+    if (hh !== 15 || mm !== 35 || _eodLoggedDate === dayStr) return;
+    _eodLoggedDate = dayStr;
+    const s = _eodSummary();
+    const banner = [
+      '',
+      '═══════════════════════════════════════════════════════════════',
+      `  END-OF-DAY  ${dayStr}  IST`,
+      `  Total P&L:        ₹${s.totalPnl.toLocaleString('en-IN')}`,
+      `  Overall win rate: ${s.overallWinRate ?? '—'}%`,
+      `  ────────────────────────────────────────────────────────────`,
+      `  NIFTY   ${s.nifty.tradesToday}× trades   W:${s.nifty.wins} L:${s.nifty.losses}   ₹${s.nifty.pnl.toLocaleString('en-IN')}  (best ₹${s.nifty.bestTrade}, worst ₹${s.nifty.worstTrade})`,
+      `  SENSEX  ${s.sensex.tradesToday}× trades   W:${s.sensex.wins} L:${s.sensex.losses}   ₹${s.sensex.pnl.toLocaleString('en-IN')}  (best ₹${s.sensex.bestTrade}, worst ₹${s.sensex.worstTrade})`,
+      '═══════════════════════════════════════════════════════════════',
+      ''
+    ].join('\n');
+    console.log(banner);
+    try {
+      const _path = require('path');
+      const _fs2  = require('fs');
+      _fs2.writeFileSync(_path.resolve(`./data/eod-${dayStr}.json`), JSON.stringify(s, null, 2));
+    } catch (e) { console.warn('[eod] persist failed:', e.message); }
+  } catch (_) { /* never crash */ }
+}, 60 * 1000);
+
+// ==================== EMA STACK (9/15/21/50/200) ====================
+// Pulls today's 1-min candles, computes 5 EMAs, returns values + tactical
+// badge (STRONG_UP / STRONG_DOWN / PULLBACK / TREND_CHANGE / STOP_HIT).
+// Cached 30s per inst — EMAs don't move fast enough to need finer.
+const _emaCache = { NIFTY: null, SENSEX: null };
+const _emaCacheAt = { NIFTY: 0, SENSEX: 0 };
+const EMA_TTL_MS = 30 * 1000;
+
+function _ema(values, period) {
+  if (!values.length) return null;
+  const k = 2 / (period + 1);
+  let ema = values[0];
+  for (let i = 1; i < values.length; i++) ema = values[i] * k + ema * (1 - k);
+  return ema;
+}
+
+app.get('/api/ema-stack', async (req, res) => {
+  const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+  if (_emaCache[inst] && Date.now() - _emaCacheAt[inst] < EMA_TTL_MS) {
+    return res.json(_emaCache[inst]);
+  }
+  const secId = inst === 'NIFTY'
+    ? (process.env.DHAN_NIFTY_SECURITY_ID  || '13')
+    : (process.env.DHAN_SENSEX_SECURITY_ID || '51');
+  const today = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  try {
+    const r = await live.client._post('/v2/charts/intraday', {
+      securityId: String(secId), exchangeSegment: 'IDX_I',
+      instrument: 'INDEX', interval: '1', fromDate: today, toDate: today
+    });
+    const closes = (r?.close || []).map(Number).filter(n => n > 0);
+    if (closes.length < 9) {
+      return res.json({ inst, ready: false, reason: 'need ≥ 9 candles', candles: closes.length });
+    }
+    const ema9   = _ema(closes, 9);
+    const ema15  = _ema(closes, 15);
+    const ema21  = _ema(closes, 21);
+    const ema50  = closes.length >= 50  ? _ema(closes, 50)  : null;
+    const ema200 = closes.length >= 200 ? _ema(closes, 200) : null;
+    const price  = closes.at(-1);
+    const prev   = closes.length >= 2 ? closes.at(-2) : price;
+
+    // Tactical classification — short-circuit on the most actionable state
+    let tactic = 'NEUTRAL';
+    let tacticLabel = 'no clear signal';
+    const ord = (a, b) => a != null && b != null && a > b;
+    const stackUp   = ord(ema9, ema15) && ord(ema15, ema21) && (ema50 == null || ord(ema21, ema50)) && (ema200 == null || ord(ema50, ema200));
+    const stackDown = ord(ema15, ema9) && ord(ema21, ema15) && (ema50 == null || ord(ema50, ema21)) && (ema200 == null || ord(ema200, ema50));
+    if (price < ema21 && prev >= ema21)        { tactic = 'STOP_HIT';      tacticLabel = 'price crossed below 21 EMA — exit longs'; }
+    else if (price > ema50 && prev <= ema50 && ema50 != null) { tactic = 'TREND_CHANGE_UP';   tacticLabel = 'reclaimed 50 EMA — bullish'; }
+    else if (price < ema200 && prev >= ema200 && ema200 != null) { tactic = 'REGIME_CHANGE_DOWN'; tacticLabel = 'lost 200 EMA — bearish regime'; }
+    else if (price < ema9 && price > ema15 && stackUp) { tactic = 'PULLBACK_UP'; tacticLabel = 'pullback to 15 EMA in uptrend — buy zone'; }
+    else if (price > ema9 && price < ema15 && stackDown) { tactic = 'PULLBACK_DOWN'; tacticLabel = 'pullback to 15 EMA in downtrend — sell zone'; }
+    else if (stackUp)    { tactic = 'STRONG_UP';   tacticLabel = 'all EMAs stacked up — favor CALL'; }
+    else if (stackDown)  { tactic = 'STRONG_DOWN'; tacticLabel = 'all EMAs stacked down — favor PUT'; }
+
+    const data = {
+      inst, ready: true, candles: closes.length, price: +price.toFixed(2),
+      ema9: ema9 != null ? +ema9.toFixed(2) : null,
+      ema15: ema15 != null ? +ema15.toFixed(2) : null,
+      ema21: ema21 != null ? +ema21.toFixed(2) : null,
+      ema50: ema50 != null ? +ema50.toFixed(2) : null,
+      ema200: ema200 != null ? +ema200.toFixed(2) : null,
+      tactic, tacticLabel,
+      ts: Date.now()
+    };
+    _emaCache[inst] = data;
+    _emaCacheAt[inst] = Date.now();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ inst, ready: false, error: err.message });
+  }
 });
 
 // ==================== DHAN CLIENT STATS ====================

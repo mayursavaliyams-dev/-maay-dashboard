@@ -160,23 +160,37 @@ class LiveConnector {
 
   async getNiftyOptionChain(spotPrice = null) {
     if (this._niftyChainCache && Date.now() - this._niftyChainAt < 8000) return this._niftyChainCache;
-    this._assertConnected();
-    const expiry = await this._getNextExpiry(NIFTY_SECURITY_ID, IDX_SEGMENT);
-    const body = { UnderlyingScrip: Number(NIFTY_SECURITY_ID), UnderlyingSeg: IDX_SEGMENT, Expiry: expiry };
-    const res  = await this.client._post('/v2/optionchain', body);
-    const oc   = res?.data?.oc || res?.data || {};
-    const strikes = [];
-    for (const strikeStr of Object.keys(oc)) {
-      const row = oc[strikeStr];
-      strikes.push({ strike: Number(strikeStr), ce: this._pickLeg(row?.ce), pe: this._pickLeg(row?.pe) });
+    // Skip Dhan entirely if a prior call failed with "Data APIs not Subscribed".
+    if (!this._dhanChainBlocked) {
+      try {
+        this._assertConnected();
+        const expiry = await this._getNextExpiry(NIFTY_SECURITY_ID, IDX_SEGMENT);
+        const body = { UnderlyingScrip: Number(NIFTY_SECURITY_ID), UnderlyingSeg: IDX_SEGMENT, Expiry: expiry };
+        const res  = await this.client._post('/v2/optionchain', body);
+        const oc   = res?.data?.oc || res?.data || {};
+        const strikes = [];
+        for (const strikeStr of Object.keys(oc)) {
+          const row = oc[strikeStr];
+          strikes.push({ strike: Number(strikeStr), ce: this._pickLeg(row?.ce), pe: this._pickLeg(row?.pe) });
+        }
+        const spot = Number(res?.data?.last_price ?? spotPrice ?? 0);
+        const atmStrike = Math.round(spot / 50) * 50;
+        const result = { spotPrice: spot, atmStrike, strikes: strikes.sort((a, b) => a.strike - b.strike),
+                         timestamp: new Date(), source: 'dhan' };
+        this._niftyChainCache = result;
+        this._niftyChainAt = Date.now();
+        return result;
+      } catch (err) {
+        if (/Data APIs not Subscribed|806/i.test(err.message)) {
+          this._dhanChainBlocked = true;
+          console.log('[live] Dhan Data API not subscribed — falling back to free NSE option chain');
+        } else { throw err; }
+      }
     }
-    const spot = Number(res?.data?.last_price ?? spotPrice ?? 0);
-    const atmStrike = Math.round(spot / 50) * 50;
-    const result = { spotPrice: spot, atmStrike, strikes: strikes.sort((a, b) => a.strike - b.strike),
-                     timestamp: new Date(), source: 'dhan' };
-    this._niftyChainCache = result;
+    const free = await require('./free-chain').getNiftyChain(spotPrice);
+    this._niftyChainCache = free;
     this._niftyChainAt = Date.now();
-    return result;
+    return free;
   }
 
   async getSensexPrice() {
@@ -188,34 +202,52 @@ class LiveConnector {
 
   async getOptionChain(spotPrice = null) {
     if (this._sensexChainCache && Date.now() - this._sensexChainAt < 8000) return this._sensexChainCache;
-    this._assertConnected();
-    const expiry = this.config.expiryDate
-      || await this._getNextExpiry(SENSEX_SECURITY_ID, SENSEX_SEGMENT);
-    const body = {
-      UnderlyingScrip: Number(SENSEX_SECURITY_ID),
-      UnderlyingSeg: SENSEX_SEGMENT,
-      Expiry: expiry
-    };
-    const res = await this.client._post('/v2/optionchain', body);
-
-    const oc = res?.data?.oc || res?.data || {};
-    const strikes = [];
-    for (const strikeStr of Object.keys(oc)) {
-      const row = oc[strikeStr];
-      strikes.push({ strike: Number(strikeStr), ce: this._pickLeg(row?.ce), pe: this._pickLeg(row?.pe) });
+    if (this._dhanChainBlocked) {
+      const free = await require('./free-chain').getSensexChain(spotPrice);
+      this._sensexChainCache = free;
+      this._sensexChainAt = Date.now();
+      return free;
     }
+    try {
+      this._assertConnected();
+      const expiry = this.config.expiryDate
+        || await this._getNextExpiry(SENSEX_SECURITY_ID, SENSEX_SEGMENT);
+      const body = {
+        UnderlyingScrip: Number(SENSEX_SECURITY_ID),
+        UnderlyingSeg: SENSEX_SEGMENT,
+        Expiry: expiry
+      };
+      const res = await this.client._post('/v2/optionchain', body);
 
-    const spot = Number(res?.data?.last_price ?? spotPrice ?? this.lastPrice ?? 0);
-    const atmStrike = Math.round(spot / 100) * 100;
+      const oc = res?.data?.oc || res?.data || {};
+      const strikes = [];
+      for (const strikeStr of Object.keys(oc)) {
+        const row = oc[strikeStr];
+        strikes.push({ strike: Number(strikeStr), ce: this._pickLeg(row?.ce), pe: this._pickLeg(row?.pe) });
+      }
 
-    const result = {
-      spotPrice: spot, atmStrike,
-      strikes: strikes.sort((a, b) => a.strike - b.strike),
-      timestamp: new Date(), source: 'dhan'
-    };
-    this._sensexChainCache = result;
-    this._sensexChainAt = Date.now();
-    return result;
+      const spot = Number(res?.data?.last_price ?? spotPrice ?? this.lastPrice ?? 0);
+      const atmStrike = Math.round(spot / 100) * 100;
+
+      const result = {
+        spotPrice: spot, atmStrike,
+        strikes: strikes.sort((a, b) => a.strike - b.strike),
+        timestamp: new Date(), source: 'dhan'
+      };
+      this._sensexChainCache = result;
+      this._sensexChainAt = Date.now();
+      return result;
+    } catch (err) {
+      if (/Data APIs not Subscribed|806/i.test(err.message)) {
+        this._dhanChainBlocked = true;
+        console.log('[live] Dhan Data API not subscribed — falling back to free Sensibull SENSEX chain');
+        const free = await require('./free-chain').getSensexChain(spotPrice || this.lastPrice);
+        this._sensexChainCache = free;
+        this._sensexChainAt = Date.now();
+        return free;
+      }
+      throw err;
+    }
   }
 
   /**

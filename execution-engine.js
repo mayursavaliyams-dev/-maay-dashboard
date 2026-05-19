@@ -34,6 +34,10 @@ class ExecutionEngine {
     this.getTradesToday   = getTradesToday;
     this.getMaxTrades     = getMaxTrades;
     this.getVwap          = getVwap;
+    // Optional trend gate — server injects a function returning { recommend, confidence }
+    // from /api/trend. When set, refuses entries whose direction contradicts the trend
+    // (e.g. signal=CALL while trend=BUY_PUT). Set via engine.setTrendProvider(fn).
+    this._getTrend        = null;
 
     // Instrument identity
     this.lotSize         = lotSize         || 20;
@@ -260,10 +264,37 @@ class ExecutionEngine {
     // Check for fresh signal
     const signal = this.getSignal();
     if ((signal === 'CALL' || signal === 'PUT') && this._lastSignal === 'WAIT') {
+      // Trend gate — block entries that fight a STRONG, RECENT H/L trend.
+      // Two guards to avoid false negatives:
+      //  (a) confidence must be ≥ 70 (was 50 — caused stale morning trend to
+      //      block legitimate afternoon counter-direction breakouts).
+      //  (b) the last opposite break must be < 60 min ago for the trend to be
+      //      considered "live" — if the market has reversed since, the morning
+      //      structure shouldn't veto a fresh afternoon break.
+      //
+      // Override the gate entirely with TREND_GATE_ENABLED=false in .env.
+      if (this._getTrend && (process.env.TREND_GATE_ENABLED ?? 'true').toLowerCase() !== 'false') {
+        try {
+          const t = this._getTrend();
+          if (t && t.confidence >= 70) {
+            const oppose = (signal === 'CALL' && t.recommend === 'BUY_PUT')
+                        || (signal === 'PUT'  && t.recommend === 'BUY_CALL');
+            const sticky = t.lastOppositeMinsAgo == null || t.lastOppositeMinsAgo < 60;
+            if (oppose && sticky) {
+              console.warn(`[${this.instrumentName}] ⛔ ${signal} blocked: ${t.trend} ${t.confidence}% (opposite break ${t.lastOppositeMinsAgo ?? '?'}m ago) — ${t.reason || ''}`);
+              this._lastSignal = signal;
+              this._blockedByTrendCount = (this._blockedByTrendCount || 0) + 1;
+              return;
+            }
+          }
+        } catch (_) { /* trend gate must never crash entries */ }
+      }
       await this._enter(signal);
     }
     this._lastSignal = signal;
   }
+
+  setTrendProvider(fn) { this._getTrend = fn; }
 
   // ── Find option security ID and LTP from live chain ────────────
   async _getOption(signal) {
