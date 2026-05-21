@@ -2357,6 +2357,22 @@ app.get('/api/nifty/engine/status', (req, res) => {
   res.json({ ...niftyEngine.status(), halt: niftyEngine.getHaltStatus() });
 });
 
+// ==================== MANUAL TEST TRADE ====================
+// Forces a paper entry for end-to-end pipeline validation (sizing, strike
+// walk, slippage, exit, equity persist) without waiting for a live ORB signal.
+// POST /api/test-trade?inst=NIFTY&signal=CALL   (paper mode only)
+app.post('/api/test-trade', async (req, res) => {
+  const inst   = String(req.query.inst || req.body?.inst || 'NIFTY').toUpperCase();
+  const signal = String(req.query.signal || req.body?.signal || 'CALL').toUpperCase();
+  const eng = inst === 'NIFTY' ? niftyEngine : engine;
+  try {
+    const result = await eng.forceEntry(signal);
+    res.json({ inst, signal, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ==================== STRATEGY CONFIG (live editor) ====================
 // Applies to both engines at runtime. Overrides persist to data/config-overrides.json
 // (not to .env, which stays pristine for version control).

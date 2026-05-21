@@ -424,6 +424,28 @@ class ExecutionEngine {
   }
 
   // ── Enter trade ─────────────────────────────────────────────────
+  // Manual test entry — bypasses signal/window/auto checks. For end-to-end
+  // pipeline validation (sizing → strike walk → slippage → exit → equity).
+  // Honors all the real entry mechanics; only the *trigger* is manual.
+  // Refuses in live mode unless force flag passed, to avoid accidental real orders.
+  async forceEntry(signal, { allowLive = false } = {}) {
+    if (!this.paperMode && !allowLive) {
+      return { ok: false, error: 'forceEntry blocked in LIVE mode (pass allowLive to override)' };
+    }
+    if (this.getOpenPosition()) {
+      return { ok: false, error: 'position already open' };
+    }
+    if (signal !== 'CALL' && signal !== 'PUT') {
+      return { ok: false, error: 'signal must be CALL or PUT' };
+    }
+    console.log(`[${this.instrumentName}] 🧪 MANUAL TEST entry: ${signal}`);
+    await this._enter(signal);
+    const pos = this.getOpenPosition();
+    return pos
+      ? { ok: true, position: pos }
+      : { ok: false, error: 'entry did not open — check premium caps / chain data (see logs)' };
+  }
+
   async _enter(signal) {
     console.log(`[${this.instrumentName}] Signal ${signal} — attempting entry`);
 
