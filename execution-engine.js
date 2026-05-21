@@ -84,7 +84,13 @@ class ExecutionEngine {
     this._enteredToday    = false;
     this._todayDate       = '';
     this._consecLosses    = 0;     // resets only on a winning trade
-    this._haltedReason    = null;  // 'DAILY_LOSS' | 'CONSEC_LOSSES' | null
+    this._haltedReason    = null;  // 'DAILY_LOSS' | 'CONSEC_LOSSES' | 'DRAWDOWN' | null
+
+    // Peak equity tracker for drawdown circuit. Initialized to starting capital;
+    // updated on each profitable close. Drawdown = (peak - current) / peak.
+    // Halts when drawdown exceeds MAX_DRAWDOWN_PERCENT (default 20%).
+    this._peakEquity         = this.capital;
+    this.maxDrawdownPct      = parseFloat(process.env.MAX_DRAWDOWN_PERCENT || 20) / 100;
   }
 
   // Runtime config update — called by /api/config PATCH to apply changes
@@ -145,6 +151,18 @@ class ExecutionEngine {
     }
     console.log(`[${this.instrumentName}] Equity: active ₹${beforeActive.toFixed(0)}→₹${this.capital.toFixed(0)}  reserve ₹${beforeReserve.toFixed(0)}→₹${this.reserve.toFixed(0)}  total ₹${(this.capital+this.reserve).toFixed(0)}`);
 
+    // Drawdown circuit. Track peak equity (active + reserve); halt if current
+    // drops more than MAX_DRAWDOWN_PERCENT below peak. Distinct from the daily
+    // loss limit — catches slow multi-day bleeds the daily check misses.
+    const totalEquity = this.capital + (this.reserve || 0);
+    if (totalEquity > this._peakEquity) this._peakEquity = totalEquity;
+    const drawdown = (this._peakEquity - totalEquity) / this._peakEquity;
+    if (drawdown > this.maxDrawdownPct && this.autoEnabled) {
+      this.autoEnabled = false;
+      this._haltedReason = 'DRAWDOWN';
+      console.warn(`[${this.instrumentName}] ⛔ Max drawdown ${(drawdown*100).toFixed(1)}% (peak ₹${this._peakEquity.toFixed(0)} → now ₹${totalEquity.toFixed(0)}) — auto trading DISABLED. Reset via /api/engine/reset?inst=${this.instrumentName}`);
+    }
+
     // Persist active/reserve across restarts. Half-compound only works if the
     // reserve pile carries forward — losing it every restart resets sizing back
     // to baseline and breaks the multi-month compounding curve.
@@ -185,12 +203,20 @@ class ExecutionEngine {
   }
 
   getHaltStatus() {
+    const totalEquity = this.capital + (this.reserve || 0);
+    const dd = this._peakEquity > 0
+      ? +((this._peakEquity - totalEquity) / this._peakEquity * 100).toFixed(2)
+      : 0;
     return {
       halted: !!this._haltedReason,
       reason: this._haltedReason,
       consecLosses: this._consecLosses,
       maxConsecLosses: this.maxConsecLosses,
-      autoEnabled: this.autoEnabled
+      autoEnabled: this.autoEnabled,
+      peakEquity: +this._peakEquity.toFixed(0),
+      currentEquity: +totalEquity.toFixed(0),
+      drawdownPct: dd,
+      maxDrawdownPct: +(this.maxDrawdownPct * 100).toFixed(2)
     };
   }
 
@@ -332,40 +358,62 @@ class ExecutionEngine {
   }
 
   // ── Find option security ID and LTP from live chain ────────────
+  // Walks OTM strikes from `strikeOffset` outward (up to MAX_OFFSET=12) and
+  // picks the first one whose LTP fits between MIN_PREMIUM and MAX_PREMIUM
+  // for the instrument. Matches backtest behavior (was previously fixed at
+  // offset=2 with no premium cap check — engine entered trades way above
+  // deployment cap, or missed entries when first strike had no liquidity).
   async _getOption(signal) {
     const spot   = this.getPrice();
     const atm    = Math.round(spot / this.atmRound) * this.atmRound;
-    const offset = signal === 'CALL' ? this.strikeOffset : -this.strikeOffset;
-    const strike = atm + offset * this.strikeInterval;
     const type   = signal === 'CALL' ? 'CE' : 'PE';
+    const inst   = this.instrumentName.toUpperCase();
+    const MAX_PREM = parseFloat(process.env[`${inst}_MAX_PREMIUM`] || 0) || null;
+    const MIN_PREM = parseFloat(process.env[`${inst}_MIN_PREMIUM`] || 0) || null;
+    const MAX_OFFSET = parseInt(process.env.STRIKE_WALK_MAX_OFFSET || 12);
 
-    let securityId = null;
-    let ltp        = null;
+    let chain = null;
+    try { chain = await this._getChain(spot); }
+    catch (err) { console.warn(`[${this.instrumentName}] chain fetch failed:`, err.message); }
 
-    try {
-      const chain = await this._getChain(spot);
-      const row   = chain.strikes.find(s => Number(s.strike) === Number(strike));
-      if (row) {
-        const side = signal === 'CALL' ? row.ce : row.pe;
-        securityId = side.securityId;
-        ltp        = side.ltp;
+    // Walk from configured base offset outward
+    const startOff = Math.max(1, this.strikeOffset || 2);
+    for (let off = startOff; off <= MAX_OFFSET; off++) {
+      const signedOff = signal === 'CALL' ? off : -off;
+      const strike    = atm + signedOff * this.strikeInterval;
+      const row       = chain?.strikes.find(s => Number(s.strike) === Number(strike));
+      const side      = row ? (signal === 'CALL' ? row.ce : row.pe) : null;
+      const ltp       = side?.ltp;
+      if (!side?.securityId || !ltp || ltp <= 0) {
+        console.log(`[${this.instrumentName}] off=${off} ${strike}${type} — no live data, walk further`);
+        continue;
       }
-    } catch (err) {
-      console.warn(`[${this.instrumentName}] chain fetch failed:`, err.message);
+      if (MAX_PREM && ltp > MAX_PREM) {
+        console.log(`[${this.instrumentName}] off=${off} ${strike}${type} ₹${ltp.toFixed(2)} > cap ₹${MAX_PREM} — walk deeper OTM`);
+        continue;
+      }
+      if (MIN_PREM && ltp < MIN_PREM) {
+        console.log(`[${this.instrumentName}] off=${off} ${strike}${type} ₹${ltp.toFixed(2)} < floor ₹${MIN_PREM} — too cheap, stop walk`);
+        break;       // deeper OTM will be even cheaper; bail
+      }
+      console.log(`[${this.instrumentName}] off=${off} ${strike}${type} ₹${ltp.toFixed(2)} ✓ fits caps`);
+      return { strike, type, securityId: side.securityId, ltp };
     }
 
-    // Fallback LTP from BSM if chain unavailable
-    if (!ltp || ltp <= 0) {
-      try {
-        const { bsmPrice, tteYears } = require('./backtest-real/synth-option-pricer');
-        const T   = tteYears(Math.floor(Date.now() / 1000));
-        const bsm = bsmPrice(spot, strike, T, 0.08, type);
-        ltp = Math.max(bsm, 0.05);
-        console.log(`[${this.instrumentName}] BSM fallback LTP: ${ltp.toFixed(1)} for ${strike}${type}`);
-      } catch (_) { ltp = 50; }
+    // No fit — fall back to BSM synthetic on configured strike so the run logs
+    // why no trade fired (helps post-mortem). Returns ltp=null when truly no
+    // signal is actionable, so caller can skip the entry cleanly.
+    const fallbackStrike = atm + (signal === 'CALL' ? this.strikeOffset : -this.strikeOffset) * this.strikeInterval;
+    try {
+      const { bsmPrice, tteYears } = require('./backtest-real/synth-option-pricer');
+      const T   = tteYears(Math.floor(Date.now() / 1000));
+      const bsm = bsmPrice(spot, fallbackStrike, T, 0.08, type);
+      const ltp = Math.max(bsm, 0.05);
+      console.log(`[${this.instrumentName}] BSM fallback LTP: ${ltp.toFixed(1)} for ${fallbackStrike}${type} (no strike in walk fit caps)`);
+      return { strike: fallbackStrike, type, securityId: null, ltp };
+    } catch (_) {
+      return { strike: fallbackStrike, type, securityId: null, ltp: null };
     }
-
-    return { strike, type, securityId, ltp };
   }
 
   async _getChain(spot) {

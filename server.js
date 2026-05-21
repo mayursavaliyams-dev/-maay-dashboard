@@ -475,25 +475,37 @@ function _updateHL(inst, price) {
   const rec = _hlRecord[inst];
   if (!rec) return;
   const today = _istDateStr();
+  const now = Date.now();
+  const bid = _bucketId(now);          // 5-min bucket id (shared with option H/L)
   if (rec.date !== today) {
     rec.date = today;
-    rec.high = price; rec.highAt = Date.now();
-    rec.low  = price; rec.lowAt  = Date.now();
-    rec.highPath = [{ t: Date.now(), p: price }];
-    rec.lowPath  = [{ t: Date.now(), p: price }];
+    rec.high = price; rec.highAt = now;
+    rec.low  = price; rec.lowAt  = now;
+    rec.highPath = [];                  // empty — only confirmed break buckets
+    rec.lowPath  = [];
     rec.chainLog = [];
     return;
   }
-  if (price > rec.high) {
-    rec.high = price; rec.highAt = Date.now();
-    rec.highPath.push({ t: Date.now(), p: price });
-    if (rec.highPath.length > 50) rec.highPath.shift();
+
+  const newHigh = price > rec.high;
+  const newLow  = price < rec.low;
+  if (newHigh) { rec.high = price; rec.highAt = now; }
+  if (newLow)  { rec.low  = price; rec.lowAt  = now; }
+
+  // 5-min bucket rollup: one entry per 5-min window holding that window's
+  // extreme. highPath = per-bucket highest, lowPath = per-bucket lowest.
+  if (newHigh) {
+    const tail = rec.highPath[rec.highPath.length - 1];
+    if (tail && tail.bid === bid) { tail.p = price; tail.t = _bucketStartMs(bid); tail.at = now; }
+    else { rec.highPath.push({ bid, t: _bucketStartMs(bid), at: now, p: price });
+           if (rec.highPath.length > 96) rec.highPath.shift(); }
     _snapshotChainAtHL(inst, price, 'HIGH');
   }
-  if (price < rec.low) {
-    rec.low = price; rec.lowAt = Date.now();
-    rec.lowPath.push({ t: Date.now(), p: price });
-    if (rec.lowPath.length > 50) rec.lowPath.shift();
+  if (newLow) {
+    const tail = rec.lowPath[rec.lowPath.length - 1];
+    if (tail && tail.bid === bid) { tail.p = price; tail.t = _bucketStartMs(bid); tail.at = now; }
+    else { rec.lowPath.push({ bid, t: _bucketStartMs(bid), at: now, p: price });
+           if (rec.lowPath.length > 96) rec.lowPath.shift(); }
     _snapshotChainAtHL(inst, price, 'LOW');
   }
 }
