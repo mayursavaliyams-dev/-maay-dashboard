@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-19T04:13:14.681Z",
+  "generatedAt": "2026-05-21T09:51:23.280Z",
   "dataSource": "Yahoo Finance / TradingView (^BSESN daily + Black-Scholes settlement)",
   "totalExpiries": 1200,
   "expiriesWithTrades": 166,
