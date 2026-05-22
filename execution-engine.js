@@ -197,7 +197,13 @@ class ExecutionEngine {
     const was = { consecLosses: this._consecLosses, haltedReason: this._haltedReason };
     this._consecLosses = 0;
     this._haltedReason = null;
-    this.autoEnabled = process.env.AUTO_TRADE_ENABLED === 'true';
+    // Respect per-instrument flag (SENSEX_AUTO_ENABLED / NIFTY_AUTO_ENABLED),
+    // falling back to global AUTO_TRADE_ENABLED. Was using only the global flag
+    // — that re-enabled SENSEX (SENSEX_AUTO_ENABLED=false) on any reset, which
+    // let SENSEX trade unintentionally.
+    const perKey = `${(this.instrumentName || '').toUpperCase()}_AUTO_ENABLED`;
+    const perVal = process.env[perKey];
+    this.autoEnabled = perVal != null ? perVal === 'true' : process.env.AUTO_TRADE_ENABLED === 'true';
     console.log(`[${this.instrumentName}] 🔓 Halt cleared. Was: ${JSON.stringify(was)}. Auto = ${this.autoEnabled}`);
     return was;
   }
@@ -452,6 +458,16 @@ class ExecutionEngine {
     const { strike, type, securityId, ltp } = await this._getOption(signal);
     if (!ltp || ltp <= 0) {
       console.warn(`[${this.instrumentName}] Could not determine option LTP — skipping`);
+      return;
+    }
+
+    // Require a real chain securityId. A null securityId means the option
+    // chain fetch failed / didn't return that strike, and _getOption fell back
+    // to a BSM synthetic price. Such a trade CANNOT be placed live (no id to
+    // send to Dhan) and would record fantasy paper P&L — so skip it. Set
+    // ALLOW_SYNTHETIC_ENTRY=true only for offline backtests, never live/paper.
+    if (!securityId && (process.env.ALLOW_SYNTHETIC_ENTRY ?? 'false').toLowerCase() !== 'true') {
+      console.warn(`[${this.instrumentName}] SKIP — no real chain securityId for ${strike}${type} (chain fetch failed → synthetic). Not a placeable trade.`);
       return;
     }
 
