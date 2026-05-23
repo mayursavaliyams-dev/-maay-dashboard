@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0f19">
+<title>Antigravity Stock Bot — Equity Trading</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #0b0f19 0%, #1a1f2e 100%);
+    color: #e5e7eb; min-height:100vh; overflow-x:hidden;
+  }
+  .top-bar {
+    display:flex; align-items:center; flex-wrap:wrap; gap:16px;
+    padding:8px 18px; background:#111827; border-bottom:1px solid #1f2937;
+    position:sticky; top:0; z-index:220;
+  }
+  .top-bar h1 {
+    font-size:1.05rem; background:linear-gradient(90deg,#00d4ff,#7c3aed);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; white-space:nowrap;
+  }
+  .top-status { display:flex; align-items:center; gap:6px; background:#1f2937; border-radius:8px; padding:4px 10px; font-size:.78rem; }
+  .status-dot { width:8px; height:8px; border-radius:50%; background:#ef4444; animation:pulse 2s infinite; }
+  .status-dot.active { background:#10b981; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .sep { width:1px; height:24px; background:#1f2937; }
+  .badge { font-size:.72rem; padding:3px 9px; border-radius:6px; font-weight:700; letter-spacing:.5px; }
+  .badge.paper { background:#1e3a2f; color:#34d399; }
+  .badge.live  { background:#3a1e1e; color:#f87171; }
+  .halt-btn { margin-left:auto; background:#3a1e1e; color:#f87171; border:1px solid #7f1d1d; border-radius:6px; padding:5px 12px; font-size:.72rem; font-weight:700; cursor:pointer; }
+  .halt-btn:hover { background:#7f1d1d; color:#fff; }
+
+  .warn-banner { background:#3a2f1e; color:#fbbf24; font-size:.74rem; padding:6px 18px; text-align:center; border-bottom:1px solid #78350f; }
+
+  .wrap { padding:16px; display:grid; grid-template-columns:2fr 1fr; gap:16px; max-width:1500px; margin:0 auto; }
+  @media (max-width:900px){ .wrap { grid-template-columns:1fr; } }
+
+  .card { background:#1f2937; border:1px solid #374151; border-radius:12px; padding:14px; }
+  .card h2 { font-size:.82rem; text-transform:uppercase; letter-spacing:.6px; color:#9ca3af; margin-bottom:10px; }
+
+  table { width:100%; border-collapse:collapse; font-size:.82rem; }
+  th { text-align:right; color:#6b7280; font-weight:600; padding:6px 8px; font-size:.7rem; text-transform:uppercase; border-bottom:1px solid #374151; }
+  th:first-child, td:first-child { text-align:left; }
+  td { padding:7px 8px; border-bottom:1px solid #283141; }
+  tr:hover td { background:#243044; }
+  .up { color:#34d399; } .down { color:#f87171; } .muted { color:#6b7280; }
+  .sig { font-weight:700; padding:2px 8px; border-radius:5px; font-size:.72rem; }
+  .sig.BUY { background:#1e3a2f; color:#34d399; }
+  .sig.SELL{ background:#3a1e1e; color:#f87171; }
+  .sig.WAIT{ background:#283141; color:#9ca3af; }
+  .pill-btn { background:#243044; border:1px solid #374151; color:#93c5fd; border-radius:6px; padding:3px 9px; font-size:.7rem; cursor:pointer; }
+  .pill-btn:hover { background:#374151; }
+
+  .kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .kpi { background:#172033; border:1px solid #283141; border-radius:8px; padding:10px; }
+  .kpi .l { font-size:.66rem; color:#6b7280; text-transform:uppercase; }
+  .kpi .v { font-size:1.25rem; font-weight:800; margin-top:3px; }
+
+  .risk-row { display:flex; justify-content:space-between; font-size:.78rem; padding:5px 0; border-bottom:1px solid #283141; }
+  .risk-row b { color:#e5e7eb; }
+  .halted { color:#f87171; font-weight:700; }
+  .ok { color:#34d399; }
+
+  /* modal */
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:400; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#111827; border:1px solid #374151; border-radius:14px; padding:22px; width:min(420px,92vw); }
+  .modal h3 { margin-bottom:12px; font-size:1rem; }
+  .modal .r { display:flex; justify-content:space-between; font-size:.85rem; padding:5px 0; border-bottom:1px solid #283141; }
+  .modal .actions { display:flex; gap:10px; margin-top:16px; }
+  .modal button { flex:1; padding:10px; border-radius:8px; border:none; font-weight:700; cursor:pointer; }
+  .btn-confirm { background:#10b981; color:#06281d; }
+  .btn-confirm:disabled { background:#374151; color:#6b7280; cursor:not-allowed; }
+  .btn-cancel { background:#374151; color:#e5e7eb; }
+  .modal .rr-warn { color:#fbbf24; font-size:.74rem; margin-top:8px; }
+  .live-warn { background:#3a1e1e; color:#f87171; padding:6px; border-radius:6px; font-size:.74rem; margin-top:8px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <h1>📈 Antigravity Stock Bot</h1>
+  <div class="top-status"><span class="status-dot" id="dot"></span><span id="mkt">…</span></div>
+  <span class="badge" id="modeBadge">…</span>
+  <span class="badge" id="stratBadge" style="background:#1e2a3a;color:#93c5fd;">…</span>
+  <span class="sep"></span>
+  <span class="muted" id="botState">bot: …</span>
+  <button class="halt-btn" onclick="haltAll()">🛑 HALT ALL</button>
+</div>
+<div class="warn-banner">⚠️ Backtest profit does not guarantee future profit. Trading involves risk. Use paper trading before live. Charges and slippage erode returns.</div>
+
+<div class="wrap">
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="card">
+      <h2>Watchlist · ORB Signals</h2>
+      <table id="wlTable">
+        <thead><tr><th>Symbol</th><th>LTP</th><th>%Chg</th><th>VWAP</th><th>ORB L–H</th><th>Vol×</th><th>Signal</th><th></th></tr></thead>
+        <tbody id="wlBody"><tr><td colspan="8" class="muted">loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Open Positions · Live P&amp;L</h2>
+      <table>
+        <thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th><th>LTP</th><th>SL</th><th>Target</th><th>P&amp;L</th><th></th></tr></thead>
+        <tbody id="posBody"><tr><td colspan="9" class="muted">no open positions</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Trade Journal</h2>
+      <table>
+        <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>Reason</th><th>Charges</th><th>Net P&amp;L</th></tr></thead>
+        <tbody id="jrnBody"><tr><td colspan="8" class="muted">no closed trades yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="card">
+      <h2>P&amp;L Today</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="l">Net P&amp;L</div><div class="v" id="kNet">₹0</div></div>
+        <div class="kpi"><div class="l">Win Rate</div><div class="v" id="kWin">0%</div></div>
+        <div class="kpi"><div class="l">Trades</div><div class="v" id="kTrades">0</div></div>
+        <div class="kpi"><div class="l">Charges</div><div class="v" id="kChg">₹0</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Risk Guard</h2>
+      <div id="riskBody" class="muted">loading…</div>
+    </div>
+
+    <div class="card">
+      <h2>EOD Summary</h2>
+      <div id="eodBody" class="muted">—</div>
+    </div>
+
+    <div class="card">
+      <h2>Backtest <button class="pill-btn" style="float:right" onclick="runBacktest()" id="btRun">Run</button></h2>
+      <div id="btBody" class="muted">no report yet — click Run</div>
+    </div>
+  </div>
+</div>
+
+<!-- Trade confirmation modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="mTitle">Confirm Trade</h3>
+    <div class="r"><span>Symbol</span><b id="mSym"></b></div>
+    <div class="r"><span>Side</span><b id="mSide"></b></div>
+    <div class="r"><span>Entry (LTP)</span><b id="mEntry"></b></div>
+    <div class="r"><span>Stop Loss</span><b id="mSL"></b></div>
+    <div class="r"><span>Target</span><b id="mTgt"></b></div>
+    <div class="r"><span>R:R</span><b id="mRR"></b></div>
+    <div class="r"><span>Mode</span><b id="mMode"></b></div>
+    <div class="rr-warn" id="mRRwarn" style="display:none;">R:R below 1:1.5 — entry disabled.</div>
+    <div class="live-warn" id="mLiveWarn" style="display:none;">⚠️ LIVE MODE — a real order will be placed.</div>
+    <div class="actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" id="mConfirm" onclick="confirmEntry()">Confirm Entry</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt = (n) => '₹' + Number(n||0).toLocaleString('en-IN');
+const cls = (n) => Number(n) >= 0 ? 'up' : 'down';
+let MODE = 'paper';
+let pending = null;   // { sym, signal, entry, sl, target }
+
+async function jget(u){ const r = await fetch(u); return r.json(); }
+async function jpost(u, body){ const r = await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}); return r.json(); }
+
+async function refresh() {
+  try {
+    const h = await jget('/api/health');
+    MODE = h.mode;
+    document.getElementById('dot').className = 'status-dot' + (h.marketOpen ? ' active':'');
+    document.getElementById('mkt').textContent = h.marketOpen ? 'Market Open' : 'Market Closed';
+    const mb = document.getElementById('modeBadge');
+    mb.textContent = (h.mode||'paper').toUpperCase() + (h.paperSim ? ' (sim)':'');
+    mb.className = 'badge ' + (h.mode==='live'?'live':'paper');
+    document.getElementById('stratBadge').textContent = '⚙ ' + (h.strategy||'orb');
+    document.getElementById('stratBadge').title = 'Active strategy (set via STRATEGY env). Available: ' + (h.strategies||[]).join(', ');
+    document.getElementById('botState').textContent = 'bot: ' + (h.botRunning?'running':'stopped');
+  } catch(_){}
+
+  // watchlist
+  try {
+    const w = await jget('/api/watchlist');
+    document.getElementById('wlBody').innerHTML = w.rows.map(r => `
+      <tr>
+        <td><b>${r.symbol}</b></td>
+        <td>${r.price ? r.price.toFixed(2) : '—'}</td>
+        <td class="${cls(r.chgPct)}">${r.chgPct>0?'+':''}${r.chgPct}%</td>
+        <td class="muted">${r.vwap?r.vwap.toFixed(2):'—'}</td>
+        <td class="muted">${r.orbLow?r.orbLow.toFixed(0):'—'}–${r.orbHigh?r.orbHigh.toFixed(0):'—'}</td>
+        <td class="muted">${r.avgVol?(r.lastVol/r.avgVol).toFixed(1):'—'}×</td>
+        <td><span class="sig ${r.signal}">${r.signal}</span></td>
+        <td>${r.hasPosition?'<span class="muted">in pos</span>':`<button class="pill-btn" onclick="openModal('${r.symbol}','${r.signal==='WAIT'?'BUY':r.signal}',${r.price})">Trade</button>`}</td>
+      </tr>`).join('') || '<tr><td colspan="8" class="muted">empty watchlist</td></tr>';
+  } catch(_){}
+
+  // positions
+  try {
+    const rows = [];
+    const w = await jget('/api/watchlist');
+    for (const r of w.rows) {
+      if (!r.hasPosition) continue;
+      const d = await jget('/api/stock/'+r.symbol+'/position');
+      const p = d.position; if (!p) continue;
+      rows.push(`<tr>
+        <td><b>${p.symbol}</b></td><td>${p.side}</td><td>${p.qty}</td>
+        <td>${p.entryPrice.toFixed(2)}</td><td>${(p.currentPrice||0).toFixed(2)}</td>
+        <td class="muted">${p.sl.toFixed(2)}</td><td class="muted">${p.target.toFixed(2)}</td>
+        <td class="${cls(p.pnlAbs)}">${fmt(p.pnlAbs)} (${p.pnlPct||0}%)</td>
+        <td><button class="pill-btn" onclick="exitPos('${p.symbol}')">Exit</button></td>
+      </tr>`);
+    }
+    document.getElementById('posBody').innerHTML = rows.join('') || '<tr><td colspan="9" class="muted">no open positions</td></tr>';
+  } catch(_){}
+
+  // journal + KPIs
+  try {
+    const j = await jget('/api/journal');
+    document.getElementById('kNet').textContent = fmt(j.stats.netPnl);
+    document.getElementById('kNet').className = 'v ' + cls(j.stats.netPnl);
+    document.getElementById('kWin').textContent = j.stats.winRate + '%';
+    document.getElementById('kTrades').textContent = j.stats.total;
+    document.getElementById('kChg').textContent = fmt(j.stats.charges);
+    document.getElementById('jrnBody').innerHTML = j.trades.slice(0,15).map(t => `
+      <tr>
+        <td class="muted">${new Date(t.exitAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${t.symbol}</td><td>${t.side}</td>
+        <td>${t.entryPrice.toFixed(2)}</td><td>${t.exitPrice.toFixed(2)}</td>
+        <td class="muted">${t.exitReason}</td>
+        <td class="muted">${fmt(t.charges)}</td>
+        <td class="${cls(t.finalPnlAbs)}">${fmt(t.finalPnlAbs)}</td>
+      </tr>`).join('') || '<tr><td colspan="8" class="muted">no closed trades yet</td></tr>';
+  } catch(_){}
+
+  // risk
+  try {
+    const rk = await jget('/api/risk');
+    document.getElementById('riskBody').innerHTML = rk.perSymbol.map(s => {
+      const h = s.halt;
+      const hs = h.halted ? `<span class="halted">HALTED: ${h.reason}</span>` : '<span class="ok">OK</span>';
+      return `<div class="risk-row"><span>${s.symbol}</span><span>${hs}</span></div>
+        <div class="risk-row"><span class="muted">&nbsp;&nbsp;daily P&L / limit</span><b class="${cls(s.dailyPnl)}">${fmt(s.dailyPnl)} / ${fmt(s.dailyLossLimit)}</b></div>
+        <div class="risk-row"><span class="muted">&nbsp;&nbsp;consec losses / DD</span><b>${h.consecLosses}/${h.maxConsecLosses} · ${h.drawdownPct}%/${h.maxDrawdownPct}%</b></div>
+        ${h.halted?`<div class="risk-row"><span></span><button class="pill-btn" onclick="resetHalt('${s.symbol}')">Reset ${s.symbol}</button></div>`:''}`;
+    }).join('') + (rk.tokenExpired?'<div class="risk-row halted">⛔ Dhan token expired</div>':'');
+  } catch(_){}
+
+  // eod
+  try {
+    const e = await jget('/api/eod-summary');
+    document.getElementById('eodBody').innerHTML =
+      `<div class="risk-row"><span>Net P&L</span><b class="${cls(e.totalPnl)}">${fmt(e.totalPnl)}</b></div>
+       <div class="risk-row"><span>Win rate</span><b>${e.overallWinRate}%</b></div>` +
+      Object.entries(e.symbols).filter(([,v])=>v.trades>0).map(([k,v])=>
+        `<div class="risk-row"><span class="muted">${k}</span><b class="${cls(v.pnl)}">${fmt(v.pnl)} (${v.trades})</b></div>`).join('');
+  } catch(_){}
+}
+
+function openModal(sym, signal, entry) {
+  const slPct = 0.01, tgtPct = 0.02;  // display-only; engine uses .env
+  const long = signal === 'BUY';
+  const sl = long ? entry*(1-slPct) : entry*(1+slPct);
+  const tgt = long ? entry*(1+tgtPct) : entry*(1-tgtPct);
+  const rr = Math.abs(tgt-entry)/Math.abs(entry-sl);
+  pending = { sym, signal, entry, sl, target:tgt };
+  document.getElementById('mSym').textContent = sym;
+  document.getElementById('mSide').textContent = long?'LONG (BUY)':'SHORT (SELL)';
+  document.getElementById('mEntry').textContent = entry.toFixed(2);
+  document.getElementById('mSL').textContent = sl.toFixed(2);
+  document.getElementById('mTgt').textContent = tgt.toFixed(2);
+  document.getElementById('mRR').textContent = '1:'+rr.toFixed(2);
+  document.getElementById('mMode').textContent = MODE.toUpperCase();
+  const bad = rr < 1.5;
+  document.getElementById('mRRwarn').style.display = bad?'block':'none';
+  document.getElementById('mConfirm').disabled = bad;
+  document.getElementById('mLiveWarn').style.display = MODE==='live'?'block':'none';
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); pending=null; }
+async function confirmEntry(){
+  if (!pending) return;
+  const r = await jpost(`/api/stock/${pending.sym}/enter`, { signal: pending.signal });
+  if (!r.ok) alert('Entry failed: ' + (r.error||'unknown'));
+  closeModal(); refresh();
+}
+async function exitPos(sym){ await jpost(`/api/stock/${sym}/exit`, { reason:'MANUAL' }); refresh(); }
+async function resetHalt(sym){ await jpost(`/api/engine/reset?sym=${sym}`); refresh(); }
+async function haltAll(){ if(confirm('Disable auto-trading on ALL symbols?')){ await jpost('/api/engine/halt-all'); refresh(); } }
+
+async function loadBacktest() {
+  try {
+    const r = await fetch('/api/backtest/report');
+    if (!r.ok) return;
+    const b = await r.json();
+    const m = b.metrics, c = b.consistency;
+    const verdictColor = c.verdict==='ROBUST'?'up':c.verdict==='DO-NOT-USE'?'down':'';
+    document.getElementById('btBody').innerHTML =
+      (b.synthetic?'<div class="risk-row down">⚠️ SYNTHETIC data — engine check only</div>':'') +
+      `<div class="risk-row"><span>Trades / Win</span><b>${m.totalTrades} · ${m.winRate}%</b></div>
+       <div class="risk-row"><span>Net P&L</span><b class="${cls(m.netPnl)}">${fmt(m.netPnl)}</b></div>
+       <div class="risk-row"><span>Profit factor</span><b>${m.profitFactor}</b></div>
+       <div class="risk-row"><span>Max drawdown</span><b>${m.maxDrawdownPct}%</b></div>
+       <div class="risk-row"><span>Return</span><b class="${cls(m.totalReturn)}">${m.totalReturn>0?'+':''}${m.totalReturn}%</b></div>
+       <div class="risk-row"><span>Exits</span><b class="muted" style="font-size:.7rem">${Object.entries(m.exitReasons).map(([k,v])=>k.replace('_','')+' '+v).join(' · ')}</b></div>
+       <div class="risk-row"><span>Verdict</span><b class="${verdictColor}">${c.verdict}</b></div>
+       <div class="risk-row muted" style="font-size:.7rem">${c.note}</div>`;
+  } catch(_){}
+}
+async function runBacktest() {
+  const btn = document.getElementById('btRun');
+  btn.textContent = 'Running…'; btn.disabled = true;
+  await jpost('/api/backtest/run', { days:60, windows:4 });
+  const poll = setInterval(async () => {
+    const s = await jget('/api/backtest/status');
+    if (!s.running) { clearInterval(poll); btn.textContent='Run'; btn.disabled=false; loadBacktest(); }
+  }, 2000);
+}
+
+refresh();
+loadBacktest();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules/
+.env
+logs/
+data/equity-stock-*.json
+data/stock-market-state.json
+data/stock-eod-*.json
+data/stock-backtest-results.json
+data/stock-backtest-cache/
+data/dhan-scrip-cache/

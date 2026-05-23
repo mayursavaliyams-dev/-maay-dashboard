@@ -4,6 +4,8 @@ require("dotenv").config();
 
 const { calculateVWAP, detectTrend } = require("./strategy");
 const { aiDecision } = require("./ai");
+const multiconfirm = require("./multiconfirm");
+const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
 const SimpleDB = require("./database");
 const LiveConnector = require("./live-connector");
@@ -255,25 +257,25 @@ function _updateOptHL(inst, strike, type, ltp) {
     return;
   }
 
-  if (ltp > rec.high) { rec.high = ltp; rec.highAt = now; }
-  if (ltp < rec.low)  { rec.low  = ltp; rec.lowAt  = now; }
+  const newHigh = ltp > rec.high;
+  const newLow  = ltp < rec.low;
+  if (newHigh) { rec.high = ltp; rec.highAt = now; }
+  if (newLow)  { rec.low  = ltp; rec.lowAt  = now; }
 
-  // 5-min bucket rollup: keep one entry per bucket, holding that window's
-  // own high (lowPath holds that window's own low). Each bucket's t is the
-  // bucket start so the timeline reads as 5-min candles.
-  const tailHi = rec.highPath[rec.highPath.length - 1];
-  if (tailHi && tailHi.bid === bid) {
-    if (ltp > tailHi.p) { tailHi.p = ltp; tailHi.at = now; }
-  } else {
-    rec.highPath.push({ bid, t: _bucketStartMs(bid), at: now, p: ltp });
-    if (rec.highPath.length > 96) rec.highPath.shift();
+  // Record ONLY genuine new extremes (dedup) — never the same price twice.
+  // Within the same 5-min bucket, update the existing entry to the new
+  // extreme; across buckets, append a fresh one. A flat price prints nothing.
+  if (newHigh) {
+    const tail = rec.highPath[rec.highPath.length - 1];
+    if (tail && tail.bid === bid) { tail.p = ltp; tail.at = now; }
+    else { rec.highPath.push({ bid, t: _bucketStartMs(bid), at: now, p: ltp });
+           if (rec.highPath.length > 96) rec.highPath.shift(); }
   }
-  const tailLo = rec.lowPath[rec.lowPath.length - 1];
-  if (tailLo && tailLo.bid === bid) {
-    if (ltp < tailLo.p) { tailLo.p = ltp; tailLo.at = now; }
-  } else {
-    rec.lowPath.push({ bid, t: _bucketStartMs(bid), at: now, p: ltp });
-    if (rec.lowPath.length > 96) rec.lowPath.shift();
+  if (newLow) {
+    const tail = rec.lowPath[rec.lowPath.length - 1];
+    if (tail && tail.bid === bid) { tail.p = ltp; tail.at = now; }
+    else { rec.lowPath.push({ bid, t: _bucketStartMs(bid), at: now, p: ltp });
+           if (rec.lowPath.length > 96) rec.lowPath.shift(); }
   }
 }
 function _getOptHL(inst, strike, type) {
@@ -2260,6 +2262,63 @@ app.post('/api/engine/mode', (req, res) => {
 
 app.get('/api/engine/status', (req, res) => {
   res.json({ ...engine.status(), halt: engine.getHaltStatus() });
+});
+
+// ── Multi-confirmation strategy read-out (ported from the Pine F&O strategy) ──
+// Computes all 5 core layers + sideways filter + ADX/Supertrend/HTF shields
+// from the live price/volume snapshot series, for the dashboard panel.
+// inst = nifty | sensex. Read-only: does NOT drive auto entries.
+app.get('/api/multiconfirm/:inst(nifty|sensex)', (req, res) => {
+  const inst = req.params.inst.toUpperCase();
+  const closes  = inst === 'NIFTY' ? niftyPrices  : prices;
+  const vols    = inst === 'NIFTY' ? niftyVolumes : volumes;
+  const vwapVal = inst === 'NIFTY' ? niftyVwap    : vwap;
+  if (!closes || closes.length < 52) {
+    return res.json({ instrument: inst, signal: 'WAIT', reason: 'warming up (need ~52 ticks)', layers: {}, shields: {}, values: {} });
+  }
+  // Build a single-bar candle from the last few snapshots (server stores
+  // price snapshots, not true OHLC). open = a few ticks back, h/l = window
+  // extremes, close = latest — same approximation the AI signal path uses.
+  const win = closes.slice(-5);
+  const candle = {
+    open:  win[0],
+    high:  Math.max(...win),
+    low:   Math.min(...win),
+    close: closes[closes.length - 1]
+  };
+  // Higher-TF reference: a longer EMA of the same series stands in for the
+  // 15-min EMA when we don't have a separate HTF feed here.
+  const htfClose = closes.length >= 75
+    ? (() => { const k = 2 / (75 + 1); let e = closes[0]; for (let i = 1; i < closes.length; i++) e = closes[i]*k + e*(1-k); return e; })()
+    : null;
+  const out = multiconfirm.evaluate({ closes, volumes: vols, candle, vwap: vwapVal, htfClose });
+  res.json({ instrument: inst, ...out });
+});
+
+// ── Pine → JS strategy converter (agent-assisted, Claude API) ──
+// Generate-then-review: writes an AI-converted strategy to ./generated-strategies/.
+// It is NEVER required()'d or auto-enabled — a human must review + backtest first.
+app.get('/api/pine/status', (_req, res) => {
+  res.json({ configured: pineConverter.isConfigured(), generated: pineConverter.listGenerated() });
+});
+
+app.post('/api/pine/convert', async (req, res) => {
+  const { pine, name } = req.body || {};
+  if (!pineConverter.isConfigured()) {
+    return res.json({ ok: false, error: 'ANTHROPIC_API_KEY not set in .env — Pine conversion disabled.' });
+  }
+  if (!pine || String(pine).trim().length < 40) {
+    return res.json({ ok: false, error: 'Paste a Pine Script (too short / empty).' });
+  }
+  console.log(`[pine] converting "${name || 'pine-strategy'}" (${String(pine).length} chars)…`);
+  const result = await pineConverter.convert(String(pine), name);
+  if (result.ok) {
+    console.log(`[pine] ✓ wrote ${result.file} (${result.bytes} bytes)`);
+    result.warning = 'AI-generated + UNREVIEWED. Read the file, backtest it, and enable it deliberately. It is NOT auto-trading.';
+  } else {
+    console.warn(`[pine] ✗ ${result.error}`);
+  }
+  res.json(result);
 });
 
 // H/L break log with CE/PE premiums at each moment.

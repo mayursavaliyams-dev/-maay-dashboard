@@ -54,8 +54,24 @@
         .top-status {
             display: flex; align-items: center; gap: 6px;
             background: #1f2937; border-radius: 8px; padding: 4px 10px;
-            font-size: 0.78rem;
+            font-size: 0.78rem; cursor: pointer; user-select: none;
         }
+        .top-status:hover { background: #283548; }
+
+        /* ===== TOP-BAR TRADING CONTROLS ===== */
+        .top-trade-ctrl {
+            display: flex; align-items: center; gap: 6px;
+        }
+        .top-trade-ctrl button {
+            border: none; border-radius: 8px; padding: 5px 12px;
+            font-size: 0.74rem; font-weight: 700; cursor: pointer;
+            letter-spacing: .3px; line-height: 1;
+        }
+        .ttc-start { background: #10b981; color: #04150e; }
+        .ttc-start:hover:not(:disabled) { background: #14c98c; }
+        .ttc-stop  { background: #ef4444; color: #1a0606; }
+        .ttc-stop:hover:not(:disabled) { background: #f55f5f; }
+        .top-trade-ctrl button:disabled { opacity: .35; cursor: not-allowed; }
         .status-dot { width:8px; height:8px; border-radius:50%; background:#ef4444; animation:pulse 2s infinite; }
         .status-dot.active { background:#10b981; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
@@ -1557,9 +1573,14 @@
             <span class="tp-time" id="niftySignalTop" style="color:#f59e0b;">--</span>
         </div>
         <div class="sep"></div>
-        <div class="top-status">
+        <div class="top-status" onclick="toggleBot()" title="Click to start/stop trading">
             <div class="status-dot" id="statusDot"></div>
             <span id="statusText">Bot: OFF</span>
+        </div>
+        <!-- Always-visible trading controls -->
+        <div class="top-trade-ctrl">
+            <button class="ttc-start" id="topStartBtn" onclick="startBot()">▶ START TRADING</button>
+            <button class="ttc-stop"  id="topStopBtn"  onclick="stopBot()" disabled>⏹ STOP TRADING</button>
         </div>
         <div class="top-mode" id="modeBadge">PAPER</div>
         <div class="top-trades" id="tradesCount">0/2 trades</div>
@@ -1827,6 +1848,22 @@
                 </div>
             </div>
 
+            <!-- TRADINGVIEW LIVE CHART -->
+            <div class="chart-panel" id="tvPanel" style="padding:14px;">
+                <div class="chart-hdr" style="margin-bottom:10px;">
+                    <span class="chart-title">📊 TradingView · <span id="tvSymLabel">NIFTY</span></span>
+                    <span style="display:flex; gap:6px;">
+                        <button class="tv-sym-btn active" data-tv="NSE:NIFTY" onclick="switchTV('NSE:NIFTY','NIFTY')"
+                                style="background:#1f2937; border:1px solid #243041; color:#e5e7eb; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.82rem;">NIFTY</button>
+                        <button class="tv-sym-btn" data-tv="BSE:SENSEX" onclick="switchTV('BSE:SENSEX','SENSEX')"
+                                style="background:none; border:1px solid #243041; color:#94a3b8; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.82rem;">SENSEX</button>
+                        <button class="tv-sym-btn" data-tv="NSE:BANKNIFTY" onclick="switchTV('NSE:BANKNIFTY','BANKNIFTY')"
+                                style="background:none; border:1px solid #243041; color:#94a3b8; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.82rem;">BANKNIFTY</button>
+                    </span>
+                </div>
+                <div id="tvChartContainer" style="height:480px; width:100%; border-radius:10px; overflow:hidden;"></div>
+            </div>
+
             <!-- HIGH/LOW MAPPING RECORD -->
             <div class="hl-panel hl-panel-large" id="hlPanel">
                 <div class="hl-hdr">
@@ -2073,6 +2110,54 @@
                     letter-spacing:.5px;cursor:pointer;text-transform:uppercase;">
                     ⛔ Emergency Stop Both
                 </button>
+            </div>
+
+            <!-- Multi-Confirmation Strategy Panel (ported from Pine F&O strategy) -->
+            <div class="card" id="mcPanel" style="padding:8px 10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <div style="font-size:0.6rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">🎯 Multi-Confirm</div>
+                    <span id="mcSignal" style="font-size:0.6rem;padding:1px 7px;border-radius:4px;background:#1f2937;color:#9ca3af;font-weight:700;">WAIT</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:0.55rem;color:#6b7280;margin-bottom:5px;">
+                    <span>Inst: <b id="mcInst" style="color:#9ca3af;cursor:pointer;" onclick="mcToggleInst()">NIFTY</b></span>
+                    <span>Score: <b id="mcScore" style="color:#9ca3af;">0/5</b></span>
+                </div>
+                <div id="mcLayers" style="font-size:0.56rem;line-height:1.6;color:#9ca3af;">
+                    <div class="mc-row" data-k="emaStack">① EMA Stack <span>–</span></div>
+                    <div class="mc-row" data-k="vwap">② VWAP <span>–</span></div>
+                    <div class="mc-row" data-k="rsi">③ RSI <span>–</span></div>
+                    <div class="mc-row" data-k="volume">④ Volume <span>–</span></div>
+                    <div class="mc-row" data-k="candle">⑤ Candle <span>–</span></div>
+                    <div style="border-top:1px solid #1f2937;margin:4px 0;"></div>
+                    <div class="mc-row" data-k="sideways">Market <span>–</span></div>
+                    <div class="mc-row" data-k="adx">🛡 ADX <span>–</span></div>
+                    <div class="mc-row" data-k="supertrend">🛡 Supertrend <span>–</span></div>
+                    <div class="mc-row" data-k="htf">🛡 HTF EMA <span>–</span></div>
+                </div>
+                <div style="font-size:0.5rem;color:#4b5563;margin-top:4px;">Read-only confirmation read-out · not auto-trading</div>
+            </div>
+            <style>
+              #mcLayers .mc-row{display:flex;justify-content:space-between;}
+              #mcLayers .mc-row span{font-weight:700;}
+              .mc-ok{color:#34d399!important;} .mc-no{color:#6b7280!important;} .mc-warn{color:#fbbf24!important;}
+            </style>
+
+            <!-- Pine → JS strategy converter (agent-assisted) -->
+            <div class="card" id="pinePanel" style="padding:8px 10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <div style="font-size:0.6rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">🤖 Pine → Strategy (AI)</div>
+                    <span id="pineState" style="font-size:0.55rem;color:#6b7280;">…</span>
+                </div>
+                <input id="pineName" placeholder="strategy name (e.g. fno-multiconfirm)"
+                    style="width:100%;margin-bottom:5px;padding:5px 7px;background:#111827;border:1px solid #374151;border-radius:5px;color:#e5e7eb;font-size:0.62rem;">
+                <textarea id="pineSrc" placeholder="Paste Pine Script here…" rows="4"
+                    style="width:100%;padding:6px 7px;background:#111827;border:1px solid #374151;border-radius:5px;color:#e5e7eb;font-size:0.6rem;font-family:monospace;resize:vertical;"></textarea>
+                <button id="pineBtn" onclick="convertPine()"
+                    style="width:100%;margin-top:6px;padding:6px;background:#1e3a5f;color:#93c5fd;border:1px solid #2563eb;border-radius:5px;font-size:0.62rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.4px;">
+                    🤖 Convert with AI
+                </button>
+                <div id="pineResult" style="font-size:0.56rem;color:#9ca3af;margin-top:6px;line-height:1.5;"></div>
+                <div style="font-size:0.5rem;color:#b45309;margin-top:5px;line-height:1.4;">⚠️ AI-generated code is UNREVIEWED. Read &amp; backtest before any live use. Never auto-trades.</div>
             </div>
 
             <!-- Alerts Panel -->
@@ -3015,6 +3100,100 @@
         loadDhanStats();
         setInterval(loadDhanStats, 8000);
 
+        // ==================== MULTI-CONFIRM STRATEGY ====================
+        let mcInstrument = 'nifty';
+        function mcToggleInst() {
+            mcInstrument = mcInstrument === 'nifty' ? 'sensex' : 'nifty';
+            document.getElementById('mcInst').textContent = mcInstrument.toUpperCase();
+            loadMultiConfirm();
+        }
+        function mcMark(k, ok, txt, warn) {
+            const row = document.querySelector(`#mcLayers .mc-row[data-k="${k}"] span`);
+            if (!row) return;
+            row.textContent = txt;
+            row.className = warn ? 'mc-warn' : (ok ? 'mc-ok' : 'mc-no');
+        }
+        async function loadMultiConfirm() {
+            try {
+                const r = await fetch(`${API_BASE}/api/multiconfirm/${mcInstrument}`, { cache: 'no-store' });
+                const d = await r.json();
+                const sig = d.signal || 'WAIT';
+                const bull = sig === 'CALL', bear = sig === 'PUT';
+                const sb = document.getElementById('mcSignal');
+                sb.textContent = sig === 'CALL' ? 'CE BUY' : sig === 'PUT' ? 'PE BUY' : 'WAIT';
+                sb.style.background = bull ? '#064e3b' : bear ? '#7f1d1d' : '#1f2937';
+                sb.style.color = bull ? '#34d399' : bear ? '#fca5a5' : '#9ca3af';
+                const L = d.layers || {}, S = d.shields || {};
+                // Score reflects the dominant side
+                const score = Math.max(d.callScore || 0, d.putScore || 0);
+                document.getElementById('mcScore').textContent = `${score}/5`;
+                if (!L.emaStack) {  // warming up
+                    document.querySelectorAll('#mcLayers .mc-row span').forEach(s => { s.textContent = '–'; s.className = 'mc-no'; });
+                    return;
+                }
+                mcMark('emaStack', L.emaStack.bull || L.emaStack.bear, L.emaStack.bull ? '✓ Bull' : L.emaStack.bear ? '✓ Bear' : '✗');
+                mcMark('vwap', L.vwap.bull || L.vwap.bear, L.vwap.bull ? '✓ Above' : L.vwap.bear ? '✓ Below' : '✗');
+                mcMark('rsi', L.rsi.bull || L.rsi.bear, `${L.rsi.value} ${L.rsi.bull ? '✓' : L.rsi.bear ? '✓' : '✗'}`);
+                mcMark('volume', L.volume.spike, `${L.volume.ratio}× ${L.volume.spike ? '✓' : '✗'}`);
+                mcMark('candle', L.candle.bull || L.candle.bear, `${L.candle.bodyPct}% ${(L.candle.bull || L.candle.bear) ? '✓' : '✗'}`);
+                mcMark('sideways', !L.sideways.choppy, L.sideways.choppy ? '⚠ Choppy' : '✓ Trending', L.sideways.choppy);
+                mcMark('adx', S.adx.ok, `${S.adx.value} ${S.adx.ok ? '✓' : '✗'}`);
+                mcMark('supertrend', S.supertrend.bull || S.supertrend.bear, S.supertrend.bull ? '✓ Bull' : '✓ Bear');
+                mcMark('htf', S.htf.bull || S.htf.bear, S.htf.bull ? '✓ Above' : '✓ Below');
+            } catch (_) {}
+        }
+        loadMultiConfirm();
+        setInterval(loadMultiConfirm, 5000);
+
+        // ==================== PINE → JS CONVERTER ====================
+        async function loadPineStatus() {
+            try {
+                const r = await fetch(`${API_BASE}/api/pine/status`);
+                const d = await r.json();
+                const el = document.getElementById('pineState');
+                if (!d.configured) {
+                    el.textContent = '⚠ no API key';
+                    el.style.color = '#f59e0b';
+                    document.getElementById('pineBtn').disabled = true;
+                    document.getElementById('pineBtn').style.opacity = '0.5';
+                } else {
+                    el.textContent = `${(d.generated || []).length} generated`;
+                    el.style.color = '#6b7280';
+                }
+                if (d.generated && d.generated.length) {
+                    document.getElementById('pineResult').innerHTML = '<b>Generated files:</b><br>' +
+                        d.generated.map(g => `📄 ${g.file} <span style="color:#4b5563">(${g.size}b)</span>`).join('<br>');
+                }
+            } catch (_) {}
+        }
+        async function convertPine() {
+            const pine = document.getElementById('pineSrc').value;
+            const name = document.getElementById('pineName').value;
+            const btn = document.getElementById('pineBtn');
+            const out = document.getElementById('pineResult');
+            if (!pine || pine.trim().length < 40) { out.innerHTML = '<span style="color:#f87171">Paste a Pine script first.</span>'; return; }
+            btn.textContent = '🤖 Converting…'; btn.disabled = true;
+            out.innerHTML = '<span style="color:#93c5fd">Calling Claude — this can take 20-60s…</span>';
+            try {
+                const r = await fetch(`${API_BASE}/api/pine/convert`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pine, name })
+                });
+                const d = await r.json();
+                if (d.ok) {
+                    out.innerHTML = `<span style="color:#34d399">✓ Wrote <b>${d.file}</b> (${d.bytes}b)</span><br>` +
+                        `<span style="color:#b45309">${d.warning}</span>`;
+                } else {
+                    out.innerHTML = `<span style="color:#f87171">✗ ${d.error}</span>`;
+                }
+            } catch (e) {
+                out.innerHTML = `<span style="color:#f87171">✗ ${e.message}</span>`;
+            }
+            btn.textContent = '🤖 Convert with AI'; btn.disabled = false;
+            loadPineStatus();
+        }
+        loadPineStatus();
+
         // ==================== P&L TRACKER ====================
         async function loadPnl() {
             try {
@@ -3335,17 +3514,30 @@
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
 
+            // Top-bar trading controls (always visible)
+            const topStartBtn = document.getElementById('topStartBtn');
+            const topStopBtn = document.getElementById('topStopBtn');
+
             if (botRunning) {
                 statusDot.classList.add('active');
                 statusText.textContent = 'Bot: ON';
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
+                if (startBtn) startBtn.disabled = true;
+                if (stopBtn) stopBtn.disabled = false;
+                if (topStartBtn) topStartBtn.disabled = true;
+                if (topStopBtn) topStopBtn.disabled = false;
             } else {
                 statusDot.classList.remove('active');
                 statusText.textContent = 'Bot: OFF';
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
+                if (startBtn) startBtn.disabled = false;
+                if (stopBtn) stopBtn.disabled = true;
+                if (topStartBtn) topStartBtn.disabled = false;
+                if (topStopBtn) topStopBtn.disabled = true;
             }
+        }
+
+        // Clicking the "Bot: ON/OFF" pill toggles trading
+        function toggleBot() {
+            if (botRunning) { stopBot(); } else { startBot(); }
         }
 
         function updateTradeHistory(data) {
@@ -3731,6 +3923,51 @@
         }
         setInterval(loadStrikePair, 6000);
         setTimeout(loadStrikePair, 1500);
+
+        // ==================== TRADINGVIEW WIDGET ====================
+        let _tvWidget = null;
+        function buildTV(symbol) {
+            const c = document.getElementById('tvChartContainer');
+            if (!c || !window.TradingView) return;
+            c.innerHTML = '';
+            _tvWidget = new TradingView.widget({
+                autosize: true,
+                symbol: symbol,
+                interval: '5',
+                timezone: 'Asia/Kolkata',
+                theme: 'dark',
+                style: '1',
+                locale: 'in',
+                toolbar_bg: '#0b1220',
+                enable_publishing: false,
+                hide_side_toolbar: false,
+                allow_symbol_change: true,
+                studies: ['STD;VWAP', 'STD;EMA'],
+                container_id: 'tvChartContainer'
+            });
+        }
+        function switchTV(symbol, label) {
+            document.getElementById('tvSymLabel').textContent = label;
+            document.querySelectorAll('.tv-sym-btn').forEach(b => {
+                const on = b.dataset.tv === symbol;
+                b.classList.toggle('active', on);
+                b.style.background = on ? '#1f2937' : 'none';
+                b.style.color = on ? '#e5e7eb' : '#94a3b8';
+            });
+            buildTV(symbol);
+        }
+        // Lazy-load the TradingView library, then build the default NIFTY chart
+        (function loadTVLib() {
+            if (window.TradingView) { buildTV('NSE:NIFTY'); return; }
+            const s = document.createElement('script');
+            s.src = 'https://s3.tradingview.com/tv.js';
+            s.onload = () => buildTV('NSE:NIFTY');
+            s.onerror = () => {
+                const c = document.getElementById('tvChartContainer');
+                if (c) c.innerHTML = '<div style="padding:40px; text-align:center; color:#64748b;">TradingView load failed — check internet connection</div>';
+            };
+            document.head.appendChild(s);
+        })();
 
         // ==================== MAX HIGHER / MAX LOWER TRACKER ====================
         // Per-index session state — never mixes SENSEX and NIFTY.

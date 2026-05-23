@@ -1,0 +1,33 @@
+{
+  "name": "antigravity-stock-bot",
+  "version": "1.0.0",
+  "description": "Antigravity STOCK (cash equity) Trading Bot — intraday MIS, ORB strategy, Dhan HQ. Mirrors the options bot architecture with equity logic.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "backtest": "node stock-backtest/run.js",
+    "resolve-ids": "node equity-resolver.js",
+    "preflight": "node preflight.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop antigravity-stock-bot",
+    "pm2:restart": "pm2 restart antigravity-stock-bot",
+    "pm2:logs": "pm2 logs antigravity-stock-bot",
+    "pm2:status": "pm2 status"
+  },
+  "keywords": ["stock", "equity", "nse", "trading", "orb", "dhan", "intraday"],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "node-fetch": "^2.6.7",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
