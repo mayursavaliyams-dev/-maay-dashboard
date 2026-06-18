@@ -17,7 +17,7 @@
         linear-gradient(180deg, #09111d 0%, #111827 100%);
       padding: 24px;
     }
-    .shell { max-width: 1080px; margin: 0 auto; }
+    .shell { max-width: 1180px; margin: 0 auto; }
     .hero {
       display: flex; justify-content: space-between; align-items: end; gap: 18px; flex-wrap: wrap;
       margin-bottom: 18px; padding: 18px 20px; border: 1px solid #243041; border-radius: 18px;
@@ -30,6 +30,8 @@
       padding: 7px 12px; border-radius: 999px; background: #0f172a; border: 1px solid #243041;
       color: #cbd5e1; font-size: 0.84rem;
     }
+    .muted { color: #94a3b8; }
+    .stack { display: grid; gap: 16px; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     .card {
       border: 1px solid #243041; border-radius: 18px; padding: 18px; background: rgba(15, 23, 42, 0.82);
@@ -50,13 +52,37 @@
     .stat label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #94a3b8; }
     .stat strong { display: block; margin-top: 8px; font-size: 1.15rem; }
     .stat span { display: block; margin-top: 4px; font-size: 0.84rem; color: #9ca3af; }
+    .chart-card {
+      border: 1px solid #243041; border-radius: 18px; padding: 18px; background: rgba(15, 23, 42, 0.82);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+    }
+    .chart-head {
+      display: flex; justify-content: space-between; gap: 16px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .chart-title { font-size: 1.02rem; font-weight: 800; color: #f8fafc; }
+    .chart-subtitle { font-size: 0.84rem; color: #94a3b8; }
+    .chart-wrap {
+      position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #1f2937;
+      background: linear-gradient(180deg, rgba(7, 13, 24, 0.95) 0%, rgba(14, 22, 36, 0.95) 100%);
+      padding: 14px;
+    }
+    .chart-svg { width: 100%; height: 360px; display: block; }
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.82rem; color: #cbd5e1; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 999px; }
+    .legend-swatch.ce { background: #34d399; }
+    .legend-swatch.pe { background: #f87171; }
+    .legend-swatch.low { background: #60a5fa; }
+    .legend-swatch.high { background: #fbbf24; }
     .timeline { margin-top: 18px; display: grid; gap: 10px; }
     .timeline-block {
       background: #0b1220; border: 1px solid #1f2937; border-radius: 14px; padding: 12px;
     }
     .timeline-title { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-    .timeline-title.low { color: #fca5a5; }
-    .timeline-title.high { color: #86efac; }
+    .timeline-title.low { color: #93c5fd; }
+    .timeline-title.high { color: #fcd34d; }
+    .timeline-title.live { color: #6ee7b7; }
     .list { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
     .list li {
       display: flex; justify-content: space-between; gap: 12px; font-size: 0.92rem; color: #dbe4ef;
@@ -67,17 +93,26 @@
       border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(127, 29, 29, 0.22);
       color: #fecaca; border-radius: 14px; padding: 14px; margin-top: 18px;
     }
-    .muted { color: #94a3b8; }
-    @media (max-width: 820px) {
+    @media (max-width: 900px) {
       body { padding: 16px; }
       .grid { grid-template-columns: 1fr; }
       .title { font-size: 1.6rem; }
       .ltp { font-size: 1.7rem; }
+      .chart-svg { height: 280px; }
     }
   </style>
 </head>
 <body>
   <div class="shell">
+    <nav style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:rgba(9,17,29,.78);border:1px solid #243041;border-radius:12px;">
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/dashboard.html">Dashboard</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/signal-heatmap.html">Signal Heatmap</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strategy.html">Strategy</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/heatmap.html">OI Heatmap</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/pop.html">PoP</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#78a8ff;text-decoration:none;border:1px solid rgba(120,168,255,.3);background:rgba(120,168,255,.1);white-space:nowrap;" href="/strike-history.html">Strike History</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/ami-heatmap.html">AMI Heatmap</a>
+    </nav>
     <section class="hero">
       <div>
         <div class="eyebrow">Option Strike Details</div>
@@ -91,9 +126,29 @@
       <div class="muted" id="heroFocus">Tracking live strike history</div>
     </section>
 
-    <section class="grid">
-      <article class="card ce" id="ceCard"></article>
-      <article class="card pe" id="peCard"></article>
+    <section class="stack">
+      <article class="chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="chart-title">Strike Price Chart</div>
+            <div class="chart-subtitle">Session low/high records and latest premium for both CE and PE</div>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><span class="legend-swatch ce"></span>CE latest</span>
+            <span class="legend-item"><span class="legend-swatch pe"></span>PE latest</span>
+            <span class="legend-item"><span class="legend-swatch low"></span>Low records</span>
+            <span class="legend-item"><span class="legend-swatch high"></span>High records</span>
+          </div>
+        </div>
+        <div class="chart-wrap" id="chartWrap">
+          <svg class="chart-svg" id="strikeChart" viewBox="0 0 1040 360" preserveAspectRatio="none"></svg>
+        </div>
+      </article>
+
+      <section class="grid">
+        <article class="card ce" id="ceCard"></article>
+        <article class="card pe" id="peCard"></article>
+      </section>
     </section>
 
     <div id="errorBox"></div>
@@ -101,10 +156,17 @@
 
   <script>
     const params = new URLSearchParams(location.search);
-    const INST = (params.get('inst') || 'SENSEX').toUpperCase();
-    const STRIKE = parseInt(params.get('strike') || '0', 10);
+    const INST = (params.get('inst') || 'NIFTY').toUpperCase();
+    let STRIKE = parseInt(params.get('strike') || '0', 10);
     const TYPE = (params.get('type') || '').toUpperCase();
     const FOCUS = (params.get('focus') || '').toLowerCase();
+    const KOLKATA_TIME = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
 
     function fmtPrice(v) {
       const n = Number(v);
@@ -116,14 +178,170 @@
     }
     function fmtHms(hms) {
       if (!hms) return '--';
-      const [H, m] = String(hms).split(':').map(Number);
+      // Epoch timestamps are absolute; Intl applies the Kolkata offset once.
+      if (typeof hms === 'number' || /^\d{10,}$/.test(String(hms))) {
+        let epoch = Number(hms);
+        if (String(Math.trunc(epoch)).length === 10) epoch *= 1000;
+        const date = new Date(epoch);
+        return Number.isNaN(date.getTime()) ? '--' : `${KOLKATA_TIME.format(date).toUpperCase()} IST`;
+      }
+      // Server HH:MM:SS values are already Kolkata time.
+      const [H, m, s] = String(hms).split(':').map(Number);
       if (!Number.isFinite(H) || !Number.isFinite(m)) return '--';
       const h12 = ((H + 11) % 12) + 1;
-      return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${H < 12 ? 'AM' : 'PM'}`;
+      const ss = Number.isFinite(s) ? `:${String(s).padStart(2, '0')}` : '';
+      return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')}${ss} ${H < 12 ? 'AM' : 'PM'} IST`;
     }
-    function renderTimeline(entries) {
+    function fmtKolkataTime(value = Date.now()) {
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? '--' : `${KOLKATA_TIME.format(date).toUpperCase()} IST`;
+    }
+    function renderTimeline(entries, strike, type, kind) {
       if (!entries || !entries.length) return '<div class="empty">No record yet</div>';
-      return `<ul class="list">${entries.slice(-10).reverse().map(e => `<li><strong>${fmtPrice(e.price)}</strong><span>${fmtHms(e.time)}</span></li>`).join('')}</ul>`;
+      const rows = [...entries].reverse();
+      const arrow = kind === 'high' ? '▲' : '▼';
+      const col   = kind === 'high' ? '#fcd34d' : '#93c5fd';
+      return `<ul class="list" style="max-height:340px;overflow-y:auto;">${rows.map((e, i) => {
+        const prev = rows[i + 1];
+        let deltaHtml = '';
+        if (prev && Number.isFinite(e.price) && Number.isFinite(prev.price)) {
+          const d = +(e.price - prev.price).toFixed(2);
+          const dc = d >= 0 ? '#34d399' : '#f87171';
+          deltaHtml = `<span style="color:${dc};font-size:0.78rem;min-width:54px;text-align:right">${d >= 0 ? '+' : ''}${d}</span>`;
+        }
+        return `<li>
+          <span style="color:${col};font-weight:700;min-width:18px">${arrow}</span>
+          <strong style="flex:1">₹${fmtPrice(e.price)}</strong>
+          ${deltaHtml}
+          <span style="color:#94a3b8;min-width:88px;text-align:right">${fmtHms(e.time)}</span>
+        </li>`;
+      }).join('')}</ul>`;
+    }
+    function renderTickTimeline(entries, strike, type) {
+      if (!entries || !entries.length) return '<div class="empty">Waiting for live price changes</div>';
+      // Show all ticks from session start, newest first
+      const rows = [...entries].reverse();
+      const col = type === 'CE' ? '#6ee7b7' : '#fca5a5';
+      return `<ul class="list" id="tickList-${type}" style="max-height:340px;overflow-y:auto;">${rows.map((e, i) => {
+        const prev = rows[i + 1];
+        let deltaHtml = '';
+        if (prev && Number.isFinite(e.price) && Number.isFinite(prev.price)) {
+          const d = +(e.price - prev.price).toFixed(2);
+          const dc = d >= 0 ? '#34d399' : '#f87171';
+          deltaHtml = `<span style="color:${dc};font-size:0.78rem;min-width:54px;text-align:right">${d >= 0 ? '+' : ''}${d}</span>`;
+        }
+        return `<li>
+          <span style="color:${col};font-weight:700;min-width:18px">●</span>
+          <strong style="flex:1">₹${fmtPrice(e.price)}</strong>
+          ${deltaHtml}
+          <span style="color:#94a3b8;min-width:88px;text-align:right">${fmtHms(e.time)}</span>
+        </li>`;
+      }).join('')}</ul>`;
+    }
+    function normalizeSeries(leg, tag, color) {
+      const lowHistory = Array.isArray(leg?.lowHistory) ? leg.lowHistory : [];
+      const highHistory = Array.isArray(leg?.highHistory) ? leg.highHistory : [];
+      const lowSeries = lowHistory.map((entry, idx) => ({
+        key: `${tag}-low-${idx}`,
+        time: String(entry.time || ''),
+        price: Number(entry.price),
+        kind: 'low',
+        tag,
+        color
+      })).filter(entry => Number.isFinite(entry.price) && entry.time);
+      const highSeries = highHistory.map((entry, idx) => ({
+        key: `${tag}-high-${idx}`,
+        time: String(entry.time || ''),
+        price: Number(entry.price),
+        kind: 'high',
+        tag,
+        color
+      })).filter(entry => Number.isFinite(entry.price) && entry.time);
+      if (Number.isFinite(Number(leg?.ltp))) {
+        const latestTime = String(leg.lastAt || leg.highAt || leg.lowAt || highHistory.at(-1)?.time || lowHistory.at(-1)?.time || '');
+        if (latestTime) {
+          highSeries.push({
+            key: `${tag}-ltp`,
+            time: latestTime,
+            price: Number(leg.ltp),
+            kind: 'ltp',
+            tag,
+            color
+          });
+        }
+      }
+      return { lowSeries, highSeries };
+    }
+    function buildPath(points, xScale, yScale) {
+      return points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${xScale(point.time).toFixed(2)} ${yScale(point.price).toFixed(2)}`).join(' ');
+    }
+    function renderChart(data) {
+      const svg = document.getElementById('strikeChart');
+      const ce = normalizeSeries(data.ce, 'CE', '#34d399');
+      const pe = normalizeSeries(data.pe, 'PE', '#f87171');
+      const allTimes = [...ce.lowSeries, ...ce.highSeries, ...pe.lowSeries, ...pe.highSeries].map(entry => entry.time);
+      const allPrices = [...ce.lowSeries, ...ce.highSeries, ...pe.lowSeries, ...pe.highSeries].map(entry => entry.price);
+
+      if (!allTimes.length || !allPrices.length) {
+        svg.innerHTML = `<text x="50%" y="50%" fill="#64748b" font-size="18" text-anchor="middle">No strike chart data yet</text>`;
+        return;
+      }
+
+      const width = 1040;
+      const height = 360;
+      const pad = { top: 22, right: 22, bottom: 42, left: 66 };
+      const minPrice = Math.min(...allPrices);
+      const maxPrice = Math.max(...allPrices);
+      const pricePad = Math.max((maxPrice - minPrice) * 0.12, 1);
+      const yMin = Math.max(0, minPrice - pricePad);
+      const yMax = maxPrice + pricePad;
+      const uniqueTimes = [...new Set(allTimes)];
+
+      const xScale = (time) => {
+        if (uniqueTimes.length === 1) return width / 2;
+        const idx = uniqueTimes.indexOf(time);
+        return pad.left + (idx / (uniqueTimes.length - 1)) * (width - pad.left - pad.right);
+      };
+      const yScale = (price) => pad.top + ((yMax - price) / (yMax - yMin || 1)) * (height - pad.top - pad.bottom);
+
+      const gridLines = 5;
+      const yTicks = Array.from({ length: gridLines }, (_, idx) => yMin + ((yMax - yMin) / (gridLines - 1)) * idx).reverse();
+      const xTicks = uniqueTimes.filter((_, idx) => idx === 0 || idx === uniqueTimes.length - 1 || idx % Math.max(1, Math.floor(uniqueTimes.length / 4)) === 0);
+
+      const series = [
+        { label: 'CE Low', points: ce.lowSeries, stroke: '#60a5fa', dash: '6 4' },
+        { label: 'CE High', points: ce.highSeries, stroke: '#34d399', dash: '' },
+        { label: 'PE Low', points: pe.lowSeries, stroke: '#93c5fd', dash: '6 4' },
+        { label: 'PE High', points: pe.highSeries, stroke: '#f87171', dash: '' }
+      ].filter(entry => entry.points.length);
+
+      const circles = series.flatMap(entry => entry.points.map(point => {
+        const radius = point.kind === 'ltp' ? 5.5 : 4;
+        const fill = point.kind === 'ltp' ? entry.stroke : '#0b1220';
+        return `<circle cx="${xScale(point.time).toFixed(2)}" cy="${yScale(point.price).toFixed(2)}" r="${radius}" fill="${fill}" stroke="${entry.stroke}" stroke-width="2">
+          <title>${entry.label} | ${fmtPrice(point.price)} | ${fmtHms(point.time)}</title>
+        </circle>`;
+      })).join('');
+
+      svg.innerHTML = `
+        <rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="transparent"></rect>
+        ${yTicks.map(price => `
+          <g>
+            <line x1="${pad.left}" y1="${yScale(price).toFixed(2)}" x2="${width - pad.right}" y2="${yScale(price).toFixed(2)}" stroke="rgba(148, 163, 184, 0.14)" stroke-width="1"></line>
+            <text x="${pad.left - 12}" y="${(yScale(price) + 4).toFixed(2)}" fill="#94a3b8" font-size="12" text-anchor="end">${fmtPrice(price)}</text>
+          </g>
+        `).join('')}
+        ${xTicks.map(time => `
+          <g>
+            <line x1="${xScale(time).toFixed(2)}" y1="${pad.top}" x2="${xScale(time).toFixed(2)}" y2="${height - pad.bottom}" stroke="rgba(148, 163, 184, 0.08)" stroke-width="1"></line>
+            <text x="${xScale(time).toFixed(2)}" y="${height - 14}" fill="#94a3b8" font-size="12" text-anchor="middle">${fmtHms(time)}</text>
+          </g>
+        `).join('')}
+        ${series.map(entry => `
+          <path d="${buildPath(entry.points, xScale, yScale)}" fill="none" stroke="${entry.stroke}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" ${entry.dash ? `stroke-dasharray="${entry.dash}"` : ''}></path>
+        `).join('')}
+        ${circles}
+      `;
     }
     function renderCard(type, leg) {
       const card = document.getElementById(type.toLowerCase() + 'Card');
@@ -164,44 +382,124 @@
         </div>
         <div class="timeline">
           <div class="timeline-block">
-            <div class="timeline-title low">Low Record Timeline</div>
-            ${renderTimeline(leg.lowHistory)}
+            <div class="timeline-title live">Live Price Update Timeline - ${STRIKE || ''} ${type}</div>
+            ${renderTickTimeline(leg.tickHistory, STRIKE, type)}
           </div>
           <div class="timeline-block">
-            <div class="timeline-title high">High Record Timeline</div>
-            ${renderTimeline(leg.highHistory)}
+            <div class="timeline-title low">Low Record Timeline — ${STRIKE || ''} ${type}</div>
+            ${renderTimeline(leg.lowHistory, STRIKE, type, 'low')}
+          </div>
+          <div class="timeline-block">
+            <div class="timeline-title high">High Record Timeline — ${STRIKE || ''} ${type}</div>
+            ${renderTimeline(leg.highHistory, STRIKE, type, 'high')}
           </div>
         </div>`;
     }
 
-    async function loadStrikeHistory() {
-      document.getElementById('heroTitle').textContent = `${INST} ${STRIKE || '--'} Strike`;
-      document.getElementById('heroFocus').textContent = TYPE
-        ? `${TYPE} ${FOCUS || 'history'} record`
-        : 'Tracking live strike history';
+    let _lastData = null;
+    let _loadBusy = false;
+    let _queuedFastOnly = null;
+
+    // Fast tick update — only patches LTP + live tick list, no DOM rebuild
+    function patchLive(data) {
+      for (const type of ['CE', 'PE']) {
+        const leg = data[type.toLowerCase()];
+        if (!leg) continue;
+
+        // LTP
+        const card = document.getElementById(type.toLowerCase() + 'Card');
+        if (!card) continue;
+        const ltpEl = card.querySelector('.ltp');
+        if (ltpEl) ltpEl.textContent = fmtPrice(leg.ltp);
+
+        // Tick timeline — only rebuild this one list, preserving scroll
+        const tickBlock = card.querySelector('.timeline-block:first-child ul');
+        const newHtml = renderTickTimeline(leg.tickHistory, STRIKE, type);
+        if (tickBlock) {
+          const scrollTop = tickBlock.scrollTop;
+          tickBlock.outerHTML = newHtml.match(/<ul[^>]*>[\s\S]*<\/ul>/)?.[0] || tickBlock.outerHTML;
+          const replaced = card.querySelector('.timeline-block:first-child ul');
+          if (replaced) replaced.scrollTop = scrollTop;
+        } else {
+          const tb = card.querySelector('.timeline-block:first-child');
+          if (tb) tb.innerHTML = `<div class="timeline-title live">Live Price Update Timeline - ${STRIKE || ''} ${type}</div>${newHtml}`;
+        }
+
+        // Session High/Low @ time
+        const stats = card.querySelectorAll('.stat');
+        if (stats[0]) stats[0].querySelector('strong').textContent = fmtPrice(leg.sessionLow != null ? leg.sessionLow : leg.low);
+        if (stats[0]) stats[0].querySelector('span').textContent = '@ ' + fmtHms(leg.lowAt);
+        if (stats[1]) stats[1].querySelector('strong').textContent = fmtPrice(leg.sessionHigh != null ? leg.sessionHigh : leg.high);
+        if (stats[1]) stats[1].querySelector('span').textContent = '@ ' + fmtHms(leg.highAt);
+      }
+      document.getElementById('heroTime').textContent =
+        `Updated ${fmtKolkataTime(data.ts)}`;
+    }
+
+    async function loadStrikeHistory(fastOnly = false) {
+      if (_loadBusy) {
+        // A queued full render always takes priority over a fast patch.
+        _queuedFastOnly = _queuedFastOnly === false ? false : fastOnly;
+        return;
+      }
+      _loadBusy = true;
       try {
-        const res = await fetch(`/api/option-strike-history?inst=${encodeURIComponent(INST)}&strike=${encodeURIComponent(STRIKE)}`);
+      // Auto-load ATM strike if none specified
+      if (!STRIKE) {
+        try {
+          const chainRes = await fetch(`/api/options/chain?instrument=${INST}`, { cache: 'no-store' });
+          if (chainRes.ok) { const cd = await chainRes.json(); STRIKE = cd.atmStrike || 0; }
+        } catch (_) {}
+      }
+      document.getElementById('heroTitle').textContent = `${INST} ${STRIKE || '--'} Strike`;
+      if (!STRIKE) {
+        document.getElementById('errorBox').innerHTML = '<div class="error">No strike selected — open from OI Heatmap or add ?strike=23400 to URL</div>';
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/option-strike-history?inst=${encodeURIComponent(INST)}&strike=${encodeURIComponent(STRIKE)}`,
+          { cache: 'no-store' }
+        );
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load strike history');
 
+        _lastData = data;
         document.getElementById('heroTitle').textContent = `${data.inst} ${data.strike}${data.isATM ? ' ATM' : ''}`;
         document.getElementById('heroSpot').textContent = `Spot ${fmtPrice(data.spot)}`;
         document.getElementById('heroAtm').textContent = `ATM ${data.atm}`;
-        document.getElementById('heroTime').textContent = `Updated ${new Date(data.ts).toLocaleTimeString()}`;
+        document.getElementById('heroTime').textContent =
+          `Updated ${fmtKolkataTime(data.ts)}`;
         document.getElementById('heroFocus').textContent = TYPE
-          ? `${TYPE} ${FOCUS || 'history'} record with full strike details`
-          : 'Tracking live strike history';
+          ? `${TYPE} ${FOCUS || 'history'} record with full strike chart`
+          : 'Tracking live strike history with CE and PE chart';
 
-        renderCard('CE', data.ce);
-        renderCard('PE', data.pe);
+        if (fastOnly && document.getElementById('ceCard').querySelector('.ltp')) {
+          // Card already rendered — just patch live fields
+          patchLive(data);
+        } else {
+          renderChart(data);
+          renderCard('CE', data.ce);
+          renderCard('PE', data.pe);
+        }
         document.getElementById('errorBox').innerHTML = '';
       } catch (err) {
         document.getElementById('errorBox').innerHTML = `<div class="error">${err.message}</div>`;
       }
+      } finally {
+        _loadBusy = false;
+        if (_queuedFastOnly !== null) {
+          const nextFastOnly = _queuedFastOnly;
+          _queuedFastOnly = null;
+          loadStrikeHistory(nextFastOnly);
+        }
+      }
     }
 
+    // Rebuild H/L timelines every 5s; patch live price fields between renders.
     loadStrikeHistory();
-    setInterval(loadStrikeHistory, 15000);
+    setInterval(() => loadStrikeHistory(false), 5000);
+    setInterval(() => loadStrikeHistory(true),  2000);
   </script>
 </body>
 </html>

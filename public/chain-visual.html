@@ -42,6 +42,11 @@
   .gain-pct.up { color:#86efac; }
   .gain-pct.down { color:#fca5a5; }
 
+  /* Brief highlight on a cell whose value just changed — replaces the old
+     whole-table blink. Fades out so only genuinely-updated cells flash. */
+  @keyframes cellUpd { from { background:#1e3a5f; } to { background:transparent; } }
+  td.cell-upd { animation: cellUpd 0.6s ease-out; }
+
   .footer { margin-top:18px; font-size:11px; color:#475569; text-align:center; }
   .conn-status { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
   .conn-status.ok { background:#22c55e; box-shadow:0 0 6px #22c55e; }
@@ -126,19 +131,86 @@ function rowHtml(r) {
   const pe = r.pe || {};
   const ceMaxGain = (ce.high && ce.low) ? ((ce.high - ce.low) / ce.low) * 100 : 0;
   const peMaxGain = (pe.high && pe.low) ? ((pe.high - pe.low) / pe.low) * 100 : 0;
-  const ceClass = ce.ltp > 0 && ce.high ? (ce.ltp - ce.low) / (ce.high - ce.low) > 0.7 ? 'down' : (ce.ltp - ce.low) / (ce.high - ce.low) < 0.3 ? 'up' : '' : '';
-  const peClass = pe.ltp > 0 && pe.high ? (pe.ltp - pe.low) / (pe.high - pe.low) > 0.7 ? 'down' : (pe.ltp - pe.low) / (pe.high - pe.low) < 0.3 ? 'up' : '' : '';
-  return `<tr class="${r.isATM ? 'atm' : ''}">
-    <td class="ce-low">${fmt(ce.low)}<span class="time-tag">${ce.lowAt || ''}</span></td>
-    <td class="ce-now">${fmt(ce.ltp)}</td>
-    <td>${rangeBar(ce.low, ce.ltp, ce.high, 'ce')}<div class="gain-pct">max ${pct(ceMaxGain)}</div></td>
-    <td class="ce-high">${fmt(ce.high)}<span class="time-tag">${ce.highAt || ''}</span></td>
-    <td class="strike-cell">${r.strike}</td>
-    <td class="pe-high">${fmt(pe.high)}<span class="time-tag">${pe.highAt || ''}</span></td>
-    <td>${rangeBar(pe.low, pe.ltp, pe.high, 'pe')}<div class="gain-pct">max ${pct(peMaxGain)}</div></td>
-    <td class="pe-now">${fmt(pe.ltp)}</td>
-    <td class="pe-low">${fmt(pe.low)}<span class="time-tag">${pe.lowAt || ''}</span></td>
+  const k = r.strike;
+  // Each value-bearing element carries a stable data-f key so refresh() can patch
+  // only the cells that changed instead of rebuilding the whole table (which blinks).
+  return `<tr class="${r.isATM ? 'atm' : ''}" data-strike="${k}">
+    <td class="ce-low"><span data-f="ce.low">${fmt(ce.low)}</span><span class="time-tag" data-f="ce.lowAt">${ce.lowAt || ''}</span></td>
+    <td class="ce-now"><span data-f="ce.ltp">${fmt(ce.ltp)}</span></td>
+    <td><span data-f="ce.bar">${rangeBar(ce.low, ce.ltp, ce.high, 'ce')}</span><div class="gain-pct"><span data-f="ce.gain">max ${pct(ceMaxGain)}</span></div></td>
+    <td class="ce-high"><span data-f="ce.high">${fmt(ce.high)}</span><span class="time-tag" data-f="ce.highAt">${ce.highAt || ''}</span></td>
+    <td class="strike-cell">${k}</td>
+    <td class="pe-high"><span data-f="pe.high">${fmt(pe.high)}</span><span class="time-tag" data-f="pe.highAt">${pe.highAt || ''}</span></td>
+    <td><span data-f="pe.bar">${rangeBar(pe.low, pe.ltp, pe.high, 'pe')}</span><div class="gain-pct"><span data-f="pe.gain">max ${pct(peMaxGain)}</span></div></td>
+    <td class="pe-now"><span data-f="pe.ltp">${fmt(pe.ltp)}</span></td>
+    <td class="pe-low"><span data-f="pe.low">${fmt(pe.low)}</span><span class="time-tag" data-f="pe.lowAt">${pe.lowAt || ''}</span></td>
   </tr>`;
+}
+
+// Flat field map for a row → the exact HTML each data-f span should contain.
+function rowFields(r) {
+  const ce = r.ce || {}, pe = r.pe || {};
+  const ceMaxGain = (ce.high && ce.low) ? ((ce.high - ce.low) / ce.low) * 100 : 0;
+  const peMaxGain = (pe.high && pe.low) ? ((pe.high - pe.low) / pe.low) * 100 : 0;
+  return {
+    'ce.low': fmt(ce.low),   'ce.lowAt': ce.lowAt || '',   'ce.ltp': fmt(ce.ltp),
+    'ce.bar': rangeBar(ce.low, ce.ltp, ce.high, 'ce'), 'ce.gain': 'max ' + pct(ceMaxGain),
+    'ce.high': fmt(ce.high), 'ce.highAt': ce.highAt || '',
+    'pe.high': fmt(pe.high), 'pe.highAt': pe.highAt || '', 'pe.ltp': fmt(pe.ltp),
+    'pe.bar': rangeBar(pe.low, pe.ltp, pe.high, 'pe'), 'pe.gain': 'max ' + pct(peMaxGain),
+    'pe.low': fmt(pe.low),   'pe.lowAt': pe.lowAt || ''
+  };
+}
+
+// Diff-and-patch render: builds the table once, then on each refresh only rewrites
+// the spans whose value changed — and briefly highlights just those. No whole-table
+// rebuild, so nothing blinks except cells that genuinely updated.
+let _renderedKey = '';   // strike-set + depth signature; rebuild only when it changes
+function renderRows(rows) {
+  const tbody = document.getElementById('tbody');
+  const key = rows.map(r => r.strike).join(',');
+  if (key !== _renderedKey) {
+    tbody.innerHTML = rows.map(rowHtml).join('');
+    _renderedKey = key;
+    return; // first paint of this strike set — nothing to diff against
+  }
+  for (const r of rows) {
+    const tr = tbody.querySelector(`tr[data-strike="${r.strike}"]`);
+    if (!tr) { _renderedKey = ''; return renderRows(rows); } // structure drift → full rebuild
+    tr.classList.toggle('atm', !!r.isATM);
+    const fields = rowFields(r);
+    for (const f in fields) {
+      const el = tr.querySelector(`[data-f="${f}"]`);
+      if (el && el.innerHTML !== fields[f]) {
+        el.innerHTML = fields[f];
+        const cell = el.closest('td');
+        if (cell) { cell.classList.remove('cell-upd'); void cell.offsetWidth; cell.classList.add('cell-upd'); }
+      }
+    }
+  }
+}
+
+function isAuthError(msg, code) {
+  return code === 'DHAN_AUTH_REQUIRED' || code === 'DHAN_AUTH' || code === 'DHAN_AUTH_BLOCKED'
+    || /\b(401|403|808|809|810)\b|authentication failed|token.*(?:invalid|expired)|client id.*invalid/i.test(String(msg || ''));
+}
+
+function showBanner(kind, msg) {
+  // kind: 'auth' shows a refresh-login call-to-action; 'error' shows a plain message.
+  const tbody = document.getElementById('tbody');
+  _renderedKey = '';  // banner replaces the table → force a full rebuild on next good fetch
+  if (kind === 'auth') {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:34px; color:#fca5a5;">
+      <div style="font-size:18px; font-weight:700; margin-bottom:8px;">⚠ Dhan token expired or invalid</div>
+      <div style="color:#94a3b8; margin-bottom:16px;">The option chain can't load until the Dhan access token is refreshed.</div>
+      <a href="/api/dhan/login" target="_blank" rel="noopener"
+         style="display:inline-block; background:#dc2626; color:#fff; text-decoration:none; font-weight:700; padding:10px 22px; border-radius:6px;">
+        ↻ Refresh Dhan Login</a>
+      <div style="color:#64748b; margin-top:14px; font-size:12px;">After refreshing, restart the server so all modules pick up the new token.</div>
+    </td></tr>`;
+  } else {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#f59e0b; padding:30px;">${msg}</td></tr>`;
+  }
 }
 
 let lastFetchOk = false;
@@ -149,17 +221,30 @@ async function refresh() {
   try {
     const r = await fetch(`/api/option-chain-full?inst=${inst}&depth=${depth}`);
     const data = await r.json();
-    if (data.error) throw new Error(data.error);
+    if (data.error) {
+      const err = new Error(data.error);
+      err.code = data.code;
+      throw err;
+    }
     document.getElementById('spot').textContent = '₹' + (data.spot || 0).toFixed(2);
     document.getElementById('atm').textContent = data.atm || '–';
     document.getElementById('updated').textContent = new Date(data.ts).toLocaleTimeString();
-    document.getElementById('tbody').innerHTML = (data.rows || []).map(rowHtml).join('');
+    renderRows(data.rows || []);
     c.className = 'conn-status ok';
     document.getElementById('connText').textContent = 'live';
     lastFetchOk = true;
   } catch (e) {
-    c.className = lastFetchOk ? 'conn-status stale' : 'conn-status err';
-    document.getElementById('connText').textContent = e.message;
+    if (isAuthError(e.message, e.code)) {
+      c.className = 'conn-status err';
+      document.getElementById('connText').textContent = 'token expired — refresh login';
+      showBanner('auth');
+      lastFetchOk = false;
+    } else {
+      c.className = lastFetchOk ? 'conn-status stale' : 'conn-status err';
+      document.getElementById('connText').textContent = e.message;
+      // Only replace the table with an error if we never had data (avoid wiping a good chain on a transient blip).
+      if (!lastFetchOk) showBanner('error', e.message);
+    }
   }
 }
 

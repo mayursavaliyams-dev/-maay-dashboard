@@ -6,6 +6,8 @@
  * Supports SENSEX (BSE_FNO, lot=20, interval=100) and NIFTY (NSE_FNO, lot=75, interval=50).
  */
 
+const { roundTripCharges } = require('./charges');
+
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const SQUARE_OFF_H  = 15;
 const SQUARE_OFF_M  = 15;
@@ -55,7 +57,11 @@ class ExecutionEngine {
     this.trailMult     = parseFloat(process.env.TRAIL_AFTER_MULTIPLE     || 2);
     this.trailLockPct  = parseFloat(process.env.TRAIL_LOCK_PERCENT       || 50) / 100;
     this.targetMult    = parseFloat(process.env.TARGET_PERCENT           || 150) / 100 + 1; // 2.5x
-    this.strikeOffset  = parseInt(process.env.BACKTEST_STRIKE_OFFSET     || 2);
+    this.strikeOffset  = parseInt(process.env.STRIKE_OFFSET              || 2);
+    // Charge-aware guard: skip a trade unless expected gross profit at target is
+    // at least this multiple of the round-trip cost. 0 = disabled. 1.5 means the
+    // edge must clear charges by 50% before the trade is worth taking.
+    this.minEdgeMultiple = parseFloat(process.env.MIN_EDGE_OVER_CHARGES || 0);
     this.paperMode     = (process.env.TRADE_MODE || 'paper') !== 'live';
 
     // Per-instrument auto flag overrides the global AUTO_TRADE_ENABLED.
@@ -406,20 +412,9 @@ class ExecutionEngine {
       return { strike, type, securityId: side.securityId, ltp };
     }
 
-    // No fit — fall back to BSM synthetic on configured strike so the run logs
-    // why no trade fired (helps post-mortem). Returns ltp=null when truly no
-    // signal is actionable, so caller can skip the entry cleanly.
+    // No real, placeable contract fits the configured premium range.
     const fallbackStrike = atm + (signal === 'CALL' ? this.strikeOffset : -this.strikeOffset) * this.strikeInterval;
-    try {
-      const { bsmPrice, tteYears } = require('./backtest-real/synth-option-pricer');
-      const T   = tteYears(Math.floor(Date.now() / 1000));
-      const bsm = bsmPrice(spot, fallbackStrike, T, 0.08, type);
-      const ltp = Math.max(bsm, 0.05);
-      console.log(`[${this.instrumentName}] BSM fallback LTP: ${ltp.toFixed(1)} for ${fallbackStrike}${type} (no strike in walk fit caps)`);
-      return { strike: fallbackStrike, type, securityId: null, ltp };
-    } catch (_) {
-      return { strike: fallbackStrike, type, securityId: null, ltp: null };
-    }
+    return { strike: fallbackStrike, type, securityId: null, ltp: null };
   }
 
   async _getChain(spot) {
@@ -461,13 +456,9 @@ class ExecutionEngine {
       return;
     }
 
-    // Require a real chain securityId. A null securityId means the option
-    // chain fetch failed / didn't return that strike, and _getOption fell back
-    // to a BSM synthetic price. Such a trade CANNOT be placed live (no id to
-    // send to Dhan) and would record fantasy paper P&L — so skip it. Set
-    // ALLOW_SYNTHETIC_ENTRY=true only for offline backtests, never live/paper.
-    if (!securityId && (process.env.ALLOW_SYNTHETIC_ENTRY ?? 'false').toLowerCase() !== 'true') {
-      console.warn(`[${this.instrumentName}] SKIP — no real chain securityId for ${strike}${type} (chain fetch failed → synthetic). Not a placeable trade.`);
+    // A real chain security ID is required for both paper and live execution.
+    if (!securityId) {
+      console.warn(`[${this.instrumentName}] SKIP — no real chain securityId for ${strike}${type}. Not a placeable trade.`);
       return;
     }
 
@@ -487,6 +478,21 @@ class ExecutionEngine {
     const quantity   = lots * this.lotSize;
     const deployed   = lots * ltp * this.lotSize;
     console.log(`[${this.instrumentName}] Sizing: equity ₹${this.capital.toFixed(0)} × ${(this.riskPct*100).toFixed(1)}% = ₹${riskAmount.toFixed(0)} budget → ${lots} lot(s) (${quantity} qty) @ ₹${ltp.toFixed(2)} = ₹${deployed.toFixed(0)} deployed`);
+
+    // ── Charge-aware guard ──────────────────────────────────────────
+    // At high trade frequency, brokerage + STT + slippage can erase the edge.
+    // Skip unless expected gross profit at target clears the round-trip cost by
+    // the configured margin. Uses the shared charges model so the check matches
+    // any P&L accounting. Disabled when MIN_EDGE_OVER_CHARGES=0.
+    if (this.minEdgeMultiple > 0) {
+      const targetExit   = ltp * this.targetMult;
+      const expectedGain = deployed * (this.targetMult - 1);
+      const { total: rtCost } = roundTripCharges(ltp, targetExit, quantity);
+      if (expectedGain < rtCost * this.minEdgeMultiple) {
+        console.log(`[${this.instrumentName}] SKIP — charge guard: expected gain ₹${expectedGain.toFixed(0)} < ₹${rtCost.toFixed(0)} round-trip cost × ${this.minEdgeMultiple} (${strike}${type} @ ₹${ltp.toFixed(2)}, ${lots} lot)`);
+        return;
+      }
+    }
 
     let orderId = `PAPER-${Date.now()}`;
     if (!this.paperMode && securityId) {

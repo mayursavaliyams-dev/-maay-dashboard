@@ -1,13 +1,16 @@
 /**
  * ANTIGRAVITY AI DECISION LAYER
  * Intelligent filtering to avoid bad trades and maximize high-probability setups
- * 
+ *
  * Features:
  * - Confidence scoring (0-100%)
  * - Market condition analysis
  * - Time-based filtering
  * - Multi-factor decision engine
+ * - Claude AI signal validation (optional, CLAUDE_AI_ENABLED=true)
  */
+
+const { claudeSignalFilter } = require('./claude-ai');
 
 /**
  * AI Decision Engine
@@ -18,8 +21,15 @@ function aiDecision(price, orHigh, orLow, vwap, volumeSpike, hour, minute, optio
     trend = null,
     consolidation = false,
     candleStrength = null,
-    oiData = null
+    oiData = null,
+    // Index feeds carry NO volume (Dhan returns 0), so a missing-volume case must
+    // NOT be treated as "no spike" — that silently subtracts the 20-pt volume gate
+    // and makes index entries fire ~3-4 min late (or never). When volume is
+    // unavailable, credit the volume points so the gate is neutral, not punitive.
+    volumeAvailable = true
   } = options;
+  // Effective volume credit: real spike when we have volume, else neutral credit.
+  const volumeCredit = volumeAvailable ? volumeSpike : true;
 
   let score = 0;
   let signal = "WAIT";
@@ -76,10 +86,11 @@ function aiDecision(price, orHigh, orLow, vwap, volumeSpike, hour, minute, optio
     warnings.push("Price at or below VWAP");
   }
 
-  // Volume Spike (20 points)
-  if (volumeSpike) {
+  // Volume Spike (20 points). When volume is unavailable (index feeds), this is
+  // neutral credit so the gate doesn't silently delay/block entries.
+  if (volumeCredit) {
     callScore += 20;
-    callReasons.push("Volume spike detected");
+    callReasons.push(volumeAvailable ? "Volume spike detected" : "Volume gate neutral (no feed)");
   }
 
   // Trend Alignment (15 points)
@@ -128,10 +139,10 @@ function aiDecision(price, orHigh, orLow, vwap, volumeSpike, hour, minute, optio
     warnings.push("Price at or above VWAP");
   }
 
-  // Volume Spike (20 points)
-  if (volumeSpike) {
+  // Volume Spike (20 points). Neutral credit when volume feed is unavailable.
+  if (volumeCredit) {
     putScore += 20;
-    putReasons.push("Volume spike detected");
+    putReasons.push(volumeAvailable ? "Volume spike detected" : "Volume gate neutral (no feed)");
   }
 
   // Trend Alignment (15 points)
@@ -421,8 +432,52 @@ function recognizePattern(priceData, volumeData) {
   return patterns;
 }
 
+/**
+ * Async wrapper around aiDecision that optionally validates the signal
+ * with Claude before returning. Falls back instantly if Claude is disabled
+ * or times out — never blocks the trading loop.
+ *
+ * Returns the same shape as aiDecision() plus optional claudeReason field.
+ */
+async function aiDecisionWithClaude(price, orHigh, orLow, vwap, volumeSpike, hour, minute, options = {}) {
+  const result = aiDecision(price, orHigh, orLow, vwap, volumeSpike, hour, minute, options);
+
+  // Only send tradeable signals to Claude — skip WAIT/WEAK to save API calls
+  if (result.signal !== 'CALL' && result.signal !== 'PUT') return result;
+
+  const filter = await claudeSignalFilter({
+    signal:     result.signal,
+    confidence: result.confidence,
+    price, orHigh, orLow, vwap,
+    trend:      options.trend,
+    hour, minute,
+    instrument: options.instrument || 'SENSEX',
+    reasons:    result.reasons,
+    warnings:   result.warnings
+  });
+
+  if (!filter.approved) {
+    return {
+      ...result,
+      signal:        'WAIT',
+      confidence:    0,
+      reasons:       ['Claude AI vetoed signal'],
+      warnings:      [filter.reason || 'AI filter rejected'],
+      claudeVetoed:  true,
+      claudeReason:  filter.reason
+    };
+  }
+
+  return {
+    ...result,
+    confidence:   filter.adjustedConfidence ?? result.confidence,
+    claudeReason: filter.reason || null
+  };
+}
+
 module.exports = {
   aiDecision,
+  aiDecisionWithClaude,
   calculateConfidence,
   classifyMarket,
   assessTradeQuality,

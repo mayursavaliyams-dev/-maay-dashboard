@@ -1,0 +1,77 @@
+//@version=5
+strategy("Ultimate Options Algo - Golden Setup (Fixed Target)", overlay=true, initial_capital=700000, default_qty_type=strategy.percent_of_equity, default_qty_value=100)
+
+// ==========================================
+// 0. Webhook config (matches Antigravity Pro /api/webhook/tradingview)
+// ==========================================
+// The server authenticates on `key` (AMIBROKER_API_KEY in .env, default "antigravity")
+// and routes on action/signal. Set this to match your .env value.
+apiKey = input.string("antigravity", "Webhook API Key")
+
+// ==========================================
+// 1. Indicators Setup
+// ==========================================
+// EMA (Trend Direction)
+fastEma = ta.ema(close, 9)
+slowEma = ta.ema(close, 21)
+plot(fastEma, color=color.yellow, linewidth=2, title="9 EMA")
+plot(slowEma, color=color.blue, linewidth=2, title="21 EMA")
+
+// VWAP (Main Filter)
+vwapValue = ta.vwap(close)
+
+// RSI (Momentum)
+rsiValue = ta.rsi(close, 14)
+
+// Volume (Confirmation)
+volSma = ta.sma(volume, 20)
+isHighVolume = volume > volSma
+
+// ==========================================
+// 2. Master Entry Logic
+// ==========================================
+isBullish = ta.crossover(fastEma, slowEma) and close > vwapValue and rsiValue > 55 and isHighVolume
+isBearish = ta.crossunder(fastEma, slowEma) and close < vwapValue and rsiValue < 45 and isHighVolume
+
+// ==========================================
+// 3. Strategy Execution (Fixed 1:1.5 RR)
+// ==========================================
+riskPercent = 0.01   // 1% Stop Loss
+rewardPercent = 0.015 // 1.5% Fixed Target (Take Profit)
+
+// Bullish (Call) Entry & Exit
+if (isBullish)
+    strategy.entry("Buy CE", strategy.long)
+    sl_long = close * (1 - riskPercent)
+    target_long = close * (1 + rewardPercent)
+    strategy.exit("Exit CE", "Buy CE", stop=sl_long, limit=target_long)
+
+// Bearish (Put) Entry & Exit
+if (isBearish)
+    strategy.entry("Buy PE", strategy.short)
+    sl_short = close * (1 + riskPercent)
+    target_short = close * (1 - rewardPercent)
+    strategy.exit("Exit PE", "Buy PE", stop=sl_short, limit=target_short)
+
+// ==========================================
+// 4. Webhook Alerts (For Antigravity Pro bot)
+// ==========================================
+// Payload shape the server accepts:
+//   {"action":"BUY","signal":"CALL","entry":<price>,"reason":"GOLDEN_SETUP","key":"<apiKey>"}
+//   exit:  {"action":"EXIT","key":"<apiKey>"}
+// The server maps CALL->CE / PUT->PE, sizes from .env, and places paper/live orders.
+ticker = syminfo.ticker
+
+// Build JSON strings (str.tostring used so the live price travels with the alert)
+bullMsg = '{"action":"BUY","signal":"CALL","entry":' + str.tostring(close) + ',"reason":"GOLDEN_SETUP_BULLISH","index":"' + ticker + '","key":"' + apiKey + '"}'
+bearMsg = '{"action":"BUY","signal":"PUT","entry":'  + str.tostring(close) + ',"reason":"GOLDEN_SETUP_BEARISH","index":"' + ticker + '","key":"' + apiKey + '"}'
+exitMsg = '{"action":"EXIT","reason":"GOLDEN_SETUP_EXIT","index":"' + ticker + '","key":"' + apiKey + '"}'
+
+if isBullish
+    alert(bullMsg, alert.freq_once_per_bar_close)
+if isBearish
+    alert(bearMsg, alert.freq_once_per_bar_close)
+
+// Exit alert when the strategy is flat after having a position (target/SL hit)
+if (strategy.position_size == 0 and strategy.position_size[1] != 0)
+    alert(exitMsg, alert.freq_once_per_bar_close)

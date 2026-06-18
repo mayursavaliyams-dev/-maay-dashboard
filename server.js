@@ -1,9 +1,17 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const { normalizeDhanAccessToken, getDhanTokenStatus } = require("./dhan-auth");
+
+if (process.env.DHAN_ACCESS_TOKEN) {
+  process.env.DHAN_ACCESS_TOKEN = normalizeDhanAccessToken(process.env.DHAN_ACCESS_TOKEN);
+}
 
 const { calculateVWAP, detectTrend } = require("./strategy");
-const { aiDecision } = require("./ai");
+const { aiDecision, aiDecisionWithClaude } = require("./ai");
+const { claudeTradeNarration, claudeAiStatus } = require("./claude-ai");
+const popSeller   = require("./pop-seller");
+const redisStore  = require("./redis-store");
 const multiconfirm = require("./multiconfirm");
 const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
@@ -13,6 +21,7 @@ const KotakNeoConnector = require("./kotak-neo-connector");
 const { getChainAroundATM } = require("./sensibull-fetcher");
 const AmiBrokerBridge = require("./amibroker-bridge");
 const ExecutionEngine = require("./execution-engine");
+const AfternoonEngine = require("./afternoon-engine");
 const TelegramAlerter = require("./telegram");
 
 // Initialize Telegram (no-op if TELEGRAM_ENABLED=false or credentials missing)
@@ -37,15 +46,31 @@ app.use(cors({
   origin: _corsAllow.length === 0
     ? true
     : (origin, cb) => {
-        // Server-to-server / curl requests have no Origin header — allow.
+        // Server-to-server / curl / file:// requests have no Origin header — allow.
         if (!origin) return cb(null, true);
         if (_corsAllow.includes(origin)) return cb(null, true);
         return cb(new Error(`CORS blocked: ${origin}`));
       },
-  credentials: true
+  credentials: false  // file:// cannot send cookies anyway
 }));
+// Explicit null-origin header for file:// pages
+app.use((req, res, next) => {
+  if (!req.headers.origin) res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+});
 app.use(express.json());
-app.use(express.static("public"));
+app.use(express.static("public", {
+  index: "command.html",
+  // Never cache HTML dashboards — they change often and stale caches cause
+  // "I don't see my update" confusion. Static assets (fonts/images) still cache.
+  setHeaders: (res, path) => {
+    if (path.endsWith(".html")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+  }
+}));
 
 const PORT = process.env.PORT || 3000;
 
@@ -76,7 +101,9 @@ if (CONNECTOR_MODE === 'kotak') {
 const optionAnalyzer = new OptionAnalyzer();
 const database = new SimpleDB('./data');
 const amiBridge = new AmiBrokerBridge();
-live.connect().catch(err => console.error('[live] connect failed:', err.message));
+const liveConnectPromise = live.connect().catch(err => {
+  console.error('[live] connect failed:', err.message);
+});
 
 // ==================== STATE — SENSEX ====================
 // Auto-start the bot loop on boot. The per-engine `autoEnabled` flag
@@ -118,6 +145,39 @@ let niftyTargetMultiplier = "--";
 let _niftyLivePrice = 24500;
 let _niftyLivePriceAt = 0;
 let _lastNiftyAiResult = { signal: 'WAIT', confidence: 0, reasons: [], warnings: [] };
+let _bankNiftyLivePrice = 52000;
+let _bankNiftyLivePriceAt = 0;
+
+const INSTRUMENT_META = {
+  SENSEX: {
+    segment: 'BSE_FNO',
+    step: 100,
+    lotSize: 20,
+    label: 'SENSEX',
+    priceGetter: () => getLivePrice(),
+    chainGetter: (spot) => live.getOptionChain(spot),
+  },
+  NIFTY: {
+    segment: 'NSE_FNO',
+    step: 50,
+    lotSize: 65,
+    label: 'NIFTY',
+    priceGetter: () => getLiveNiftyPrice(),
+    chainGetter: (spot) => live.getNiftyOptionChain(spot),
+  },
+  BANKNIFTY: {
+    segment: 'NSE_FNO',
+    step: 100,
+    lotSize: Number(process.env.BANKNIFTY_LOT_SIZE || 30),
+    label: 'BANKNIFTY',
+    priceGetter: () => getLiveBankNiftyPrice(),
+    chainGetter: (spot) => live.getBankNiftyOptionChain(spot),
+  }
+};
+
+function getInstrumentMeta(inst = 'SENSEX') {
+  return INSTRUMENT_META[String(inst || 'SENSEX').toUpperCase()] || INSTRUMENT_META.SENSEX;
+}
 
 const IST_OFFSET_MIN = 330;
 const MARKET_OPEN_MIN = 9 * 60 + 15;
@@ -187,6 +247,8 @@ amiBridge.registerRoutes(app, {
     price: _livePrice, orbHigh: orbHigh || 0, orbLow: orbLow || 0,
     vwap: vwap || 0, volume: 0, signal: currentSignal, confidence
   }),
+  executeAmiSignal: (signal, opts) => executeAmiSignal(signal, opts),
+  exitAmiPosition: (signal, opts) => exitAmiPosition(signal, opts),
   liveConnector: live
 });
 
@@ -199,13 +261,22 @@ let _yahooPrice = 0;
 let _yahooPriceAt = 0;
 let _yahooNiftyPrice = 0;
 let _yahooNiftyPriceAt = 0;
+const QUOTE_TIMEOUT_MS = Number(process.env.QUOTE_TIMEOUT_MS || 2500);
+
+function _withTimeout(promise, ms, label = 'operation') {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 async function _fetchYahooPrice() {
-  if (Date.now() - _yahooPriceAt < 60000 && _yahooPrice > 0) return _yahooPrice;
+  if (Date.now() - _yahooPriceAt < 180000 && _yahooPrice > 0) return _yahooPrice;
   try {
     const YahooFinance = require('yahoo-finance2').default;
     const yf = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
-    const q = await yf.quote('^BSESN');
+    const q = await _withTimeout(yf.quote('^BSESN'), QUOTE_TIMEOUT_MS, 'Yahoo SENSEX quote');
     const p = q.regularMarketPrice || q.regularMarketPreviousClose || 0;
     if (p > 10000) { _yahooPrice = p; _yahooPriceAt = Date.now(); }
   } catch (_) { /* use cached */ }
@@ -213,11 +284,11 @@ async function _fetchYahooPrice() {
 }
 
 async function _fetchYahooNiftyPrice() {
-  if (Date.now() - _yahooNiftyPriceAt < 60000 && _yahooNiftyPrice > 0) return _yahooNiftyPrice;
+  if (Date.now() - _yahooNiftyPriceAt < 180000 && _yahooNiftyPrice > 0) return _yahooNiftyPrice;
   try {
     const YahooFinance = require('yahoo-finance2').default;
     const yf = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
-    const q = await yf.quote('^NSEI');
+    const q = await _withTimeout(yf.quote('^NSEI'), QUOTE_TIMEOUT_MS, 'Yahoo NIFTY quote');
     const p = q.regularMarketPrice || q.regularMarketPreviousClose || 0;
     if (p > 10000) { _yahooNiftyPrice = p; _yahooNiftyPriceAt = Date.now(); }
   } catch (_) { /* use cached */ }
@@ -227,86 +298,143 @@ async function _fetchYahooNiftyPrice() {
 // ==================== PER-STRIKE OPTION H/L HISTORY ====================
 // Tracks LTP high/low history for each option contract (per inst, strike, CE/PE).
 // Each breakthrough appends {t, p} — lets the dashboard show full session history.
-const _optHL = { SENSEX: new Map(), NIFTY: new Map() };
+const _optHL = { SENSEX: new Map(), NIFTY: new Map(), BANKNIFTY: new Map() };
+let _optHLPurgeDate = '';
+function _purgeOptHLIfNewDay() {
+  const today = _istDateStr();
+  if (_optHLPurgeDate === today) return;
+  _optHLPurgeDate = today;
+  Object.values(_optHL).forEach(m => m.clear());
+}
 function _optHLKey(strike, type) { return `${strike}_${type}`; }
 function _fmtHms(ms) {
   return ms ? new Date(ms + 5.5*3600*1000).toISOString().slice(11, 19) : null;
 }
 function _toOptHLHistory(arr) {
-  return (arr || []).map(e => ({ time: _fmtHms(e.t), price: +Number(e.p || 0).toFixed(2), ts: e.t }));
+  // Use `at` - the exact moment the new extreme was observed - so the timeline
+  // shows the real break time (e.g. 12:04:37), not the rounded 1-min bucket start.
+  return (arr || []).map(e => ({
+    time: _fmtHms(e.at || e.t),
+    price: +Number(e.p || 0).toFixed(2),
+    ts: e.at || e.t
+  }));
 }
-// 5-minute bucket id (IST). All ticks within the same 5-min window collapse
-// into one timeline entry showing that window's high (or low).
+function _toOptTickHistory(arr) {
+  return (arr || []).map(e => ({
+    time: _fmtHms(e.at || e.t),
+    price: +Number(e.p || 0).toFixed(2),
+    ts: e.at || e.t
+  }));
+}
+// Option strike-history uses exact 1-minute buckets so the timeline matches
+// chart candles more closely. Keep this separate from the broader spot H/L
+// tracker, which still uses 5-minute buckets further below.
+const _OPT_BUCKET_MS = 60 * 1000;
 const _BUCKET_MS = 5 * 60 * 1000;
+function _optBucketId(ms) { return Math.floor((ms + 5.5 * 3600 * 1000) / _OPT_BUCKET_MS); }
+function _optBucketStartMs(id) { return id * _OPT_BUCKET_MS - 5.5 * 3600 * 1000; }
 function _bucketId(ms) { return Math.floor((ms + 5.5 * 3600 * 1000) / _BUCKET_MS); }
 function _bucketStartMs(id) { return id * _BUCKET_MS - 5.5 * 3600 * 1000; }
 
-function _updateOptHL(inst, strike, type, ltp) {
-  if (!ltp || ltp <= 0 || !isFinite(ltp)) return;
+function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0) {
+  // Before 09:15 Dhan may carry the previous session's option OHLC.
+  // Today's candle reconciliation handles historical/after-close values.
+  if (!getMarketSession().inMarketHours) return;
+  const last = Number(ltp || 0);
+  // Chain OHLC has no event timestamp and can temporarily contain yesterday's
+  // values. LTP gives immediate updates; one-minute candles provide exact H/L.
+  if (last <= 0 || !isFinite(last)) return;
+  const observedHigh = last;
+  const observedLow = last;
+  _purgeOptHLIfNewDay();
   const store = _optHL[inst];
   if (!store) return;
   const today = _istDateStr();
   const key = _optHLKey(strike, type);
   const now = Date.now();
-  const bid = _bucketId(now);
+  const bid = _optBucketId(now);
   let rec = store.get(key);
   if (!rec || rec.date !== today) {
-    rec = { date: today, high: ltp, highAt: now, low: ltp, lowAt: now,
-            highPath: [], lowPath: [] };
+    rec = { date: today, high: observedHigh, highAt: now, low: observedLow, lowAt: now,
+            highPath: [], lowPath: [], tickPath: [] };
+    if (last > 0 && isFinite(last)) rec.tickPath.push({ t: now, at: now, p: last });
     store.set(key, rec);
     return;
   }
 
-  const newHigh = ltp > rec.high;
-  const newLow  = ltp < rec.low;
-  if (newHigh) { rec.high = ltp; rec.highAt = now; }
-  if (newLow)  { rec.low  = ltp; rec.lowAt  = now; }
+  const newHigh = observedHigh > rec.high;
+  const newLow  = observedLow < rec.low;
+  if (newHigh) { rec.high = observedHigh; rec.highAt = now; }
+  if (newLow)  { rec.low  = observedLow; rec.lowAt  = now; }
 
-  // Record ONLY genuine new extremes (dedup) — never the same price twice.
-  // Within the same 5-min bucket, update the existing entry to the new
-  // extreme; across buckets, append a fresh one. A flat price prints nothing.
+  // Record every genuine new extreme with exact timestamp — no bucket dedup.
   if (newHigh) {
-    const tail = rec.highPath[rec.highPath.length - 1];
-    if (tail && tail.bid === bid) { tail.p = ltp; tail.at = now; }
-    else { rec.highPath.push({ bid, t: _bucketStartMs(bid), at: now, p: ltp });
-           if (rec.highPath.length > 96) rec.highPath.shift(); }
+    rec.highPath.push({ t: now, at: now, p: observedHigh });
+    if (rec.highPath.length > 200) rec.highPath.shift();
   }
   if (newLow) {
-    const tail = rec.lowPath[rec.lowPath.length - 1];
-    if (tail && tail.bid === bid) { tail.p = ltp; tail.at = now; }
-    else { rec.lowPath.push({ bid, t: _bucketStartMs(bid), at: now, p: ltp });
-           if (rec.lowPath.length > 96) rec.lowPath.shift(); }
+    rec.lowPath.push({ t: now, at: now, p: observedLow });
+    if (rec.lowPath.length > 200) rec.lowPath.shift();
+  }
+  if (last > 0 && isFinite(last)) {
+    const tail = rec.tickPath[rec.tickPath.length - 1];
+    if (!tail || Math.abs(Number(tail.p || 0) - last) >= 0.01) {
+      rec.tickPath.push({ t: now, at: now, p: last });
+      if (rec.tickPath.length > 500) rec.tickPath.shift();
+    }
   }
 }
 function _getOptHL(inst, strike, type) {
   return _optHL[inst]?.get(_optHLKey(strike, type)) || null;
 }
 
-// One-shot today-backfill: pull 1-min option candles from Dhan and replay
-// them into the 5-min bucket structure, so a freshly-restarted server doesn't
-// show empty H/L timelines. Cached per (inst, strike, type, date) so we never
-// hammer Dhan more than once per contract per day.
-const _backfillAttempts = new Map();   // key: inst|strike|type|date  → 'pending'|'done'|'fail'
+// Periodically reconcile today's 1-minute option candles into the live record.
+// Failed pre-open attempts retry, while successful requests are cached/coalesced.
+const OPT_HL_RECONCILE_MS = 60 * 1000;
+const OPT_HL_RETRY_MS = 15 * 1000;
+const _backfillAttempts = new Map(); // key -> { status, at, promise }
+let _backfillPurgeDate = '';
 async function _backfillOptHLFromDhan(inst, strike, type, securityId) {
-  if (!securityId) return;
+  if (!securityId) return false;
+  // Establish today's map before writing candle history. Otherwise the first
+  // subsequent live tick would run the new-day purge and erase this backfill.
+  _purgeOptHLIfNewDay();
   const today = _istDateStr();
+  // Purge stale keys from previous days to prevent Map growth
+  if (_backfillPurgeDate !== today) {
+    _backfillPurgeDate = today;
+    for (const k of _backfillAttempts.keys()) {
+      if (!k.endsWith('|' + today)) _backfillAttempts.delete(k);
+    }
+  }
   const key = `${inst}|${strike}|${type}|${today}`;
-  if (_backfillAttempts.has(key)) return;
-  _backfillAttempts.set(key, 'pending');
-  const segment = inst === 'SENSEX' ? 'BSE_FNO' : 'NSE_FNO';
-  try {
+  const previous = _backfillAttempts.get(key);
+  if (previous?.promise) return previous.promise;
+  if (previous?.status === 'done' && Date.now() - previous.at < OPT_HL_RECONCILE_MS) return true;
+  if (previous?.status === 'fail' && Date.now() - previous.at < OPT_HL_RETRY_MS) return false;
+
+  const segment = getInstrumentMeta(inst).segment;
+  const reconcile = (async () => {
+    const session = getMarketSession();
+    const istNow = new Date(Date.now() + IST_OFFSET_MIN * 60 * 1000);
+    const endTime = session.afterClose
+      ? '15:30:00'
+      : istNow.toISOString().slice(11, 19);
     const r = await live.client._post('/v2/charts/intraday', {
       securityId: String(securityId),
       exchangeSegment: segment,
       instrument: 'OPTIDX',
       interval: '1',
-      fromDate: today,
-      toDate: today,
+      oi: false,
+      // Dhan's intraday range starts after fromDate, so request one minute
+      // earlier to include the 09:15 opening candle.
+      fromDate: `${today} 09:14:00`,
+      toDate: `${today} ${endTime}`,
     });
     const ts   = r?.timestamp || [];
     const high = r?.high || [];
     const low  = r?.low  || [];
-    if (!ts.length) { _backfillAttempts.set(key, 'fail'); return; }
+    if (!ts.length) throw new Error(`No intraday candles yet for ${today}`);
 
     // Build a fresh record from history, then merge with any live record
     // already accumulated since restart.
@@ -314,69 +442,93 @@ async function _backfillOptHLFromDhan(inst, strike, type, securityId) {
     const k2 = _optHLKey(strike, type);
     let rec = store.get(k2);
     if (!rec || rec.date !== today) {
-      rec = { date: today, high: 0, highAt: 0, low: Infinity, lowAt: 0, highPath: [], lowPath: [] };
+      rec = { date: today, high: 0, highAt: 0, low: Infinity, lowAt: 0, highPath: [], lowPath: [], tickPath: [] };
       store.set(k2, rec);
     }
 
-    // Rebuild paths from history candles. Each candle is 1 min — bucket into 5-min.
-    const histHi = new Map();   // bid → { p, at }
-    const histLo = new Map();
+    // Rebuild paths from history candles — one entry per candle with exact timestamp.
+    // Track running session high/low to only record genuine new extremes.
+    let runHi = -Infinity, runLo = Infinity;
+    const histHiArr = [], histLoArr = [];
+    let latestCandleMs = 0;
     for (let i = 0; i < ts.length; i++) {
       const candleMs = Number(ts[i]) * 1000;
-      const bid = _bucketId(candleMs);
+      if (!Number.isFinite(candleMs) || !getMarketSession(new Date(candleMs)).inMarketHours) continue;
+      latestCandleMs = Math.max(latestCandleMs, candleMs);
       const hi = Number(high[i] || 0);
       const lo = Number(low[i]  || 0);
-      if (hi > 0) {
-        const prev = histHi.get(bid);
-        if (!prev || hi > prev.p) histHi.set(bid, { p: hi, at: candleMs });
-        if (hi > rec.high) { rec.high = hi; rec.highAt = candleMs; }
+      if (hi > 0 && hi > runHi) {
+        runHi = hi;
+        histHiArr.push({ t: candleMs, at: candleMs, p: +hi.toFixed(2) });
       }
-      if (lo > 0) {
-        const prev = histLo.get(bid);
-        if (!prev || lo < prev.p) histLo.set(bid, { p: lo, at: candleMs });
-        if (lo < rec.low || rec.low === Infinity) { rec.low = lo; rec.lowAt = candleMs; }
+      if (lo > 0 && lo < runLo) {
+        runLo = lo;
+        histLoArr.push({ t: candleMs, at: candleMs, p: +lo.toFixed(2) });
       }
     }
-    const histHiArr = [...histHi.entries()].sort((a,b) => a[0]-b[0])
-      .map(([bid, v]) => ({ bid, t: _bucketStartMs(bid), at: v.at, p: +v.p.toFixed(2) }));
-    const histLoArr = [...histLo.entries()].sort((a,b) => a[0]-b[0])
-      .map(([bid, v]) => ({ bid, t: _bucketStartMs(bid), at: v.at, p: +v.p.toFixed(2) }));
+    if (!histHiArr.length || !histLoArr.length) throw new Error(`No market-session candles yet for ${today}`);
 
-    // Merge: hist buckets win for older bids, live record's tail bucket wins
-    // for current bucket (since live ticks are more recent than 1-min candle).
-    const mergePaths = (histArr, liveArr, pickFn) => {
-      const map = new Map();
-      for (const e of histArr) map.set(e.bid, e);
-      for (const e of liveArr) {
-        const prev = map.get(e.bid);
-        map.set(e.bid, prev ? { ...prev, p: pickFn(prev.p, e.p), at: e.at } : e);
-      }
-      return [...map.values()].sort((a,b) => a.bid - b.bid).slice(-96);
-    };
-    rec.highPath = mergePaths(histHiArr, rec.highPath, Math.max);
-    rec.lowPath  = mergePaths(histLoArr, rec.lowPath, Math.min);
+    const histHigh = histHiArr.at(-1);
+    const histLow = histLoArr.at(-1);
+    // The candle series is authoritative through latestCandleMs. Preserve only
+    // a newer live LTP extreme that occurred after the latest candle.
+    if (Number(rec.highAt || 0) <= latestCandleMs || histHigh.p >= rec.high) {
+      rec.high = histHigh.p;
+      rec.highAt = histHigh.t;
+    }
+    if (Number(rec.lowAt || 0) <= latestCandleMs || histLow.p <= rec.low || rec.low === Infinity) {
+      rec.low = histLow.p;
+      rec.lowAt = histLow.t;
+    }
+
+    // Candles are authoritative through their latest minute. Keep only live
+    // extrema observed after that point, then continue tracking each poll.
+    const mergeExact = (histArr, liveArr) => [
+      ...histArr,
+      ...liveArr.filter(e => Number(e.t || 0) > latestCandleMs)
+    ].sort((a, b) => a.t - b.t).slice(-200);
+    rec.highPath = mergeExact(histHiArr, rec.highPath);
+    rec.lowPath  = mergeExact(histLoArr, rec.lowPath);
+    rec.tickPath = (rec.tickPath || [])
+      .filter(e => getMarketSession(new Date(Number(e.t || 0))).inMarketHours)
+      .slice(-500);
     if (rec.low === Infinity) rec.low = 0;
 
-    _backfillAttempts.set(key, 'done');
-    console.log(`[${inst} ${strike}${type}] H/L backfill: ${histHiArr.length} high-buckets, ${histLoArr.length} low-buckets`);
-  } catch (err) {
-    _backfillAttempts.set(key, 'fail');
-    console.log(`[${inst} ${strike}${type}] H/L backfill failed: ${err.message}`);
-  }
+    return true;
+  })();
+
+  const task = reconcile.then(() => {
+    _backfillAttempts.set(key, { status: 'done', at: Date.now(), promise: null });
+    return true;
+  }).catch(err => {
+    _backfillAttempts.set(key, { status: 'fail', at: Date.now(), promise: null });
+    console.log(`[${inst} ${strike}${type}] H/L reconcile deferred: ${err.message}`);
+    return false;
+  });
+  _backfillAttempts.set(key, { status: 'pending', at: Date.now(), promise: task });
+  return task;
 }
 function _withLegHistory(inst, strike, leg, type) {
   if (!leg) return null;
   const ltp = Number(leg.ltp || 0);
-  _updateOptHL(inst, strike, type, ltp);
+  _updateOptHL(inst, strike, type, ltp, Number(leg.high || 0), Number(leg.low || 0));
   const hl = _getOptHL(inst, strike, type) || {};
+  const sessionHigh = Number(hl.high || 0) || null;
+  const sessionLowCandidates = [Number(hl.low || 0)].filter(v => v > 0 && isFinite(v));
+  const sessionLow = sessionLowCandidates.length ? Math.min(...sessionLowCandidates) : null;
+  const lastTick = hl.tickPath?.at(-1);
   return {
     ...leg,
+    high: sessionHigh,
+    low: sessionLow,
     highHistory: _toOptHLHistory(hl.highPath),
     lowHistory: _toOptHLHistory(hl.lowPath),
+    tickHistory: _toOptTickHistory(hl.tickPath),
     highAt: hl.highAt ? _fmtHms(hl.highAt) : null,
     lowAt: hl.lowAt ? _fmtHms(hl.lowAt) : null,
-    sessionHigh: hl.high != null ? +Number(hl.high).toFixed(2) : null,
-    sessionLow: hl.low != null ? +Number(hl.low).toFixed(2) : null
+    lastAt: lastTick ? _fmtHms(lastTick.at || lastTick.t) : null,
+    sessionHigh: sessionHigh != null ? +Number(sessionHigh).toFixed(2) : null,
+    sessionLow: sessionLow != null ? +Number(sessionLow).toFixed(2) : null
   };
 }
 
@@ -387,7 +539,8 @@ function _withLegHistory(inst, strike, leg, type) {
 // so user can see the "what would I have paid at this exact moment" context.
 const _hlRecord = {
   SENSEX: { date: '', high: 0, highAt: 0, low: 0, lowAt: 0, highPath: [], lowPath: [], chainLog: [] },
-  NIFTY:  { date: '', high: 0, highAt: 0, low: 0, lowAt: 0, highPath: [], lowPath: [], chainLog: [] }
+  NIFTY:  { date: '', high: 0, highAt: 0, low: 0, lowAt: 0, highPath: [], lowPath: [], chainLog: [] },
+  BANKNIFTY: { date: '', high: 0, highAt: 0, low: 0, lowAt: 0, highPath: [], lowPath: [], chainLog: [] }
 };
 function _istDateStr() {
   return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
@@ -472,10 +625,211 @@ function _detectPattern(inst) {
   console.log(`🎯 [${inst}] PATTERN: ${patName} — ${PATTERN_N} ${dir}s in ${((recent[recent.length-1].t - recent[0].t)/60000).toFixed(1)}m, move ${rec.pattern.movePct}%`);
 }
 
+// ==================== BREAKOUT EVENT LOG ====================
+// Records a clean, deduplicated event each time price BREAKS a level:
+//   • DAY  — new intraday day-high or day-low set
+//   • ORB  — first cross of the 9:15-9:30 opening-range high/low
+//   • SWING— breaks the rolling swing high/low of the last N price points
+// Each event: { type, dir, level, price, at }. Reset daily. Capped at 80/inst.
+const _breakoutLog = {
+  SENSEX: { date: '', events: [], orbHiDone: false, orbLoDone: false },
+  NIFTY:  { date: '', events: [], orbHiDone: false, orbLoDone: false }
+};
+const SWING_LOOKBACK = 12;   // price points to define a swing pivot
+const SWING_MIN_GAP_MS = 30 * 1000; // don't log same-dir swing within 30s
+
+function _instOrb(inst) {
+  return inst === 'NIFTY'
+    ? { hi: niftyOrbHigh, lo: niftyOrbLow }
+    : { hi: orbHigh, lo: orbLow };
+}
+function _instPrices(inst) {
+  return inst === 'NIFTY' ? niftyPrices : prices;
+}
+
+function _pushBreakout(inst, type, dir, level, price) {
+  const log = _breakoutLog[inst];
+  const now = Date.now();
+  // De-dup: skip identical (type,dir,level) already at the tail
+  const tail = log.events[log.events.length - 1];
+  if (tail && tail.type === type && tail.dir === dir && Math.abs(tail.level - level) < 0.01) return;
+  // Swing throttle — avoid spamming same-direction swing breaks
+  if (type === 'SWING' && tail && tail.type === 'SWING' && tail.dir === dir && (now - tail.at) < SWING_MIN_GAP_MS) return;
+  const ev = {
+    type, dir,
+    level: +Number(level).toFixed(2),
+    price: +Number(price).toFixed(2),
+    at: now,
+    time: _fmtHms ? _fmtHms(now) : new Date(now).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+  };
+  log.events.push(ev);
+  if (log.events.length > 80) log.events.shift();
+  console.log(`[${inst}] BREAKOUT ${type} ${dir} level=${ev.level} price=${ev.price} @ ${ev.time}`);
+  redisStore.saveBreakouts(inst, log.events).catch(() => {});
+}
+
+function _detectBreakouts(inst, price, prevDayHigh, prevDayLow) {
+  const log = _breakoutLog[inst];
+  const today = _istDateStr();
+  if (log.date !== today) {
+    log.date = today;
+    log.events = [];
+    log.orbHiDone = false;
+    log.orbLoDone = false;
+  }
+
+  // 1) DAY breakout — price made a fresh day extreme (prev passed from caller)
+  if (prevDayHigh != null && price > prevDayHigh && prevDayHigh > 0) {
+    _pushBreakout(inst, 'DAY', 'HIGH', prevDayHigh, price);
+  }
+  if (prevDayLow != null && price < prevDayLow && prevDayLow > 0) {
+    _pushBreakout(inst, 'DAY', 'LOW', prevDayLow, price);
+  }
+
+  // 2) ORB breakout — first cross of opening range, once per side per day
+  const orb = _instOrb(inst);
+  if (orb.hi && !log.orbHiDone && price > orb.hi) {
+    log.orbHiDone = true;
+    _pushBreakout(inst, 'ORB', 'HIGH', orb.hi, price);
+  }
+  if (orb.lo && !log.orbLoDone && price < orb.lo) {
+    log.orbLoDone = true;
+    _pushBreakout(inst, 'ORB', 'LOW', orb.lo, price);
+  }
+
+  // 3) SWING breakout — breaks rolling swing high/low of last N points
+  const arr = _instPrices(inst);
+  if (arr && arr.length >= SWING_LOOKBACK) {
+    const window = arr.slice(-SWING_LOOKBACK - 1, -1); // exclude current tick
+    if (window.length) {
+      const swingHi = Math.max(...window);
+      const swingLo = Math.min(...window);
+      if (price > swingHi && swingHi > 0) _pushBreakout(inst, 'SWING', 'HIGH', swingHi, price);
+      if (price < swingLo && swingLo > 0) _pushBreakout(inst, 'SWING', 'LOW', swingLo, price);
+    }
+  }
+}
+
+// ==================== REVERSAL DETECTOR ====================
+// Detects the exact pattern in the user's charts:
+//   1. Price pushes to a fresh local extreme (makes a high or low)
+//   2. Then sharply reverses back — a rejection / V-bounce
+// Two flavours:
+//   • REJECTION — price wicks past a key level (ORB / swing / day extreme)
+//     then snaps back the other side within a short window (wick rejection)
+//   • BOS (Break-of-Structure) — in a down-leg price prints a higher-high
+//     (bullish reversal) or in an up-leg a lower-low (bearish reversal)
+// Each event: { kind, dir, pivot, price, movePct, at, time }. Capped 60/inst.
+const _reversalLog = {
+  SENSEX: { date: '', events: [] },
+  NIFTY:  { date: '', events: [] }
+};
+// Rolling extreme tracker (resets daily) used for rejection detection.
+const _revState = {
+  SENSEX: { extHi: 0, extHiAt: 0, extLo: Infinity, extLoAt: 0, lastDir: null },
+  NIFTY:  { extHi: 0, extHiAt: 0, extLo: Infinity, extLoAt: 0, lastDir: null }
+};
+const REV_REJECT_PCT   = 0.12;  // min % snap-back from the extreme to call rejection
+const REV_WINDOW_MS     = 4 * 60 * 1000; // extreme must be recent (last 4 min)
+const REV_COOLDOWN_MS   = 90 * 1000; // don't re-fire same direction within 90s
+
+function _pushReversal(inst, kind, dir, pivot, price, movePct) {
+  const log = _reversalLog[inst];
+  const now = Date.now();
+  const tail = log.events[log.events.length - 1];
+  // cooldown on same kind+dir
+  if (tail && tail.kind === kind && tail.dir === dir && (now - tail.at) < REV_COOLDOWN_MS) return;
+  const ev = {
+    kind, dir,
+    pivot: +Number(pivot).toFixed(2),
+    price: +Number(price).toFixed(2),
+    movePct: +Number(movePct).toFixed(2),
+    at: now,
+    time: _fmtHms(now)
+  };
+  log.events.push(ev);
+  if (log.events.length > 60) log.events.shift();
+  console.log(`🔄 [${inst}] REVERSAL ${kind} ${dir} pivot=${ev.pivot} price=${ev.price} move=${ev.movePct}% @ ${ev.time}`);
+  redisStore.saveReversals(inst, log.events).catch(() => {});
+}
+
+function _detectReversals(inst, price) {
+  const log = _reversalLog[inst];
+  const st  = _revState[inst];
+  const today = _istDateStr();
+  if (log.date !== today) {
+    log.date = today; log.events = [];
+    st.extHi = price; st.extHiAt = Date.now();
+    st.extLo = price; st.extLoAt = Date.now();
+    st.lastDir = null;
+    return;
+  }
+  const now = Date.now();
+
+  // Track rolling extremes
+  if (price > st.extHi) { st.extHi = price; st.extHiAt = now; }
+  if (price < st.extLo || st.extLo === Infinity) { st.extLo = price; st.extLoAt = now; }
+
+  // ── BULLISH reversal: recent low, then snap UP ──
+  // price has rallied REV_REJECT_PCT above the recent low, low was set recently
+  if (st.extLo > 0 && st.extLo !== Infinity && (now - st.extLoAt) <= REV_WINDOW_MS) {
+    const upPct = ((price - st.extLo) / st.extLo) * 100;
+    if (upPct >= REV_REJECT_PCT) {
+      _pushReversal(inst, 'REJECTION', 'BULLISH', st.extLo, price, upPct);
+      // reset the low anchor so we don't double-fire; start fresh from here
+      st.extLo = price; st.extLoAt = now;
+    }
+  }
+
+  // ── BEARISH reversal: recent high, then snap DOWN ──
+  if (st.extHi > 0 && (now - st.extHiAt) <= REV_WINDOW_MS) {
+    const dnPct = ((st.extHi - price) / st.extHi) * 100;
+    if (dnPct >= REV_REJECT_PCT) {
+      _pushReversal(inst, 'REJECTION', 'BEARISH', st.extHi, price, dnPct);
+      st.extHi = price; st.extHiAt = now;
+    }
+  }
+
+  // ── BOS via swing structure ──
+  const arr = _instPrices(inst);
+  if (arr && arr.length >= SWING_LOOKBACK) {
+    const window = arr.slice(-SWING_LOOKBACK - 1, -1);
+    if (window.length) {
+      const swingHi = Math.max(...window);
+      const swingLo = Math.min(...window);
+      const mid = (swingHi + swingLo) / 2;
+      // Bullish BOS: was below mid (down-leg) and now breaks swing high
+      if (st.lastDir === 'DOWN' && price > swingHi && swingHi > 0) {
+        _pushReversal(inst, 'BOS', 'BULLISH', swingHi, price, ((price - swingHi) / swingHi) * 100);
+        st.lastDir = 'UP';
+      }
+      // Bearish BOS: was above mid (up-leg) and now breaks swing low
+      if (st.lastDir === 'UP' && price < swingLo && swingLo > 0) {
+        _pushReversal(inst, 'BOS', 'BEARISH', swingLo, price, ((swingLo - price) / swingLo) * 100);
+        st.lastDir = 'DOWN';
+      }
+      // update leg bias
+      if (price > mid) st.lastDir = st.lastDir || 'UP';
+      else if (price < mid) st.lastDir = st.lastDir || 'DOWN';
+      // refine bias by position
+      if (price >= swingHi) st.lastDir = 'UP';
+      else if (price <= swingLo) st.lastDir = 'DOWN';
+    }
+  }
+}
+
 function _updateHL(inst, price) {
   if (!price || price < 1) return;
   const rec = _hlRecord[inst];
   if (!rec) return;
+  // Capture previous day extremes BEFORE this tick updates them, so the
+  // breakout detector compares against the level that was just broken.
+  const _prevDayHigh = rec.date === _istDateStr() ? rec.high : null;
+  const _prevDayLow  = rec.date === _istDateStr() ? rec.low  : null;
+  if (_breakoutLog[inst] && _reversalLog[inst]) {
+    _detectBreakouts(inst, price, _prevDayHigh, _prevDayLow);
+    _detectReversals(inst, price);
+  }
   const today = _istDateStr();
   const now = Date.now();
   const bid = _bucketId(now);          // 5-min bucket id (shared with option H/L)
@@ -501,22 +855,24 @@ function _updateHL(inst, price) {
     if (tail && tail.bid === bid) { tail.p = price; tail.t = _bucketStartMs(bid); tail.at = now; }
     else { rec.highPath.push({ bid, t: _bucketStartMs(bid), at: now, p: price });
            if (rec.highPath.length > 96) rec.highPath.shift(); }
-    _snapshotChainAtHL(inst, price, 'HIGH');
+    if (_hlLastSnapshotAt[inst] !== undefined) _snapshotChainAtHL(inst, price, 'HIGH');
   }
   if (newLow) {
     const tail = rec.lowPath[rec.lowPath.length - 1];
     if (tail && tail.bid === bid) { tail.p = price; tail.t = _bucketStartMs(bid); tail.at = now; }
     else { rec.lowPath.push({ bid, t: _bucketStartMs(bid), at: now, p: price });
            if (rec.lowPath.length > 96) rec.lowPath.shift(); }
-    _snapshotChainAtHL(inst, price, 'LOW');
+    if (_hlLastSnapshotAt[inst] !== undefined) _snapshotChainAtHL(inst, price, 'LOW');
   }
+  // Persist to Redis on any new high/low (fire-and-forget)
+  if (newHigh || newLow) redisStore.saveHL(inst, rec).catch(() => {});
 }
 
 async function getLivePrice() {
   if (Date.now() - _livePriceAt < 5000 && _livePrice > 10000) return _livePrice;
   // Try Dhan first
   try {
-    const quote = await live.getSensexPrice();
+    const quote = await _withTimeout(live.getSensexPrice(), QUOTE_TIMEOUT_MS, 'Dhan SENSEX quote');
     const p = Number(quote.price);
     if (p > 10000) { _livePrice = p; _livePriceAt = Date.now(); _updateHL('SENSEX', p); return _livePrice; }
   } catch (_) { /* fall through */ }
@@ -530,11 +886,26 @@ async function getLivePrice() {
 async function getLiveNiftyPrice() {
   if (Date.now() - _niftyLivePriceAt < 5000 && _niftyLivePrice > 10000) return _niftyLivePrice;
   try {
-    const quote = await live.getNiftyPrice();
+    const quote = await _withTimeout(live.getNiftyPrice(), QUOTE_TIMEOUT_MS, 'Dhan NIFTY quote');
     const p = Number(quote.price);
     if (p > 10000) { _niftyLivePrice = p; _niftyLivePriceAt = Date.now(); _updateHL('NIFTY', p); return _niftyLivePrice; }
   } catch (_) { /* use cached */ }
   return _niftyLivePrice;
+}
+
+async function getLiveBankNiftyPrice() {
+  if (Date.now() - _bankNiftyLivePriceAt < 5000 && _bankNiftyLivePrice > 10000) return _bankNiftyLivePrice;
+  try {
+    const quote = await _withTimeout(live.getBankNiftyPrice(), QUOTE_TIMEOUT_MS, 'Dhan BANKNIFTY quote');
+    const p = Number(quote.price);
+    if (p > 10000) {
+      _bankNiftyLivePrice = p;
+      _bankNiftyLivePriceAt = Date.now();
+      _updateHL('BANKNIFTY', p);
+      return _bankNiftyLivePrice;
+    }
+  } catch (_) { /* use cached */ }
+  return _bankNiftyLivePrice;
 }
 
 function getSuggestedStrike(price, signalType) {
@@ -584,19 +955,21 @@ function resetDailyCheck() {
 const _persistFs   = require('fs');
 const _persistPath = require('path').resolve('./data/market-state.json');
 let   _persistTimer = null;
+// Synchronous write — used by the debounced saver AND the shutdown flush so a
+// pending (un-fired) debounce never loses the latest state when the bot stops.
+function _writeMarketState() {
+  try {
+    _persistFs.writeFileSync(_persistPath, JSON.stringify({
+      date: todayDate,
+      sensex: { orbHigh, orbLow, dayHigh, dayLow },
+      nifty:  { orbHigh: niftyOrbHigh, orbLow: niftyOrbLow, dayHigh: niftyDayHigh, dayLow: niftyDayLow }
+    }));
+  } catch (_) { /* best-effort */ }
+}
 function _persistMarketState() {
   // Debounced — multiple calls within 2s collapse into one disk write
   if (_persistTimer) return;
-  _persistTimer = setTimeout(() => {
-    _persistTimer = null;
-    try {
-      _persistFs.writeFileSync(_persistPath, JSON.stringify({
-        date: todayDate,
-        sensex: { orbHigh, orbLow, dayHigh, dayLow },
-        nifty:  { orbHigh: niftyOrbHigh, orbLow: niftyOrbLow, dayHigh: niftyDayHigh, dayLow: niftyDayLow }
-      }));
-    } catch (_) { /* best-effort */ }
-  }, 2000);
+  _persistTimer = setTimeout(() => { _persistTimer = null; _writeMarketState(); }, 2000);
 }
 function _restoreMarketState() {
   try {
@@ -709,20 +1082,25 @@ async function _backfillORBFromCandles() {
   if (sx) {
     if ((orbHigh === null || orbLow === null) && sx.orbHigh && sx.orbLow) {
       orbHigh = sx.orbHigh; orbLow = sx.orbLow;
-      if (sx.dayHigh) dayHigh = sx.dayHigh;
-      if (sx.dayLow)  dayLow  = sx.dayLow;
-      console.log(`📊 Backfilled SENSEX ORB: ${orbHigh}/${orbLow}  Day H/L: ${dayHigh}/${dayLow}`);
+      console.log(`📊 Backfilled SENSEX ORB: ${orbHigh}/${orbLow}`);
     }
+    // Day H/L: always merge the full-day extreme from Dhan, regardless of
+    // whether ORB was restored from disk. Take the widest range so a restart
+    // never loses an earlier high/low that today's live ticks haven't re-hit.
+    if (sx.dayHigh && (dayHigh === null || sx.dayHigh > dayHigh)) dayHigh = sx.dayHigh;
+    if (sx.dayLow  && (dayLow  === null || sx.dayLow  < dayLow))  dayLow  = sx.dayLow;
+    console.log(`📊 SENSEX Day H/L: ${dayHigh}/${dayLow}`);
     applyHL('SENSEX', sx);
   }
   const nf = await fetchOne(process.env.DHAN_NIFTY_SECURITY_ID || '13', 'NIFTY');
   if (nf) {
     if ((niftyOrbHigh === null || niftyOrbLow === null) && nf.orbHigh && nf.orbLow) {
       niftyOrbHigh = nf.orbHigh; niftyOrbLow = nf.orbLow;
-      if (nf.dayHigh) niftyDayHigh = nf.dayHigh;
-      if (nf.dayLow)  niftyDayLow  = nf.dayLow;
-      console.log(`📊 Backfilled NIFTY ORB: ${niftyOrbHigh}/${niftyOrbLow}  Day H/L: ${niftyDayHigh}/${niftyDayLow}`);
+      console.log(`📊 Backfilled NIFTY ORB: ${niftyOrbHigh}/${niftyOrbLow}`);
     }
+    if (nf.dayHigh && (niftyDayHigh === null || nf.dayHigh > niftyDayHigh)) niftyDayHigh = nf.dayHigh;
+    if (nf.dayLow  && (niftyDayLow  === null || nf.dayLow  < niftyDayLow))  niftyDayLow  = nf.dayLow;
+    console.log(`📊 NIFTY Day H/L: ${niftyDayHigh}/${niftyDayLow}`);
     applyHL('NIFTY', nf);
   }
   if (sx || nf) _persistMarketState();
@@ -745,9 +1123,12 @@ setTimeout(() => { _backfillORBFromCandles().catch(() => {}); }, 3000);
 // Get live Sensex data (Dhan or demo fallback)
 app.get("/api/sensex", async (req, res) => {
   try {
-    const quote = await live.getSensexPrice();
+    const quote = await _withTimeout(live.getSensexPrice(), QUOTE_TIMEOUT_MS, 'Dhan SENSEX quote');
     const price = Number(quote.price);
     const volume = Number(quote.volume);
+    _livePrice = price;
+    _livePriceAt = Date.now();
+    _updateHL('SENSEX', price);
 
     const now = new Date();
     const session = getMarketSession(now);
@@ -776,9 +1157,9 @@ app.get("/api/sensex", async (req, res) => {
       });
     }
 
-    // Store data
-    prices.push(price);
-    volumes.push(volume);
+    // Store data — cap at 300 ticks to prevent memory growth
+    prices.push(price);   if (prices.length  > 300) prices.shift();
+    volumes.push(volume); if (volumes.length > 300) volumes.shift();
 
     // ORB Calculation (First 15 min: 9:15-9:30 AM) — persisted to disk so
     // mid-session restart can't wipe it (see _persistMarketState).
@@ -793,7 +1174,10 @@ app.get("/api/sensex", async (req, res) => {
       if (dayHigh === null || price > dayHigh) { dayHigh = price; _changed = true; }
       if (dayLow  === null || price < dayLow)  { dayLow  = price; _changed = true; }
     }
-    if (_changed) _persistMarketState();
+    if (_changed) {
+      _persistMarketState();
+      if (orbHigh && orbLow) redisStore.saveORB('SENSEX', orbHigh, orbLow).catch(() => {});
+    }
 
     // Calculate VWAP
     vwap = calculateVWAP(prices, volumes);
@@ -804,9 +1188,13 @@ app.get("/api/sensex", async (req, res) => {
     // Trend from recent price history vs VWAP — required for full scoring (15pt)
     const sensexTrend = prices.length >= 5 ? detectTrend(prices, vwap) : null;
 
+    // Index feeds carry no volume (Dhan returns 0) — flag it so the volume gate
+    // stays neutral instead of silently costing 20 pts and delaying entries.
+    const sensexVolAvailable = volumes.slice(-10).some(v => Number(v) > 0);
+
     // Get AI Signal
     const aiResult = aiDecision(price, orbHigh, orbLow, vwap, volumeSpike, hour, minute,
-      { trend: sensexTrend?.direction });
+      { trend: sensexTrend?.direction, volumeAvailable: sensexVolAvailable });
     currentSignal = aiResult.signal;
     confidence = aiResult.confidence;
     _lastAiResult = aiResult;
@@ -876,7 +1264,7 @@ app.get("/api/nifty", async (req, res) => {
     let quote;
     let source = 'dhan';
     try {
-      quote = await live.getNiftyPrice();
+      quote = await _withTimeout(live.getNiftyPrice(), QUOTE_TIMEOUT_MS, 'Dhan NIFTY quote');
     } catch (_) {
       const yp = await _fetchYahooNiftyPrice();
       if (yp > 10000) {
@@ -921,8 +1309,8 @@ app.get("/api/nifty", async (req, res) => {
       });
     }
 
-    niftyPrices.push(price);
-    niftyVolumes.push(volume);
+    niftyPrices.push(price);   if (niftyPrices.length  > 300) niftyPrices.shift();
+    niftyVolumes.push(volume); if (niftyVolumes.length > 300) niftyVolumes.shift();
 
     let _niftyChanged = false;
     if (hour === 9 && minute <= 30) {
@@ -933,7 +1321,10 @@ app.get("/api/nifty", async (req, res) => {
       if (niftyDayHigh === null || price > niftyDayHigh) { niftyDayHigh = price; _niftyChanged = true; }
       if (niftyDayLow  === null || price < niftyDayLow)  { niftyDayLow  = price; _niftyChanged = true; }
     }
-    if (_niftyChanged) _persistMarketState();
+    if (_niftyChanged) {
+      _persistMarketState();
+      if (niftyOrbHigh && niftyOrbLow) redisStore.saveORB('NIFTY', niftyOrbHigh, niftyOrbLow).catch(() => {});
+    }
 
     niftyVwap = calculateVWAP(niftyPrices, niftyVolumes);
     const volumeSpike = niftyVolumes.length >= 5
@@ -943,8 +1334,10 @@ app.get("/api/nifty", async (req, res) => {
     // Trend from recent price history vs VWAP (BULLISH / BEARISH / SIDEWAYS).
     // Without this, aiDecision was capped at ~70 — never reaching 75 threshold.
     const niftyTrend = niftyPrices.length >= 5 ? detectTrend(niftyPrices, niftyVwap) : null;
+    // Index feeds carry no volume — keep the volume gate neutral (see ai.js).
+    const niftyVolAvailable = niftyVolumes.slice(-10).some(v => Number(v) > 0);
     const aiResult = aiDecision(price, niftyOrbHigh, niftyOrbLow, niftyVwap, volumeSpike, hour, minute,
-      { trend: niftyTrend?.direction });
+      { trend: niftyTrend?.direction, volumeAvailable: niftyVolAvailable });
     niftySignal     = aiResult.signal;
     niftyConfidence = aiResult.confidence;
     _lastNiftyAiResult = aiResult;
@@ -1003,6 +1396,56 @@ app.get("/api/nifty", async (req, res) => {
       }
       res.status(500).json({ error: 'Failed to fetch NIFTY data' });
     }
+  }
+});
+
+app.get("/api/banknifty", async (req, res) => {
+  try {
+    let quote;
+    let source = 'dhan';
+    try {
+      quote = await _withTimeout(live.getBankNiftyPrice(), QUOTE_TIMEOUT_MS, 'Dhan BANKNIFTY quote');
+    } catch (_) {
+      if (_bankNiftyLivePrice > 10000) {
+        quote = { price: _bankNiftyLivePrice, volume: 0 };
+        source = 'cache';
+      } else {
+        throw _;
+      }
+    }
+    const price = Number(quote.price);
+    const volume = Number(quote.volume || 0);
+    _bankNiftyLivePrice = price;
+    _bankNiftyLivePriceAt = Date.now();
+    _updateHL('BANKNIFTY', price);
+
+    const now = new Date();
+    const session = getMarketSession(now);
+    const vwap = price;
+    const atm = Math.round(price / 100) * 100;
+
+    res.json({
+      price: price.toFixed(2),
+      orbHigh: '--',
+      orbLow: '--',
+      dayHigh: '--',
+      dayLow: '--',
+      vwap: vwap.toFixed(2),
+      signal: 'WAIT',
+      confidence: 0,
+      suggestedStrike: `${atm} CE / ${atm} PE`,
+      target: '--',
+      botRunning,
+      tradesToday: 0,
+      marketOpen: session.inMarketHours,
+      marketStatus: session.status,
+      time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      volume,
+      source
+    });
+  } catch (err) {
+    console.error('[banknifty] fetch error:', err && err.message ? err.message : err);
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to fetch BANKNIFTY data' });
   }
 });
 
@@ -1205,18 +1648,28 @@ app.get('/api/dhan/oauth-callback', async (req, res) => {
       return res.status(502).send(`Step 3 failed (${r.status}): ${JSON.stringify(j)}`);
     }
 
+    const cleanToken = normalizeDhanAccessToken(j.accessToken);
+
     // Persist new token to .env (preserve every other line as-is)
     let env = _fs.readFileSync(_envPath, 'utf8');
     if (env.match(/^DHAN_ACCESS_TOKEN=/m)) {
-      env = env.replace(/^DHAN_ACCESS_TOKEN=.*$/m, `DHAN_ACCESS_TOKEN=${j.accessToken}`);
+      env = env.replace(/^DHAN_ACCESS_TOKEN=.*$/m, `DHAN_ACCESS_TOKEN=${cleanToken}`);
     } else {
-      env += `\nDHAN_ACCESS_TOKEN=${j.accessToken}\n`;
+      env += `\nDHAN_ACCESS_TOKEN=${cleanToken}\n`;
     }
     _fs.writeFileSync(_envPath, env);
 
     // Apply in-memory + reconnect Dhan client (no restart needed)
-    process.env.DHAN_ACCESS_TOKEN = j.accessToken;
-    try { if (live && live.client) live.client.accessToken = j.accessToken; } catch (_) {}
+    process.env.DHAN_ACCESS_TOKEN = cleanToken;
+    try {
+      if (live?.refreshAuth) {
+        await live.refreshAuth({ accessToken: cleanToken });
+      } else if (live?.client) {
+        live.client.accessToken = cleanToken;
+      }
+    } catch (e) {
+      console.warn('[dhan] token refresh applied, but reconnect failed:', e.message);
+    }
 
     res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Dhan token refreshed</title>
       <style>body{font-family:system-ui;background:#0B0F1A;color:#e5e7eb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
@@ -1235,24 +1688,15 @@ app.get('/api/dhan/oauth-callback', async (req, res) => {
 // Decode the JWT to extract `exp` (seconds since epoch). Returns null on
 // any parse error — token might be missing, malformed, or non-JWT.
 function _decodeDhanTokenExp() {
-  try {
-    const tok = process.env.DHAN_ACCESS_TOKEN;
-    if (!tok || tok.split('.').length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(tok.split('.')[1], 'base64').toString('utf8'));
-    return Number(payload.exp) || null;
-  } catch (_) { return null; }
+  return Number(getDhanTokenStatus(process.env.DHAN_ACCESS_TOKEN)?.payload?.exp || 0) || null;
 }
 
 function _tokenStatus() {
-  const exp = _decodeDhanTokenExp();
-  if (!exp) return { valid: false, reason: 'no token or malformed JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const secsLeft = exp - now;
+  const apiAuth = live?.client?.getAuthStatus?.();
   return {
-    valid: secsLeft > 0,
-    expiresAt: new Date(exp * 1000).toISOString(),
-    expiresAtIST: new Date((exp + 5.5 * 3600) * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' IST',
-    hoursLeft: +(secsLeft / 3600).toFixed(2),
+    ...getDhanTokenStatus(process.env.DHAN_ACCESS_TOKEN),
+    serverValid: apiAuth?.blocked ? false : (live?.connected ? true : null),
+    serverError: apiAuth?.blocked ? apiAuth.message : null,
     refreshUrl: '/api/dhan/login'
   };
 }
@@ -1334,42 +1778,182 @@ app.post("/api/kotak/otp", async (req, res) => {
 
 // ==================== SENSIBULL-STYLE OPTION ANALYTICS ====================
 
-// Get complete option chain with Greeks
+const OPTION_SNAPSHOT_TTL_MS = 4000;
+const _optionSnapshotCache = new Map();
+
+function _optionAuthRequired(error) {
+  return error?.code === 'DHAN_AUTH'
+    || error?.code === 'DHAN_AUTH_BLOCKED'
+    || error?.status === 401
+    || error?.status === 403;
+}
+
+function _optionSnapshotError(res, error) {
+  const authRequired = _optionAuthRequired(error);
+  return res.status(authRequired ? 503 : 500).json({
+    error: authRequired ? 'Dhan authentication required' : 'Failed to fetch option snapshot',
+    code: authRequired ? 'DHAN_AUTH_REQUIRED' : 'OPTION_SNAPSHOT_FAILED',
+    refreshUrl: authRequired ? '/api/dhan/login' : undefined
+  });
+}
+
+async function _buildOptionSnapshot(instrument = 'NIFTY') {
+  const inst = String(instrument || 'NIFTY').toUpperCase();
+  const cached = _optionSnapshotCache.get(inst);
+  if (cached?.data && Date.now() - cached.at < OPTION_SNAPSHOT_TTL_MS) return cached.data;
+  if (cached?.promise) return cached.promise;
+
+  const promise = (async () => {
+    const startedAt = Date.now();
+    const meta = getInstrumentMeta(inst);
+
+    // Stage 1: price getter updates the shared index H/L record.
+    const price = await meta.priceGetter();
+    const indexHlAt = Date.now();
+
+    // Stage 2: fetch one real chain and update every option contract H/L record.
+    const chain = await meta.chainGetter(price);
+    const spot = Number(chain?.spotPrice || price || 0);
+    const atmStrike = Number(chain?.atmStrike || Math.round(spot / meta.step) * meta.step);
+
+    optionAnalyzer.spotPrice = spot;
+    optionAnalyzer.strikePitch = meta.step;
+    const normalizeLeg = (leg, type, strike) => {
+      if (!leg) return {};
+      const ltp = Number(leg.ltp || 0);
+      _updateOptHL(inst, strike, type, ltp, Number(leg.high || 0), Number(leg.low || 0));
+      const hl = _getOptHL(inst, strike, type) || {};
+      const fallback = optionAnalyzer.calculateGreeks(strike, type, spot);
+      const metric = (name) => Number.isFinite(Number(leg[name])) ? Number(leg[name]) : Number(fallback[name] || 0);
+      return {
+        ...leg,
+        ltp,
+        high: Number(leg.high || hl.high || ltp || 0),
+        low: Number(leg.low || hl.low || ltp || 0),
+        oi: Number(leg.oi || 0),
+        changeOI: Number(leg.changeOI || 0),
+        volume: Number(leg.volume || 0),
+        iv: Number(leg.iv || 0),
+        delta: metric('delta'),
+        gamma: metric('gamma'),
+        theta: metric('theta'),
+        vega: metric('vega')
+      };
+    };
+
+    const strikes = (chain?.strikes || []).map((row) => ({
+      strike: Number(row.strike),
+      isATM: Number(row.strike) === atmStrike,
+      itmCE: Number(row.strike) < atmStrike,
+      itmPE: Number(row.strike) > atmStrike,
+      ce: normalizeLeg(row.ce, 'CE', Number(row.strike)),
+      pe: normalizeLeg(row.pe, 'PE', Number(row.strike))
+    }));
+
+    const optionHlAt = Date.now();
+
+    // Stage 3: all analytics use the exact normalized live chain above.
+    const totals = strikes.reduce((sum, row) => {
+      sum.callOI += Number(row.ce?.oi || 0);
+      sum.putOI += Number(row.pe?.oi || 0);
+      sum.callVolume += Number(row.ce?.volume || 0);
+      sum.putVolume += Number(row.pe?.volume || 0);
+      if (row.isATM) {
+        sum.atmCallVolume = Number(row.ce?.volume || 0);
+        sum.atmPutVolume = Number(row.pe?.volume || 0);
+      }
+      return sum;
+    }, { callOI: 0, putOI: 0, callVolume: 0, putVolume: 0, atmCallVolume: 0, atmPutVolume: 0 });
+
+    const ratio = (numerator, denominator) => denominator > 0 ? numerator / denominator : 0;
+    const pcrOI = ratio(totals.putOI, totals.callOI);
+    const pcrVolume = ratio(totals.putVolume, totals.callVolume);
+    const pcrATM = ratio(totals.atmPutVolume, totals.atmCallVolume);
+    const pcr = {
+      pcrOI: pcrOI.toFixed(3),
+      pcrVolume: pcrVolume.toFixed(3),
+      pcrATM: pcrATM.toFixed(3),
+      totalCallOI: totals.callOI,
+      totalPutOI: totals.putOI,
+      totalCallVolume: totals.callVolume,
+      totalPutVolume: totals.putVolume,
+      interpretation: optionAnalyzer.interpretPCR(pcrOI, pcrVolume)
+    };
+    const maxPain = optionAnalyzer.calculateMaxPain(strikes);
+    const analyticsAt = Date.now();
+    const hl = _hlRecord[inst];
+
+    return {
+      spotPrice: +spot.toFixed(2),
+      atmStrike,
+      instrument: inst,
+      source: chain?.source || 'dhan',
+      timestamp: new Date(analyticsAt).toISOString(),
+      ts: analyticsAt,
+      highLow: hl ? {
+        high: +Number(hl.high || 0).toFixed(2),
+        highAt: hl.highAt || null,
+        low: +Number(hl.low || 0).toFixed(2),
+        lowAt: hl.lowAt || null
+      } : null,
+      pcr,
+      maxPain,
+      strikes,
+      sequence: ['INDEX_HIGH_LOW', 'OPTION_HIGH_LOW_AND_LTP', 'OI_GREEKS_PCR_MAX_PAIN'],
+      timings: {
+        indexHighLowMs: indexHlAt - startedAt,
+        optionHighLowAndLtpMs: optionHlAt - indexHlAt,
+        analyticsMs: analyticsAt - optionHlAt,
+        totalMs: analyticsAt - startedAt
+      }
+    };
+  })();
+
+  _optionSnapshotCache.set(inst, { ...(cached || {}), promise });
+  try {
+    const data = await promise;
+    _optionSnapshotCache.set(inst, { data, at: Date.now(), promise: null });
+    return data;
+  } catch (error) {
+    _optionSnapshotCache.delete(inst);
+    throw error;
+  }
+}
+
+app.get("/api/options/snapshot", async (req, res) => {
+  try {
+    res.json(await _buildOptionSnapshot(req.query.instrument || 'NIFTY'));
+  } catch (error) {
+    _optionSnapshotError(res, error);
+  }
+});
+
+// Backward-compatible chain endpoint, now backed by the ordered live snapshot.
 app.get("/api/options/chain", async (req, res) => {
   try {
-    const price = await getLivePrice();
-    optionAnalyzer.initialize(price, 20);
-    const chain = optionAnalyzer.optionChain;
-    res.json({
-      spotPrice: price.toFixed(2),
-      atmStrike: optionAnalyzer.getATMStrike(),
-      timestamp: new Date().toISOString(),
-      strikes: chain
-    });
+    res.json(await _buildOptionSnapshot(req.query.instrument || 'NIFTY'));
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch option chain" });
+    _optionSnapshotError(res, error);
   }
 });
 
 // Get PCR (Put Call Ratio)
 app.get("/api/options/pcr", async (req, res) => {
   try {
-    const price = await getLivePrice();
-    optionAnalyzer.initialize(price, 20);
-    res.json(optionAnalyzer.calculatePCR());
+    const snapshot = await _buildOptionSnapshot(req.query.instrument || 'NIFTY');
+    res.json({ ...snapshot.pcr, source: snapshot.source, timestamp: snapshot.timestamp });
   } catch (error) {
-    res.status(500).json({ error: "Failed to calculate PCR" });
+    _optionSnapshotError(res, error);
   }
 });
 
 // Get Max Pain
 app.get("/api/options/maxpain", async (req, res) => {
   try {
-    const price = await getLivePrice();
-    optionAnalyzer.initialize(price, 20);
-    res.json(optionAnalyzer.calculateMaxPain());
+    const snapshot = await _buildOptionSnapshot(req.query.instrument || 'NIFTY');
+    res.json({ ...snapshot.maxPain, source: snapshot.source, timestamp: snapshot.timestamp });
   } catch (error) {
-    res.status(500).json({ error: "Failed to calculate max pain" });
+    _optionSnapshotError(res, error);
   }
 });
 
@@ -1388,8 +1972,9 @@ app.get("/api/options/oi-analysis", async (req, res) => {
 app.get("/api/options/greeks-matrix", async (req, res) => {
   try {
     const inst = (req.query.inst || 'SENSEX').toUpperCase();
-    const spot = inst === 'NIFTY' ? await getLiveNiftyPrice() : await getLivePrice();
-    const interval = inst === 'NIFTY' ? 50 : 100;
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const interval = meta.step;
     const atm = Math.round(spot / interval) * interval;
 
     optionAnalyzer.initialize(spot, 20);
@@ -1575,6 +2160,46 @@ app.get('/api/nifty/options/analytics', async (req, res) => {
   }
 });
 
+app.get('/api/banknifty/options/analytics', async (req, res) => {
+  try {
+    const price = await getLiveBankNiftyPrice();
+    const chain = await live.getBankNiftyOptionChain(price);
+    const atm   = Math.round(price / 100) * 100;
+    const optionChain = chain.strikes.map(s => ({
+      strike: s.strike,
+      isATM:  s.strike === atm,
+      itmCE:  s.strike < atm,
+      itmPE:  s.strike > atm,
+      ce: _withLegHistory('BANKNIFTY', s.strike, { ltp: s.ce.ltp, oi: s.ce.oi, changeOI: s.ce.changeOI || 0,
+            volume: s.ce.volume || 0, iv: s.ce.iv || 12,
+            delta: s.strike < atm ? 0.85 : s.strike === atm ? 0.5 : 0.15 }, 'CE'),
+      pe: _withLegHistory('BANKNIFTY', s.strike, { ltp: s.pe.ltp, oi: s.pe.oi, changeOI: s.pe.changeOI || 0,
+            volume: s.pe.volume || 0, iv: s.pe.iv || 12,
+            delta: s.strike > atm ? -0.85 : s.strike === atm ? -0.5 : -0.15 }, 'PE')
+    }));
+    const totalCeOI = optionChain.reduce((s, r) => s + (r.ce?.oi || 0), 0);
+    const totalPeOI = optionChain.reduce((s, r) => s + (r.pe?.oi || 0), 0);
+    const pcr = totalCeOI > 0 ? +(totalPeOI / totalCeOI).toFixed(2) : 1;
+    const pcrBias = pcr > 1.2 ? 'BULLISH' : pcr < 0.8 ? 'BEARISH' : 'SIDEWAYS';
+    const maxPainStrike = optionChain.reduce((best, s) => {
+      const pain = optionChain.reduce((t, r) =>
+        t + Math.max(0, s.strike - r.strike) * (r.ce?.oi || 0) +
+            Math.max(0, r.strike - s.strike) * (r.pe?.oi || 0), 0);
+      return (!best || pain < best.pain) ? { strike: s.strike, pain } : best;
+    }, null);
+    const avgIV = optionChain.length ? +(optionChain.reduce((s, r) => s + (r.ce?.iv || 0) + (r.pe?.iv || 0), 0) / (optionChain.length * 2)).toFixed(1) : 12;
+    res.json({
+      spotPrice: price, atmStrike: atm, optionChain, livePrice: price,
+      priceAt: new Date().toISOString(), dataSource: 'BANKNIFTY/NSE',
+      pcr: { pcr, interpretation: { bias: pcrBias } },
+      maxPain: { maxPain: maxPainStrike?.strike || atm, interpretation: 'Max Pain' },
+      ivSummary: { overallIV: avgIV, ceAvgIV: avgIV, peAvgIV: avgIV, ivPercentile: 50 }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch BANKNIFTY analytics', detail: err.message });
+  }
+});
+
 // Get Top Activity (Volume & OI)
 app.get("/api/options/top-activity", async (req, res) => {
   try {
@@ -1624,272 +2249,6 @@ app.get("/api/database/stats", (req, res) => {
   }
 });
 
-// Get backtest results (Yahoo Finance / TradingView engine)
-app.get("/api/backtest/real", (req, res) => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const resultsPath = path.join(__dirname, 'backtest-real-results.json');
-
-    if (!fs.existsSync(resultsPath)) {
-      return res.json({
-        available: false,
-        message: "Run 'npm run backtest:tv' to generate results."
-      });
-    }
-
-    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
-    res.json({ available: true, ...data });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to load backtest results", detail: error.message });
-  }
-});
-
-app.get("/api/backtest/report", (req, res) => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const instrument = String(req.query.instrument || '').trim().toLowerCase();
-    const useInstrumentFile = instrument && instrument !== 'all';
-    const resultsPath = useInstrumentFile
-      ? path.join(__dirname, `backtest-tv-results-${instrument}.json`)
-      : path.join(__dirname, 'backtest-real-results.json');
-
-    if (!fs.existsSync(resultsPath)) {
-      return res.status(404).json({ error: "Backtest results not found. Run the backtest first." });
-    }
-
-    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
-    const reportPath = data?.config?.excelReportPath;
-    if (!reportPath || !fs.existsSync(reportPath)) {
-      return res.status(404).json({ error: "Excel report not found. Run the backtest again to generate it." });
-    }
-
-    return res.download(reportPath, path.basename(reportPath));
-  } catch (error) {
-    res.status(500).json({ error: "Failed to download Excel report", detail: error.message });
-  }
-});
-
-let backtestRunning = false;
-let trendBacktestRunning = false;
-
-function normalizeBacktestInstrument(value) {
-  const text = String(value || 'SENSEX').toUpperCase();
-  if (text === 'BANK' || text === 'NIFTYBANK') return 'BANKNIFTY';
-  if (text === 'BANKNIFTY') return 'BANKNIFTY';
-  if (text === 'NIFTY') return 'NIFTY';
-  return 'SENSEX';
-}
-
-function toYmdUtc(date) {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function buildBacktestEnv(body = {}) {
-  const instrument = normalizeBacktestInstrument(body.instrument || body.inst);
-  const rawDays = Number(body.days);
-  const days = Number.isFinite(rawDays) && rawDays > 0 ? Math.round(rawDays) : null;
-  const explicitStart = String(body.startDate || body.start_date || '').trim();
-  const startDate = explicitStart || (days ? toYmdUtc(new Date(Date.now() - (days * 86400000))) : '');
-  const env = {
-    ...process.env,
-    BACKTEST_INSTRUMENT: instrument,
-    BACKTEST_START_DATE: startDate,
-  };
-  if (days) {
-    env.BACKTEST_NUM_EXPIRIES = String(Math.max(200, Math.ceil(days / 5)));
-    env.BACKTEST_START_YEAR = startDate.slice(0, 4);
-  }
-  return { instrument, days, startDate, env };
-}
-
-app.get("/api/backtest/trend", (req, res) => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const resultsPath = path.join(__dirname, 'backtest-trend-results.json');
-
-    if (!fs.existsSync(resultsPath)) {
-      return res.json({
-        available: false,
-        running: trendBacktestRunning,
-        message: "Run 'npm run backtest:trend' or POST /api/backtest/trend/run first."
-      });
-    }
-
-    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
-    res.json({ available: true, running: trendBacktestRunning, ...data });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to load trend backtest results", detail: error.message });
-  }
-});
-
-app.post("/api/backtest/trend/run", (req, res) => {
-  if (trendBacktestRunning || backtestRunning) {
-    return res.status(409).json({ error: "Trend backtest already running" });
-  }
-  const { spawn } = require('child_process');
-  const { instrument, days, startDate, env } = buildBacktestEnv(req.body || {});
-  trendBacktestRunning = true;
-
-  const baseChild = spawn('node', ['backtest-tv/run.js'], {
-    cwd: __dirname,
-    env,
-    stdio: 'inherit'
-  });
-  backtestRunning = true;
-
-  baseChild.on('close', (code) => {
-    backtestRunning = false;
-    console.log(`[trend-backtest:base] finished with code ${code}`);
-    if (code !== 0) {
-      trendBacktestRunning = false;
-      return;
-    }
-    const trendChild = spawn('node', ['backtest-trend.js'], {
-      cwd: __dirname,
-      env,
-      stdio: 'inherit'
-    });
-    trendChild.on('close', (trendCode) => {
-      trendBacktestRunning = false;
-      console.log(`[trend-backtest] finished with code ${trendCode}`);
-    });
-    trendChild.on('error', (error) => {
-      trendBacktestRunning = false;
-      console.error('[trend-backtest] failed to start', error);
-    });
-  });
-
-  baseChild.on('error', (error) => {
-    backtestRunning = false;
-    trendBacktestRunning = false;
-    console.error('[trend-backtest:base] failed to start', error);
-  });
-  res.json({
-    status: 'started',
-    instrument,
-    days,
-    startDate: startDate || null,
-    message: `Trend backtest started for ${instrument}${days ? ` over last ${days} days` : ''}.`
-  });
-});
-
-app.get("/api/backtest/trend/status", (req, res) => {
-  res.json({ running: trendBacktestRunning, baseRunning: backtestRunning });
-});
-
-// Trigger backtest run (spawns node backtest-tv/run.js)
-app.post("/api/backtest/run", (req, res) => {
-  if (backtestRunning || trendBacktestRunning) {
-    return res.status(409).json({ error: "Backtest already running" });
-  }
-  const { spawn } = require('child_process');
-  const { instrument, days, startDate, env } = buildBacktestEnv(req.body || {});
-  backtestRunning = true;
-  const child = spawn('node', ['backtest-tv/run.js'], {
-    cwd: __dirname,
-    env,
-    stdio: 'inherit'
-  });
-  child.on('close', (code) => {
-    backtestRunning = false;
-    console.log(`[backtest] finished with code ${code}`);
-  });
-  child.on('error', (error) => {
-    backtestRunning = false;
-    console.error('[backtest] failed to start', error);
-  });
-  res.json({
-    status: 'started',
-    instrument,
-    days,
-    startDate: startDate || null,
-    message: `Backtest running for ${instrument}${days ? ` over last ${days} days` : ''}.`
-  });
-});
-
-// Backtest status
-app.get("/api/backtest/status", (req, res) => {
-  res.json({ running: backtestRunning });
-});
-
-// Daily backtest results — reads backtest-daily-results-{inst}-2y-*.json
-// Aggregates trade list into headline stats so the indicator panel can render
-// the same shape as /api/backtest/real (expiry mode).
-app.get("/api/backtest/daily", (req, res) => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const inst = String(req.query.inst || 'NIFTY').toLowerCase();
-    const dir = __dirname;
-    const candidate = fs.readdirSync(dir).find(f =>
-      f.startsWith(`backtest-daily-results-${inst}-`) && f.endsWith('.json'));
-    if (!candidate) {
-      return res.json({ available: false, message: `No daily backtest result file found for ${inst.toUpperCase()}.` });
-    }
-    const filePath = path.join(dir, candidate);
-    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    const trades = (raw.trades || []).filter(t => t.status === 'OK' && typeof t.netPnlPct === 'number');
-    if (!trades.length) {
-      return res.json({ available: true, instrument: inst.toUpperCase(), file: candidate, stats: {}, byYear: {} });
-    }
-    const wins = trades.filter(t => t.netPnlPct > 0);
-    const losses = trades.filter(t => t.netPnlPct <= 0);
-    const sumNet = trades.reduce((a, t) => a + t.netPnlPct, 0);
-    const sumPnL = trades.reduce((a, t) => a + ((t.grossPnlAbs || 0) - (t.brokerageAbs || 0)), 0);
-    const mults  = trades.map(t => t.exitPrice / t.entryPrice).filter(x => isFinite(x));
-    const stats = {
-      totalTrades: trades.length,
-      wins: wins.length,
-      losses: losses.length,
-      winRate: +(wins.length / trades.length * 100).toFixed(2),
-      avgPnlPct: +(sumNet / trades.length).toFixed(2),
-      totalPnlPct: +sumNet.toFixed(0),
-      totalPnlAbs: +sumPnL.toFixed(0),
-      avgMultiplier: +(mults.reduce((a, b) => a + b, 0) / mults.length).toFixed(3),
-      maxMultiplier: +Math.max(...mults).toFixed(3),
-      hit2x:  trades.filter(t => t.exitPrice / t.entryPrice >= 2).length,
-      hit5x:  trades.filter(t => t.exitPrice / t.entryPrice >= 5).length,
-    };
-    // Group by year
-    const byYear = {};
-    for (const t of trades) {
-      const y = new Date((t.entryTimestamp || 0) * 1000).getUTCFullYear();
-      if (!byYear[y]) byYear[y] = { trades: 0, wins: 0, sumPnlPct: 0, sumMult: 0 };
-      byYear[y].trades++;
-      if (t.netPnlPct > 0) byYear[y].wins++;
-      byYear[y].sumPnlPct += t.netPnlPct;
-      byYear[y].sumMult += (t.exitPrice / t.entryPrice) || 0;
-    }
-    for (const y of Object.keys(byYear)) {
-      const v = byYear[y];
-      v.winRate = +(v.wins / v.trades * 100).toFixed(1);
-      v.avgPnlPct = +(v.sumPnlPct / v.trades).toFixed(1);
-      v.avgMultiplier = +(v.sumMult / v.trades).toFixed(2);
-      delete v.sumPnlPct; delete v.sumMult;
-    }
-    res.json({
-      available: true,
-      mode: 'daily',
-      instrument: inst.toUpperCase(),
-      file: candidate,
-      generatedAt: raw.generatedAt,
-      dataSource: raw.dataSource,
-      totalExpiries: raw.totalExpiries,
-      expiriesWithTrades: raw.expiriesWithTrades,
-      skipped: raw.skipped,
-      stats: { ...stats, byYear },
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to load daily backtest', detail: error.message });
-  }
-});
-
 // ==================== PAPER POSITION TRACKER — SENSEX ====================
 let openPosition = null;
 let closedPositions = [];
@@ -1897,6 +2256,12 @@ let closedPositions = [];
 // ==================== PAPER POSITION TRACKER — NIFTY ====================
 let niftyOpenPosition = null;
 let niftyClosedPositions = [];
+
+// ==================== PAPER POSITION TRACKER — AFTERNOON ====================
+let afternoonOpenPosition = null;
+let afternoonClosedPositions = [];
+let niftyAfternoonOpenPosition = null;
+let niftyAfternoonClosedPositions = [];
 
 const SL_PCT       = parseFloat(process.env.STOP_LOSS_PERCENT || 35) / 100;    // 0.35
 const TRAIL_MULT   = parseFloat(process.env.TRAIL_AFTER_MULTIPLE || 1.5);       // 1.5
@@ -2063,6 +2428,32 @@ app.post("/api/position/exit", async (req, res) => {
   openPosition = null;
 
   console.log(`[position] EXITED @ ${exitPrice} → ${mult.toFixed(2)}x (${pnlPct}%)`);
+
+  // Claude-written Telegram narration for this exit (non-blocking)
+  if (telegram?.enabled) {
+    const evtType = closed.exitReason?.includes('SL') ? 'SL_HIT'
+                  : closed.exitReason?.includes('TARGET') ? 'TARGET_HIT'
+                  : closed.exitReason?.includes('TRAIL') ? 'TRAIL_LOCKED'
+                  : 'EXIT';
+    claudeTradeNarration(evtType, {
+      instrument: 'SENSEX',
+      signal:     closed.signal,
+      strike:     closed.strike,
+      premium:    closed.entryPrice,
+      lots:       closed.lots,
+      pnlAbs:     closed.finalPnlAbs,
+      pnlPct:     closed.finalPnlPct,
+      exitReason: closed.exitReason,
+      confidence: closed.aiConfidence,
+      orbHigh:    closed.orbHigh,
+      orbLow:     closed.orbLow,
+      vwap:       closed.vwap,
+      tradeMode:  process.env.TRADE_MODE || 'paper'
+    }).then(msg => {
+      if (msg) telegram.sendAlert(evtType, msg).catch(() => {});
+    }).catch(() => {});
+  }
+
   res.json({ ok: true, trade: closed });
 });
 
@@ -2342,21 +2733,29 @@ app.get('/api/:inst(nifty|sensex)/hl-log', (req, res) => {
   });
 });
 
-// Emergency kill switch — disables auto-trading on BOTH instruments
+// Emergency kill switch — disables auto-trading on ALL engines (morning + afternoon)
 // atomically. Open positions are NOT closed (use position/exit for that).
 // Used by the dashboard header "HALT ALL" button.
 app.post('/api/engine/halt-all', (req, res) => {
   const before = {
     sensex: engine.autoEnabled,
-    nifty:  niftyEngine.autoEnabled
+    nifty:  niftyEngine.autoEnabled,
+    sensexAfternoon: afternoonEngine?.autoEnabled ?? false,
+    niftyAfternoon:  niftyAfternoonEngine?.autoEnabled ?? false
   };
   engine.setAutoEnabled(false);
   niftyEngine.setAutoEnabled(false);
-  console.warn('[engine] 🛑 HALT-ALL triggered by operator — both engines paused');
+  if (afternoonEngine) afternoonEngine.setAutoEnabled(false);
+  if (niftyAfternoonEngine) niftyAfternoonEngine.setAutoEnabled(false);
+  console.warn('[engine] 🛑 HALT-ALL triggered by operator — all engines paused (morning + afternoon)');
   res.json({
     ok: true,
     before,
-    after: { sensex: engine.autoEnabled, nifty: niftyEngine.autoEnabled }
+    after: {
+      sensex: engine.autoEnabled, nifty: niftyEngine.autoEnabled,
+      sensexAfternoon: afternoonEngine?.autoEnabled ?? false,
+      niftyAfternoon: niftyAfternoonEngine?.autoEnabled ?? false
+    }
   });
 });
 
@@ -2400,6 +2799,80 @@ niftyEngine.setTrendProvider(() => _computeTrendFromHL('NIFTY',
 niftyEngine.restoreEquity();
 
 // Engine control endpoints — NIFTY
+function amiEngineForInstrument(instrument) {
+  const inst = String(instrument || 'NIFTY').toUpperCase();
+  if (inst === 'SENSEX') return engine;
+  if (inst === 'NIFTY') return niftyEngine;
+  return null;
+}
+
+function updatePublicAmiSignal(signal) {
+  const inst = String(signal.instrument || 'NIFTY').toUpperCase();
+  const strike = signal.strike || '--';
+  const target = signal.target || '--';
+  if (inst === 'SENSEX') {
+    currentSignal = signal.signal;
+    confidence = signal.conf || 0;
+    suggestedStrike = strike;
+    targetMultiplier = target;
+    return;
+  }
+  if (inst === 'NIFTY') {
+    niftySignal = signal.signal;
+    niftyConfidence = signal.conf || 0;
+    niftySuggestedStrike = strike;
+    niftyTargetMultiplier = target;
+  }
+}
+
+async function executeAmiSignal(signal, { allowLive = false } = {}) {
+  const inst = String(signal.instrument || 'NIFTY').toUpperCase();
+  const eng = amiEngineForInstrument(inst);
+  if (!eng) {
+    return { ok: false, error: 'unsupported_instrument', instrument: inst };
+  }
+
+  const session = getMarketSession();
+  const allowAfterHours = String(process.env.AMIBROKER_ALLOW_AFTER_HOURS || 'false').toLowerCase() === 'true';
+  if (!session.inMarketHours && !allowAfterHours) {
+    return { ok: false, error: session.status, instrument: inst };
+  }
+
+  updatePublicAmiSignal(signal);
+
+  if (!eng.paperMode && !allowLive) {
+    return { ok: false, error: 'live_blocked_by_AMIBROKER_ALLOW_LIVE', instrument: inst };
+  }
+
+  const result = await eng.forceEntry(signal.signal, { allowLive });
+  return { instrument: inst, source: 'amibroker', ...result };
+}
+
+async function exitAmiPosition(signal, { allowLive = false } = {}) {
+  const inst = String(signal.instrument || 'NIFTY').toUpperCase();
+  const eng = amiEngineForInstrument(inst);
+  if (!eng) {
+    return { ok: false, error: 'unsupported_instrument', instrument: inst };
+  }
+
+  const pos = eng.getOpenPosition ? eng.getOpenPosition() : null;
+  if (!pos) {
+    return { ok: false, error: 'no_open_position', instrument: inst };
+  }
+  if (!eng.paperMode && !allowLive) {
+    return { ok: false, error: 'live_exit_blocked_by_AMIBROKER_ALLOW_LIVE', instrument: inst };
+  }
+  if (typeof eng._exit !== 'function') {
+    return { ok: false, error: 'exit_not_supported', instrument: inst };
+  }
+
+  const rawExitPrice = Number(signal.price) > 0
+    ? Number(signal.price)
+    : Number(pos.currentPrice || pos.entryPrice || 0);
+  await eng._exit(pos, rawExitPrice, 'AMIBROKER_EXIT');
+  return { ok: true, instrument: inst, source: 'amibroker', exitPrice: rawExitPrice };
+}
+
 app.post('/api/nifty/engine/auto', (req, res) => {
   const { enabled } = req.body;
   niftyEngine.setAutoEnabled(!!enabled);
@@ -2414,6 +2887,186 @@ app.post('/api/nifty/engine/mode', (req, res) => {
 
 app.get('/api/nifty/engine/status', (req, res) => {
   res.json({ ...niftyEngine.status(), halt: niftyEngine.getHaltStatus() });
+});
+
+// ==================== AFTERNOON ENGINE — SENSEX ====================
+const afternoonEngine = new AfternoonEngine({
+  live,
+  getPrice:            () => _livePrice,
+  getOpenPosition:     () => afternoonOpenPosition,
+  setOpenPosition:     (p) => { afternoonOpenPosition = p; },
+  pushClosedPosition:  (p) => { afternoonClosedPositions.push(p); },
+  getGammaBlast:       () => {
+    try {
+      optionAnalyzer.initialize(_livePrice, 20);
+      return optionAnalyzer.getGammaBlastAlert({ spotPrice: _livePrice });
+    } catch (_) { return null; }
+  },
+  getReversals:        () => (_reversalLog.SENSEX?.events || []),
+  getMaxPain:          () => {
+    try { return optionAnalyzer.calculateMaxPain ? { maxPainStrike: optionAnalyzer._lastMaxPain || 0 } : null; }
+    catch (_) { return null; }
+  },
+  getEmaStack:         () => _emaCache.SENSEX,
+  getPattern:          () => _hlRecord.SENSEX?.pattern || null,
+  getMorningPnl:       () => {
+    const todayStr = new Date().toDateString();
+    return closedPositions
+      .filter(p => new Date(p.exitAt).toDateString() === todayStr)
+      .reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
+  },
+  lotSize:         20,
+  strikeInterval:  100,
+  atmRound:        100,
+  exchangeSegment: 'BSE_FNO',
+  instrumentName:  'SENSEX'
+});
+afternoonEngine._getDailyPnl = () => {
+  const todayStr = new Date().toDateString();
+  return afternoonClosedPositions
+    .filter(p => new Date(p.exitAt).toDateString() === todayStr)
+    .reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
+};
+afternoonEngine.restoreEquity();
+
+// Telegram alerts for afternoon trades — tagged [🌅 AFTERNOON]
+afternoonEngine.onTradeEvent = (event, data) => {
+  if (!telegram?.enabled) return;
+  const tag = '🌅 AFTERNOON';
+  if (event === 'ENTRY') {
+    telegram.sendAlert(`[${tag}] ENTRY`,
+      `${data.signal} ${data.strike}${data.type} @ ₹${data.quotedEntry?.toFixed(1) || '?'}\n` +
+      `${data.lots} lot(s) | Deployed ₹${data.deployed?.toFixed(0) || '?'}\n` +
+      `Score: ${data.score || '?'}/100 | SL ₹${data.sl?.toFixed(1) || '?'}\n` +
+      `Mode: ${data.paperMode ? 'PAPER' : 'LIVE'}`
+    ).catch(() => {});
+  } else if (event === 'EXIT') {
+    const emoji = parseFloat(data.finalPnlAbs || 0) >= 0 ? '✅' : '❌';
+    telegram.sendAlert(`[${tag}] EXIT ${emoji}`,
+      `${data.signal} ${data.strike}${data.type}\n` +
+      `${data.exitReason} | ${data.finalMult}x | ${data.finalPnlPct}%\n` +
+      `P&L: ₹${data.finalPnlAbs}`
+    ).catch(() => {});
+  }
+};
+
+// ==================== AFTERNOON ENGINE — NIFTY ====================
+const niftyAfternoonEngine = new AfternoonEngine({
+  live,
+  getPrice:            () => _niftyLivePrice,
+  getOpenPosition:     () => niftyAfternoonOpenPosition,
+  setOpenPosition:     (p) => { niftyAfternoonOpenPosition = p; },
+  pushClosedPosition:  (p) => { niftyAfternoonClosedPositions.push(p); },
+  getGammaBlast:       () => {
+    try {
+      const analyzer = new OptionAnalyzer();
+      analyzer.initialize(_niftyLivePrice, 20);
+      return analyzer.getGammaBlastAlert({ spotPrice: _niftyLivePrice });
+    } catch (_) { return null; }
+  },
+  getReversals:        () => (_reversalLog.NIFTY?.events || []),
+  getMaxPain:          () => null, // NIFTY max pain TBD
+  getEmaStack:         () => _emaCache.NIFTY,
+  getPattern:          () => _hlRecord.NIFTY?.pattern || null,
+  getMorningPnl:       () => {
+    const todayStr = new Date().toDateString();
+    return niftyClosedPositions
+      .filter(p => new Date(p.exitAt).toDateString() === todayStr)
+      .reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
+  },
+  lotSize:         65,
+  strikeInterval:  50,
+  atmRound:        50,
+  exchangeSegment: 'NSE_FNO',
+  instrumentName:  'NIFTY'
+});
+niftyAfternoonEngine._getDailyPnl = () => {
+  const todayStr = new Date().toDateString();
+  return niftyAfternoonClosedPositions
+    .filter(p => new Date(p.exitAt).toDateString() === todayStr)
+    .reduce((s, p) => s + parseFloat(p.finalPnlAbs || 0), 0);
+};
+niftyAfternoonEngine.restoreEquity();
+
+// Telegram alerts for NIFTY afternoon trades
+niftyAfternoonEngine.onTradeEvent = (event, data) => {
+  if (!telegram?.enabled) return;
+  const tag = '🌅 NIFTY AFT';
+  if (event === 'ENTRY') {
+    telegram.sendAlert(`[${tag}] ENTRY`,
+      `${data.signal} ${data.strike}${data.type} @ ₹${data.quotedEntry?.toFixed(1) || '?'}\n` +
+      `${data.lots} lot(s) | Score: ${data.score || '?'}/100\n` +
+      `Mode: ${data.paperMode ? 'PAPER' : 'LIVE'}`
+    ).catch(() => {});
+  } else if (event === 'EXIT') {
+    const emoji = parseFloat(data.finalPnlAbs || 0) >= 0 ? '✅' : '❌';
+    telegram.sendAlert(`[${tag}] EXIT ${emoji}`,
+      `${data.signal} ${data.strike}${data.type}\n` +
+      `${data.exitReason} | ${data.finalMult}x | P&L: ₹${data.finalPnlAbs}`
+    ).catch(() => {});
+  }
+};
+
+// ==================== AFTERNOON ENGINE ENDPOINTS ====================
+app.get('/api/afternoon/status', (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const eng = inst === 'NIFTY' ? niftyAfternoonEngine : afternoonEngine;
+  res.json({ ...eng.status(), halt: eng.getHaltStatus() });
+});
+
+app.post('/api/afternoon/auto', (req, res) => {
+  const inst = String(req.query.inst || req.body?.inst || 'SENSEX').toUpperCase();
+  const { enabled } = req.body;
+  const eng = inst === 'NIFTY' ? niftyAfternoonEngine : afternoonEngine;
+  eng.setAutoEnabled(!!enabled);
+  res.json({ ok: true, instrument: inst, autoEnabled: !!enabled });
+});
+
+app.get('/api/afternoon/score', (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const eng = inst === 'NIFTY' ? niftyAfternoonEngine : afternoonEngine;
+  const score = eng.computeScore();
+  res.json({ instrument: inst, ...score });
+});
+
+app.get('/api/afternoon/config', (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const eng = inst === 'NIFTY' ? niftyAfternoonEngine : afternoonEngine;
+  res.json(eng.getConfig());
+});
+
+app.patch('/api/afternoon/config', (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const eng = inst === 'NIFTY' ? niftyAfternoonEngine : afternoonEngine;
+  const applied = eng.setConfig(req.body || {});
+  res.json({ ok: true, applied });
+});
+
+app.post('/api/afternoon/reset', (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const eng = inst === 'NIFTY' ? niftyAfternoonEngine : afternoonEngine;
+  const was = eng.resetHalt();
+  res.json({ ok: true, instrument: inst, was, halt: eng.getHaltStatus() });
+});
+
+app.get('/api/afternoon/position', (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const pos = inst === 'NIFTY' ? niftyAfternoonOpenPosition : afternoonOpenPosition;
+  const closed = inst === 'NIFTY' ? niftyAfternoonClosedPositions : afternoonClosedPositions;
+  if (!pos) return res.json({ open: false, closed: closed.slice(-5) });
+  res.json({ open: true, position: pos, closed: closed.slice(-5) });
+});
+
+app.post('/api/afternoon/test-trade', async (req, res) => {
+  const inst   = String(req.query.inst || req.body?.inst || 'SENSEX').toUpperCase();
+  const signal = String(req.query.signal || req.body?.signal || 'CALL').toUpperCase();
+  const eng = inst === 'NIFTY' ? niftyAfternoonEngine : afternoonEngine;
+  try {
+    const result = await eng.forceEntry(signal);
+    res.json({ inst, signal, session: 'AFTERNOON', ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // ==================== MANUAL TEST TRADE ====================
@@ -2529,6 +3182,99 @@ app.post('/api/strategy-config/reset', (req, res) => {
 });
 
 // ==================== HIGH/LOW MAPPING ====================
+const _prevDayLevelsCache = {};
+
+async function _fetchPrevTradingDayLevels(inst) {
+  const upperInst = String(inst || 'SENSEX').toUpperCase();
+  const cacheKey = `${upperInst}:${new Date(Date.now() + IST_OFFSET_MIN * 60 * 1000).toISOString().slice(0, 10)}`;
+  const cached = _prevDayLevelsCache[cacheKey];
+  if (cached && (Date.now() - cached.at) < 15 * 60 * 1000) return cached.data;
+
+  try {
+    const YahooFinance = require('yahoo-finance2').default;
+    const yf = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
+    const symbol = upperInst === 'NIFTY' ? '^NSEI' : '^BSESN';
+    const period2 = new Date();
+    const period1 = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    const rows = await yf.historical(symbol, { period1, period2, interval: '1d' });
+    const clean = (rows || []).filter(r => Number.isFinite(r?.high) && Number.isFinite(r?.low));
+    const todayStr = new Date(Date.now() + IST_OFFSET_MIN * 60 * 1000).toISOString().slice(0, 10);
+    const prev = clean.filter(r => new Date(r.date).toISOString().slice(0, 10) < todayStr).at(-1);
+    if (prev) {
+      const data = {
+        inst: upperInst,
+        tradeDate: new Date(prev.date).toISOString().slice(0, 10),
+        high: +Number(prev.high).toFixed(2),
+        low: +Number(prev.low).toFixed(2),
+      };
+      _prevDayLevelsCache[cacheKey] = { at: Date.now(), data };
+      return data;
+    }
+  } catch (_) {}
+
+  if (!live?.client?._post) throw new Error('historical index feed unavailable');
+
+  const securityId = upperInst === 'NIFTY'
+    ? (process.env.DHAN_NIFTY_SECURITY_ID || '13')
+    : (process.env.DHAN_SENSEX_SECURITY_ID || '51');
+
+  const todayIST = new Date(Date.now() + IST_OFFSET_MIN * 60 * 1000);
+  for (let back = 1; back <= 7; back++) {
+    const from = new Date(todayIST.getTime() - back * 24 * 60 * 60 * 1000);
+    const day = from.toISOString().slice(0, 10);
+    try {
+      const r = await live.client._post('/v2/charts/intraday', {
+        securityId: String(securityId),
+        exchangeSegment: 'IDX_I',
+        instrument: 'INDEX',
+        interval: '1',
+        fromDate: day,
+        toDate: day,
+      });
+      const highs = Array.isArray(r?.high) ? r.high.map(Number).filter(Number.isFinite) : [];
+      const lows = Array.isArray(r?.low) ? r.low.map(Number).filter(Number.isFinite) : [];
+      if (!highs.length || !lows.length) continue;
+
+      const data = {
+        inst: upperInst,
+        tradeDate: day,
+        high: +Math.max(...highs).toFixed(2),
+        low: +Math.min(...lows).toFixed(2),
+      };
+      _prevDayLevelsCache[cacheKey] = { at: Date.now(), data };
+      return data;
+    } catch (_) {}
+  }
+  throw new Error(`previous trading day data not found for ${upperInst}`);
+}
+
+app.get('/api/prev-day-levels', async (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  try {
+    const base = await _fetchPrevTradingDayLevels(inst);
+    let spot = 0;
+    try {
+      const quote = inst === 'NIFTY' ? await live.getNiftyPrice() : await live.getSensexPrice();
+      spot = Number(quote?.price || 0);
+    } catch (_) {
+      spot = inst === 'NIFTY' ? await _fetchYahooNiftyPrice() : await _fetchYahooPrice();
+    }
+    const aboveHigh = spot > base.high ? +(spot - base.high).toFixed(2) : +(base.high - spot).toFixed(2);
+    const belowLow = spot < base.low ? +(base.low - spot).toFixed(2) : +(spot - base.low).toFixed(2);
+    res.json({
+      ...base,
+      spot: +spot.toFixed(2),
+      range: +(base.high - base.low).toFixed(2),
+      aboveHigh,
+      belowLow,
+      highStatus: spot > base.high ? 'ABOVE Y-HIGH' : spot === base.high ? 'AT Y-HIGH' : 'BELOW Y-HIGH',
+      lowStatus: spot < base.low ? 'BELOW Y-LOW' : spot === base.low ? 'AT Y-LOW' : 'ABOVE Y-LOW'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, inst, high: 0, low: 0, spot: 0, range: 0 });
+  }
+});
+
 // Returns the intraday H/L record for the requested instrument including
 // the full path of breaks (each time a new H or L was set, with timestamp).
 app.get('/api/hl-record', (req, res) => {
@@ -2712,36 +3458,170 @@ function _eodSummary() {
 }
 
 app.get('/api/eod-summary', (req, res) => res.json(_eodSummary()));
+app.get('/api/claude-status', (_req, res) => res.json(claudeAiStatus()));
+app.get('/api/redis-status', async (_req, res) => res.json(await redisStore.status()));
 
-// 15:35 IST auto-fire — log to console, persist to data/eod-YYYY-MM-DD.json.
+// ── Breakout event log (DAY / ORB / SWING high-low breaks) ────────────────────
+app.get('/api/breakouts', (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const log = _breakoutLog[inst];
+  if (!log) return res.json({ inst, events: [] });
+  // newest first
+  const events = [...log.events].reverse().map(e => ({
+    type: e.type, dir: e.dir, level: e.level, price: e.price,
+    delta: +(e.price - e.level).toFixed(2), time: e.time, at: e.at
+  }));
+  res.json({ inst, date: log.date, count: events.length, events });
+});
+
+// ── Reversal events (high/low rejection + break-of-structure) ─────────────────
+app.get('/api/reversals', (req, res) => {
+  const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+  const log = _reversalLog[inst];
+  if (!log) return res.json({ inst, events: [] });
+  const events = [...log.events].reverse();
+  res.json({ inst, date: log.date, count: events.length, events });
+});
+
+// ==================== POP SELLER (Sensibull-style) ====================
+// Scan high-PoP sell candidates from the live option chain.
+app.get('/api/pop/scan', async (req, res) => {
+  const inst   = String(req.query.inst || 'NIFTY').toUpperCase();
+  const minPoP = Math.max(50, Number(req.query.minPoP || 75)); // min 50% floor
+  try {
+    const meta  = getInstrumentMeta(inst);
+    const spot  = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const chainStrikes = (chain.strikes || []).map(s => ({
+      strike: Number(s.strike),
+      ce: s.ce ? { ltp: Number(s.ce.ltp), delta: Number(s.ce.delta), iv: s.ce.iv } : null,
+      pe: s.pe ? { ltp: Number(s.pe.ltp), delta: Number(s.pe.delta), iv: s.pe.iv } : null
+    }));
+
+    // Extract ATM IV from chain (best available IV near ATM)
+    const atm = Math.round(spot / (inst === 'NIFTY' ? 50 : 100)) * (inst === 'NIFTY' ? 50 : 100);
+    const atmRow = chainStrikes.find(s => s.strike === atm) || chainStrikes[Math.floor(chainStrikes.length/2)];
+    const rawIV = atmRow?.ce?.iv || atmRow?.pe?.iv;
+    const atmIV = rawIV && !isNaN(Number(rawIV)) ? Number(rawIV) : null;
+
+    const candidates = popSeller.scanPoP({ inst, spot, chainStrikes, minPoP, maxResults: 40, atmIV });
+    const ironCondor = popSeller.buildIronCondor({ inst, spot, chainStrikes, minPoP, atmIV });
+    const dte = popSeller.daysToExpiry(inst);
+    res.json({
+      inst, spot: +Number(spot).toFixed(2), minPoP,
+      atmIV: atmIV ? +(Number(atmIV) > 5 ? Number(atmIV) : Number(atmIV)*100).toFixed(1) : null,
+      daysToExpiry: +(dte*365).toFixed(1),
+      count: candidates.length, candidates, ironCondor
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Payoff curve for a chosen IC / legs.
+app.post('/api/pop/payoff', express.json(), (req, res) => {
+  const { inst = 'NIFTY', spot, legs } = req.body || {};
+  if (!spot || !Array.isArray(legs) || !legs.length) {
+    return res.status(400).json({ error: 'spot and legs[] required' });
+  }
+  const curve = popSeller.payoffCurve(legs, Number(spot), popSeller.lotSize(inst));
+  res.json({ inst, spot: +Number(spot).toFixed(2), curve });
+});
+
+// Record a sell (paper by default; live hard-gated).
+app.post('/api/pop/sell', express.json(), (req, res) => {
+  const b = req.body || {};
+  const result = popSeller.sellPoP({
+    inst: b.inst, side: b.side, strike: b.strike, type: b.type,
+    premium: b.premium, lot: b.lot, pop: b.pop,
+    tradeMode: process.env.TRADE_MODE || 'paper',
+    confirmLive: b.confirmLive === true
+  });
+  res.status(result.ok ? 200 : 403).json(result);
+});
+
+// Close a PoP position.
+app.post('/api/pop/close', express.json(), (req, res) => {
+  const { id, exitPremium } = req.body || {};
+  res.json(popSeller.closePoP(id, exitPremium || 0));
+});
+
+// PoP book + status.
+app.get('/api/pop/status', (_req, res) => res.json(popSeller.popStatus()));
+
+// ── Extra indices (BANKEX, MIDCPNIFTY, FINNIFTY, VIX) via Yahoo Finance ───────
+const _extraCache = { data: null, at: 0 };
+app.get('/api/indices-extra', async (_req, res) => {
+  if (_extraCache.data && Date.now() - _extraCache.at < 30000) return res.json(_extraCache.data);
+  try {
+    const YF = require('yahoo-finance2').default;
+    const yf = new YF({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
+    const symbols = ['^NSEBANK', '^NSMIDCP', '^NSEI', '^INDIAVIX'];
+    const quotes  = await Promise.all(symbols.map(s => yf.quote(s).catch(() => null)));
+    const make = q => q ? { price: q.regularMarketPrice || 0, prev: q.regularMarketPreviousClose || 0 } : null;
+    const data = {
+      BANKEX:     make(quotes[0]),
+      MIDCPNIFTY: make(quotes[1]),
+      FINNIFTY:   make(quotes[2]),
+      VIX:        make(quotes[3])
+    };
+    _extraCache.data = data; _extraCache.at = Date.now();
+    res.json(data);
+  } catch (e) { res.json({}); }
+});
+
+// Persist today's EOD snapshot to data/eod-YYYY-MM-DD.json.
+// Runs every 5 min during market hours (9:15–15:35 IST) for live intraday updates,
+// and once more at 15:35 for the final banner + console log.
 let _eodLoggedDate = '';
+function _persistEod(dayStr, isFinal) {
+  try {
+    const _path = require('path');
+    const _fs2  = require('fs');
+    const s = _eodSummary();
+    _fs2.writeFileSync(_path.resolve(`./data/eod-${dayStr}.json`), JSON.stringify(s, null, 2));
+    if (isFinal) {
+      const banner = [
+        '',
+        '═══════════════════════════════════════════════════════════════',
+        `  END-OF-DAY  ${dayStr}  IST`,
+        `  Total P&L:        ₹${s.totalPnl.toLocaleString('en-IN')}`,
+        `  Overall win rate: ${s.overallWinRate ?? '—'}%`,
+        `  ────────────────────────────────────────────────────────────`,
+        `  NIFTY   ${s.nifty.tradesToday}× trades   W:${s.nifty.wins} L:${s.nifty.losses}   ₹${s.nifty.pnl.toLocaleString('en-IN')}  (best ₹${s.nifty.bestTrade}, worst ₹${s.nifty.worstTrade})`,
+        `  SENSEX  ${s.sensex.tradesToday}× trades   W:${s.sensex.wins} L:${s.sensex.losses}   ₹${s.sensex.pnl.toLocaleString('en-IN')}  (best ₹${s.sensex.bestTrade}, worst ₹${s.sensex.worstTrade})`,
+        '═══════════════════════════════════════════════════════════════',
+        ''
+      ].join('\n');
+      console.log(banner);
+    }
+  } catch (e) { console.warn('[eod] persist failed:', e.message); }
+}
+
 setInterval(() => {
   try {
     const ist = new Date(Date.now() + 5.5 * 3600 * 1000);
     const hh = ist.getUTCHours();
     const mm = ist.getUTCMinutes();
     const dayStr = ist.toISOString().slice(0, 10);
-    if (hh !== 15 || mm !== 35 || _eodLoggedDate === dayStr) return;
-    _eodLoggedDate = dayStr;
-    const s = _eodSummary();
-    const banner = [
-      '',
-      '═══════════════════════════════════════════════════════════════',
-      `  END-OF-DAY  ${dayStr}  IST`,
-      `  Total P&L:        ₹${s.totalPnl.toLocaleString('en-IN')}`,
-      `  Overall win rate: ${s.overallWinRate ?? '—'}%`,
-      `  ────────────────────────────────────────────────────────────`,
-      `  NIFTY   ${s.nifty.tradesToday}× trades   W:${s.nifty.wins} L:${s.nifty.losses}   ₹${s.nifty.pnl.toLocaleString('en-IN')}  (best ₹${s.nifty.bestTrade}, worst ₹${s.nifty.worstTrade})`,
-      `  SENSEX  ${s.sensex.tradesToday}× trades   W:${s.sensex.wins} L:${s.sensex.losses}   ₹${s.sensex.pnl.toLocaleString('en-IN')}  (best ₹${s.sensex.bestTrade}, worst ₹${s.sensex.worstTrade})`,
-      '═══════════════════════════════════════════════════════════════',
-      ''
-    ].join('\n');
-    console.log(banner);
-    try {
-      const _path = require('path');
-      const _fs2  = require('fs');
-      _fs2.writeFileSync(_path.resolve(`./data/eod-${dayStr}.json`), JSON.stringify(s, null, 2));
-    } catch (e) { console.warn('[eod] persist failed:', e.message); }
+    const totalMin = hh * 60 + mm;
+    const marketOpen  = 9 * 60 + 15;   // 9:15
+    const marketClose = 15 * 60 + 35;  // 15:35
+
+    // Live intraday write every 5 min during market hours
+    if (totalMin >= marketOpen && totalMin <= marketClose && mm % 5 === 0) {
+      const isFinal = hh === 15 && mm === 35;
+      if (isFinal && _eodLoggedDate === dayStr) return; // already done final
+      if (isFinal) _eodLoggedDate = dayStr;
+      _persistEod(dayStr, isFinal);
+    } else if (totalMin >= marketOpen && totalMin <= marketClose) {
+      // Safety-net: also snapshot EVERY minute during market hours (not just on the
+      // 5-min mark). Windows kills the process without delivering SIGTERM to Node,
+      // so the graceful-shutdown flush can't be relied on there — this caps data
+      // loss at ~1 minute even on an abrupt kill. Also flush market state.
+      _persistEod(dayStr, false);
+      _writeMarketState();
+    }
   } catch (_) { /* never crash */ }
 }, 60 * 1000);
 
@@ -3212,9 +4092,10 @@ app.get('/api/option-chain-full', async (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
   const depth = Math.min(15, Math.max(1, parseInt(req.query.depth) || 7));
   try {
-    const spot     = inst === 'NIFTY' ? await getLiveNiftyPrice() : await getLivePrice();
-    const chain    = inst === 'NIFTY' ? await live.getNiftyOptionChain(spot) : await live.getOptionChain(spot);
-    const interval = inst === 'NIFTY' ? 50  : 100;
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const interval = meta.step;
     const atm      = Math.round(spot / interval) * interval;
 
     const targetStrikes = [];
@@ -3258,6 +4139,9 @@ app.get('/api/option-chain-full', async (req, res) => {
 
     res.json({ inst, spot: +spot.toFixed(2), atm, interval, depth, rows, ts: Date.now() });
   } catch (err) {
+    if (err?.code === 'DHAN_AUTH' || err?.code === 'DHAN_AUTH_BLOCKED' || err?.status === 401 || err?.status === 403) {
+      return res.status(503).json({ error: err.message, code: 'DHAN_AUTH_REQUIRED', refreshUrl: '/api/dhan/login', rows: [] });
+    }
     res.status(500).json({ error: err.message, rows: [] });
   }
 });
@@ -3269,9 +4153,10 @@ app.get('/api/option-strike-history', async (req, res) => {
     return res.status(400).json({ error: 'strike query is required' });
   }
   try {
-    const spot = inst === 'NIFTY' ? await getLiveNiftyPrice() : await getLivePrice();
-    const chain = inst === 'NIFTY' ? await live.getNiftyOptionChain(spot) : await live.getOptionChain(spot);
-    const interval = inst === 'NIFTY' ? 50 : 100;
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const interval = meta.step;
     const atm = Math.round(spot / interval) * interval;
     const row = chain.strikes.find(r => Number(r.strike) === Number(strike));
     if (!row) {
@@ -3291,11 +4176,13 @@ app.get('/api/option-strike-history', async (req, res) => {
         iv: +Number(leg.iv || 0).toFixed(2)
       }, type);
     };
-    // Lazy one-shot backfill from today's 1-min Dhan candles → 5-min bucket paths.
-    // Fire-and-forget; first request seeds the cache, subsequent polls (every 15s
-    // from the dashboard) render the populated timeline.
-    if (row.ce?.securityId) _backfillOptHLFromDhan(inst, strike, 'CE', row.ce.securityId);
-    if (row.pe?.securityId) _backfillOptHLFromDhan(inst, strike, 'PE', row.pe.securityId);
+    // Reconcile with today's one-minute candles before returning the cards.
+    // Calls are coalesced and limited to once per minute per contract.
+    await Promise.all([
+      _backfillOptHLFromDhan(inst, strike, 'CE', row.ce?.securityId),
+      _backfillOptHLFromDhan(inst, strike, 'PE', row.pe?.securityId)
+    ]);
+    const session = getMarketSession();
     res.json({
       inst,
       strike,
@@ -3305,6 +4192,7 @@ app.get('/api/option-strike-history', async (req, res) => {
       isATM: strike === atm,
       ce: buildLeg(row.ce, 'CE'),
       pe: buildLeg(row.pe, 'PE'),
+      marketStatus: session.status,
       ts: Date.now()
     });
   } catch (err) {
@@ -3318,21 +4206,22 @@ app.get('/api/option-strike-history', async (req, res) => {
 app.get('/api/watchlist', async (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
   try {
-    const spot     = inst === 'NIFTY' ? await getLiveNiftyPrice() : await getLivePrice();
-    const chain    = inst === 'NIFTY' ? await live.getNiftyOptionChain(spot) : await live.getOptionChain(spot);
-    const interval = inst === 'NIFTY' ? 50  : 100;
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const interval = meta.step;
     const atm      = Math.round(spot / interval) * interval;
-    const seg      = inst === 'NIFTY' ? 'NSE_FNO' : 'BSE_FNO';
+    const seg      = meta.segment;
 
     const targetStrikes = [-2, -1, 0, 1, 2].map(o => atm + o * interval);
-    const meta = [];
+    const legsMeta = [];
     const secIds = [];
     for (const s of targetStrikes) {
       const row = chain.strikes.find(x => x.strike === s);
       if (!row) continue;
       const pushLeg = (leg, type) => {
         const secId = leg?.securityId;
-        meta.push({ strike: s, type, secId: secId ? String(secId) : null, chain: leg || {} });
+        legsMeta.push({ strike: s, type, secId: secId ? String(secId) : null, chain: leg || {} });
         if (secId) secIds.push(Number(secId));
       };
       pushLeg(row.ce, 'CE');
@@ -3354,7 +4243,7 @@ app.get('/api/watchlist', async (req, res) => {
       }
     }
 
-    const rows = meta.map(m => {
+    const rows = legsMeta.map(m => {
       const c = m.chain;
       const d = fq[m.secId] || {};
       const ohlc = d.ohlc || {};
@@ -3396,6 +4285,14 @@ app.get('/api/watchlist', async (req, res) => {
 
     res.json({ rows, spot, atm, inst, seg, source: Object.keys(fq).length ? 'dhan' : 'chain' });
   } catch (err) {
+    if (err?.code === 'DHAN_AUTH' || err?.code === 'DHAN_AUTH_BLOCKED' || err?.status === 401 || err?.status === 403) {
+      return res.status(503).json({
+        error: 'Dhan authentication required',
+        code: 'DHAN_AUTH_REQUIRED',
+        refreshUrl: '/api/dhan/login',
+        rows: []
+      });
+    }
     console.error('[watchlist] error:', err.message);
     res.status(500).json({ error: err.message, rows: [] });
   }
@@ -3412,9 +4309,20 @@ function runBotEngine() {
   }
   if (!botRunning) return;
 
+  // Morning engines
   engine.tick().catch(err => console.error('[engine] tick error:', err.message));
   // NIFTY engine offset by 2.5s to avoid simultaneous Dhan API calls
   setTimeout(() => niftyEngine.tick().catch(err => console.error('[nifty-engine] tick error:', err.message)), 2500);
+
+  // Afternoon engines — offset by 3.5s/4s to stagger Dhan API calls.
+  // AfternoonEngine.tick() internally checks its own 12:00-14:30 entry window
+  // and 15:10 EOD exit, so it's safe to call every cycle.
+  setTimeout(() => {
+    afternoonEngine.tick().catch(err => console.error('[sensex-afternoon] tick error:', err.message));
+  }, 3500);
+  setTimeout(() => {
+    niftyAfternoonEngine.tick().catch(err => console.error('[nifty-afternoon] tick error:', err.message));
+  }, 4000);
 }
 
 // Run bot engine every 5 seconds
@@ -3443,14 +4351,20 @@ app.post("/api/webhook/tradingview", async (req, res) => {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
-  const action  = (body.action  || '').toUpperCase();   // BUY | SELL | EXIT
-  const signal  = (body.signal  || '').toUpperCase();   // CALL | PUT
+  let action  = (body.action  || '').toUpperCase();   // BUY | SELL | EXIT
+  let signal  = (body.signal  || '').toUpperCase();   // CALL | PUT | BULLISH | BEARISH
   const strike  = body.strike  || null;
   const entry   = parseFloat(body.entry)  || 0;
   const reason  = body.reason  || 'TV_ALERT';
   const conf    = body.conf    || 'HIGH';
+  const index   = (body.index  || '').toUpperCase();  // optional: NIFTY | SENSEX from the Pine ticker
 
-  console.log(`[webhook/tv] ${action} ${signal} strike=${strike} entry=${entry} reason=${reason}`);
+  // Accept the simpler BULLISH/BEARISH wording (some Pine alerts emit only signal):
+  // BULLISH → BUY CALL, BEARISH → BUY PUT.
+  if (signal === 'BULLISH') { action = action || 'BUY'; signal = 'CALL'; }
+  else if (signal === 'BEARISH') { action = action || 'BUY'; signal = 'PUT'; }
+
+  console.log(`[webhook/tv] ${action} ${signal} strike=${strike} entry=${entry} index=${index} reason=${reason}`);
 
   // ── EXIT signal ──
   if (action === 'EXIT' || action === 'SELL' || signal === 'EXIT') {
@@ -3515,6 +4429,23 @@ app.post("/api/webhook/tradingview", async (req, res) => {
     currentSignal   = signal;
     suggestedStrike = `${strikeNum} ${optType}`;
 
+    // ── Claude AI narration → Telegram (non-blocking, opt-in via CLAUDE_AI_ENABLED) ──
+    // Never blocks the webhook response — fire-and-forget with its own 6s internal timeout.
+    (async () => {
+      try {
+        const narration = await claudeTradeNarration('ENTRY', {
+          instrument: index || 'SENSEX',
+          signal: optType, strike: strikeNum, premium: entry || price,
+          tradeMode, confidence: conf, vwap: undefined,
+        });
+        if (narration && telegram?.enabled) {
+          await telegram.sendAlert(`🤖 ${index || 'SENSEX'} ${signal} ${strikeNum}${optType}`, narration).catch(() => {});
+        } else if (narration) {
+          console.log(`[webhook/tv] Claude: ${narration}`);
+        }
+      } catch (e) { console.warn('[webhook/tv] Claude narration skipped:', e.message); }
+    })();
+
     return res.json({
       ok: true,
       action: 'BUY',
@@ -3523,7 +4454,8 @@ app.post("/api/webhook/tradingview", async (req, res) => {
       optType,
       orderStatus,
       orderId,
-      tradeMode
+      tradeMode,
+      claudeEnabled: process.env.CLAUDE_AI_ENABLED === 'true'
     });
   }
 
@@ -3545,22 +4477,113 @@ app.get("/api/webhook/status", (_req, res) => {
 // Bind to 0.0.0.0 so the bot is reachable on the LAN and from a reverse
 // proxy (e.g. Caddy/nginx forwarding sareetex.in → localhost:3000).
 const PUBLIC_BASE = process.env.PUBLIC_API_BASE_URL || `http://localhost:${PORT}`;
+// ── Restore intraday data from Redis after restart ────────────────────────────
+async function _restoreFromRedis() {
+  const today = _istDateStr();
+  for (const inst of ['SENSEX', 'NIFTY', 'BANKNIFTY']) {
+    try {
+      const hl = await redisStore.loadHL(inst);
+      if (hl && hl.date === today) {
+        _hlRecord[inst].date     = hl.date;
+        _hlRecord[inst].high     = hl.high;
+        _hlRecord[inst].highAt   = hl.highAt;
+        _hlRecord[inst].low      = hl.low;
+        _hlRecord[inst].lowAt    = hl.lowAt;
+        _hlRecord[inst].highPath = hl.highPath || [];
+        _hlRecord[inst].lowPath  = hl.lowPath  || [];
+        _hlRecord[inst].chainLog = hl.chainLog  || [];
+        console.log(`[redis] Restored ${inst} H/L — high:${hl.high} low:${hl.low}`);
+      }
+    } catch (e) {
+      console.warn(`[redis] restore ${inst} H/L error:`, e.message);
+    }
+  }
+
+  for (const inst of ['SENSEX', 'NIFTY']) {
+    try {
+      // ORB
+      const orb = await redisStore.loadORB(inst);
+      if (orb && orb.date === today) {
+        if (inst === 'NIFTY') { niftyOrbHigh = orb.orbHigh; niftyOrbLow = orb.orbLow; }
+        else                  { orbHigh = orb.orbHigh;      orbLow = orb.orbLow; }
+        console.log(`[redis] Restored ${inst} ORB — H:${orb.orbHigh} L:${orb.orbLow}`);
+      }
+
+      // Breakout events
+      const bo = await redisStore.loadBreakouts(inst);
+      if (bo && bo.length) {
+        _breakoutLog[inst].date   = today;
+        _breakoutLog[inst].events = bo;
+        console.log(`[redis] Restored ${inst} ${bo.length} breakout events`);
+      }
+
+      // Reversal events
+      const rv = await redisStore.loadReversals(inst);
+      if (rv && rv.length) {
+        _reversalLog[inst].date   = today;
+        _reversalLog[inst].events = rv;
+        console.log(`[redis] Restored ${inst} ${rv.length} reversal events`);
+      }
+    } catch (e) {
+      console.warn(`[redis] restore ${inst} error:`, e.message);
+    }
+  }
+}
+
 app.listen(PORT, '0.0.0.0', async () => {
+  // Connect Redis + restore today's high/low data
+  await redisStore.connect();
+  await _restoreFromRedis();
+  await liveConnectPromise;
+
   console.log(`
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
-║   🚀  ANTIGRAVITY AI BOT - SENSEX EXPIRY SYSTEM         ║
+║   ANTIGRAVITY AI BOT - SENSEX EXPIRY SYSTEM             ║
 ║                                                          ║
 ║   Listening on 0.0.0.0:${PORT}                              ║
-║   Mode: ${live.connected ? "LIVE (Dhan)" : "DISCONNECTED — set DHAN creds"}  ║
+║   Mode: ${live.connected ? "LIVE (Dhan)" : "DISCONNECTED - set DHAN creds"}    ║
 ║   Max trades/day: ${process.env.MAX_TRADES_PER_DAY || 2}                                      ║
-║                                                          ║
+║   Redis: ${redisStore.isReady() ? "ON (high/low persisted)" : "OFF (in-memory only)"}
 ║   Public: ${PUBLIC_BASE}
 ║   Local:  http://localhost:${PORT}/dashboard.html
-║   API:    ${PUBLIC_BASE}/api/health
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
   `);
 });
+
+// ==================== GRACEFUL SHUTDOWN ====================
+// Bug fix: previously NO exit handler existed, so on Ctrl+C / PM2 restart / SIGTERM
+// the process died without flushing — losing the latest market state AND any EOD
+// snapshot (which only wrote every 5 min during market hours). Now we synchronously
+// persist everything before exit, so a restart never wipes the day.
+let _shuttingDown = false;
+function _gracefulShutdown(sig) {
+  if (_shuttingDown) return;
+  _shuttingDown = true;
+  try {
+    console.log(`\n[shutdown] ${sig} received — flushing state before exit…`);
+    // 1. Cancel any pending debounced write and flush market state immediately.
+    if (_persistTimer) { clearTimeout(_persistTimer); _persistTimer = null; }
+    _writeMarketState();
+    // 2. Always snapshot EOD on shutdown (even outside market hours / mid-session),
+    //    so the day's trades + P&L are never lost to a restart.
+    const dayStr = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+    _persistEod(dayStr, false);
+    // 3. Persist ORB to Redis (best-effort, non-blocking).
+    try {
+      if (orbHigh && orbLow) redisStore.saveORB('SENSEX', orbHigh, orbLow).catch(() => {});
+      if (niftyOrbHigh && niftyOrbLow) redisStore.saveORB('NIFTY', niftyOrbHigh, niftyOrbLow).catch(() => {});
+    } catch (_) {}
+    console.log('[shutdown] state flushed → market-state.json + eod-' + dayStr + '.json');
+  } catch (e) {
+    console.warn('[shutdown] flush error:', e.message);
+  }
+  // Give Redis a brief moment to flush, then exit.
+  setTimeout(() => process.exit(0), 400);
+}
+process.on('SIGINT',  () => _gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => _gracefulShutdown('SIGTERM'));
+process.on('SIGHUP',  () => _gracefulShutdown('SIGHUP'));
 
 module.exports = app;
