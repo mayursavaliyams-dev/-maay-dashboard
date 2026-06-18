@@ -346,9 +346,9 @@
         <table class="chain" id="chainTable">
           <thead>
             <tr>
-              <th class="grpCE">OI</th><th class="grpCE">Vol</th><th class="grpCE">LTP</th><th class="grpCE">Chg%</th>
+              <th class="grpCE">OI</th><th class="grpCE">LTP</th><th class="grpCE">Day H/L</th><th class="grpCE">Max%</th>
               <th style="text-align:center;color:var(--cyan)">STRIKE</th>
-              <th class="grpPE">LTP</th><th class="grpPE">Chg%</th><th class="grpPE">Vol</th><th class="grpPE">OI</th>
+              <th class="grpPE">Max%</th><th class="grpPE">Day H/L</th><th class="grpPE">LTP</th><th class="grpPE">OI</th>
             </tr>
           </thead>
           <tbody id="chainBody"></tbody>
@@ -575,18 +575,25 @@
     $("m_atm").textContent=fmt(d.atm,0);
     var maxOI=1; rows.forEach(function(r){ maxOI=Math.max(maxOI,r.ce.oi||0,r.pe.oi||0); });
     var tb=$("chainBody"); var html="";
+    // Day H/L (bot-tracked session extremes) + max gain% (low->high), per the old dashboard.
+    function hlTxt(leg){
+      if(!(leg.high>0)) return '<span class="neu">--</span>';
+      var t=leg.highAt?('<span style="color:var(--dimmer);font-size:8px"> '+leg.highAt+'</span>'):'';
+      return '<span style="color:var(--amber)">'+fmt(leg.high,1)+'</span><span class="neu">/</span><span style="color:var(--blue)">'+fmt(leg.low,1)+'</span>'+t;
+    }
+    function maxTxt(leg){ var m=(leg.high>0&&leg.low>0)?((leg.high-leg.low)/leg.low)*100:0; return m>0?'<span style="color:var(--green);font-weight:700">'+m.toFixed(0)+'%</span>':'<span class="neu">--</span>'; }
     rows.forEach(function(r){
       var ce=r.ce,pe=r.pe;
       var ceW=Math.round(((ce.oi||0)/maxOI)*40);
       html+='<tr class="'+(r.isATM?"atm":"")+'">'+
         '<td class="neu">'+fmt(ce.oi,0)+'<span class="oibar" style="width:'+ceW+'px"></span></td>'+
-        '<td class="neu">'+fmt(ce.volume,0)+'</td>'+
         '<td class="up">'+fmt(ce.ltp,1)+'</td>'+
-        '<td class="'+cls(ce.chngPct)+'">'+pct(ce.chngPct)+'</td>'+
+        '<td style="font-size:10px;white-space:nowrap">'+hlTxt(ce)+'</td>'+
+        '<td>'+maxTxt(ce)+'</td>'+
         '<td class="strike">'+fmt(r.strike,0)+'</td>'+
+        '<td class="pe">'+maxTxt(pe)+'</td>'+
+        '<td class="pe" style="font-size:10px;white-space:nowrap">'+hlTxt(pe)+'</td>'+
         '<td class="pe down">'+fmt(pe.ltp,1)+'</td>'+
-        '<td class="pe '+cls(pe.chngPct)+'">'+pct(pe.chngPct)+'</td>'+
-        '<td class="pe neu">'+fmt(pe.volume,0)+'</td>'+
         '<td class="pe neu">'+fmt(pe.oi,0)+'<span class="oibar" style="width:'+Math.round(((pe.oi||0)/maxOI)*40)+'px;background:var(--red)"></span></td>'+
         '</tr>';
     });
