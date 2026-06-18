@@ -1,18 +1,1186 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antigravity - Redirecting</title>
-    <meta http-equiv="refresh" content="0;url=/app.html">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Pro — Live Dashboard</title>
+  <style>
+    :root {
+      --bg:      #0d0d0d;
+      --panel:   #141414;
+      --border:  #222;
+      --text:    #f0f0f0;
+      --muted:   #666;
+      --green:   #00e676;
+      --red:     #ff4444;
+      --blue:    #448aff;
+      --yellow:  #ffd740;
+      --orange:  #ff6d00;
+      --purple:  #ce93d8;
+      --teal:    #00bcd4;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px;
+    }
+
+    /* ── LAYOUT ── */
+    .app {
+      display: grid;
+      height: calc(100vh - 44px);
+      max-width: 900px;
+      margin: 0 auto;
+      grid-template-rows: auto 36px 1fr auto;
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "topbar"
+        "indices"
+        "sidebar"
+        "statbar";
+      gap: 6px;
+      padding: 6px;
+    }
+
+    /* ── INDICES STRIP ── */
+    .indices-strip {
+      grid-area: indices;
+      display: flex; align-items: center; gap: 4px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0 10px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .indices-strip::-webkit-scrollbar { display: none; }
+
+    .idx-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 10px; border-right: 1px solid var(--border);
+      white-space: nowrap; flex-shrink: 0; font-size: .78rem;
+    }
+    .idx-item:last-child { border-right: none; }
+    .idx-name { color: var(--muted); font-weight: 700; font-size: .72rem; }
+    .idx-expiry {
+      font-size: .6rem; background: rgba(255,109,0,.2); color: var(--orange);
+      border-radius: 4px; padding: 1px 5px; font-weight: 700;
+    }
+    .idx-price { font-weight: 700; font-size: .85rem; }
+    .idx-change { font-size: .72rem; font-weight: 600; }
+    .idx-up   { color: var(--green); }
+    .idx-down { color: var(--red); }
+    .idx-flat { color: var(--muted); }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      grid-area: topbar;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 14px;
+    }
+
+    .brand { font-weight: 800; font-size: 1rem; color: var(--green); letter-spacing: .04em; }
+    .brand span { color: var(--muted); font-weight: 400; }
+
+    .tb-sep { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+
+    .tb-item { display: flex; flex-direction: column; gap: 1px; }
+    .tb-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+    .tb-value { font-size: .95rem; font-weight: 700; }
+
+    .signal-pill {
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 800;
+      letter-spacing: .06em;
+    }
+    .sig-call  { background: rgba(0,230,118,.15); color: var(--green); border: 1px solid rgba(0,230,118,.3); }
+    .sig-put   { background: rgba(255,68,68,.15);  color: var(--red);   border: 1px solid rgba(255,68,68,.3); }
+    .sig-wait  { background: rgba(102,102,102,.15); color: var(--muted); border: 1px solid #333; }
+
+    .confidence-bar-wrap {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .confidence-bar {
+      width: 80px; height: 6px; background: #222; border-radius: 999px; overflow: hidden;
+    }
+    .confidence-bar-fill { height: 100%; border-radius: 999px; transition: width .4s; }
+
+    .mode-badge {
+      margin-left: auto;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .mode-paper { background: rgba(255,215,64,.12); color: var(--yellow); border: 1px solid rgba(255,215,64,.3); }
+    .mode-live  { background: rgba(255,68,68,.15);  color: var(--red);    border: 1px solid rgba(255,68,68,.4); }
+
+    .time-display { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      grid-area: sidebar;
+      display: flex; flex-direction: column; gap: 6px;
+      overflow: hidden;
+    }
+
+    .side-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      flex-shrink: 0;
+    }
+
+    .sc-title { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+
+    .strike-row { display: flex; gap: 6px; }
+    .strike-box {
+      flex: 1; background: #0d0d0d; border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px;
+    }
+    .strike-box .slbl { font-size: .68rem; color: var(--muted); margin-bottom: 3px; }
+    .strike-box .sval { font-size: 1rem; font-weight: 700; color: var(--green); }
+
+    .orb-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .orb-box { background: #0d0d0d; border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; }
+    .orb-box .olbl { font-size: .65rem; color: var(--muted); margin-bottom: 3px; }
+    .orb-box .oval { font-size: .9rem; font-weight: 700; }
+
+    /* ── TABS ── */
+    .tab-bar {
+      display: flex; gap: 3px; flex-wrap: wrap;
+      padding: 8px 10px 0;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      padding: 5px 10px; border-radius: 6px 6px 0 0;
+      font-size: .7rem; font-weight: 700; cursor: pointer;
+      border: 1px solid transparent; border-bottom: none;
+      background: transparent; color: var(--muted); transition: .12s;
+    }
+    .tab-btn.active { background: #1e1e1e; color: var(--green); border-color: var(--border); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    .tab-panel { display: none; flex: 1; overflow-y: auto; padding: 10px; }
+    .tab-panel.active { display: block; }
+
+    /* P&L tab */
+    .pnl-big { font-size: 1.5rem; font-weight: 800; margin-bottom: 3px; }
+    .pnl-meta { color: var(--muted); font-size: .72rem; margin-bottom: 8px; }
+    .pnl-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+    .journal-list { display: flex; flex-direction: column; gap: 4px; }
+    .journal-item {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #0d0d0d; border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px;
+      font-size: .72rem;
+    }
+    .ji-signal { font-weight: 700; }
+    .ji-pnl { font-weight: 700; }
+
+    /* Gamma tab */
+    .gamma-score {
+      font-size: 2.2rem; font-weight: 800; text-align: center; margin: 6px 0 2px;
+    }
+    .gamma-level {
+      text-align: center; font-size: .8rem; font-weight: 700;
+      padding: 3px 12px; border-radius: 999px; display: inline-block;
+      margin: 0 auto 10px; display: block; width: fit-content; margin: 0 auto 10px;
+    }
+    .greek-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #1a1a1a; font-size: .78rem; }
+    .greek-row:last-child { border-bottom: none; }
+    .greek-name { color: var(--muted); }
+    .greek-val { font-weight: 700; }
+    .greek-bar-wrap { width: 60px; height: 4px; background: #222; border-radius: 99px; overflow: hidden; display: inline-block; margin-left: 6px; vertical-align: middle; }
+    .greek-bar { height: 100%; border-radius: 99px; background: var(--green); }
+
+    /* Breakout tab */
+    .bo-filter {
+      background: #0d0d0d; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 6px; padding: 3px 10px; font-size: .68rem; font-weight: 700;
+      cursor: pointer; transition: .1s;
+    }
+    .bo-filter.active { background: rgba(0,230,118,.12); color: var(--green); border-color: rgba(0,230,118,.3); }
+    .bo-list { display: flex; flex-direction: column; gap: 4px; }
+    .bo-item {
+      display: flex; align-items: center; gap: 8px;
+      background: #0d0d0d; border: 1px solid var(--border); border-radius: 7px;
+      padding: 5px 9px; font-size: .72rem;
+    }
+    .bo-badge { font-size: .6rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; letter-spacing: .05em; }
+    .bo-day   { background: rgba(68,138,255,.18);  color: var(--blue); }
+    .bo-orb   { background: rgba(255,215,64,.18);  color: var(--yellow); }
+    .bo-swing { background: rgba(206,147,216,.18); color: var(--purple); }
+    .bo-reject { background: rgba(255,109,0,.18); color: var(--orange); }
+    .bo-bos    { background: rgba(0,188,212,.18); color: var(--teal, #00bcd4); }
+    .bo-dir   { font-weight: 800; }
+    .bo-level { color: var(--muted); }
+    .bo-time  { margin-left: auto; color: var(--muted); font-size: .66rem; }
+
+    /* Confidence tab */
+    .conf-big { font-size: 2.5rem; font-weight: 800; text-align: center; margin: 8px 0 4px; }
+    .conf-grade { text-align: center; font-size: .9rem; color: var(--muted); margin-bottom: 10px; }
+    .score-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: .78rem; border-bottom: 1px solid #1a1a1a; }
+    .score-row:last-child { border-bottom: none; }
+    .score-label { color: var(--muted); }
+    .score-val { font-weight: 700; }
+
+    /* ── STAT BAR ── */
+    .statbar {
+      grid-area: statbar;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      display: flex; flex-direction: row; align-items: center; gap: 8px;
+    }
+
+    .stat-card .slbl { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+    .stat-card .sval { font-size: .95rem; font-weight: 700; margin-left: auto; white-space: nowrap; }
+
+    /* colours */
+    .c-green  { color: var(--green); }
+    .c-red    { color: var(--red); }
+    .c-blue   { color: var(--blue); }
+    .c-yellow { color: var(--yellow); }
+    .c-orange { color: var(--orange); }
+    .c-muted  { color: var(--muted); }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 99px; }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-rows: 52px auto 1fr auto;
+        grid-template-columns: 1fr;
+        grid-template-areas: "topbar" "statbar" "sidebar";
+        overflow-y: auto;
+        height: auto;
+      }
+      html, body { overflow: auto; }
+      .statbar { grid-template-columns: repeat(4, 1fr); }
+      .pnl-card { min-height: 140px; }
+    }
+    /* ── MAIN NAV BAR (Sensibull/Zerodha style) ── */
+    body { margin: 0; padding: 0; overflow: hidden; }
+
+    .nav-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: flex; align-items: stretch;
+      background: #13131f;
+      border-bottom: 1px solid #23233a;
+      height: 44px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
+    }
+
+    /* Logo */
+    .nav-logo {
+      display: flex; align-items: center; gap: 7px;
+      padding: 0 20px 0 16px;
+      border-right: 1px solid #23233a;
+      font-size: .85rem; font-weight: 800;
+      color: var(--green); white-space: nowrap; flex-shrink: 0;
+    }
+    .nav-logo span { color: #555; font-weight: 400; font-size: .72rem; }
+
+    /* Nav items */
+    .nav-items { display: flex; align-items: stretch; flex: 1; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 5px;
+      padding: 0 20px;
+      font-size: .82rem; font-weight: 600;
+      color: #8888aa;
+      cursor: pointer;
+      border: none; background: transparent;
+      border-bottom: 3px solid transparent;
+      transition: color .12s, border-color .12s;
+      white-space: nowrap; position: relative;
+    }
+    .nav-item:hover { color: #d0d0e8; }
+    .nav-item.active {
+      color: #fff;
+      border-bottom-color: #5b8dee;
+    }
+    .nav-item .nav-icon { font-size: .9rem; }
+
+    /* Badge (like Watchlist "New") */
+    .nav-badge {
+      font-size: .58rem; font-weight: 800;
+      background: var(--yellow); color: #111;
+      border-radius: 4px; padding: 1px 5px;
+      margin-left: 2px; letter-spacing: .03em;
+    }
+    .nav-badge.live { background: var(--green); }
+    .nav-badge.hot  { background: var(--red);   color: #fff; }
+
+    /* Dropdown arrow */
+    .nav-arrow { font-size: .65rem; opacity: .5; margin-left: 1px; }
+
+    /* Right section */
+    .nav-right {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 14px;
+      border-left: 1px solid #23233a; margin-left: auto;
+    }
+    .nav-mode {
+      font-size: .68rem; font-weight: 800; padding: 3px 10px;
+      border-radius: 5px; letter-spacing: .05em;
+    }
+    .nav-mode.paper { background: rgba(255,215,64,.12); color: var(--yellow); border: 1px solid rgba(255,215,64,.25); }
+    .nav-mode.live  { background: rgba(255,68,68,.12);  color: var(--red);    border: 1px solid rgba(255,68,68,.3); }
+    .nav-time { font-size: .75rem; color: #555; font-variant-numeric: tabular-nums; }
+
+    .page-content {
+      position: fixed; top: 44px; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+    }
+    .page-view {
+      position: absolute; inset: 0;
+      display: none;
+    }
+    .page-view.active { display: block; }
+    .page-view iframe { width: 100%; height: 100%; border: none; }
+
+    /* Live view fills page-view */
+    #view-live { overflow: hidden; }
+    #view-live .app { height: 100%; }
+  </style>
 </head>
-<body style="background:#0B0F1A;color:#94A3B8;font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">
-    <p>Loading <a href="/app.html" style="color:#00FFB2">Antigravity dashboard</a>...
-       <br><br>
-       Other entry points:
-       <br><a href="/dashboard.html" style="color:#94A3B8">/dashboard.html</a> - legacy full dashboard
-       <br><a href="/backtesting-pro.html" style="color:#94A3B8">/backtesting-pro.html</a> - quant backtesting lab
-       <br><a href="/chain-trend.html" style="color:#94A3B8">/chain-trend.html</a> - option chain with trend engine
-    </p>
+<body>
+
+<!-- ── MAIN NAV BAR ── -->
+<nav class="nav-bar">
+  <div class="nav-logo">
+    AG <span>Pro</span>
+  </div>
+  <div class="nav-items">
+    <button class="nav-item active" onclick="switchView('live',this)">
+      <span class="nav-icon">📊</span> Trade <span class="nav-arrow">▾</span>
+    </button>
+    <button class="nav-item" onclick="switchView('chain',this)">
+      <span class="nav-icon">🔥</span> OI Chain <span class="nav-badge">Live</span>
+    </button>
+    <button class="nav-item" onclick="switchView('pop',this)">
+      <span class="nav-icon">💰</span> PoP Seller <span class="nav-badge hot">New</span>
+    </button>
+    <button class="nav-item" onclick="switchView('strategy',this)">
+      <span class="nav-icon">🧩</span> Strategy
+    </button>
+    <button class="nav-item" onclick="switchView('afl',this)">
+      <span class="nav-icon">📈</span> Strikes
+    </button>
+  </div>
+  <div class="nav-right">
+    <div class="nav-mode paper" id="navMode">PAPER</div>
+    <div class="nav-time" id="navTime">--:--:--</div>
+  </div>
+</nav>
+
+<!-- ── PAGE CONTENT ── -->
+<div class="page-content">
+
+  <!-- Live View -->
+  <div class="page-view active" id="view-live">
+<div class="app">
+
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <div class="brand">Antigravity <span>Pro</span></div>
+    <div class="tb-sep"></div>
+
+    <div class="tb-item">
+      <div class="tb-label">Index</div>
+      <div class="tb-value" id="tbIndex">NIFTY</div>
+    </div>
+    <div class="tb-sep"></div>
+
+    <div class="tb-item">
+      <div class="tb-label">Spot</div>
+      <div class="tb-value c-green" id="tbSpot">--</div>
+    </div>
+    <div class="tb-sep"></div>
+
+    <div class="tb-item">
+      <div class="tb-label">Signal</div>
+      <div id="tbSignal"><span class="signal-pill sig-wait">WAIT</span></div>
+    </div>
+    <div class="tb-sep"></div>
+
+    <div class="tb-item">
+      <div class="tb-label">Confidence</div>
+      <div class="confidence-bar-wrap">
+        <div class="confidence-bar">
+          <div class="confidence-bar-fill c-green" id="confFill" style="width:0%;background:var(--green)"></div>
+        </div>
+        <span id="confPct" style="font-weight:700">0%</span>
+      </div>
+    </div>
+    <div class="tb-sep"></div>
+
+    <div class="tb-item">
+      <div class="tb-label">Target</div>
+      <div class="tb-value c-yellow" id="tbTarget">--</div>
+    </div>
+    <div class="tb-sep"></div>
+
+    <div class="tb-item">
+      <div class="tb-label">Trades Today</div>
+      <div class="tb-value" id="tbTrades">0</div>
+    </div>
+
+    <div class="mode-badge mode-paper" id="modeBadge">PAPER</div>
+    <div class="time-display" id="tbTime">--:--:--</div>
+
+    <div class="index-tabs" id="indexTabs" style="display: flex; gap: 4px; margin-left: auto;">
+      <button class="idx-tab active" data-idx="NIFTY" style="padding: 4px 10px; border-radius: 6px; font-size: .75rem; font-weight: 700; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: .12s;">NIFTY</button>
+      <button class="idx-tab" data-idx="SENSEX" style="padding: 4px 10px; border-radius: 6px; font-size: .75rem; font-weight: 700; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: .12s;">SENSEX</button>
+      <button class="idx-tab" data-idx="BANKNIFTY" style="padding: 4px 10px; border-radius: 6px; font-size: .75rem; font-weight: 700; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: .12s;">BNIFTY</button>
+    </div>
+  </header>
+
+  <!-- ── INDICES STRIP ── -->
+  <div class="indices-strip" id="indicesStrip">
+    <div class="idx-item"><span class="idx-name">NIFTY</span><span class="idx-expiry">EXPIRY</span><span class="idx-price" id="idxNiftyP">--</span><span class="idx-change" id="idxNiftyC">--</span></div>
+    <div class="idx-item"><span class="idx-name">SENSEX</span><span class="idx-price" id="idxSensexP">--</span><span class="idx-change" id="idxSensexC">--</span></div>
+    <div class="idx-item"><span class="idx-name">BANKNIFTY</span><span class="idx-price" id="idxBniftyP">--</span><span class="idx-change" id="idxBniftyC">--</span></div>
+    <div class="idx-item"><span class="idx-name">BANKEX</span><span class="idx-price" id="idxBankexP">--</span><span class="idx-change" id="idxBankexC">--</span></div>
+    <div class="idx-item"><span class="idx-name">MIDCPNIFTY</span><span class="idx-price" id="idxMidcapP">--</span><span class="idx-change" id="idxMidcapC">--</span></div>
+    <div class="idx-item"><span class="idx-name">FINNIFTY</span><span class="idx-price" id="idxFinniftyP">--</span><span class="idx-change" id="idxFinniftyC">--</span></div>
+    <div class="idx-item"><span class="idx-name">INDIA VIX</span><span class="idx-price" id="idxVixP">--</span><span class="idx-change" id="idxVixC">--</span></div>
+  </div>
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <!-- Strike + ORB row -->
+    <div class="side-card" style="flex-shrink:0">
+      <div class="orb-row" style="grid-template-columns:1fr 1fr 1fr 1fr">
+        <div class="orb-box">
+          <div class="olbl">Strike</div>
+          <div class="oval c-green" id="sdStrike">--</div>
+        </div>
+        <div class="orb-box">
+          <div class="olbl">ORB High</div>
+          <div class="oval c-green" id="sdOrbH">--</div>
+        </div>
+        <div class="orb-box">
+          <div class="olbl">ORB Low</div>
+          <div class="oval c-red" id="sdOrbL">--</div>
+        </div>
+        <div class="orb-box">
+          <div class="olbl">VWAP</div>
+          <div class="oval c-blue" id="sdVwap">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabbed Panel -->
+    <div class="side-card" style="flex:1;min-height:0;display:flex;flex-direction:column;padding:0">
+
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="pnl">P&amp;L</button>
+        <button class="tab-btn" data-tab="strike">Strike</button>
+        <button class="tab-btn" data-tab="confidence">AI</button>
+        <button class="tab-btn" data-tab="gamma">Gamma</button>
+        <button class="tab-btn" data-tab="greeks">Greeks</button>
+        <button class="tab-btn" data-tab="breakout">Breakout</button>
+        <button class="tab-btn" data-tab="reversal">Reversal</button>
+      </div>
+
+      <!-- P&L Tab -->
+      <div class="tab-panel active" id="tab-pnl">
+        <div class="pnl-big" id="sdPnl">₹0</div>
+        <div class="pnl-meta" id="sdPnlMeta">0 trades · 0% win rate</div>
+        <hr class="pnl-divider">
+        <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px">Journal</div>
+        <div class="journal-list" id="journalList">
+          <div style="color:var(--muted);font-size:.72rem">No trades yet today.</div>
+        </div>
+      </div>
+
+      <!-- Strike High/Low Tab -->
+      <div class="tab-panel" id="tab-strike">
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+          <input id="strikeInput" type="number" placeholder="Strike (e.g. 74500)" step="100"
+            style="flex:1;background:#0d0d0d;border:1px solid var(--border);border-radius:6px;
+                   color:var(--text);padding:5px 8px;font-size:.78rem;outline:none">
+          <button onclick="fetchStrike()" style="background:rgba(0,230,118,.15);border:1px solid rgba(0,230,118,.3);
+            color:var(--green);border-radius:6px;padding:5px 10px;font-size:.75rem;font-weight:700;cursor:pointer">GO</button>
+        </div>
+        <div id="strikeInfo" style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Strike enter કરો → GO press કરો</div>
+
+        <!-- CE Row -->
+        <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:6px 0 4px">CE (Call)</div>
+        <div class="greek-row"><span class="greek-name">LTP</span><span class="greek-val c-green" id="stCeLtp">--</span></div>
+        <div class="greek-row"><span class="greek-name">Session High</span><span class="greek-val c-green" id="stCeHigh">--</span></div>
+        <div class="greek-row"><span class="greek-name">Session Low</span><span class="greek-val c-red" id="stCeLow">--</span></div>
+        <div class="greek-row"><span class="greek-name">OI</span><span class="greek-val" id="stCeOi">--</span></div>
+        <div class="greek-row"><span class="greek-name">IV</span><span class="greek-val c-yellow" id="stCeIv">--</span></div>
+
+        <!-- PE Row -->
+        <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:8px 0 4px">PE (Put)</div>
+        <div class="greek-row"><span class="greek-name">LTP</span><span class="greek-val c-red" id="stPeLtp">--</span></div>
+        <div class="greek-row"><span class="greek-name">Session High</span><span class="greek-val c-green" id="stPeHigh">--</span></div>
+        <div class="greek-row"><span class="greek-name">Session Low</span><span class="greek-val c-red" id="stPeLow">--</span></div>
+        <div class="greek-row"><span class="greek-name">OI</span><span class="greek-val" id="stPeOi">--</span></div>
+        <div class="greek-row"><span class="greek-name">IV</span><span class="greek-val c-yellow" id="stPeIv">--</span></div>
+
+        <div style="margin-top:8px;font-size:.65rem;color:var(--muted)" id="stTs">--</div>
+      </div>
+
+      <!-- Confidence Tab -->
+      <div class="tab-panel" id="tab-confidence">
+        <div class="conf-big" id="confBig">0%</div>
+        <div class="conf-grade" id="confGrade">Signal: WAIT</div>
+        <div class="score-row"><span class="score-label">Call Score</span><span class="score-val c-green" id="confCallScore">0</span></div>
+        <div class="score-row"><span class="score-label">Put Score</span><span class="score-val c-red" id="confPutScore">0</span></div>
+        <div class="score-row"><span class="score-label">ORB Breakout</span><span class="score-val" id="confOrb">--</span></div>
+        <div class="score-row"><span class="score-label">VWAP Position</span><span class="score-val" id="confVwap">--</span></div>
+        <div class="score-row"><span class="score-label">Volume Spike</span><span class="score-val" id="confVol">--</span></div>
+        <div class="score-row"><span class="score-label">Trend</span><span class="score-val" id="confTrend">--</span></div>
+        <div class="score-row"><span class="score-label">Market</span><span class="score-val" id="confMarket">--</span></div>
+      </div>
+
+      <!-- Gamma Tab -->
+      <div class="tab-panel" id="tab-gamma">
+        <div class="gamma-score c-yellow" id="gammaScore">--</div>
+        <div class="gamma-level" id="gammaLevel">--</div>
+        <div class="greek-row"><span class="greek-name">Blast Active</span><span class="greek-val" id="gammaActive">--</span></div>
+        <div class="greek-row"><span class="greek-name">Greek Rank</span><span class="greek-val" id="gammaRank">--</span></div>
+        <div class="greek-row"><span class="greek-name">Grade</span><span class="greek-val" id="gammaGrade">--</span></div>
+        <div class="greek-row"><span class="greek-name">Gamma Power</span><span class="greek-val" id="gammaPower">--</span></div>
+        <div class="greek-row"><span class="greek-name">Delta Sweet</span><span class="greek-val" id="gammaDelta">--</span></div>
+        <div class="greek-row"><span class="greek-name">Theta Accel</span><span class="greek-val" id="gammaTheta">--</span></div>
+        <div class="greek-row"><span class="greek-name">Vega Edge</span><span class="greek-val" id="gammaVega">--</span></div>
+        <div class="greek-row"><span class="greek-name">GTR Ratio</span><span class="greek-val" id="gammaGtr">--</span></div>
+      </div>
+
+      <!-- Greeks Tab -->
+      <div class="tab-panel" id="tab-greeks">
+        <div class="greek-row"><span class="greek-name">PCR</span><span class="greek-val c-blue" id="gkPcr">--</span></div>
+        <div class="greek-row"><span class="greek-name">Max Pain</span><span class="greek-val" id="gkMaxPain">--</span></div>
+        <div class="greek-row"><span class="greek-name">IV (ATM)</span><span class="greek-val c-yellow" id="gkIv">--</span></div>
+        <div class="greek-row"><span class="greek-name">ATM Strike</span><span class="greek-val" id="gkAtm">--</span></div>
+        <div class="greek-row"><span class="greek-name">Call OI</span><span class="greek-val c-green" id="gkCallOi">--</span></div>
+        <div class="greek-row"><span class="greek-name">Put OI</span><span class="greek-val c-red" id="gkPutOi">--</span></div>
+        <div class="greek-row"><span class="greek-name">OI Signal</span><span class="greek-val" id="gkOiSignal">--</span></div>
+      </div>
+
+      <!-- Breakout Tab -->
+      <div class="tab-panel" id="tab-breakout">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button class="bo-filter active" data-f="ALL"   onclick="boFilter('ALL',this)">All</button>
+          <button class="bo-filter"        data-f="DAY"   onclick="boFilter('DAY',this)">Day</button>
+          <button class="bo-filter"        data-f="ORB"   onclick="boFilter('ORB',this)">ORB</button>
+          <button class="bo-filter"        data-f="SWING" onclick="boFilter('SWING',this)">Swing</button>
+        </div>
+        <div class="bo-list" id="boList">
+          <div style="color:var(--muted);font-size:.72rem;padding:6px">No breakouts yet today.</div>
+        </div>
+      </div>
+
+      <!-- Reversal Tab -->
+      <div class="tab-panel" id="tab-reversal">
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+          <button class="bo-filter active" data-rf="ALL"       onclick="rvFilter('ALL',this)">All</button>
+          <button class="bo-filter"        data-rf="REJECTION" onclick="rvFilter('REJECTION',this)">Rejection</button>
+          <button class="bo-filter"        data-rf="BOS"       onclick="rvFilter('BOS',this)">BOS</button>
+        </div>
+        <div class="bo-list" id="rvList">
+          <div style="color:var(--muted);font-size:.72rem;padding:6px">No reversals yet today.</div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ── STAT BAR ── -->
+  <footer class="statbar">
+    <div class="stat-card">
+      <div class="slbl">Market Status</div>
+      <div class="sval c-yellow" id="stStatus">--</div>
+    </div>
+    <div class="stat-card">
+      <div class="slbl">Bot Running</div>
+      <div class="sval" id="stBot">--</div>
+    </div>
+  </footer>
+
+</div><!-- .app / #view-live -->
+  </div><!-- #view-live -->
+
+  <!-- Chain (OI Heatmap) View -->
+  <div class="page-view" id="view-chain">
+    <iframe src="/heatmap.html" id="chainFrame" title="OI Chain"></iframe>
+  </div>
+
+  <!-- PoP Seller View -->
+  <div class="page-view" id="view-pop">
+    <iframe src="/pop.html" id="popFrame" title="PoP Seller"></iframe>
+  </div>
+
+  <!-- Strategy Builder View -->
+  <div class="page-view" id="view-strategy">
+    <iframe src="/strategy.html" id="stratFrame" title="Strategy Builder"></iframe>
+  </div>
+
+  <!-- Strike History View -->
+  <div class="page-view" id="view-afl">
+    <iframe src="/strike-history.html" id="aflFrame" title="Strike History"></iframe>
+  </div>
+
+</div><!-- .page-content -->
+
+<script>
+  // ── Nav switcher ──────────────────────────────────────────────────────────────
+  function switchView(name, btn) {
+    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    const view = document.getElementById('view-' + name);
+    if (view) view.classList.add('active');
+    if (btn)  btn.classList.add('active');
+  }
+
+  // Sync nav mode badge + clock
+  function syncNavBar() {
+    const mode = document.getElementById('modeBadge')?.textContent || 'PAPER';
+    const nm = document.getElementById('navMode');
+    if (nm) { nm.textContent = mode; nm.className = 'nav-mode ' + (mode === 'LIVE' ? 'live' : 'paper'); }
+    const nt = document.getElementById('navTime');
+    if (nt) nt.textContent = new Date().toLocaleTimeString('en-IN', { timeZone:'Asia/Kolkata', hour12:false });
+  }
+  setInterval(syncNavBar, 1000);
+  syncNavBar();
+
+  // ── State ────────────────────────────────────────────────────────────────────
+  const indexOrder = ['NIFTY', 'SENSEX', 'BANKNIFTY'];
+  const spotState  = {};   // indexName → lastPrice
+  let activeIdx    = 'NIFTY';
+  let ticks        = 0;
+
+  // ── Price helpers ───────────────────────────────────────────────────────────
+  function feedPrice(name, price) {
+    spotState[name] = price;
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  const fmt  = v => Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtP = v => Number(v).toLocaleString('en-IN');
+
+  function signalPill(sig) {
+    if (!sig || sig === 'WAIT') return '<span class="signal-pill sig-wait">WAIT</span>';
+    if (sig === 'CALL') return '<span class="signal-pill sig-call">CALL ▲</span>';
+    if (sig === 'PUT')  return '<span class="signal-pill sig-put">PUT ▼</span>';
+    return `<span class="signal-pill sig-wait">${sig}</span>`;
+  }
+
+  function confColor(c) {
+    if (c >= 85) return '#00e676';
+    if (c >= 75) return '#ffd740';
+    return '#666';
+  }
+
+  // ── Clock ────────────────────────────────────────────────────────────────────
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('tbTime').textContent =
+      now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ── Index tab switching ───────────────────────────────────────────────────────
+  document.getElementById('indexTabs').addEventListener('click', e => {
+    const btn = e.target.closest('.idx-tab');
+    if (!btn) return;
+    activeIdx = btn.dataset.idx;
+    document.querySelectorAll('.idx-tab').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('tbIndex').textContent = activeIdx;
+    pollBreakouts();
+    pollReversals();
+  });
+
+  // ── Mock tick — feeds price ───────────────────────────────────────────────
+  function mockTick(name) {
+    const cur  = spotState[name] || 24000;
+    const step = name === 'NIFTY' ? 30 : name === 'SENSEX' ? 150 : 60;
+    const next = +(cur + (Math.random() - 0.49) * step * 0.2).toFixed(2);
+    feedPrice(name, next);
+  }
+
+  // ── Poll /api/signal (NIFTY or SENSEX) ───────────────────────────────────────
+  async function pollSignal() {
+    try {
+      // /api/signal is instrument-aware via ?inst= (no separate /api/nifty-signal route)
+      const url = '/api/signal?inst=' + encodeURIComponent(activeIdx);
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+
+      // Spot → feed into live candle
+      if (d.price && d.price !== '--') {
+        feedPrice(activeIdx, parseFloat(d.price));
+      }
+
+      // Top bar
+      document.getElementById('tbSpot').textContent   = d.price && d.price !== '--' ? `₹${fmt(d.price)}` : '--';
+      document.getElementById('tbSignal').innerHTML   = signalPill(d.signal);
+      document.getElementById('tbTarget').textContent  = d.target || '--';
+      document.getElementById('tbTrades').textContent  = d.tradesToday ?? '--';
+
+      const conf = parseInt(d.confidence) || 0;
+      document.getElementById('confPct').textContent  = conf + '%';
+      const fill = document.getElementById('confFill');
+      fill.style.width      = conf + '%';
+      fill.style.background = confColor(conf);
+
+      // Mode badge
+      const mode = (d.tradeMode || 'paper').toLowerCase();
+      const badge = document.getElementById('modeBadge');
+      badge.textContent  = mode.toUpperCase();
+      badge.className    = 'mode-badge ' + (mode === 'live' ? 'mode-live' : 'mode-paper');
+
+      // Sidebar
+      document.getElementById('sdStrike').textContent = d.suggestedStrike || '--';
+      document.getElementById('sdOrbH').textContent   = d.orbHigh  || '--';
+      document.getElementById('sdOrbL').textContent   = d.orbLow   || '--';
+      document.getElementById('sdVwap').textContent   = d.vwap     || '--';
+
+      // Stat bar
+      document.getElementById('stStatus').textContent = (d.marketStatus || '--').replace(/_/g, ' ');
+      const botEl = document.getElementById('stBot');
+      botEl.textContent = d.botRunning ? 'ON' : 'OFF';
+      botEl.className   = 'sval ' + (d.botRunning ? 'c-green' : 'c-red');
+
+      updateConfidence(d);
+
+    } catch { /* silent */ }
+  }
+
+  // ── Poll /api/pnl ─────────────────────────────────────────────────────────────
+  async function pollPnl() {
+    try {
+      const r = await fetch('/api/pnl', { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+
+      const pnl = parseFloat(d.todayPnlAbs || d.totalPnl || 0);
+      const pnlEl = document.getElementById('sdPnl');
+      pnlEl.textContent = (pnl >= 0 ? '+' : '') + '₹' + fmtP(Math.abs(pnl));
+      pnlEl.className   = 'pnl-big ' + (pnl >= 0 ? 'c-green' : 'c-red');
+
+      const meta = `${d.totalTrades ?? 0} trades · ${d.winRate ?? 0}% win rate`;
+      document.getElementById('sdPnlMeta').textContent = meta;
+    } catch { /* silent */ }
+  }
+
+  // ── Poll /api/journal ─────────────────────────────────────────────────────────
+  async function pollJournal() {
+    try {
+      const r = await fetch('/api/journal', { cache: 'no-store' });
+      if (!r.ok) return;
+      const trades = await r.json();
+      const todayStr = new Date().toDateString();
+      const today = trades.filter(t => t.exitAt && new Date(t.exitAt).toDateString() === todayStr);
+      const jl = document.getElementById('journalList');
+      if (!today.length) {
+        jl.innerHTML = '<div style="color:var(--muted);font-size:.72rem">No trades yet today.</div>';
+        return;
+      }
+      jl.innerHTML = today.map(t => {
+        const pnl = parseFloat(t.pnlAbs || 0);
+        const col  = pnl >= 0 ? 'c-green' : 'c-red';
+        return `<div class="journal-item">
+          <span class="ji-signal ${t.signal === 'CALL' ? 'c-green' : 'c-red'}">${t.instrument} ${t.signal} ${t.strike || ''}</span>
+          <span class="ji-pnl ${col}">${pnl >= 0 ? '+' : ''}₹${fmtP(Math.abs(pnl))} (${t.pnlPct}%)</span>
+        </div>`;
+      }).join('');
+    } catch { /* silent */ }
+  }
+
+  // ── Tab switching ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Poll /api/options/gamma-blast ────────────────────────────────────────────
+  async function pollGamma() {
+    try {
+      const r = await fetch('/api/options/gamma-blast?instrument=SENSEX', { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+
+      const score = d.blastScore || 0;
+      const level = d.blastLevel || '--';
+      document.getElementById('gammaScore').textContent = score + '/100';
+      const lvlEl = document.getElementById('gammaLevel');
+      lvlEl.textContent = level;
+      lvlEl.style.background = level === 'NUCLEAR' ? 'rgba(255,68,68,.2)'
+                              : level === 'EXTREME' ? 'rgba(255,109,0,.2)'
+                              : level === 'HIGH'    ? 'rgba(255,215,64,.2)'
+                              : 'rgba(102,102,102,.2)';
+      lvlEl.style.color = level === 'NUCLEAR' ? 'var(--red)'
+                        : level === 'EXTREME' ? 'var(--orange)'
+                        : level === 'HIGH'    ? 'var(--yellow)'
+                        : 'var(--muted)';
+
+      document.getElementById('gammaActive').textContent = d.blastActive ? '✅ YES' : '❌ NO';
+      document.getElementById('gammaActive').className = 'greek-val ' + (d.blastActive ? 'c-green' : 'c-red');
+
+      const gr = d.greekRank || {};
+      document.getElementById('gammaRank').textContent  = (gr.total || 0) + '/100';
+      document.getElementById('gammaGrade').textContent = gr.grade || '--';
+      const bd = gr.breakdown || {};
+      document.getElementById('gammaPower').textContent = bd.gammaPower  ? `${bd.gammaPower.score}/${bd.gammaPower.max}`   : '--';
+      document.getElementById('gammaDelta').textContent = bd.deltaSweetSpot ? `${bd.deltaSweetSpot.score}/${bd.deltaSweetSpot.max}` : '--';
+      document.getElementById('gammaTheta').textContent = bd.thetaAccel  ? `${bd.thetaAccel.score}/${bd.thetaAccel.max}`   : '--';
+      document.getElementById('gammaVega').textContent  = bd.vegaEdge    ? `${bd.vegaEdge.score}/${bd.vegaEdge.max}`       : '--';
+      document.getElementById('gammaGtr').textContent   = bd.gtrRatio    ? `${bd.gtrRatio.score}/${bd.gtrRatio.max}`      : '--';
+    } catch { /* silent */ }
+  }
+
+  // ── Poll /api/options/pcr + oi-analysis (Greeks tab) ────────────────────────
+  async function pollGreeks() {
+    // PCR
+    try {
+      const r = await fetch('/api/options/pcr?instrument=SENSEX', { cache: 'no-store' });
+      if (r.ok) {
+        const d = await r.json();
+        const pcr = parseFloat(d.pcrOI || d.pcrVolume || 0);
+        document.getElementById('gkPcr').textContent = pcr ? pcr.toFixed(2) : '--';
+        const interp = d.interpretation || {};
+        const sig = interp.bias === 'BULLISH' ? '🐂 Bullish'
+                  : interp.bias === 'BEARISH' ? '🐻 Bearish' : '↔ ' + (interp.bias || 'Neutral');
+        document.getElementById('gkOiSignal').textContent = sig;
+        // Call/Put OI from PCR response
+        if (d.totalCallOI) document.getElementById('gkCallOi').textContent = (d.totalCallOI / 1e5).toFixed(1) + 'L';
+        if (d.totalPutOI)  document.getElementById('gkPutOi').textContent  = (d.totalPutOI  / 1e5).toFixed(1) + 'L';
+      }
+    } catch { /* silent */ }
+
+    // Max Pain
+    try {
+      const r2 = await fetch('/api/options/maxpain?instrument=SENSEX', { cache: 'no-store' });
+      if (r2.ok) {
+        const d2 = await r2.json();
+        document.getElementById('gkMaxPain').textContent = d2.maxPain ? '₹' + fmtP(d2.maxPain) : '--';
+        document.getElementById('gkAtm').textContent     = d2.currentSpot ? '₹' + fmtP(Math.round(parseFloat(d2.currentSpot) / 100) * 100) : '--';
+      }
+    } catch { /* silent */ }
+
+    // IV from greeks-matrix
+    try {
+      const r3 = await fetch('/api/options/greeks-matrix?instrument=SENSEX', { cache: 'no-store' });
+      if (r3.ok) {
+        const d3 = await r3.json();
+        const atm = d3.atm || d3.strikes?.[0];
+        const iv = atm?.ce?.iv || atm?.pe?.iv || 0;
+        document.getElementById('gkIv').textContent = iv ? parseFloat(iv).toFixed(1) + '%' : '--';
+      }
+    } catch { /* silent */ }
+  }
+
+  // ── Breakout log ──────────────────────────────────────────────────────────────
+  let _boFilter = 'ALL';
+  let _boData = [];
+
+  function boFilter(f, btn) {
+    _boFilter = f;
+    document.querySelectorAll('.bo-filter').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderBreakouts();
+  }
+
+  function renderBreakouts() {
+    const list = document.getElementById('boList');
+    const rows = _boData.filter(e => _boFilter === 'ALL' || e.type === _boFilter);
+    if (!rows.length) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:.72rem;padding:6px">No ' +
+        (_boFilter === 'ALL' ? '' : _boFilter + ' ') + 'breakouts yet today.</div>';
+      return;
+    }
+    list.innerHTML = rows.map(e => {
+      const badgeCls = e.type === 'DAY' ? 'bo-day' : e.type === 'ORB' ? 'bo-orb' : 'bo-swing';
+      const dirCol   = e.dir === 'HIGH' ? 'c-green' : 'c-red';
+      const dirArrow = e.dir === 'HIGH' ? '▲' : '▼';
+      const deltaStr = (e.delta >= 0 ? '+' : '') + e.delta;
+      return `<div class="bo-item">
+        <span class="bo-badge ${badgeCls}">${e.type}</span>
+        <span class="bo-dir ${dirCol}">${dirArrow} ${fmtP(e.price)}</span>
+        <span class="bo-level">vs ${fmtP(e.level)} (${deltaStr})</span>
+        <span class="bo-time">${e.time}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function pollBreakouts() {
+    try {
+      const inst = activeIdx === 'BANKNIFTY' ? 'NIFTY' : activeIdx; // BANKNIFTY shares NIFTY tracker
+      const r = await fetch(`/api/breakouts?inst=${inst}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      _boData = d.events || [];
+      renderBreakouts();
+    } catch { /* silent */ }
+  }
+
+  // ── Reversal log ──────────────────────────────────────────────────────────────
+  let _rvFilter = 'ALL';
+  let _rvData = [];
+
+  function rvFilter(f, btn) {
+    _rvFilter = f;
+    document.querySelectorAll('#tab-reversal .bo-filter').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderReversals();
+  }
+
+  function renderReversals() {
+    const list = document.getElementById('rvList');
+    const rows = _rvData.filter(e => _rvFilter === 'ALL' || e.kind === _rvFilter);
+    if (!rows.length) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:.72rem;padding:6px">No ' +
+        (_rvFilter === 'ALL' ? '' : _rvFilter + ' ') + 'reversals yet today.</div>';
+      return;
+    }
+    list.innerHTML = rows.map(e => {
+      const badgeCls = e.kind === 'REJECTION' ? 'bo-reject' : 'bo-bos';
+      const isBull   = e.dir === 'BULLISH';
+      const dirCol   = isBull ? 'c-green' : 'c-red';
+      const dirArrow = isBull ? '▲ UP' : '▼ DOWN';
+      return `<div class="bo-item">
+        <span class="bo-badge ${badgeCls}">${e.kind}</span>
+        <span class="bo-dir ${dirCol}">${dirArrow}</span>
+        <span class="bo-level">@ ${fmtP(e.price)} (${e.movePct}%)</span>
+        <span class="bo-time">${e.time}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function pollReversals() {
+    try {
+      const inst = activeIdx === 'BANKNIFTY' ? 'NIFTY' : activeIdx;
+      const r = await fetch(`/api/reversals?inst=${inst}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      _rvData = d.events || [];
+      renderReversals();
+    } catch { /* silent */ }
+  }
+
+  // ── Strike High/Low fetch ─────────────────────────────────────────────────────
+  let _strikeTimer = null;
+
+  async function fetchStrike() {
+    const input = document.getElementById('strikeInput');
+    const strike = parseInt(input.value);
+    if (!strike) { document.getElementById('strikeInfo').textContent = 'Strike number enter કરો!'; return; }
+
+    const inst = activeIdx === 'BANKNIFTY' ? 'BANKNIFTY' : activeIdx === 'NIFTY' ? 'NIFTY' : 'SENSEX';
+    document.getElementById('strikeInfo').textContent = 'Loading...';
+
+    try {
+      const r = await fetch(`/api/option-strike-history?inst=${inst}&strike=${strike}`, { cache: 'no-store' });
+      const d = await r.json();
+      if (d.error) { document.getElementById('strikeInfo').textContent = '❌ ' + d.error; return; }
+
+      document.getElementById('strikeInfo').textContent =
+        `${inst} ${strike} | Spot: ₹${fmtP(d.spot)} | ATM: ${fmtP(d.atm)} ${d.isATM ? '✅' : ''}`;
+
+      const ce = d.ce || {};
+      document.getElementById('stCeLtp').textContent   = ce.ltp   ? '₹' + ce.ltp   : '--';
+      document.getElementById('stCeHigh').textContent  = ce.sessionHigh ? '₹' + ce.sessionHigh : '--';
+      document.getElementById('stCeLow').textContent   = ce.sessionLow  ? '₹' + ce.sessionLow  : '--';
+      document.getElementById('stCeOi').textContent    = ce.oi    ? (ce.oi / 1e5).toFixed(1) + 'L' : '--';
+      document.getElementById('stCeIv').textContent    = ce.iv    ? ce.iv + '%' : '--';
+
+      const pe = d.pe || {};
+      document.getElementById('stPeLtp').textContent   = pe.ltp   ? '₹' + pe.ltp   : '--';
+      document.getElementById('stPeHigh').textContent  = pe.sessionHigh ? '₹' + pe.sessionHigh : '--';
+      document.getElementById('stPeLow').textContent   = pe.sessionLow  ? '₹' + pe.sessionLow  : '--';
+      document.getElementById('stPeOi').textContent    = pe.oi    ? (pe.oi / 1e5).toFixed(1) + 'L' : '--';
+      document.getElementById('stPeIv').textContent    = pe.iv    ? pe.iv + '%' : '--';
+
+      document.getElementById('stTs').textContent = 'Updated: ' + new Date(d.ts).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+      // auto-refresh every 15s while Strike tab is active
+      clearInterval(_strikeTimer);
+      _strikeTimer = setInterval(fetchStrike, 10000);
+
+    } catch(e) {
+      document.getElementById('strikeInfo').textContent = '❌ Error: ' + e.message;
+    }
+  }
+
+  // Auto-load ATM strike when Strike tab clicked
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab !== 'strike') { clearInterval(_strikeTimer); return; }
+      // pre-fill ATM from spot
+      const spot = spotState[activeIdx];
+      if (spot) {
+        const step = activeIdx === 'NIFTY' ? 50 : activeIdx === 'SENSEX' ? 100 : 100;
+        document.getElementById('strikeInput').value = Math.round(spot / step) * step;
+        fetchStrike();
+      }
+    });
+  });
+
+  // ── Update Confidence tab from signal data ────────────────────────────────────
+  function updateConfidence(d) {
+    const conf = parseInt(d.confidence) || 0;
+    document.getElementById('confBig').textContent   = conf + '%';
+    document.getElementById('confBig').className     = 'conf-big ' + (conf >= 75 ? 'c-green' : conf >= 50 ? 'c-yellow' : 'c-muted');
+    document.getElementById('confGrade').textContent = `Signal: ${d.signal || 'WAIT'} · ${d.marketStatus || ''}`;
+    document.getElementById('confCallScore').textContent = d.callScore ?? '--';
+    document.getElementById('confPutScore').textContent  = d.putScore  ?? '--';
+    document.getElementById('confOrb').textContent    = d.orbHigh && d.price ? (parseFloat(d.price) > parseFloat(d.orbHigh) ? '✅ Breakout' : '❌ Below') : '--';
+    document.getElementById('confVwap').textContent   = d.vwap && d.price ? (parseFloat(d.price) > parseFloat(d.vwap) ? '✅ Above' : '❌ Below') : '--';
+    document.getElementById('confVol').textContent    = d.volumeSpike ? '✅ Spike' : '➖ Normal';
+    document.getElementById('confTrend').textContent  = d.trend || '--';
+    document.getElementById('confMarket').textContent = d.marketOpen ? '🟢 Open' : '🔴 Closed';
+  }
+
+  // ── Bootstrap ────────────────────────────────────────────────────────────────
+  // ── Indices Strip ─────────────────────────────────────────────────────────────
+  const _prevPrices = {};
+
+  function setIdxEl(priceId, changeId, price, prev) {
+    const pEl = document.getElementById(priceId);
+    const cEl = document.getElementById(changeId);
+    if (!pEl || !price) return;
+    pEl.textContent = '₹' + fmtP(parseFloat(price).toFixed(2));
+    if (prev && prev > 0) {
+      const chg = parseFloat(price) - prev;
+      const pct = (chg / prev * 100).toFixed(2);
+      const cls = chg > 0 ? 'idx-change idx-up' : chg < 0 ? 'idx-change idx-down' : 'idx-change idx-flat';
+      cEl.className   = cls;
+      cEl.textContent = (chg >= 0 ? '▲ +' : '▼ ') + Math.abs(chg).toFixed(2) + ' (' + (chg >= 0 ? '+' : '') + pct + '%)';
+    }
+  }
+
+  async function pollIndices() {
+    try {
+      const [rN, rS, rB] = await Promise.all([
+        fetch('/api/nifty',     { cache: 'no-store' }).catch(() => null),
+        fetch('/api/sensex',    { cache: 'no-store' }).catch(() => null),
+        fetch('/api/banknifty', { cache: 'no-store' }).catch(() => null)
+      ]);
+      if (!rN || !rS || !rB) return;
+      const [dN, dS, dB] = await Promise.all([
+        rN.ok ? rN.json().catch(() => ({})) : {},
+        rS.ok ? rS.json().catch(() => ({})) : {},
+        rB.ok ? rB.json().catch(() => ({})) : {}
+      ]);
+
+      // NIFTY
+      setIdxEl('idxNiftyP', 'idxNiftyC', dN.price, _prevPrices.NIFTY);
+      if (dN.price) _prevPrices.NIFTY = _prevPrices.NIFTY || parseFloat(dN.dayLow) || parseFloat(dN.price);
+
+      // SENSEX
+      setIdxEl('idxSensexP', 'idxSensexC', dS.price, _prevPrices.SENSEX);
+      if (dS.price) _prevPrices.SENSEX = _prevPrices.SENSEX || parseFloat(dS.dayLow) || parseFloat(dS.price);
+
+      // BANKNIFTY
+      setIdxEl('idxBniftyP', 'idxBniftyC', dB.price, _prevPrices.BANKNIFTY);
+      if (dB.price) _prevPrices.BANKNIFTY = _prevPrices.BANKNIFTY || parseFloat(dB.dayLow) || parseFloat(dB.price);
+
+      // BANKEX, MIDCAP, FINNIFTY, VIX — Yahoo Finance fallback via yahoo-finance2
+      const extras = await fetch('/api/indices-extra', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
+      if (extras) {
+        setIdxEl('idxBankexP',  'idxBankexC',  extras.BANKEX?.price,    extras.BANKEX?.prev);
+        setIdxEl('idxMidcapP',  'idxMidcapC',  extras.MIDCPNIFTY?.price, extras.MIDCPNIFTY?.prev);
+        setIdxEl('idxFinniftyP','idxFinniftyC', extras.FINNIFTY?.price,  extras.FINNIFTY?.prev);
+        setIdxEl('idxVixP',     'idxVixC',      extras.VIX?.price,       extras.VIX?.prev);
+      }
+    } catch { /* silent */ }
+  }
+
+  // ── Market open check (IST) ──────────────────────────────────────────────────
+  function isMarketOpen() {
+    const now = new Date();
+    const ist = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const day = ist.getDay(); // 0=Sun, 6=Sat
+    if (day === 0 || day === 6) return false;
+    const mins = ist.getHours() * 60 + ist.getMinutes();
+    return mins >= 555 && mins < 930; // 9:15 to 15:30
+  }
+
+
+
+  async function boot() {
+    // seed history with last known prices from API (no mock numbers)
+    const initPrices = { NIFTY: 24000, SENSEX: 74000, BANKNIFTY: 52000 };
+    try {
+      const r = await fetch('/api/sensex', { cache: 'no-store' });
+      if (r.ok) { const d = await r.json(); initPrices.SENSEX = parseFloat(d.price) || 74000; }
+    } catch {}
+    indexOrder.forEach(n => spotState[n] = initPrices[n]);
+
+    await pollSignal();
+    pollIndices();
+    pollPnl();
+    pollJournal();
+    pollGamma();
+    pollGreeks();
+    pollBreakouts();
+    pollReversals();
+
+    // Stagger all polls to avoid simultaneous Dhan API hits
+    // Signal: 5s — primary feed
+    setInterval(pollSignal, 5000);
+    // Indices: offset 2s from signal, 10s interval
+    setTimeout(() => setInterval(pollIndices, 10000), 2000);
+    // Breakouts + reversals: in-memory only, no Dhan calls — 8s
+    setTimeout(() => setInterval(pollBreakouts, 8000), 1000);
+    setTimeout(() => setInterval(pollReversals, 8000), 4000);
+
+    // P&L + journal — 10s
+    setInterval(() => {
+      if (!isMarketOpen()) return;
+      pollPnl();
+      pollJournal();
+    }, 10000);
+
+    // Gamma + Greeks — 20s (option chain = heavy API)
+    setInterval(() => {
+      if (!isMarketOpen()) return;
+      pollGamma();
+      pollGreeks();
+    }, 20000);
+  }
+
+  boot();
+</script>
 </body>
 </html>

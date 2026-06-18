@@ -568,11 +568,14 @@
   }
   function renderChain(d){
     if(!d){ d=demoChain(); markDemo(); }
-    $("chainMeta").textContent="ATM "+fmt(d.atm,0)+" · "+(d.rows?d.rows.length:0)+" rows";
+    // Only strikes Dhan actually has — drop rows where both CE & PE LTP are 0. Keep ATM.
+    var rows=(d.rows||[]).filter(function(r){ return r.isATM || (parseFloat(r.ce&&r.ce.ltp||0)>0) || (parseFloat(r.pe&&r.pe.ltp||0)>0); });
+    if(!rows.length) rows=d.rows||[];
+    $("chainMeta").textContent="ATM "+fmt(d.atm,0)+" · "+rows.length+" rows";
     $("m_atm").textContent=fmt(d.atm,0);
-    var maxOI=1; (d.rows||[]).forEach(function(r){ maxOI=Math.max(maxOI,r.ce.oi||0,r.pe.oi||0); });
+    var maxOI=1; rows.forEach(function(r){ maxOI=Math.max(maxOI,r.ce.oi||0,r.pe.oi||0); });
     var tb=$("chainBody"); var html="";
-    (d.rows||[]).forEach(function(r){
+    rows.forEach(function(r){
       var ce=r.ce,pe=r.pe;
       var ceW=Math.round(((ce.oi||0)/maxOI)*40);
       html+='<tr class="'+(r.isATM?"atm":"")+'">'+

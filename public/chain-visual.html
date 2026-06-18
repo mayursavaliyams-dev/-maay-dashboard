@@ -168,6 +168,8 @@ function rowFields(r) {
 let _renderedKey = '';   // strike-set + depth signature; rebuild only when it changes
 function renderRows(rows) {
   const tbody = document.getElementById('tbody');
+  // Only strikes Dhan actually has — drop rows where both CE & PE LTP are 0. Keep ATM.
+  rows = (rows || []).filter(r => r.isATM || (Number(r.ce && r.ce.ltp || 0) > 0) || (Number(r.pe && r.pe.ltp || 0) > 0));
   const key = rows.map(r => r.strike).join(',');
   if (key !== _renderedKey) {
     tbody.innerHTML = rows.map(rowHtml).join('');

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Signal Heatmap — NIFTY · SENSEX · BANKNIFTY</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg0:#08101d;--bg1:#0c1628;--bg2:#09111f;
+    --green:#38d39f;--red:#ff4444;--cyan:#5fe1ff;--blue:#448aff;--amber:#ffbf69;--purple:#ce93d8;
+    --txt:#cdd9ec;--dim:#7488a6;--dimmer:#54657f;
+    --panel:rgba(14,26,46,.62);--panel2:rgba(10,20,36,.55);--line:rgba(120,140,170,.14);
+    --mono:'IBM Plex Mono',ui-monospace,monospace;--sans:'IBM Plex Sans',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{max-width:100%;overflow-x:hidden}
+  body{font-family:var(--sans);color:var(--txt);font-size:13px;
+    background:radial-gradient(900px 500px at 12% -5%,rgba(68,138,255,.10),transparent 60%),
+      radial-gradient(800px 600px at 95% 0%,rgba(95,225,255,.08),transparent 55%),
+      linear-gradient(180deg,var(--bg0),var(--bg1),var(--bg2));background-attachment:fixed;min-height:100vh;padding-bottom:40px;}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .up{color:var(--green)} .down{color:var(--red)} .neu{color:var(--dim)}
+
+  .topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:9px 16px;background:linear-gradient(180deg,rgba(8,16,29,.96),rgba(8,16,29,.82));
+    border-bottom:1px solid var(--line);backdrop-filter:blur(10px);}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px}
+  .brand .logo{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;
+    background:radial-gradient(circle at 30% 30%,var(--cyan),var(--blue));color:#04101e;font-weight:700;font-size:12px}
+  .brand small{color:var(--dim);font-weight:500;font-size:10px;letter-spacing:1.5px;display:block;margin-top:-2px}
+  .spacer{flex:1}
+  .chip{display:flex;align-items:center;gap:7px;padding:5px 10px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);font-size:11px;font-family:var(--mono);white-space:nowrap}
+  .led{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .led.g{background:var(--green);box-shadow:0 0 8px var(--green)} .led.r{background:var(--red)} .led.a{background:var(--amber)}
+  @keyframes blink{50%{opacity:.3}} .live{animation:blink 1.4s infinite}
+  .nav-links{display:flex;gap:14px;font-size:12px}
+  .nav-links a{color:var(--dim);text-decoration:none} .nav-links a:hover{color:var(--cyan)}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:12px 16px;align-items:start}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;backdrop-filter:blur(8px);min-width:0}
+  .col-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(95,225,255,.05),transparent)}
+  .col-head .nm{font-weight:700;letter-spacing:1px;font-size:13px;color:var(--cyan)}
+  .col-head .spot{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:16px}
+  .col-sub{display:flex;gap:14px;padding:6px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+  .col-sub b{color:var(--txt);font-weight:600}
+  .col-sig{padding:8px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .pill{padding:3px 12px;border-radius:999px;font-family:var(--mono);font-weight:700;font-size:12px;letter-spacing:.5px}
+  .pill.CALL{background:rgba(56,211,159,.18);color:var(--green);border:1px solid rgba(56,211,159,.5)}
+  .pill.PUT{background:rgba(255,68,68,.18);color:var(--red);border:1px solid rgba(255,68,68,.5)}
+  .pill.WAIT{background:rgba(255,191,105,.14);color:var(--amber);border:1px solid rgba(255,191,105,.4)}
+
+  table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:11px}
+  thead th{position:sticky;top:0;background:#0b1626;color:var(--dim);font-size:9px;letter-spacing:.5px;
+    text-transform:uppercase;font-weight:600;padding:6px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th.ce{color:var(--green)} th.pe{color:var(--red);text-align:left} th.stk{text-align:center;color:var(--cyan)}
+  .body-wrap{max-height:520px;overflow:auto}
+  td{padding:5px 6px;border-bottom:1px solid rgba(120,140,170,.06);text-align:right;white-space:nowrap}
+  td.stk{text-align:center;font-weight:700;color:var(--txt);background:rgba(255,255,255,.02);border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  td.pe{text-align:left}
+  tr.atm td{background:rgba(95,225,255,.08)} tr.atm td.stk{background:rgba(95,225,255,.16);color:var(--cyan)}
+  /* signal chip on a strike */
+  .sigchip{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;font-size:8.5px;font-weight:800;vertical-align:middle}
+  .sigchip.CALL{background:rgba(56,211,159,.25);color:var(--green)}
+  .sigchip.PUT{background:rgba(255,68,68,.25);color:var(--red)}
+  /* record-timeline H/L cell */
+  .hlcell{font-size:10px;white-space:nowrap}
+  .hi{color:var(--amber);font-weight:600} .lo{color:var(--blue);font-weight:600}
+  .rt{color:var(--dimmer);font-size:8.5px}
+  .maxg{color:var(--green);font-weight:700;font-size:10.5px}
+  tr.has-sig td{box-shadow:inset 0 0 0 1px rgba(206,147,216,.35)}
+  tr.has-sig td.stk{background:rgba(206,147,216,.18);color:var(--purple)}
+  .warn{position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(255,68,68,.10);border-top:1px solid rgba(255,68,68,.35);
+    padding:7px 16px;font-size:10.5px;color:var(--amber);text-align:center;backdrop-filter:blur(6px);font-family:var(--mono)}
+  .warn b{color:var(--red)}
+  .demo-tag{font-size:9px;color:var(--amber);font-family:var(--mono);margin-left:6px}
+  ::-webkit-scrollbar{width:7px;height:7px}::-webkit-scrollbar-thumb{background:rgba(95,225,255,.18);border-radius:4px}
+
+  @media(max-width:1000px){ .grid{grid-template-columns:1fr} }
+
+  tr.clik{cursor:pointer} tr.clik:hover td{background:rgba(95,225,255,.06)}
+  /* detail modal */
+  .modal-bg{position:fixed;inset:0;z-index:60;background:rgba(4,8,16,.72);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+  .modal-bg.show{display:flex}
+  .modal{background:linear-gradient(180deg,#0e1a2e,#0a1422);border:1px solid var(--line);border-radius:14px;width:100%;max-width:760px;box-shadow:0 30px 90px rgba(0,0,0,.6)}
+  .modal-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .modal-head .mt{font-weight:700;font-size:15px;letter-spacing:.5px}
+  .modal-head .x{margin-left:auto;cursor:pointer;color:var(--dim);font-size:20px;line-height:1;padding:2px 8px;border-radius:6px}
+  .modal-head .x:hover{background:rgba(255,255,255,.08);color:#fff}
+  .modal-body{padding:16px 18px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .leg-col h4{font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+  .leg-col.ce h4{color:var(--green)} .leg-col.pe h4{color:var(--red)}
+  .leg-stat{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;padding:3px 0;border-bottom:1px solid rgba(120,140,170,.07)}
+  .leg-stat .k{color:var(--dim)}
+  .tl-title{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);margin:10px 0 5px}
+  .tl{max-height:150px;overflow:auto;font-family:var(--mono);font-size:11px}
+  .tl-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(120,140,170,.05)}
+  .tl-row .hi{color:var(--amber)} .tl-row .lo{color:var(--blue)} .tl-row .tm{color:var(--dimmer)}
+  .modal-empty{color:var(--dimmer);font-size:11px;font-style:italic;padding:8px 0}
+  @media(max-width:600px){ .modal-body{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><span class="logo">AG</span><span>MULTI-SIGNAL HEATMAP<small>NIFTY · SENSEX · BANKNIFTY — ONE VIEW</small></span></div>
+  <div class="spacer"></div>
+  <div class="chip"><span class="led g live" id="amiLed"></span>AMI <b id="amiState">linked</b></div>
+  <div class="chip"><span class="led g live"></span><b id="clock" class="mono">--:--:--</b> IST</div>
+  <nav class="nav-links">
+    <a href="/command.html">Terminal</a><a href="/signal-heatmap.html">Single Heatmap</a><a href="/dashboard.html">Dashboard</a>
+  </nav>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head"><span class="mt" id="modalTitle">Strike Detail</span><span class="x" onclick="closeModal()">✕</span></div>
+    <div class="modal-body" id="modalBody"><div class="modal-empty">Loading…</div></div>
+  </div>
+</div>
+
+<div class="warn"><b>⚠ RISK:</b> Backtest profit ≠ future profit. Paper trade first. AmiBroker signals are advisory — verify before any live order.</div>
+
+<script>
+"use strict";
+(function(){
+  var INSTR = [
+    { key:'NIFTY',     step:50,  demoSpot:24180 },
+    { key:'SENSEX',    step:100, demoSpot:79350 },
+    { key:'BANKNIFTY', step:100, demoSpot:51240 }
+  ];
+  var DEPTH = 7;
+
+  function $(id){return document.getElementById(id);}
+  function fmt(n,d){ if(n==null||isNaN(n)) return '--'; return Number(n).toLocaleString('en-IN',{minimumFractionDigits:d||0,maximumFractionDigits:d||0}); }
+  function pct(n){ if(n==null||isNaN(n)) return '--'; return (n>0?'+':'')+Number(n).toFixed(1)+'%'; }
+  function cls(n){ return n>0?'up':n<0?'down':'neu'; }
+
+  async function getJSON(url){
+    var c=new AbortController(); var t=setTimeout(function(){c.abort();},3500);
+    try{ var r=await fetch(url,{signal:c.signal,cache:'no-store',headers:{Accept:'application/json'}}); clearTimeout(t); if(!r.ok) throw 0; return await r.json(); }
+    catch(e){ clearTimeout(t); return null; }
+  }
+
+  // ---- strike detail modal (high/low up+down record timeline) ----
+  window.closeModal=function(){ $('modalBg').classList.remove('show'); };
+  function tlRows(arr,kind){
+    if(!arr||!arr.length) return '<div class="modal-empty">no '+kind+' records yet</div>';
+    return arr.slice().reverse().map(function(e){
+      return '<div class="tl-row"><span class="'+(kind==='high'?'hi':'lo')+'">₹'+(e.price!=null?e.price:e.p)+'</span><span class="tm">'+(e.time||'')+'</span></div>';
+    }).join('');
+  }
+  function legCol(leg,type){
+    if(!leg) return '<div class="leg-col '+type.toLowerCase()+'"><h4>'+type+'</h4><div class="modal-empty">no data</div></div>';
+    var maxg=(leg.high>0&&leg.low>0)?(((leg.high-leg.low)/leg.low)*100).toFixed(0)+'%':'--';
+    return '<div class="leg-col '+type.toLowerCase()+'">'+
+      '<h4>'+type+'</h4>'+
+      '<div class="leg-stat"><span class="k">LTP</span><span>₹'+(leg.ltp!=null?leg.ltp:'--')+'</span></div>'+
+      '<div class="leg-stat"><span class="k">Day High</span><span class="hi">₹'+(leg.high||'--')+(leg.highAt?' @'+leg.highAt:'')+'</span></div>'+
+      '<div class="leg-stat"><span class="k">Day Low</span><span class="lo">₹'+(leg.low||'--')+(leg.lowAt?' @'+leg.lowAt:'')+'</span></div>'+
+      '<div class="leg-stat"><span class="k">Max Gain (L→H)</span><span class="maxg">'+maxg+'</span></div>'+
+      '<div class="tl-title">▲ High records (upside)</div><div class="tl">'+tlRows(leg.highHistory,'high')+'</div>'+
+      '<div class="tl-title">▼ Low records (downside)</div><div class="tl">'+tlRows(leg.lowHistory,'low')+'</div>'+
+    '</div>';
+  }
+  async function openModal(inst,strike){
+    $('modalBg').classList.add('show');
+    $('modalTitle').textContent=inst+' '+strike+' — High/Low Records';
+    $('modalBody').innerHTML='<div class="modal-empty">Loading '+inst+' '+strike+' …</div>';
+    var j=await getJSON('/api/option-strike-history?inst='+inst+'&strike='+strike);
+    if(!j||j.error){ $('modalBody').innerHTML='<div class="modal-empty">No record data — '+((j&&j.error)||(j&&j.marketStatus)||'market closed / no candles for today')+'</div>'; return; }
+    $('modalBody').innerHTML=legCol(j.ce,'CE')+legCol(j.pe,'PE');
+  }
+  // event delegation: click any strike row
+  document.addEventListener('click',function(e){
+    var tr=e.target.closest&&e.target.closest('tr.clik');
+    if(tr&&tr.dataset.strike){ openModal(tr.dataset.inst,tr.dataset.strike); }
+  });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') window.closeModal(); });
+
+  // build the static shell: 3 columns
+  $('grid').innerHTML = INSTR.map(function(I){
+    return '<div class="col" id="col-'+I.key+'">'+
+      '<div class="col-head"><span class="nm">'+I.key+'</span><span class="led" id="led-'+I.key+'"></span><span class="spot mono" id="spot-'+I.key+'">--</span></div>'+
+      '<div class="col-sub">ATM <b id="atm-'+I.key+'">--</b> · Step '+I.step+' · <span id="src-'+I.key+'">…</span></div>'+
+      '<div class="col-sig"><span>AMI Signal:</span><span class="pill WAIT" id="pill-'+I.key+'">WAIT</span><span class="neu" id="sigmeta-'+I.key+'"></span></div>'+
+      '<div class="body-wrap"><table>'+
+        '<thead><tr><th class="ce">OI</th><th class="ce">LTP</th><th class="ce">DAY H/L</th><th class="ce">MAX%</th><th class="stk">STRIKE</th><th class="pe">MAX%</th><th class="pe">DAY H/L</th><th class="pe">LTP</th><th class="pe">OI</th></tr></thead>'+
+        '<tbody id="body-'+I.key+'"></tbody>'+
+      '</table></div>'+
+    '</div>';
+  }).join('');
+
+  // ---- demo fallback ----
+  function demoChain(I){
+    var atm=Math.round(I.demoSpot/I.step)*I.step, rows=[];
+    for(var i=DEPTH;i>=-DEPTH;i--){var k=atm+i*I.step,dist=Math.abs(i);
+      rows.push({strike:k,isATM:i===0,
+        ce:demoLeg(Math.max(2,(I.demoSpot-k)+90-dist*9)),
+        pe:demoLeg(Math.max(2,(k-I.demoSpot)+90-dist*9))});}
+    return {spot:I.demoSpot,atm:atm,rows:rows,_demo:true};
+  }
+  function demoLeg(ltp){
+    var low=Math.max(1,ltp*(0.55+Math.random()*0.2)), high=ltp*(1.1+Math.random()*0.6);
+    return {ltp:+ltp.toFixed(1),chngPct:(Math.random()-0.4)*6,oi:Math.floor(80000+Math.random()*120000),
+      high:+high.toFixed(1),low:+low.toFixed(1),highAt:['10:48','11:22','13:05','14:31'][Math.floor(Math.random()*4)]};
+  }
+
+  function renderCol(I, chain, sigResp){
+    var demo=false;
+    if(!chain || !chain.rows || !chain.rows.length){ chain=demoChain(I); demo=true; }
+    var spot=chain.spot||I.demoSpot, atm=chain.atm||Math.round(spot/I.step)*I.step;
+    $('spot-'+I.key).textContent=fmt(spot,2);
+    $('atm-'+I.key).textContent=fmt(atm,0);
+    $('src-'+I.key).innerHTML=(demo?'<span class="demo-tag">DEMO</span>':'<span class="up">live</span>');
+    $('led-'+I.key).className='led '+(demo?'a':'g live');
+
+    // map AmiBroker signals by strike
+    var sigs=(sigResp&&sigResp.signals)?sigResp.signals:[];
+    var byStrike={}; var latest=null;
+    sigs.forEach(function(s){ if(s.strike){ byStrike[s.strike]=s; } if(!latest && (s.signal==='CALL'||s.signal==='PUT')) latest=s; });
+
+    // header AMI pill = latest live signal for this instrument (else WAIT)
+    var pill=$('pill-'+I.key); var sg=latest?latest.signal:'WAIT';
+    pill.className='pill '+sg; pill.textContent=sg;
+    $('sigmeta-'+I.key).textContent=latest?(latest.strike+' · conf '+(latest.conf||0)+' · '+(latest.time||'')):(demo?'(demo — no ami feed)':'no active signal');
+
+    // Only show strikes Dhan actually has data for — drop rows where BOTH CE & PE
+    // LTP are 0 (no real premium / Dhan doesn't carry that strike). Keep ATM anchored.
+    var liveRows=chain.rows.filter(function(r){
+      if(r.isATM) return true;
+      return (parseFloat(r.ce&&r.ce.ltp||0)>0) || (parseFloat(r.pe&&r.pe.ltp||0)>0);
+    });
+    if(!liveRows.length) liveRows=chain.rows; // safety: never blank the column
+    var maxOI=1; liveRows.forEach(function(r){maxOI=Math.max(maxOI,r.ce.oi||0,r.pe.oi||0);});
+    var html=liveRows.map(function(r){
+      var ce=r.ce||{},pe=r.pe||{};
+      var sig=byStrike[r.strike];
+      var sigCls=sig?(' has-sig'):'';
+      var ceChip=(sig&&sig.signal==='CALL')?'<span class="sigchip CALL">▲'+(sig.conf||'')+'</span>':'';
+      var peChip=(sig&&sig.signal==='PUT')?'<span class="sigchip PUT">▼'+(sig.conf||'')+'</span>':'';
+      // Record-timeline H/L (bot-tracked session extremes) + max gain% (low->high).
+      var ceMax=(ce.high>0&&ce.low>0)?((ce.high-ce.low)/ce.low)*100:0;
+      var peMax=(pe.high>0&&pe.low>0)?((pe.high-pe.low)/pe.low)*100:0;
+      function hl(leg){ // "high / low" with time tag on the high
+        if(!(leg.high>0)) return '<span class="neu">--</span>';
+        var t=leg.highAt?(' <span class="rt">'+leg.highAt+'</span>'):'';
+        return '<span class="hi">'+fmt(leg.high,1)+'</span><span class="neu">/</span><span class="lo">'+fmt(leg.low,1)+'</span>'+t;
+      }
+      function mx(m){ return m>0?'<span class="maxg">'+m.toFixed(0)+'%</span>':'<span class="neu">--</span>'; }
+      return '<tr class="clik '+(r.isATM?'atm':'')+sigCls+'" data-inst="'+I.key+'" data-strike="'+r.strike+'" title="Click for high/low record timeline">'+
+        '<td class="neu">'+fmt(ce.oi,0)+'</td>'+
+        '<td class="up">'+fmt(ce.ltp,1)+ceChip+'</td>'+
+        '<td class="hlcell">'+hl(ce)+'</td>'+
+        '<td>'+mx(ceMax)+'</td>'+
+        '<td class="stk">'+fmt(r.strike,0)+'</td>'+
+        '<td class="pe">'+mx(peMax)+'</td>'+
+        '<td class="pe hlcell">'+hl(pe)+'</td>'+
+        '<td class="pe down">'+fmt(pe.ltp,1)+peChip+'</td>'+
+        '<td class="pe neu">'+fmt(pe.oi,0)+'</td>'+
+      '</tr>';
+    }).join('');
+    $('body-'+I.key).innerHTML=html;
+    return demo;
+  }
+
+  async function tick(){
+    var anyLive=false;
+    await Promise.all(INSTR.map(async function(I){
+      var res=await Promise.all([
+        getJSON('/api/option-chain-full?inst='+I.key+'&depth='+DEPTH),
+        getJSON('/api/amibroker/signals?inst='+I.key+'&limit=120')
+      ]);
+      var demo=renderCol(I,res[0],res[1]);
+      if(!demo) anyLive=true;
+    }));
+    $('amiState').textContent=anyLive?'linked':'demo';
+    $('amiLed').className='led '+(anyLive?'g live':'a');
+  }
+
+  setInterval(function(){ $('clock').textContent=new Date().toLocaleTimeString('en-GB'); },1000);
+  $('clock').textContent=new Date().toLocaleTimeString('en-GB');
+  tick();
+  setInterval(tick, 4000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategy Builder — Antigravity Pro</title>
+<style>
+:root {
+  --bg:#0a0a0f; --panel:#0f0f18; --border:#1a1a2e; --text:#e8e8f0; --muted:#4a4a6a;
+  --green:#00e676; --red:#ff4444; --blue:#448aff; --yellow:#ffd740;
+  --orange:#ff6d00; --purple:#ce93d8; --teal:#00bcd4;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospace;font-size:13px;height:100%;}
+
+/* NAV */
+.topbar{display:flex;align-items:center;gap:8px;background:#13131f;border-bottom:1px solid #23233a;
+  padding:0 14px;min-height:44px;position:sticky;top:0;z-index:50;}
+.brand{font-weight:800;color:var(--green);font-size:.95rem;}
+.back-btn{padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);margin-left:auto;}
+.back-btn:hover{color:var(--text);}
+.nav-links{display:flex;align-items:center;gap:4px;margin-left:auto;}
+.nav-link{padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;
+  color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;transition:.15s;}
+.nav-link:hover{color:#edf3ff;background:rgba(255,255,255,.06);border-color:#23233a;}
+.nav-link.active{color:#78a8ff;background:rgba(120,168,255,.1);border-color:rgba(120,168,255,.3);}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:340px 1fr;gap:10px;padding:10px;height:calc(100vh - 44px);}
+@media(max-width:900px){.layout{grid-template-columns:1fr;height:auto;}}
+
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;overflow-y:auto;}
+.panel-title{font-size:.78rem;font-weight:800;color:var(--text);margin-bottom:10px;
+  text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:8px;}
+
+/* STRATEGY PRESETS */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+.preset-btn{padding:8px 10px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:#0d0d0d;color:var(--muted);text-align:left;transition:.1s;}
+.preset-btn:hover,.preset-btn.active{background:rgba(0,230,118,.1);color:var(--green);border-color:rgba(0,230,118,.3);}
+.preset-btn .ps-name{display:block;font-size:.8rem;margin-bottom:2px;}
+.preset-btn .ps-desc{display:block;font-size:.62rem;color:var(--muted);}
+.preset-btn.active .ps-desc{color:rgba(0,230,118,.7);}
+
+/* CONTROLS */
+.ctrl-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+.ctrl-label{font-size:.68rem;color:var(--muted);min-width:60px;}
+.ctrl-select,.ctrl-input{background:#0d0d0d;border:1px solid var(--border);color:var(--text);
+  border-radius:6px;padding:5px 8px;font-size:.75rem;outline:none;}
+.ctrl-select:focus,.ctrl-input:focus{border-color:rgba(0,230,118,.4);}
+.ctrl-input{width:100px;}
+
+/* LEGS TABLE */
+.legs-table{width:100%;border-collapse:collapse;margin-bottom:10px;}
+.legs-table th{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;
+  padding:5px 8px;border-bottom:1px solid var(--border);text-align:left;}
+.legs-table td{padding:5px 8px;border-bottom:1px solid #14141f;font-size:.75rem;vertical-align:middle;}
+.leg-action-buy{color:var(--green);font-weight:700;}
+.leg-action-sell{color:var(--red);font-weight:700;}
+.leg-ce{color:var(--green);}
+.leg-pe{color:var(--red);}
+.del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 5px;}
+.del-btn:hover{color:var(--red);}
+.add-leg-btn{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);color:var(--green);
+  border-radius:6px;padding:5px 12px;font-size:.72rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;}
+
+/* SUMMARY CARDS */
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.sum-card{background:#0d0d0d;border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+.sum-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.sum-val{font-size:1rem;font-weight:700;}
+
+/* EXECUTE */
+.exec-btn{width:100%;padding:10px;border-radius:8px;font-size:.82rem;font-weight:800;cursor:pointer;
+  border:none;margin-top:4px;transition:.12s;}
+.exec-paper{background:rgba(255,215,64,.15);color:var(--yellow);border:1px solid rgba(255,215,64,.4);}
+.exec-paper:hover{background:rgba(255,215,64,.25);}
+
+/* RIGHT: PAYOFF CHART + CHAIN */
+.right-panel{display:flex;flex-direction:column;gap:10px;}
+
+.payoff-wrap{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;flex-shrink:0;}
+#payoffCanvas{width:100%;height:220px;display:block;}
+
+.chain-wrap{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;flex:1;overflow-y:auto;}
+.chain-table{width:100%;border-collapse:collapse;}
+.chain-table th{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;
+  padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;cursor:pointer;}
+.chain-table th:hover{color:var(--text);}
+.chain-table th.strike-th{text-align:center;color:var(--yellow);}
+.chain-table td{padding:5px 8px;border-bottom:1px solid #0f0f18;font-size:.75rem;text-align:right;cursor:pointer;}
+.chain-table td:hover{background:rgba(255,255,255,.03);}
+.chain-table td.strike-td{text-align:center;font-weight:800;color:var(--yellow);background:#0d0d0d;}
+.chain-table td.atm-td{background:#1a1400 !important;color:#fff !important;}
+.ce-ltp{color:var(--green);font-weight:600;}
+.pe-ltp{color:var(--red);font-weight:600;}
+.itm-ce{background:rgba(0,230,118,.05);}
+.itm-pe{background:rgba(255,68,68,.05);}
+.oi-bar{display:inline-block;height:4px;border-radius:2px;vertical-align:middle;margin-left:4px;}
+
+/* Tags */
+.tag{display:inline-block;font-size:.58rem;font-weight:800;padding:1px 5px;border-radius:3px;margin-left:4px;}
+.tag-buy{background:rgba(0,230,118,.2);color:var(--green);}
+.tag-sell{background:rgba(255,68,68,.2);color:var(--red);}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:99px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Strategy Builder</div>
+
+  <!-- Instrument (moved to top — primary control) -->
+  <div class="ctrl-row" style="margin-bottom:0;flex-wrap:nowrap">
+    <span class="ctrl-label" style="min-width:auto">Instrument</span>
+    <select class="ctrl-select" id="instSel" onchange="loadChain()">
+      <option value="NIFTY">NIFTY</option>
+      <option value="SENSEX">SENSEX</option>
+      <option value="BANKNIFTY">BANKNIFTY</option>
+    </select>
+    <input type="number" class="ctrl-select" id="lotsSel" value="1" min="1" max="500"
+      style="width:72px;text-align:center;"
+      title="Lots (type any number)"
+      onchange="this.value=Math.max(1,Math.round(Number(this.value)||1))"
+    >
+    <button onclick="loadChain()" style="background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);
+      color:var(--green);border-radius:6px;padding:4px 10px;font-size:.7rem;cursor:pointer">⟳</button>
+  </div>
+
+  <div style="color:var(--muted);font-size:.72rem" id="spotInfo">Loading...</div>
+  <nav class="nav-links">
+    <a class="nav-link" href="/dashboard.html">Dashboard</a>
+    <a class="nav-link" href="/signal-heatmap.html">Signal Heatmap</a>
+    <a class="nav-link active" href="/strategy.html">Strategy</a>
+    <a class="nav-link" href="/heatmap.html">OI Heatmap</a>
+    <a class="nav-link" href="/pop.html">PoP</a>
+    <a class="nav-link" href="/strike-history.html">Strike History</a>
+    <a class="nav-link" href="/ami-heatmap.html">AMI Heatmap</a>
+  </nav>
+</div>
+
+<div class="layout">
+
+  <!-- LEFT: Builder -->
+  <div class="panel">
+
+    <!-- Presets -->
+    <div class="panel-title">Strategies</div>
+    <div class="preset-grid">
+      <button class="preset-btn" onclick="loadPreset('straddle')">
+        <span class="ps-name">Straddle</span>
+        <span class="ps-desc">Sell ATM CE + PE</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset('strangle')">
+        <span class="ps-name">Strangle</span>
+        <span class="ps-desc">Sell OTM CE + PE</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset('bull_cs')">
+        <span class="ps-name">Bull Call Spread</span>
+        <span class="ps-desc">Buy CE + Sell higher CE</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset('bear_ps')">
+        <span class="ps-name">Bear Put Spread</span>
+        <span class="ps-desc">Buy PE + Sell lower PE</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset('iron_condor')">
+        <span class="ps-name">Iron Condor</span>
+        <span class="ps-desc">Sell strangle + Buy wings</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset('long_straddle')">
+        <span class="ps-name">Long Straddle</span>
+        <span class="ps-desc">Buy ATM CE + PE</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset('covered_call')">
+        <span class="ps-name">Synthetic Bear</span>
+        <span class="ps-desc">Buy PE + Sell CE</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset('custom')">
+        <span class="ps-name">Custom</span>
+        <span class="ps-desc">Build manually</span>
+      </button>
+    </div>
+
+    <!-- Legs -->
+    <div class="panel-title">Legs <span style="font-size:.65rem;color:var(--muted);font-weight:400">(click chain to add)</span></div>
+    <table class="legs-table">
+      <thead><tr><th>Action</th><th>Type</th><th>Strike</th><th>Premium</th><th>Lots</th><th></th></tr></thead>
+      <tbody id="legsBody"><tr><td colspan="6" style="color:var(--muted);padding:10px">Select a strategy or click chain strikes</td></tr></tbody>
+    </table>
+    <button class="add-leg-btn" onclick="addLegManual()">+ Add Leg Manually</button>
+
+    <!-- Summary -->
+    <div class="panel-title">Summary</div>
+    <div class="summary-grid">
+      <div class="sum-card"><div class="sum-lbl">Max Profit</div><div class="sum-val" id="sumMaxP" style="color:var(--green)">--</div></div>
+      <div class="sum-card"><div class="sum-lbl">Max Loss</div><div class="sum-val" id="sumMaxL" style="color:var(--red)">--</div></div>
+      <div class="sum-card"><div class="sum-lbl">Net Premium</div><div class="sum-val" id="sumNet">--</div></div>
+      <div class="sum-card"><div class="sum-lbl">Breakevens</div><div class="sum-val" id="sumBE" style="font-size:.78rem">--</div></div>
+      <div class="sum-card"><div class="sum-lbl">Reward/Risk</div><div class="sum-val" id="sumRR" style="color:var(--yellow)">--</div></div>
+      <div class="sum-card"><div class="sum-lbl">Lots × Size</div><div class="sum-val" id="sumLot" style="color:var(--muted)">--</div></div>
+    </div>
+
+    <button class="exec-btn exec-paper" onclick="executePaper()">PAPER EXECUTE (₹0 risk)</button>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-panel">
+
+    <!-- Payoff Chart -->
+    <div class="payoff-wrap">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:.78rem;font-weight:700">Payoff at Expiry</span>
+        <span style="font-size:.68rem;color:var(--muted)" id="payoffInfo"></span>
+        <select id="expiryDays" onchange="drawPayoff()" style="margin-left:auto;background:#0d0d0d;
+          border:1px solid var(--border);color:var(--text);border-radius:5px;padding:3px 8px;font-size:.7rem">
+          <option value="0">At Expiry</option>
+          <option value="0.5">0.5 day</option>
+          <option value="1">1 day</option>
+          <option value="2">2 days</option>
+        </select>
+      </div>
+      <canvas id="payoffCanvas"></canvas>
+    </div>
+
+    <!-- Option Chain -->
+    <div class="chain-wrap">
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:8px">
+        Option Chain
+        <span style="font-size:.65rem;color:var(--muted);font-weight:400;margin-left:6px">Click CE/PE to add leg</span>
+      </div>
+      <div id="chainContent" style="color:var(--muted);text-align:center;padding:20px">Loading chain...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let spot = 0, atm = 0, chainData = null;
+  let legs = [];  // { action, type, strike, premium, lots }
+  let lotSize = { NIFTY:75, SENSEX:20, BANKNIFTY:35 };
+  let maxCeOI = 1, maxPeOI = 1;
+
+  const fmtN = v => Number(v).toLocaleString('en-IN');
+  const fmtP = (v,d=2) => Number(v).toFixed(d);
+
+  function inst() { return document.getElementById('instSel').value; }
+  function lots() { return Number(document.getElementById('lotsSel').value) || 1; }
+  function ls()   { return lotSize[inst()] || 75; }
+
+  // ── Load Chain ─────────────────────────────────────────────────────────────
+  async function loadChain() {
+    document.getElementById('chainContent').textContent = 'Loading...';
+    try {
+      const sigPath = inst()==='SENSEX' ? 'sensex' : inst()==='NIFTY' ? 'nifty' : 'banknifty';
+      const [rC, rS] = await Promise.all([
+        fetch(`/api/options/chain?instrument=${inst()}`, {cache:'no-store'}).catch(()=>null),
+        fetch(`/api/${sigPath}`, {cache:'no-store'}).catch(()=>null)
+      ]);
+      if (!rC || !rC.ok) { document.getElementById('chainContent').textContent = 'Chain unavailable'; return; }
+      chainData = await rC.json();
+      spot = chainData.spotPrice ? parseFloat(chainData.spotPrice) : 0;
+      atm  = chainData.atmStrike || 0;
+      if (rS && rS.ok) { const d = await rS.json(); spot = parseFloat(d.price) || spot; }
+      document.getElementById('spotInfo').textContent =
+        `${inst()} Spot: ₹${fmtN(spot.toFixed(0))} | ATM: ${fmtN(atm)}`;
+      // compute OI max
+      maxCeOI = maxPeOI = 1;
+      (chainData.strikes||[]).forEach(s => {
+        maxCeOI = Math.max(maxCeOI, s.ce?.oi||0);
+        maxPeOI = Math.max(maxPeOI, s.pe?.oi||0);
+      });
+      renderChain();
+      drawPayoff();
+    } catch(e) { document.getElementById('chainContent').textContent = 'Error: '+e.message; }
+  }
+
+  // ── Render Chain ───────────────────────────────────────────────────────────
+  function renderChain() {
+    let strikes = chainData.strikes || [];
+    // Center on ATM ± window instead of dumping the full 17850→29350 chain.
+    // The API returns every strike; showing all of them buries the tradeable
+    // ATM zone under 100+ far-OTM ₹0 rows. Slice to a readable window.
+    if (atm && strikes.length > 41) {
+      const sorted = strikes.slice().sort((a,b)=>a.strike-b.strike);
+      let idx = sorted.findIndex(s => s.strike === atm);
+      if (idx < 0) { // ATM not an exact match — pick nearest
+        idx = sorted.reduce((best,s,i)=>Math.abs(s.strike-atm)<Math.abs(sorted[best].strike-atm)?i:best,0);
+      }
+      const WIN = 20; // ATM ± 20 strikes
+      strikes = sorted.slice(Math.max(0,idx-WIN), idx+WIN+1);
+    }
+    // Drop dead strikes where BOTH CE and PE LTP are 0 (no live premium / no data).
+    // Always keep the ATM row so the chain stays anchored even if it reads 0.
+    strikes = strikes.filter(s => {
+      if (s.strike === atm) return true;
+      const ceLtp = parseFloat(s.ce?.ltp || 0), peLtp = parseFloat(s.pe?.ltp || 0);
+      return ceLtp > 0 || peLtp > 0;
+    });
+    let html = `<table class="chain-table"><thead><tr>
+      <th style="text-align:right">OI</th><th style="text-align:right">CE LTP</th>
+      <th class="strike-th">STRIKE</th>
+      <th style="text-align:right">PE LTP</th><th style="text-align:right">OI</th>
+    </tr></thead><tbody>`;
+    for (const s of strikes) {
+      const isATM = s.strike === atm;
+      const ceOI  = s.ce?.oi||0, peOI = s.pe?.oi||0;
+      const ceBar = Math.min(80, (ceOI/maxCeOI)*80).toFixed(0);
+      const peBar = Math.min(80, (peOI/maxPeOI)*80).toFixed(0);
+      const ceLtp = parseFloat(s.ce?.ltp||0), peLtp = parseFloat(s.pe?.ltp||0);
+      const itmCe = s.itmCE ? 'itm-ce' : '', itmPe = s.itmPE ? 'itm-pe' : '';
+      // check if leg exists
+      const ceTag = legTagFor(s.strike,'CE'), peTag = legTagFor(s.strike,'PE');
+      html += `<tr>
+        <td class="${itmCe}" style="font-size:.7rem;color:var(--muted)">
+          ${fmtOI(ceOI)}<span class="oi-bar" style="width:${ceBar}px;background:rgba(0,230,118,.35)"></span>
+        </td>
+        <td class="ce-ltp ${itmCe}" onclick="clickLeg(${s.strike},'CE',${ceLtp})">
+          ₹${fmtP(ceLtp,1)}${ceTag}
+        </td>
+        <td class="strike-td ${isATM?'atm-td':''}">${fmtN(s.strike)}</td>
+        <td class="pe-ltp ${itmPe}" onclick="clickLeg(${s.strike},'PE',${peLtp})">
+          ₹${fmtP(peLtp,1)}${peTag}
+        </td>
+        <td class="${itmPe}" style="font-size:.7rem;color:var(--muted)">
+          <span class="oi-bar" style="width:${peBar}px;background:rgba(255,68,68,.35)"></span>${fmtOI(peOI)}
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('chainContent').innerHTML = html;
+  }
+
+  function fmtOI(v) { const a=Math.abs(v); return a>=1e5?(a/1e5).toFixed(1)+'L':a>=1e3?(a/1e3).toFixed(0)+'K':v; }
+
+  function legTagFor(strike, type) {
+    const l = legs.find(l=>l.strike===strike&&l.type===type);
+    if (!l) return '';
+    return `<span class="tag ${l.action==='BUY'?'tag-buy':'tag-sell'}">${l.action}</span>`;
+  }
+
+  // ── Click on chain to add/toggle leg ─────────────────────────────────────
+  let _clickMode = 'BUY'; // default; presets override
+  function clickLeg(strike, type, premium) {
+    const idx = legs.findIndex(l=>l.strike===strike&&l.type===type);
+    if (idx >= 0) { legs.splice(idx,1); } // remove if exists
+    else legs.push({ action: _clickMode, type, strike, premium: +premium.toFixed(2), lots: lots() });
+    renderLegs(); renderChain(); calcSummary(); drawPayoff();
+  }
+
+  // ── Presets ────────────────────────────────────────────────────────────────
+  function loadPreset(name) {
+    if (!chainData || !atm) { alert('Load chain first'); return; }
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    event.currentTarget?.classList.add('active');
+    const step = inst()==='NIFTY'?50:inst()==='SENSEX'?100:100;
+    const atm1 = atm;
+    const otm1 = atm + step, otm2 = atm + 2*step;
+    const otm1lo = atm - step, otm2lo = atm - 2*step;
+    const l = lots();
+    const p = (strike,type) => {
+      const row = chainData.strikes.find(s=>s.strike===strike);
+      return row ? parseFloat(row[type.toLowerCase()]?.ltp||0) : 0;
+    };
+    const presets = {
+      straddle:     [
+        {action:'SELL',type:'CE',strike:atm1, premium:p(atm1,'CE'),lots:l},
+        {action:'SELL',type:'PE',strike:atm1, premium:p(atm1,'PE'),lots:l}],
+      long_straddle:[
+        {action:'BUY', type:'CE',strike:atm1, premium:p(atm1,'CE'),lots:l},
+        {action:'BUY', type:'PE',strike:atm1, premium:p(atm1,'PE'),lots:l}],
+      strangle:     [
+        {action:'SELL',type:'CE',strike:otm1, premium:p(otm1,'CE'),lots:l},
+        {action:'SELL',type:'PE',strike:otm1lo,premium:p(otm1lo,'PE'),lots:l}],
+      bull_cs:      [
+        {action:'BUY', type:'CE',strike:atm1, premium:p(atm1,'CE'),lots:l},
+        {action:'SELL',type:'CE',strike:otm1, premium:p(otm1,'CE'),lots:l}],
+      bear_ps:      [
+        {action:'BUY', type:'PE',strike:atm1, premium:p(atm1,'PE'),lots:l},
+        {action:'SELL',type:'PE',strike:otm1lo,premium:p(otm1lo,'PE'),lots:l}],
+      iron_condor:  [
+        {action:'SELL',type:'CE',strike:otm1, premium:p(otm1,'CE'),lots:l},
+        {action:'BUY', type:'CE',strike:otm2, premium:p(otm2,'CE'),lots:l},
+        {action:'SELL',type:'PE',strike:otm1lo,premium:p(otm1lo,'PE'),lots:l},
+        {action:'BUY', type:'PE',strike:otm2lo,premium:p(otm2lo,'PE'),lots:l}],
+      covered_call: [
+        {action:'BUY', type:'PE',strike:atm1, premium:p(atm1,'PE'),lots:l},
+        {action:'SELL',type:'CE',strike:otm1, premium:p(otm1,'CE'),lots:l}],
+      custom:       []
+    };
+    legs = (presets[name]||[]).filter(l=>l.premium>0);
+    renderLegs(); renderChain(); calcSummary(); drawPayoff();
+  }
+
+  // ── Render Legs ─────────────────────────────────────────────────────────────
+  function renderLegs() {
+    const body = document.getElementById('legsBody');
+    if (!legs.length) {
+      body.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:10px">No legs. Select preset or click chain.</td></tr>';
+      return;
+    }
+    body.innerHTML = legs.map((l,i) => `
+      <tr>
+        <td class="leg-action-${l.action.toLowerCase()}">${l.action}</td>
+        <td class="leg-${l.type.toLowerCase()}">${l.type}</td>
+        <td>${fmtN(l.strike)}</td>
+        <td>₹${l.premium}</td>
+        <td><input type="number" value="${l.lots}" min="1" max="50" style="width:50px;background:#0d0d0d;
+          border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem"
+          onchange="legs[${i}].lots=Number(this.value);calcSummary();drawPayoff()"></td>
+        <td><button class="del-btn" onclick="legs.splice(${i},1);renderLegs();renderChain();calcSummary();drawPayoff()">✕</button></td>
+      </tr>`).join('');
+  }
+
+  // ── Add leg manually ────────────────────────────────────────────────────────
+  function addLegManual() {
+    const strike = Number(prompt('Strike price:', atm||''));
+    if (!strike) return;
+    const type   = (prompt('Type (CE/PE):','CE')||'').toUpperCase();
+    if (!['CE','PE'].includes(type)) return;
+    const action = (prompt('Action (BUY/SELL):','BUY')||'').toUpperCase();
+    if (!['BUY','SELL'].includes(action)) return;
+    const prem = Number(prompt('Premium ₹:','0')||0);
+    legs.push({action, type, strike, premium:prem, lots:lots()});
+    renderLegs(); renderChain(); calcSummary(); drawPayoff();
+  }
+
+  // ── Calc Summary ───────────────────────────────────────────────────────────
+  function calcSummary() {
+    if (!legs.length) {
+      ['sumMaxP','sumMaxL','sumNet','sumBE','sumRR','sumLot'].forEach(id=>document.getElementById(id).textContent='--');
+      return;
+    }
+    const L = ls();
+    // Net premium (positive = credit, negative = debit)
+    let net = 0;
+    legs.forEach(l => {
+      const sign = l.action==='SELL' ? 1 : -1;
+      net += sign * l.premium * l.lots * L;
+    });
+    document.getElementById('sumNet').textContent = (net>=0?'+ ':'- ') + '₹'+fmtN(Math.abs(net).toFixed(0));
+    document.getElementById('sumNet').style.color = net>=0 ? 'var(--green)' : 'var(--red)';
+
+    // Scan payoff across range for max profit/loss
+    const strikes = legs.map(l=>l.strike);
+    const lo = Math.min(...strikes)*0.93, hi = Math.max(...strikes)*1.07;
+    let maxP=-Infinity, maxL=Infinity, BEps=[];
+    let prevPnl=null;
+    for (let px=lo; px<=hi; px+=(hi-lo)/200) {
+      let pnl=0;
+      legs.forEach(l=>{
+        const sign=l.action==='SELL'?1:-1;
+        const intr=l.type==='CE'?Math.max(0,px-l.strike):Math.max(0,l.strike-px);
+        pnl+=sign*(l.premium-intr)*l.lots*L;
+      });
+      if (pnl>maxP) maxP=pnl;
+      if (pnl<maxL) maxL=pnl;
+      if (prevPnl!==null && Math.sign(prevPnl)!==Math.sign(pnl)) BEps.push(px);
+      prevPnl=pnl;
+    }
+    document.getElementById('sumMaxP').textContent = maxP>1e8 ? 'Unlimited' : (maxP>0?'+ ':'')+'₹'+fmtN(maxP.toFixed(0));
+    document.getElementById('sumMaxL').textContent = maxL<-1e8 ? 'Unlimited' : (maxL<0?'- ':'')+'₹'+fmtN(Math.abs(maxL).toFixed(0));
+    document.getElementById('sumBE').textContent   = BEps.length ? BEps.map(b=>fmtN(b.toFixed(0))).join(' / ') : 'None';
+    const rr = (maxL!==0 && isFinite(maxP) && isFinite(maxL)) ? Math.abs(maxP/maxL).toFixed(2)+'x' : '--';
+    document.getElementById('sumRR').textContent   = rr;
+    document.getElementById('sumLot').textContent  = `${legs.map(l=>l.lots+'×'+l.type).join(' ')} (lot:${L})`;
+  }
+
+  // ── Payoff Canvas ───────────────────────────────────────────────────────────
+  function drawPayoff() {
+    const cv = document.getElementById('payoffCanvas');
+    const ctx = cv.getContext('2d');
+    cv.width = cv.clientWidth; cv.height = 220;
+    const W=cv.width, H=cv.height, pad={t:15,b:30,l:60,r:20};
+    ctx.fillStyle='#0a0a0f'; ctx.fillRect(0,0,W,H);
+
+    if (!legs.length) {
+      ctx.fillStyle='#4a4a6a'; ctx.font='13px Segoe UI';
+      ctx.textAlign='center'; ctx.fillText('Add legs to see payoff',W/2,H/2); return;
+    }
+
+    const L = ls();
+    const strikes = legs.map(l=>l.strike);
+    const spotRef = spot || Math.round((Math.min(...strikes)+Math.max(...strikes))/2);
+    const lo = spotRef*0.93, hi = spotRef*1.07;
+    const pts = 120;
+    const curve = [];
+    for (let i=0;i<=pts;i++) {
+      const px = lo + (hi-lo)*(i/pts);
+      let pnl=0;
+      legs.forEach(l=>{
+        const sign=l.action==='SELL'?1:-1;
+        const intr=l.type==='CE'?Math.max(0,px-l.strike):Math.max(0,l.strike-px);
+        pnl+=sign*(l.premium-intr)*l.lots*L;
+      });
+      curve.push({x:px,y:pnl});
+    }
+    const pnls=curve.map(p=>p.y);
+    const maxY=Math.max(...pnls,0), minY=Math.min(...pnls,0);
+    const rangeY=(maxY-minY)||1;
+    const cx=x=>pad.l+(x-lo)/(hi-lo)*(W-pad.l-pad.r);
+    const cy=y=>pad.t+(maxY-y)/rangeY*(H-pad.t-pad.b);
+
+    // Grid
+    ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
+    for(let i=0;i<=4;i++){
+      const yv=minY+rangeY*(i/4);
+      ctx.beginPath();ctx.moveTo(pad.l,cy(yv));ctx.lineTo(W-pad.r,cy(yv));ctx.stroke();
+      ctx.fillStyle='#4a4a6a';ctx.font='10px monospace';ctx.textAlign='right';
+      ctx.fillText((yv>=0?'+':'')+fmtN(yv.toFixed(0)),pad.l-4,cy(yv)+3);
+    }
+    // Zero line
+    ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(pad.l,cy(0));ctx.lineTo(W-pad.r,cy(0));ctx.stroke();
+    ctx.setLineDash([]);
+    // Spot line
+    if (spot) {
+      ctx.strokeStyle='rgba(255,215,64,.4)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+      ctx.beginPath();ctx.moveTo(cx(spot),pad.t);ctx.lineTo(cx(spot),H-pad.b);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#ffd740';ctx.font='9px monospace';ctx.textAlign='center';
+      ctx.fillText('Spot',cx(spot),H-pad.b+12);
+    }
+    // Fill profit/loss zones
+    ctx.beginPath();
+    curve.forEach((p,i)=>i===0?ctx.moveTo(cx(p.x),cy(Math.max(p.y,0))):ctx.lineTo(cx(p.x),cy(Math.max(p.y,0))));
+    ctx.lineTo(cx(curve[curve.length-1].x),cy(0));ctx.lineTo(cx(curve[0].x),cy(0));ctx.closePath();
+    ctx.fillStyle='rgba(0,230,118,.1)';ctx.fill();
+    ctx.beginPath();
+    curve.forEach((p,i)=>i===0?ctx.moveTo(cx(p.x),cy(Math.min(p.y,0))):ctx.lineTo(cx(p.x),cy(Math.min(p.y,0))));
+    ctx.lineTo(cx(curve[curve.length-1].x),cy(0));ctx.lineTo(cx(curve[0].x),cy(0));ctx.closePath();
+    ctx.fillStyle='rgba(255,68,68,.08)';ctx.fill();
+    // Curve
+    ctx.beginPath();ctx.lineWidth=2;
+    curve.forEach((p,i)=>{
+      const col=p.y>=0?'#00e676':'#ff4444';
+      ctx.strokeStyle=col;
+      if(i===0){ctx.moveTo(cx(p.x),cy(p.y));return;}
+      ctx.lineTo(cx(p.x),cy(p.y));
+    });
+    ctx.stroke();
+    // Strike markers
+    const usedStrikes = [...new Set(legs.map(l=>l.strike))];
+    usedStrikes.forEach(s=>{
+      if(s<lo||s>hi)return;
+      ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
+      ctx.beginPath();ctx.moveTo(cx(s),pad.t);ctx.lineTo(cx(s),H-pad.b);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#888';ctx.font='9px monospace';ctx.textAlign='center';
+      ctx.fillText(fmtN(s),cx(s),H-pad.b+12);
+    });
+    document.getElementById('payoffInfo').textContent = `Spot ₹${fmtN(spotRef.toFixed(0))}`;
+  }
+
+  // ── Paper execute ───────────────────────────────────────────────────────────
+  async function executePaper() {
+    if (!legs.length) { alert('Add legs first'); return; }
+    const L=ls();
+    const results = [];
+    for (const l of legs) {
+      if (l.action !== 'SELL') { results.push(`BUY ${l.type} ${l.strike} logged`); continue; }
+      const r = await fetch('/api/pop/sell',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({inst:inst(),side:`SELL_${l.type}`,strike:l.strike,
+          type:l.type,premium:l.premium,lot:l.lots*L,pop:null})
+      });
+      const d = await r.json();
+      results.push(d.ok ? `SELL ${l.type} ${l.strike} PAPER ✓` : `SELL failed: ${d.reason}`);
+    }
+    alert(results.join('\n'));
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  window.addEventListener('resize', ()=>{ drawPayoff(); });
+  loadChain();
+  setInterval(loadChain, 15000);
+</script>
+</body>
+</html>

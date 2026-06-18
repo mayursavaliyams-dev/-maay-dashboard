@@ -69,6 +69,12 @@
   .conn{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
   .conn.ok{background:#22c55e;box-shadow:0 0 5px #22c55e}
   .conn.err{background:#ef4444}
+
+
+  @media(max-width:900px){
+  }
+  @media(max-width:600px){
+  }
 </style>
 </head>
 <body>
@@ -220,63 +226,6 @@
     <svg id="equityChart" viewBox="0 0 600 120" style="width:100%;height:120px;background:#0a0f15;border-radius:4px"></svg>
     <div style="font-size:10px;color:#64748b;text-align:center;margin-top:4px">
       Tracks active capital across page open. Reset on browser refresh / new day.
-    </div>
-  </div>
-
-  <!-- SIGNAL VS BACKTEST EXPECTATION -->
-  <div class="card" style="grid-column:span 5">
-    <h2>🎯 Today's Signal vs History</h2>
-    <div class="stat-row">
-      <div class="stat"><div class="l">Setup grade</div><div class="v" id="setupGrade" style="font-size:14px">--</div><div class="sub" id="setupClass">--</div></div>
-      <div class="stat"><div class="l">Score</div><div class="v amber" id="setupScore" style="font-size:14px">--</div></div>
-    </div>
-    <div class="stat-row">
-      <div class="stat"><div class="l">Hist. win rate (this grade)</div><div class="v green" id="histWin" style="font-size:14px">--</div></div>
-      <div class="stat"><div class="l">Avg P&L (this grade)</div><div class="v amber" id="histAvg" style="font-size:14px">--</div></div>
-    </div>
-    <div id="histNote" style="font-size:11px;color:#94a3b8;margin-top:6px;line-height:1.5"></div>
-  </div>
-
-  <!-- BACKTESTING PANEL -->
-  <div class="card" style="grid-column:span 12">
-    <h2>🔬 Backtesting
-      <span style="float:right;font-weight:400;display:flex;gap:6px;align-items:center">
-        <span style="display:inline-flex;border:1px solid #1c2733;border-radius:5px;overflow:hidden">
-          <button id="btMode-expiry" onclick="setBtMode('expiry')" class="bt-mode-btn active" style="background:#1e3a5f;color:#7dd3fc;border:none;padding:5px 12px;font-size:11px;cursor:pointer">📅 Expiry</button>
-          <button id="btMode-daily" onclick="setBtMode('daily')" class="bt-mode-btn" style="background:#162028;color:#94a3b8;border:none;padding:5px 12px;font-size:11px;cursor:pointer;border-left:1px solid #1c2733">📆 Daily</button>
-        </span>
-        <button id="btnRunBT" onclick="runBacktest()" style="background:#1e3a5f;color:#7dd3fc;border:1px solid #3b82f6;padding:5px 14px;font-size:12px;border-radius:5px;cursor:pointer;font-weight:600">▶ Run</button>
-        <span id="btStatus" style="margin-left:6px;font-size:11px;color:#94a3b8"></span>
-      </span>
-    </h2>
-    <div class="stat-row" style="grid-template-columns:repeat(6,1fr);margin-bottom:8px">
-      <div class="stat"><div class="l">Trades</div><div class="v blue" id="btTrades" style="font-size:16px">--</div></div>
-      <div class="stat"><div class="l">Win Rate</div><div class="v green" id="btWinRate" style="font-size:16px">--</div></div>
-      <div class="stat"><div class="l">Avg Mult</div><div class="v amber" id="btAvgMult" style="font-size:16px">--</div></div>
-      <div class="stat"><div class="l">Max Mult</div><div class="v purple" id="btMaxMult" style="font-size:16px">--</div></div>
-      <div class="stat"><div class="l">≥2× hits</div><div class="v green" id="bt2x" style="font-size:16px">--</div></div>
-      <div class="stat"><div class="l">Avg PnL%</div><div class="v" id="btAvgPnl" style="font-size:16px">--</div></div>
-    </div>
-    <div style="font-size:11px;color:#94a3b8;display:flex;justify-content:space-between;margin-bottom:8px">
-      <span>Source: <b id="btSource">--</b></span>
-      <span>Expiries: <b id="btExpiries">--</b> · With trades: <b id="btWithTrades">--</b></span>
-      <span>Generated: <b id="btGenAt">--</b></span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div>
-        <h3 style="font-size:11px;color:#64748b;margin:0 0 6px;text-transform:uppercase;letter-spacing:.5px">By Year</h3>
-        <table style="font-size:11px">
-          <thead><tr><th style="text-align:left">Year</th><th>Trades</th><th>Win%</th><th>Avg Mult</th></tr></thead>
-          <tbody id="btYearBody"></tbody>
-        </table>
-      </div>
-      <div>
-        <h3 style="font-size:11px;color:#64748b;margin:0 0 6px;text-transform:uppercase;letter-spacing:.5px">Skips</h3>
-        <table style="font-size:11px">
-          <thead><tr><th style="text-align:left">Reason</th><th>Count</th></tr></thead>
-          <tbody id="btSkipsBody"></tbody>
-        </table>
-      </div>
     </div>
   </div>
 
@@ -532,169 +481,50 @@ function renderEquityChart(){
   $('eqChg').style.color = chg >= 0 ? '#86efac' : '#fca5a5';
 }
 
-// ── SIGNAL vs HISTORY card ──
-// Maps current gamma-blast grade to historical aggregate stats from the
-// 2y backtest data we already have. This is approximate — gives the user
-// a sense of "is today's setup typical / strong / weak?"
-const HIST_BY_GRADE = {
-  // Approximate stats from backtest-daily-results-*-2y JSON aggregated by grade
-  // (run-through showed C-grade ≈ 35% win 1.3× avg, B-grade ≈ 45% win 1.8× avg)
-  'A': { winRate: 62, avgMult: 2.4, label: 'Premium setup — historically strongest entries' },
-  'B': { winRate: 48, avgMult: 1.8, label: 'Solid setup — backtest favorable' },
-  'C': { winRate: 35, avgMult: 1.3, label: 'Average setup — coin-flip, edge from R:R' },
-  'D': { winRate: 22, avgMult: 1.0, label: 'Weak setup — historically loses money net' },
-  'F': { winRate: 12, avgMult: 0.85, label: 'Poor setup — skip if possible' },
-};
-function updateSignalVsHistory(d){
-  const grade = d?.greekRank?.grade || '-';
-  const score = d?.blastScore || 0;
-  $('setupGrade').textContent = grade;
-  $('setupGrade').style.color = grade==='A' ? '#86efac' : grade==='B' ? '#7dd3fc' : grade==='C' ? '#fbbf24' : grade==='D' ? '#f97316' : '#fca5a5';
-  $('setupScore').textContent = score+'/100';
-  const h = HIST_BY_GRADE[grade] || { winRate: 0, avgMult: 0, label: 'No backtest data for this grade' };
-  $('histWin').textContent = h.winRate + '%';
-  $('histAvg').textContent = h.avgMult + '×';
-  $('setupClass').textContent = h.label.split(' —')[0];
-  $('histNote').textContent = `${h.label}. Today's score ${score}/100 — ` +
-    (score >= 70 ? 'strong, consider entry on ORB break.' :
-     score >= 50 ? 'moderate, take only if signal direction is clear.' :
-     score >= 30 ? 'weak, prefer to skip unless other confluence.' :
-                   'very weak, sit this one out.');
-}
-
-let btMode = 'expiry'; // 'expiry' or 'daily'
-
-function setBtMode(mode) {
-  btMode = mode;
-  for (const m of ['expiry','daily']) {
-    const btn = $('btMode-' + m);
-    if (!btn) continue;
-    if (m === mode) {
-      btn.style.background = '#1e3a5f';
-      btn.style.color = '#7dd3fc';
-    } else {
-      btn.style.background = '#162028';
-      btn.style.color = '#94a3b8';
-    }
-  }
-  loadBacktest();
-}
-
-async function loadBacktest(){
-  const url = btMode === 'daily'
-    ? `/api/backtest/daily?inst=${inst()}`
-    : '/api/backtest/real';
-  const d = await fetchJSON(url);
-  if (!d || !d.available) {
-    $('btTrades').textContent = '–';
-    $('btWinRate').textContent = '–';
-    $('btAvgMult').textContent = '–';
-    $('btMaxMult').textContent = '–';
-    $('bt2x').textContent = '–';
-    $('btAvgPnl').textContent = '–';
-    $('btSource').textContent = btMode==='daily' ? 'No daily backtest file for this instrument' : 'No expiry backtest file';
-    return;
-  }
-  const s = d.stats || {};
-  $('btTrades').textContent = s.totalTrades || 0;
-  $('btWinRate').textContent = (s.winRate || 0).toFixed(1) + '%';
-  $('btAvgMult').textContent = (s.avgMultiplier || 0).toFixed(2) + '×';
-  $('btMaxMult').textContent = (s.maxMultiplier || 0).toFixed(2) + '×';
-  $('bt2x').textContent = s.hit2x || 0;
-  $('btAvgPnl').textContent = ((s.avgPnlPct || 0)>=0?'+':'') + (s.avgPnlPct || 0).toFixed(1) + '%';
-  $('btAvgPnl').className = 'v ' + ((s.avgPnlPct||0)>=0?'green':'red');
-  $('btSource').textContent = d.dataSource || '--';
-  $('btExpiries').textContent = d.totalExpiries || '--';
-  $('btWithTrades').textContent = d.expiriesWithTrades || '--';
-  $('btGenAt').textContent = d.generatedAt ? new Date(d.generatedAt).toLocaleString() : '--';
-
-  // By year
-  const yearBody = $('btYearBody');
-  yearBody.innerHTML = '';
-  const years = s.byYear || d.byYear || {};
-  const yearKeys = Object.keys(years).sort();
-  for (const y of yearKeys.slice(-10)) {
-    const yr = years[y];
-    yearBody.innerHTML += `<tr>
-      <td style="text-align:left">${y}</td>
-      <td>${yr.trades || 0}</td>
-      <td>${yr.winRate ? yr.winRate.toFixed(0) + '%' : '--'}</td>
-      <td>${yr.avgMultiplier ? yr.avgMultiplier.toFixed(2) + '×' : '--'}</td>
-    </tr>`;
-  }
-
-  // Skips
-  const skipBody = $('btSkipsBody');
-  skipBody.innerHTML = '';
-  const skips = d.skipped || {};
-  for (const [k, v] of Object.entries(skips)) {
-    if (v > 0) skipBody.innerHTML += `<tr><td style="text-align:left">${k}</td><td>${v}</td></tr>`;
-  }
-}
-
-async function runBacktest(){
-  const btn = $('btnRunBT');
-  const status = $('btStatus');
-  btn.disabled = true;
-  btn.style.opacity = '0.5';
-  status.textContent = '⏳ running…';
-  try {
-    const r = await fetch('/api/backtest/real?run=1', { method: 'GET' });
-    const d = await r.json();
-    if (r.ok && d) {
-      status.textContent = '✓ done — refreshing';
-      setTimeout(() => { loadBacktest(); status.textContent = ''; }, 1500);
-    } else {
-      status.textContent = '✗ failed';
-    }
-  } catch (e) {
-    status.textContent = '✗ ' + e.message;
-  } finally {
-    setTimeout(() => { btn.disabled = false; btn.style.opacity = '1'; }, 2000);
-  }
-}
-
 async function refreshAll(){
   connOk = true;
-  await Promise.all([loadSpot(), loadEngine(), loadRisk(), loadGreeks(), loadGammaBlast(), loadTrades(), loadBacktest()]);
+  await Promise.all([loadSpot(), loadEngine(), loadRisk(), loadGreeks(), loadGammaBlast(), loadTrades()]);
   // Equity tracking from latest risk (capital + reserve if applicable; here just capital)
   const risk = await fetchJSON('/api/risk');
   if (risk?.capital) {
     const todayPnl = inst()==='NIFTY' ? risk.niftyTodayPnl : risk.sensexTodayPnl;
     pushEquityPoint(risk.capital + (todayPnl || 0));
   }
-  // Signal-vs-history (uses gamma-blast we already fetched but re-pull cheaply)
-  const gb = await fetchJSON('/api/options/gamma-blast?inst='+inst());
-  if (gb) updateSignalVsHistory(gb);
   $('conn').className = 'conn ' + (connOk?'ok':'err');
   $('connText').textContent = connOk ? 'live' : 'error';
 }
 
+// instrument-aware engine route: NIFTY uses /api/nifty/engine/*, SENSEX uses /api/engine/*
+function engBase(){ return inst()==='NIFTY' ? '/api/nifty/engine' : '/api/engine'; }
 async function setMode(m){
-  const r = await fetch(`/api/config?TRADE_MODE=${m}`, {method:'PATCH'});
-  $('ctrlMsg').textContent = r.ok ? `mode → ${m} (server restart needed for full effect)` : 'failed';
+  const r = await fetch(`${engBase()}/mode`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:m})});
+  $('ctrlMsg').textContent = r.ok ? `mode → ${m}` : 'failed';
   setTimeout(()=>$('ctrlMsg').textContent='', 4000);
 }
 async function setAuto(on){
-  const r = await fetch('/api/bot/auto?inst='+inst(), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:on})});
+  const r = await fetch(`${engBase()}/auto`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:on})});
   $('ctrlMsg').textContent = r.ok ? `auto → ${on?'enabled':'disabled'}` : 'failed';
   setTimeout(refreshAll, 500);
 }
 async function manualTrade(side){
-  if (!confirm(`Manually buy ${side} at next signal? Bypasses ORB filter.`)) return;
-  const r = await fetch('/api/bot/manual?inst='+inst(), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({side})});
-  $('ctrlMsg').textContent = r.ok ? `${side} order sent` : 'failed';
+  if (!confirm(`Manually buy ${side} now? (paper test-trade — full pipeline)`)) return;
+  const signal = /put|pe|bear/i.test(side) ? 'PUT' : 'CALL';
+  const r = await fetch(`/api/test-trade?inst=${inst()}&signal=${signal}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  let msg = r.ok ? `${signal} test-trade sent` : 'failed';
+  try { const j = await r.json(); if (j && j.ok===false) msg = 'skipped: '+(j.error||'see logs'); } catch(_){}
+  $('ctrlMsg').textContent = msg;
+  setTimeout(refreshAll, 600);
 }
 async function resetHalt(){
+  // /api/engine/reset handles both instruments via ?inst= (no nifty-specific route)
   const r = await fetch('/api/engine/reset?inst='+inst(), {method:'POST'});
   $('ctrlMsg').textContent = r.ok ? 'halt cleared' : 'failed';
   setTimeout(refreshAll, 500);
 }
 async function emergencyStop(){
   if (!confirm('EMERGENCY STOP: disable auto trading on all instruments?')) return;
-  await fetch('/api/bot/auto?inst=NIFTY', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:false})});
-  await fetch('/api/bot/auto?inst=SENSEX', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:false})});
-  $('ctrlMsg').textContent = 'all auto disabled';
+  const r = await fetch('/api/risk/emergency-stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  $('ctrlMsg').textContent = r.ok ? 'all auto disabled' : 'failed';
   setTimeout(refreshAll, 500);
 }
 
