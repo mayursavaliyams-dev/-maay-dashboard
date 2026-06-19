@@ -9,7 +9,7 @@ if (process.env.DHAN_ACCESS_TOKEN) {
 
 const { calculateVWAP, detectTrend } = require("./strategy");
 const { aiDecision, aiDecisionWithClaude } = require("./ai");
-const { claudeTradeNarration, claudeAiStatus } = require("./claude-ai");
+const { claudeTradeNarration, claudeGammaBlast, claudeAiStatus } = require("./claude-ai");
 const popSeller   = require("./pop-seller");
 const redisStore  = require("./redis-store");
 const multiconfirm = require("./multiconfirm");
@@ -2257,13 +2257,39 @@ app.get("/api/options/top-activity", async (req, res) => {
 app.get("/api/options/gamma-blast", async (req, res) => {
   try {
     const price = await getLivePrice();
+    let realChain = null;
     try {
-      const realChain = await getChainAroundATM(price, null, 10);
+      realChain = await getChainAroundATM(price, null, 10);
       optionAnalyzer.initializeFromRealData(realChain, price);
     } catch (_) {
       optionAnalyzer.initialize(price, 20);
     }
     const blast = optionAnalyzer.getGammaBlastAlert({ spotPrice: price });
+
+    // Optional AI layer (Claude) — only runs when CLAUDE_AI_ENABLED=true and the
+    // caller asks for it (?ai=1). The rule-based `blast` stays the source of
+    // truth; AI is advisory and never blocks the response on timeout.
+    if (req.query.ai === '1' && realChain?.strikes?.length) {
+      try {
+        const totals = realChain.strikes.reduce((s, r) => {
+          s.callOI += Number(r.ce?.oi || 0); s.putOI += Number(r.pe?.oi || 0); return s;
+        }, { callOI: 0, putOI: 0 });
+        const pcr = totals.callOI > 0 ? (totals.putOI / totals.callOI).toFixed(3) : 'N/A';
+        const optionChainData = realChain.strikes.map(r => ({
+          strike: r.strike,
+          ceOI: Number(r.ce?.oi || 0), ceChgOI: Number(r.ce?.changeOI || 0), ceLtp: Number(r.ce?.ltp || 0),
+          peOI: Number(r.pe?.oi || 0), peChgOI: Number(r.pe?.changeOI || 0), peLtp: Number(r.pe?.ltp || 0)
+        }));
+        blast.ai = await claudeGammaBlast({
+          indexName: 'SENSEX',
+          currentTime: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+          spotPrice: +price.toFixed(2),
+          vwap: vwap || null,
+          pcr,
+          optionChainData
+        });
+      } catch (_) { blast.ai = null; }
+    }
     res.json(blast);
   } catch (error) {
     res.status(500).json({ error: "Failed to compute gamma blast", detail: error.message });
