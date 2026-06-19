@@ -143,6 +143,8 @@
         <div class="chart-wrap" id="chartWrap">
           <svg class="chart-svg" id="strikeChart" viewBox="0 0 1040 360" preserveAspectRatio="none"></svg>
         </div>
+        <!-- Buy-low / Sell-high signal + backtest on this strike's session records -->
+        <div id="bsBox" style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
       </article>
 
       <section class="grid">
@@ -238,42 +240,54 @@
         </li>`;
       }).join('')}</ul>`;
     }
+    // Resolve a point's timestamp to EPOCH ms so all series share one scale.
+    // Prefer explicit epoch ts; else parse "hh:mm:ss" as today's IST clock time and
+    // convert back to an epoch ms (NOT bare ms-of-day — that mixes scales and breaks
+    // the time axis when one point lacks a ts).
+    function _toMs(entry) {
+      if (Number.isFinite(Number(entry.ts)) && Number(entry.ts) > 1e11) return Number(entry.ts);
+      const s = String(entry.time || '');
+      const m = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+      if (!m) return 0;
+      let h = +m[1]; const mm = +m[2], ss = +(m[3] || 0), ap = (m[4] || '').toUpperCase();
+      if (ap === 'PM' && h < 12) h += 12; if (ap === 'AM' && h === 12) h = 0;
+      const istMs = ((h * 60 + mm) * 60 + ss) * 1000;        // ms-of-day in IST
+      const todayUtcMidnight = Math.floor((Date.now() + 5.5 * 3600 * 1000) / 86400000) * 86400000 - 5.5 * 3600 * 1000;
+      return todayUtcMidnight + istMs;                        // epoch ms (UTC)
+    }
     function normalizeSeries(leg, tag, color) {
       const lowHistory = Array.isArray(leg?.lowHistory) ? leg.lowHistory : [];
       const highHistory = Array.isArray(leg?.highHistory) ? leg.highHistory : [];
-      const lowSeries = lowHistory.map((entry, idx) => ({
-        key: `${tag}-low-${idx}`,
+      const mk = (entry, idx, kind) => ({
+        key: `${tag}-${kind}-${idx}`,
         time: String(entry.time || ''),
+        ts: _toMs(entry),
         price: Number(entry.price),
-        kind: 'low',
-        tag,
-        color
-      })).filter(entry => Number.isFinite(entry.price) && entry.time);
-      const highSeries = highHistory.map((entry, idx) => ({
-        key: `${tag}-high-${idx}`,
-        time: String(entry.time || ''),
-        price: Number(entry.price),
-        kind: 'high',
-        tag,
-        color
-      })).filter(entry => Number.isFinite(entry.price) && entry.time);
+        kind, tag, color
+      });
+      const lowSeries  = lowHistory.map((e, i) => mk(e, i, 'low')).filter(e => Number.isFinite(e.price) && e.time);
+      const highSeries = highHistory.map((e, i) => mk(e, i, 'high')).filter(e => Number.isFinite(e.price) && e.time);
       if (Number.isFinite(Number(leg?.ltp))) {
         const latestTime = String(leg.lastAt || leg.highAt || leg.lowAt || highHistory.at(-1)?.time || lowHistory.at(-1)?.time || '');
         if (latestTime) {
-          highSeries.push({
-            key: `${tag}-ltp`,
-            time: latestTime,
-            price: Number(leg.ltp),
-            kind: 'ltp',
-            tag,
-            color
-          });
+          highSeries.push({ key: `${tag}-ltp`, time: latestTime, ts: _toMs({ time: latestTime, ts: leg.lastTs }), price: Number(leg.ltp), kind: 'ltp', tag, color });
         }
       }
+      // Sort each series chronologically so the line goes strictly left→right.
+      lowSeries.sort((a, b) => a.ts - b.ts);
+      highSeries.sort((a, b) => a.ts - b.ts);
       return { lowSeries, highSeries };
     }
     function buildPath(points, xScale, yScale) {
-      return points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${xScale(point.time).toFixed(2)} ${yScale(point.price).toFixed(2)}`).join(' ');
+      return points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${xScale(point.ts).toFixed(2)} ${yScale(point.price).toFixed(2)}`).join(' ');
+    }
+    // epoch-ms → "h:mm AM/PM" IST label for x-axis ticks (data ts is epoch UTC ms).
+    function _tsLabel(ts) {
+      const ist = ts + 5.5 * 3600 * 1000;           // shift to IST
+      let ms = ((ist % 86400000) + 86400000) % 86400000;
+      let h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+      const ap = h >= 12 ? 'PM' : 'AM'; let hh = h % 12; if (hh === 0) hh = 12;
+      return `${hh}:${String(m).padStart(2,'0')} ${ap}`;
     }
     function renderChart(data) {
       const svg = document.getElementById('strikeChart');
@@ -295,18 +309,21 @@
       const pricePad = Math.max((maxPrice - minPrice) * 0.12, 1);
       const yMin = Math.max(0, minPrice - pricePad);
       const yMax = maxPrice + pricePad;
-      const uniqueTimes = [...new Set(allTimes)];
 
-      const xScale = (time) => {
-        if (uniqueTimes.length === 1) return width / 2;
-        const idx = uniqueTimes.indexOf(time);
-        return pad.left + (idx / (uniqueTimes.length - 1)) * (width - pad.left - pad.right);
+      // TIME-BASED x-axis: position = real timestamp, so the line runs strictly
+      // left→right in chronological order (fixes the spaghetti/zig-zag).
+      const allTs = [...ce.lowSeries, ...ce.highSeries, ...pe.lowSeries, ...pe.highSeries].map(p => p.ts).filter(Number.isFinite);
+      const tMin = Math.min(...allTs), tMax = Math.max(...allTs);
+      const xScale = (ts) => {
+        if (tMax === tMin) return width / 2;
+        return pad.left + ((ts - tMin) / (tMax - tMin)) * (width - pad.left - pad.right);
       };
       const yScale = (price) => pad.top + ((yMax - price) / (yMax - yMin || 1)) * (height - pad.top - pad.bottom);
 
       const gridLines = 5;
       const yTicks = Array.from({ length: gridLines }, (_, idx) => yMin + ((yMax - yMin) / (gridLines - 1)) * idx).reverse();
-      const xTicks = uniqueTimes.filter((_, idx) => idx === 0 || idx === uniqueTimes.length - 1 || idx % Math.max(1, Math.floor(uniqueTimes.length / 4)) === 0);
+      // 5 evenly-spaced time ticks across the real time span.
+      const xTicks = Array.from({ length: 5 }, (_, i) => tMin + ((tMax - tMin) / 4) * i);
 
       const series = [
         { label: 'CE Low', points: ce.lowSeries, stroke: '#60a5fa', dash: '6 4' },
@@ -318,10 +335,43 @@
       const circles = series.flatMap(entry => entry.points.map(point => {
         const radius = point.kind === 'ltp' ? 5.5 : 4;
         const fill = point.kind === 'ltp' ? entry.stroke : '#0b1220';
-        return `<circle cx="${xScale(point.time).toFixed(2)}" cy="${yScale(point.price).toFixed(2)}" r="${radius}" fill="${fill}" stroke="${entry.stroke}" stroke-width="2">
+        return `<circle cx="${xScale(point.ts).toFixed(2)}" cy="${yScale(point.price).toFixed(2)}" r="${radius}" fill="${fill}" stroke="${entry.stroke}" stroke-width="2">
           <title>${entry.label} | ${fmtPrice(point.price)} | ${fmtHms(point.time)}</title>
         </circle>`;
       })).join('');
+
+      // ── BUY@low / SELL@high signal: realistic capture — the best chronologically
+      // valid pair where SELL happens AFTER BUY (max forward gain). Merges low+high
+      // records into one time-sorted price path, then finds best buy-then-sell.
+      function bsSignal(leg, tag) {
+        const pts = [...leg.lowSeries, ...leg.highSeries]
+          .filter(p => p.kind !== 'ltp' && Number.isFinite(p.price) && p.price > 0)
+          .sort((a, b) => a.ts - b.ts);
+        if (pts.length < 2) return null;
+        let minSoFar = pts[0], buy = pts[0], sell = pts[0], best = -Infinity;
+        for (const p of pts) {
+          if (p.price < minSoFar.price) minSoFar = p;          // track lowest seen so far
+          const g = (p.price - minSoFar.price) / minSoFar.price;
+          if (g > best) { best = g; buy = minSoFar; sell = p; } // best sell after that low
+        }
+        const gainPct = buy.price > 0 ? ((sell.price - buy.price) / buy.price) * 100 : 0;
+        return { tag, buy, sell, gainPct };
+      }
+      const ceBS = bsSignal(ce, 'CE'), peBS = bsSignal(pe, 'PE');
+      const markerSvg = [ceBS, peBS].filter(Boolean).map(s => {
+        const bx = xScale(s.buy.ts), by = yScale(s.buy.price), sx = xScale(s.sell.ts), sy = yScale(s.sell.price);
+        return `
+          <g>
+            <line x1="${bx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${sx.toFixed(1)}" y2="${sy.toFixed(1)}" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="2 3" opacity="0.7"></line>
+            <circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="7" fill="#0b1220" stroke="#22c55e" stroke-width="2.5"></circle>
+            <text x="${bx.toFixed(1)}" y="${(by + 18).toFixed(1)}" fill="#22c55e" font-size="11" font-weight="700" text-anchor="middle">BUY ${s.tag}</text>
+            <circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="7" fill="#0b1220" stroke="#ef4444" stroke-width="2.5"></circle>
+            <text x="${sx.toFixed(1)}" y="${(sy - 12).toFixed(1)}" fill="#ef4444" font-size="11" font-weight="700" text-anchor="middle">SELL ${s.tag}</text>
+          </g>`;
+      }).join('');
+
+      // backtest box (buy lowest low → sell highest high after it)
+      renderBsBox(ceBS, peBS);
 
       svg.innerHTML = `
         <rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="transparent"></rect>
@@ -331,17 +381,37 @@
             <text x="${pad.left - 12}" y="${(yScale(price) + 4).toFixed(2)}" fill="#94a3b8" font-size="12" text-anchor="end">${fmtPrice(price)}</text>
           </g>
         `).join('')}
-        ${xTicks.map(time => `
+        ${xTicks.map((ts, i) => `
           <g>
-            <line x1="${xScale(time).toFixed(2)}" y1="${pad.top}" x2="${xScale(time).toFixed(2)}" y2="${height - pad.bottom}" stroke="rgba(148, 163, 184, 0.08)" stroke-width="1"></line>
-            <text x="${xScale(time).toFixed(2)}" y="${height - 14}" fill="#94a3b8" font-size="12" text-anchor="middle">${fmtHms(time)}</text>
+            <line x1="${xScale(ts).toFixed(2)}" y1="${pad.top}" x2="${xScale(ts).toFixed(2)}" y2="${height - pad.bottom}" stroke="rgba(148, 163, 184, 0.08)" stroke-width="1"></line>
+            <text x="${xScale(ts).toFixed(2)}" y="${height - 14}" fill="#94a3b8" font-size="12" text-anchor="${i === 0 ? 'start' : i === xTicks.length - 1 ? 'end' : 'middle'}">${_tsLabel(ts)}</text>
           </g>
         `).join('')}
         ${series.map(entry => `
           <path d="${buildPath(entry.points, xScale, yScale)}" fill="none" stroke="${entry.stroke}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" ${entry.dash ? `stroke-dasharray="${entry.dash}"` : ''}></path>
         `).join('')}
         ${circles}
+        ${markerSvg}
       `;
+    }
+    // Render the buy-low/sell-high backtest summary cards.
+    function renderBsBox(ceBS, peBS) {
+      const box = document.getElementById('bsBox');
+      if (!box) return;
+      const card = (s, label, color) => {
+        if (!s) return `<div style="background:rgba(15,26,44,.6);border:1px solid rgba(120,140,170,.18);border-radius:12px;padding:14px"><div style="font-size:11px;letter-spacing:1px;color:#64748b;text-transform:uppercase">${label} — Buy Low / Sell High</div><div style="color:#64748b;font-size:12px;margin-top:8px">No record data yet</div></div>`;
+        const profit = s.gainPct >= 0;
+        return `<div style="background:rgba(15,26,44,.6);border:1px solid ${profit ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)'};border-radius:12px;padding:14px;font-family:'IBM Plex Mono',monospace">
+          <div style="font-size:11px;letter-spacing:1px;color:${color};text-transform:uppercase;font-weight:700">${label} — Buy Low → Sell High</div>
+          <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:13px">
+            <span><span style="color:#22c55e">BUY</span> ₹${fmtPrice(s.buy.price)} <span style="color:#64748b;font-size:10px">@${s.buy.time}</span></span>
+            <span><span style="color:#ef4444">SELL</span> ₹${fmtPrice(s.sell.price)} <span style="color:#64748b;font-size:10px">@${s.sell.time}</span></span>
+          </div>
+          <div style="margin-top:10px;font-size:22px;font-weight:700;color:${profit ? '#22c55e' : '#ef4444'}">${profit ? '+' : ''}${s.gainPct.toFixed(1)}%</div>
+          <div style="font-size:10px;color:#64748b">max capture if bought the session low and sold the high after it</div>
+        </div>`;
+      };
+      box.innerHTML = card(ceBS, 'CE', '#34d399') + card(peBS, 'PE', '#f87171');
     }
     function renderCard(type, leg) {
       const card = document.getElementById(type.toLowerCase() + 'Card');

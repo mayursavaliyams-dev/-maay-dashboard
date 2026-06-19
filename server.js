@@ -23,6 +23,7 @@ const { getChainAroundATM } = require("./sensibull-fetcher");
 const AmiBrokerBridge = require("./amibroker-bridge");
 const ExecutionEngine = require("./execution-engine");
 const AfternoonEngine = require("./afternoon-engine");
+const BounceEngine = require("./bounce-engine");
 const TelegramAlerter = require("./telegram");
 
 // Initialize Telegram (no-op if TELEGRAM_ENABLED=false or credentials missing)
@@ -3047,6 +3048,20 @@ niftyAfternoonEngine.onTradeEvent = (event, data) => {
   }
 };
 
+// ==================== BOUNCE ENGINE (paper, experimental) ====================
+// buy-on-bounce / sell-on-target. Validated config: bounce 5% / target 30% / SL 15%
+// (only profitable variant in single-day backtest). Off by default.
+const bounceEngine = new BounceEngine();
+bounceEngine.onTrade = (event, d) => {
+  console.log(`[bounce] ${event} ${d.inst} ${d.strike}${d.type} @ ${d.entry || d.exit}${d.pnlPct != null ? ` | ${d.reason} ${d.pnlPct}%` : ''}`);
+  if (telegram?.enabled) {
+    if (event === 'BUY') telegram.sendAlert('🔵 Bounce BUY', `${d.inst} ${d.strike}${d.type} @ ₹${d.entry}`).catch(() => {});
+    else telegram.sendAlert(d.pnlPct >= 0 ? '✅ Bounce SELL' : '❌ Bounce SELL', `${d.inst} ${d.strike}${d.type} ${d.reason} ${d.pnlPct}% (₹${d.entry}→₹${d.exit})`).catch(() => {});
+  }
+};
+app.get('/api/bounce/status', (req, res) => res.json(bounceEngine.status()));
+app.post('/api/bounce/enable', (req, res) => { bounceEngine.enabled = req.body?.enabled !== false; res.json({ ok: true, enabled: bounceEngine.enabled }); });
+
 // ==================== AFTERNOON ENGINE ENDPOINTS ====================
 app.get('/api/afternoon/status', (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
@@ -4423,6 +4438,15 @@ function runBotEngine() {
   setTimeout(() => {
     niftyAfternoonEngine.tick().catch(err => console.error('[nifty-afternoon] tick error:', err.message));
   }, 4000);
+
+  // Bounce engine (paper) — feed it the live NIFTY chain to track per-strike H/L bounces.
+  if (bounceEngine.enabled) {
+    setTimeout(() => {
+      live.getNiftyOptionChain(_niftyLivePrice)
+        .then(chain => bounceEngine.update('NIFTY', { atm: chain.atmStrike, interval: 50, rows: chain.strikes }))
+        .catch(() => {});
+    }, 4500);
+  }
 }
 
 // Run bot engine every 5 seconds

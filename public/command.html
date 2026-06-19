@@ -286,6 +286,13 @@
           <div class="met"><div class="l">ATM</div><div class="v" id="m_atm">--</div></div>
         </div>
         <div class="trendbadge"><span class="led" id="trendLed"></span><span id="trendTxt">Trend: --</span><span style="flex:1"></span><span class="neu" id="trendConf">--</span></div>
+        <div class="lastsess" id="lastSess" style="margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--dim);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="color:var(--dimmer);letter-spacing:.5px">LAST SESSION</span>
+          <span id="ls_date" style="color:var(--dimmer)">--</span>
+          <span>H <b id="ls_high" style="color:var(--amber)">--</b> <span id="ls_hat" style="color:var(--dimmer)"></span></span>
+          <span>L <b id="ls_low" style="color:var(--blue)">--</b> <span id="ls_lat" style="color:var(--dimmer)"></span></span>
+          <span>range <b id="ls_rng" style="color:var(--cyan)">--</b></span>
+        </div>
       </div>
     </div>
 
@@ -491,6 +498,18 @@
     }catch(e){ clearTimeout(t); return null; }
   }
 
+  // ---------- LAST SESSION H/L (real, last trading day — never blank) ----------
+  var _lastSess=null;
+  async function renderLastSession(){
+    var j=await getJSON('/api/last-session-hl?inst='+inst);
+    _lastSess = (j && !j.error) ? j : null;
+    if(!_lastSess){ $("ls_date").textContent='(no data)'; return; }
+    $("ls_date").textContent=_lastSess.date;
+    $("ls_high").textContent=fmt(_lastSess.high,2); $("ls_hat").textContent='@'+_lastSess.highAt;
+    $("ls_low").textContent=fmt(_lastSess.low,2);   $("ls_lat").textContent='@'+_lastSess.lowAt;
+    $("ls_rng").textContent=_lastSess.rangePct+'%';
+  }
+
   // ---------- DEMO fallbacks ----------
   function rnd(b,s){ return b + (Math.random()-0.5)*s; }
   var demoSpot = {NIFTY:24180, SENSEX:79350, BANKNIFTY:51240};
@@ -552,8 +571,14 @@
     var chEl=$("spotChg");
     chEl.textContent=(ch>=0?"▲ ":"▼ ")+fmt(Math.abs(ch),2)+"  ("+pct((ch/ref)*100)+")";
     chEl.className="chgbig mono "+cls(ch);
-    $("m_dh").textContent=fmt(d.dayHigh,2);
-    $("m_dl").textContent=fmt(d.dayLow,2);
+    // Today's day H/L when available; else fall back to last session (marked ·prev).
+    var dh=parseFloat(d.dayHigh), dl=parseFloat(d.dayLow);
+    if(isFinite(dh)&&dh>0){ $("m_dh").textContent=fmt(dh,2); }
+    else if(_lastSess){ $("m_dh").innerHTML=fmt(_lastSess.high,2)+'<span style="color:var(--dimmer);font-size:8px"> prev</span>'; }
+    else { $("m_dh").textContent='--'; }
+    if(isFinite(dl)&&dl>0){ $("m_dl").textContent=fmt(dl,2); }
+    else if(_lastSess){ $("m_dl").innerHTML=fmt(_lastSess.low,2)+'<span style="color:var(--dimmer);font-size:8px"> prev</span>'; }
+    else { $("m_dl").textContent='--'; }
     $("m_vwap").textContent=fmt(d.vwap,2);
     $("m_oh").textContent=fmt(d.orbHigh,2);
     $("m_ol").textContent=fmt(d.orbLow,2);
@@ -880,6 +905,7 @@
     pushLog("INFO","Instrument switched → "+inst);
     $("gbInst").textContent=inst;
     var msi=$("msInst"); if(msi) msi.textContent=inst;
+    renderLastSession();
     tick();
   });
 
@@ -905,8 +931,10 @@
 
   // ---------- boot ----------
   seedMsgs.forEach(function(m,i){ setTimeout(function(){pushLog(m[0],m[1]);}, i*120); });
+  renderLastSession();
   tick();
   setInterval(tick, 4000);
+  setInterval(renderLastSession, 5*60*1000); // refresh last-session H/L every 5 min
   // periodic synthetic log activity (demo flavour)
   setInterval(function(){
     var pool=[["INFO","Heartbeat · "+inst+" chain re-synced"],["TRADE","Signal engine cycle complete"],["OK","Risk limits within tolerance"],["INFO","VWAP slope updated"],["WARN","Latency spike on quote feed (recovered)"]];

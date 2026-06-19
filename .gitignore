@@ -1,14 +1,19 @@
 node_modules/
 .env
 *.log
+*.err
+*.xlsx
+dp-err.txt
 .DS_Store
 dist/
 build/
 exports/
-data/dhan-cache/
 data/trading.db
-backtest-real-results.json
+data/ami-signals/
 __pycache__/
 *.pyc
 .pytest_cache/
 generated-strategies/
+
+# Raw NSE bhavcopy CSVs (40M, re-fetchable via bt-bhav-fetch.js)
+bt-data/bhav/
