@@ -70,6 +70,27 @@
   .exit-btn:hover{filter:brightness(1.25)}
   .exit-btn:active{transform:scale(.96)}
 
+  /* ===== Strangle box ===== */
+  .strbox{background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:14px 16px}
+  .str-head{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .str-state{font-size:11px; font-weight:700; letter-spacing:.6px; padding:4px 11px; border-radius:7px;
+    background:var(--line2); color:var(--dim)}
+  .str-state.on{background:var(--greenbg); color:var(--green)}
+  .str-cfg{font-size:11px; color:var(--dim)}
+  .str-stats{font-size:11.5px; color:var(--dim); margin-left:auto}
+  .str-stats b{color:var(--txt)}
+  .str-toggle{border:none; border-radius:8px; padding:8px 18px; font-size:12px; font-weight:700; cursor:pointer; transition:.12s}
+  .str-toggle.off{background:var(--greenbg); color:var(--green)}
+  .str-toggle.on{background:var(--redbg); color:var(--red)}
+  .str-toggle:hover{filter:brightness(1.2)}
+  .str-trades{margin-top:11px; display:flex; flex-direction:column; gap:6px}
+  .str-trade{display:flex; align-items:center; gap:10px; font-size:12px; background:var(--panel2);
+    border:1px solid var(--line); border-radius:8px; padding:8px 12px}
+  .str-trade .legs{font-weight:600} .str-trade .tag{font-size:9.5px; padding:1px 7px; border-radius:5px; letter-spacing:.4px; font-weight:700}
+  .str-trade .tag.open{background:#13314f; color:#7dd3fc} .str-trade .tag.tp{background:var(--greenbg); color:var(--green)} .str-trade .tag.stop{background:var(--redbg); color:var(--red)}
+  .str-trade .pnl{margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums}
+  .str-note{margin-top:10px; font-size:10.5px; color:var(--dimmer); line-height:1.5}
+
   /* ===== Two chains side by side ===== */
   .chains{display:grid; grid-template-columns:1fr 1fr; gap:16px}
   @media (max-width:1080px){ .chains{grid-template-columns:1fr} }
@@ -132,6 +153,19 @@
 <div class="sec"><h2>⚡ Live Trades</h2><div class="ln"></div><span class="meta" id="liveMeta"></span></div>
 <div id="liveCards">
   <div class="empty">No open positions — tap <b>BUY</b> on any strike below to open a paper trade.</div>
+</div>
+
+<!-- STRANGLE ENGINE (paper, validated) -->
+<div class="sec"><h2>🟣 Short Strangle <span style="font-weight:400;color:var(--dimmer);letter-spacing:0;text-transform:none">· auto premium-seller (paper)</span></h2><div class="ln"></div><span class="meta" id="strMeta"></span></div>
+<div class="strbox" id="strBox">
+  <div class="str-head">
+    <span class="str-state" id="strState">OFF</span>
+    <span class="str-cfg" id="strCfg"></span>
+    <span class="str-stats" id="strStats"></span>
+    <button class="str-toggle off" id="strToggle" onclick="toggleStrangle()">Enable</button>
+  </div>
+  <div class="str-trades" id="strTrades"></div>
+  <div class="str-note" id="strNote"></div>
 </div>
 
 <!-- BOTH OPTION CHAINS -->
@@ -333,12 +367,47 @@ async function loadMode(){
   }catch(_){}
 }
 
+// ---------- strangle engine ----------
+let _strEnabled = false;
+async function loadStrangle(){
+  try{
+    const s = await fetch(`${API}/api/strangle/status`,{cache:'no-store'}).then(r=>r.json());
+    _strEnabled = !!s.enabled;
+    const st = $('strState'); st.textContent = s.enabled?'RUNNING':'OFF'; st.className = 'str-state'+(s.enabled?' on':'');
+    const tg = $('strToggle'); tg.textContent = s.enabled?'Disable':'Enable'; tg.className = 'str-toggle '+(s.enabled?'on':'off');
+    const c = s.config||{};
+    $('strCfg').textContent = `ATM±${c.otmPct}% · ${c.stopMult}× stop · TP ${c.tpPct}% credit`;
+    $('strStats').innerHTML = `Today: <b>${s.closedToday||0}</b> closed · <b>${s.winRate||0}%</b> win · P&L <b class="${(s.netPnl||0)>=0?'up':'dn'}">${(s.netPnl||0)>=0?'+':''}₹${Math.round(s.netPnl||0)}</b>`;
+    $('strMeta').textContent = s.enabled ? 'live · NIFTY weekly' : 'idle';
+    $('strNote').textContent = s.note||'';
+    // open + recent closed
+    const open = (s.openPositions||[]).map(p =>
+      `<div class="str-trade"><span class="tag open">OPEN</span><span class="legs">${p.inst} ${p.pe.strike}PE / ${p.ce.strike}CE</span><span style="color:var(--dim)">credit ₹${p.credit} · exp ${p.expiry||'—'}</span></div>`);
+    const closed = (s.recent||[]).map(t =>
+      `<div class="str-trade"><span class="tag ${t.reason==='TAKE_PROFIT'?'tp':'stop'}">${t.reason==='TAKE_PROFIT'?'TP':'STOP'}</span><span class="legs">${t.inst} ${t.pe.strike}PE / ${t.ce.strike}CE</span><span style="color:var(--dim)">${t.entryAt}→${t.exitAt}</span><span class="pnl ${t.pnlAbs>=0?'up':'dn'}">${t.pnlAbs>=0?'+':''}₹${Math.round(t.pnlAbs)}</span></div>`);
+    const all = open.concat(closed);
+    $('strTrades').innerHTML = all.length ? all.join('') :
+      '<div style="font-size:11.5px;color:var(--dimmer);padding:4px 2px">No strangles today. When enabled, it sells one ATM±'+(c.otmPct||1.5)+'% NIFTY strangle per weekly cycle.</div>';
+  }catch(e){ $('strNote').textContent = '⚠ '+e.message; }
+}
+async function toggleStrangle(){
+  const want = !_strEnabled;
+  if (want && !confirm('Enable the PAPER short-strangle auto-seller?\n\nIt will sell one NIFTY weekly strangle (ATM±1.5%) when the chain is live. Paper only — no real orders. Forward-test before trusting.')) return;
+  try{
+    await fetch(`${API}/api/strangle/enable`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({enabled:want}) });
+    toast(want?'🟣 Strangle engine ENABLED (paper)':'Strangle engine disabled', want?'ok':'warn');
+    loadStrangle();
+  }catch(e){ toast(e.message,'err'); }
+}
+
 // ---------- boot ----------
 loadMode();
 loadAllChains();
 loadLiveTrades();
+loadStrangle();
 setInterval(loadAllChains, 5000);
 setInterval(loadLiveTrades, 2000);
+setInterval(loadStrangle, 4000);
 </script>
 </body>
 </html>
