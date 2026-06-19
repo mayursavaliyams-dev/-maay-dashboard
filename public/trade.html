@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Antigravity · Trade</title>
+<style>
+  :root{
+    --bg:#0a0c12; --panel:#0f131d; --panel2:#121726; --line:#1b2233; --line2:#222b40;
+    --txt:#e6e9f0; --dim:#8b93a7; --dimmer:#5a6478;
+    --green:#22c98f; --greenbg:#0c2a1e; --red:#f06363; --redbg:#2c1212;
+    --amber:#f5b94a; --blue:#5aa0ff; --cyan:#37d7e0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--txt); font-family:'Inter','Segoe UI',system-ui,sans-serif;
+    font-size:14px; -webkit-font-smoothing:antialiased}
+  body{max-width:1500px; margin:0 auto; padding:0 18px 60px}
+  .mono{font-variant-numeric:tabular-nums}
+
+  /* ===== Header ===== */
+  header{display:flex; align-items:center; gap:20px; padding:18px 2px 14px; position:sticky; top:0;
+    background:linear-gradient(180deg,var(--bg) 70%,transparent); z-index:20; flex-wrap:wrap}
+  .brand{font-size:15px; font-weight:700; letter-spacing:.5px}
+  .brand .dot{color:var(--green)}
+  .spots{display:flex; gap:10px; margin-left:auto; align-items:center}
+  .spotpill{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:7px 13px}
+  .spotpill .lbl{font-size:10px; font-weight:700; letter-spacing:.6px}
+  .spotpill.sx .lbl{color:var(--cyan)} .spotpill.nf .lbl{color:var(--amber)}
+  .spotpill .val{font-size:15px; font-weight:700}
+  .mode{font-size:9.5px; font-weight:700; letter-spacing:.6px; padding:4px 10px; border-radius:7px;
+    background:#13314f; color:#7dd3fc}
+  .mode.live{background:var(--redbg); color:var(--red)}
+
+  /* ===== Section title ===== */
+  .sec{display:flex; align-items:center; gap:9px; margin:22px 2px 11px}
+  .sec h2{font-size:11px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--dim)}
+  .sec .ln{flex:1; height:1px; background:var(--line)}
+  .sec .meta{font-size:10.5px; color:var(--dimmer)}
+
+  /* ===== Live trades ===== */
+  #liveCards{display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:12px}
+  .empty{grid-column:1/-1; text-align:center; padding:26px; color:var(--dimmer); font-size:12.5px;
+    border:1px dashed var(--line2); border-radius:12px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:14px 15px;
+    border-left:3px solid var(--line2); transition:box-shadow .25s,border-color .25s}
+  .card.ce{border-left-color:var(--green)} .card.pe{border-left-color:var(--red)}
+  .card.blink{animation:blink 1s ease-in-out 4}
+  @keyframes blink{0%,100%{box-shadow:0 0 0 0 rgba(245,185,74,0)} 50%{box-shadow:0 0 0 3px rgba(245,185,74,.5); border-color:var(--amber)}}
+  .ct{display:flex; align-items:center; gap:9px; margin-bottom:12px}
+  .ct .inst{font-size:10px; font-weight:700; color:var(--dimmer); letter-spacing:.5px}
+  .ct .strike{font-size:18px; font-weight:700}
+  .ct .side{font-size:10px; font-weight:700; padding:2px 8px; border-radius:5px; letter-spacing:.4px}
+  .ct .side.ce{background:var(--greenbg); color:var(--green)}
+  .ct .side.pe{background:var(--redbg); color:var(--red)}
+  .ct .pnl{margin-left:auto; text-align:right}
+  .ct .pnl .pct{font-size:15px; font-weight:700}
+  .ct .pnl .abs{font-size:10.5px; display:block; margin-top:1px}
+  .up{color:var(--green)} .dn{color:var(--red)} .flat{color:var(--dim)}
+  .metrics{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border-radius:9px; overflow:hidden}
+  .metrics .m{background:var(--panel2); padding:9px 6px; text-align:center}
+  .metrics .m .k{font-size:9px; color:var(--dimmer); letter-spacing:.5px; text-transform:uppercase; margin-bottom:3px}
+  .metrics .m .v{font-size:14px; font-weight:600}
+  .v.ltp{color:var(--amber)} .v.sl{color:var(--red)} .v.tp{color:var(--green)} .v.tr{color:var(--blue)}
+  .lock{font-size:8.5px; color:var(--blue); display:block; margin-top:1px}
+  .crow{display:flex; align-items:center; gap:10px; margin-top:12px}
+  .crow .entry{font-size:10.5px; color:var(--dimmer)}
+  .exit-btn{margin-left:auto; border:none; border-radius:7px; padding:8px 16px; font-size:11px; font-weight:700;
+    letter-spacing:.4px; cursor:pointer; background:var(--redbg); color:var(--red); transition:.12s}
+  .exit-btn:hover{filter:brightness(1.25)}
+  .exit-btn:active{transform:scale(.96)}
+
+  /* ===== Two chains side by side ===== */
+  .chains{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media (max-width:1080px){ .chains{grid-template-columns:1fr} }
+  .chain-col{min-width:0}
+  .chain-head{display:flex; align-items:center; gap:9px; margin:0 2px 9px}
+  .chain-head .name{font-size:12.5px; font-weight:700; letter-spacing:.5px}
+  .chain-head.sx .name{color:var(--cyan)} .chain-head.nf .name{color:var(--amber)}
+  .chain-head .atm{font-size:10.5px; color:var(--dimmer)}
+  .chain-head .filters{margin-left:auto; display:flex; gap:5px}
+  .fbtn{background:var(--panel); border:1px solid var(--line2); color:var(--dim); font-size:10.5px; font-weight:600;
+    padding:4px 11px; border-radius:7px; cursor:pointer; transition:.12s}
+  .fbtn.active{background:var(--panel2); color:var(--txt); border-color:#34507a}
+  .fbtn.active.ce{color:var(--green)} .fbtn.active.pe{color:var(--red)}
+  .wlwrap{background:var(--panel); border:1px solid var(--line); border-radius:13px; overflow:hidden}
+  table{width:100%; border-collapse:collapse}
+  th{font-size:9.5px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; color:var(--dimmer);
+    text-align:right; padding:10px 11px; border-bottom:1px solid var(--line); background:var(--panel2); white-space:nowrap}
+  th.l{text-align:left; padding-left:15px}
+  th.c{text-align:center}
+  td{font-size:12.5px; text-align:right; padding:10px 11px; border-bottom:1px solid var(--line); color:var(--txt); white-space:nowrap}
+  td.l{text-align:left; padding-left:15px; color:var(--dim); font-weight:500}
+  td.c{text-align:center}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,.018)}
+  tr.atm td.l{color:var(--txt)}
+  .badge{display:inline-block; background:#241d44; color:#a78bfa; font-size:8px; font-weight:700;
+    padding:1px 5px; border-radius:4px; margin-left:6px; letter-spacing:.3px}
+  td .ltp{font-weight:600} td .ltp.ce{color:var(--green)} td .ltp.pe{color:var(--red)}
+  .buy{border:none; border-radius:6px; padding:5px 11px; font-size:10px; font-weight:700; letter-spacing:.4px;
+    cursor:pointer; color:#06160e; transition:.12s}
+  .buy.ce{background:var(--green)} .buy.pe{background:var(--red); color:#1d0606}
+  .buy:hover{filter:brightness(1.12)} .buy:active{transform:scale(.95)}
+  .buy:disabled{background:var(--line2); color:var(--dimmer); cursor:not-allowed; filter:none}
+  .loading{text-align:center; padding:24px; color:var(--dimmer); font-size:12px}
+
+  /* ===== Toast ===== */
+  #toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--panel2); border:1px solid var(--line2); color:var(--txt); padding:12px 20px;
+    border-radius:10px; font-size:13px; font-weight:500; opacity:0; pointer-events:none;
+    transition:.25s; z-index:50; box-shadow:0 10px 40px rgba(0,0,0,.5); max-width:90vw}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  #toast.ok{border-color:#1f6b4a} #toast.err{border-color:#7a2b2b} #toast.warn{border-color:#7a5e1f}
+
+  .foot{text-align:center; color:var(--dimmer); font-size:10.5px; margin-top:24px; line-height:1.6}
+  .foot a{color:var(--blue); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">🚀 Antigravity <span class="dot">·</span> Trade</div>
+  <div class="spots">
+    <div class="spotpill sx"><span class="lbl">SENSEX</span><span class="val mono" id="spot_SENSEX">--</span></div>
+    <div class="spotpill nf"><span class="lbl">NIFTY</span><span class="val mono" id="spot_NIFTY">--</span></div>
+    <span class="mode" id="modeBadge">PAPER</span>
+  </div>
+</header>
+
+<!-- LIVE TRADES (both instruments) -->
+<div class="sec"><h2>⚡ Live Trades</h2><div class="ln"></div><span class="meta" id="liveMeta"></span></div>
+<div id="liveCards">
+  <div class="empty">No open positions — tap <b>BUY</b> on any strike below to open a paper trade.</div>
+</div>
+
+<!-- BOTH OPTION CHAINS -->
+<div class="sec"><h2>📊 Option Chains</h2><div class="ln"></div><span class="meta">SENSEX &amp; NIFTY live</span></div>
+<div class="chains">
+  <!-- SENSEX -->
+  <div class="chain-col">
+    <div class="chain-head sx">
+      <span class="name">SENSEX</span><span class="atm" id="atm_SENSEX"></span>
+      <span class="filters">
+        <button class="fbtn active" id="f_SENSEX_ALL" onclick="setFilter('SENSEX','ALL')">All</button>
+        <button class="fbtn ce" id="f_SENSEX_CE" onclick="setFilter('SENSEX','CE')">Calls</button>
+        <button class="fbtn pe" id="f_SENSEX_PE" onclick="setFilter('SENSEX','PE')">Puts</button>
+      </span>
+    </div>
+    <div class="wlwrap">
+      <table><thead><tr>
+        <th class="l">Strike</th><th>LTP</th><th>Low</th><th>High</th><th>%Chg</th><th>OI</th><th class="c">Trade</th>
+      </tr></thead><tbody id="body_SENSEX"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+  <!-- NIFTY -->
+  <div class="chain-col">
+    <div class="chain-head nf">
+      <span class="name">NIFTY</span><span class="atm" id="atm_NIFTY"></span>
+      <span class="filters">
+        <button class="fbtn active" id="f_NIFTY_ALL" onclick="setFilter('NIFTY','ALL')">All</button>
+        <button class="fbtn ce" id="f_NIFTY_CE" onclick="setFilter('NIFTY','CE')">Calls</button>
+        <button class="fbtn pe" id="f_NIFTY_PE" onclick="setFilter('NIFTY','PE')">Puts</button>
+      </span>
+    </div>
+    <div class="wlwrap">
+      <table><thead><tr>
+        <th class="l">Strike</th><th>LTP</th><th>Low</th><th>High</th><th>%Chg</th><th>OI</th><th class="c">Trade</th>
+      </tr></thead><tbody id="body_NIFTY"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  PAPER mode — orders are simulated. SL / target / trailing use your configured engine settings.<br>
+  <a href="/dashboard.html">← Full dashboard</a> &nbsp;·&nbsp; <a href="/command.html">Command center</a>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = window.location.origin;
+const CFG = {
+  SENSEX: { posApi:'/api/position' },
+  NIFTY:  { posApi:'/api/nifty/position' }
+};
+const INSTS = ['SENSEX','NIFTY'];
+let _filter = { SENSEX:'ALL', NIFTY:'ALL' };
+let _wlData = { SENSEX:null, NIFTY:null };
+let _seen   = {};               // inst -> "strike_type" of last shown open trade (blink-on-new)
+
+const $ = id => document.getElementById(id);
+function fmt(n){ const x=Number(n); return isFinite(x)?x.toLocaleString('en-IN',{maximumFractionDigits:2}):'--'; }
+function fmtOI(n){ n=Number(n)||0; return n>=1e7?(n/1e7).toFixed(2)+'Cr':n>=1e5?(n/1e5).toFixed(1)+'L':n>=1e3?(n/1e3).toFixed(1)+'k':String(n); }
+function toast(msg, kind){ const t=$('toast'); t.textContent=msg; t.className='show '+(kind||''); clearTimeout(t._h); t._h=setTimeout(()=>t.className='',3200); }
+
+function setFilter(inst, f){
+  _filter[inst] = f;
+  ['ALL','CE','PE'].forEach(k => $('f_'+inst+'_'+k).classList.toggle('active', f===k));
+  if (_wlData[inst]) renderChain(inst, _wlData[inst]);
+}
+
+// ---------- chains ----------
+async function loadChain(inst){
+  try{
+    const r = await fetch(`${API}/api/watchlist?inst=${inst}`, { cache:'no-store' });
+    const d = await r.json();
+    _wlData[inst] = d;
+    if (d.spot) $('spot_'+inst).textContent = fmt(d.spot);
+    if (d.atm)  $('atm_'+inst).textContent  = 'ATM '+fmt(d.atm);
+    renderChain(inst, d);
+  }catch(e){ $('body_'+inst).innerHTML = `<tr><td colspan="7" class="loading">⚠ ${e.message}</td></tr>`; }
+}
+function loadAllChains(){ INSTS.forEach(loadChain); }
+
+function renderChain(inst, d){
+  const tbody = $('body_'+inst);
+  let rows = d.rows || [];
+  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="7" class="loading">No quotes</td></tr>`; return; }
+  const f = _filter[inst];
+  if (f !== 'ALL') rows = rows.filter(r => r.type === f);
+  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="7" class="loading">No ${f==='CE'?'calls':'puts'}</td></tr>`; return; }
+  tbody.innerHTML = rows.map(r => {
+    const atm = r.strike === d.atm;
+    const cc = r.chng>0?'up':r.chng<0?'dn':'flat';
+    const sign = r.chng>0?'+':'';
+    const label = `${fmt(r.strike)} ${r.type}`;
+    return `<tr class="${atm?'atm':''}">
+      <td class="l">${label}${atm?'<span class="badge">ATM</span>':''}</td>
+      <td><span class="ltp ${r.type.toLowerCase()}">${fmt(r.ltp)}</span></td>
+      <td>${fmt(r.low)}</td>
+      <td>${fmt(r.high)}</td>
+      <td class="${cc}">${sign}${fmt(r.chngPct)}%</td>
+      <td>${fmtOI(r.oi)}</td>
+      <td class="c"><button class="buy ${r.type.toLowerCase()}" ${r.ltp>0?'':'disabled'}
+          onclick="buy('${inst}','${r.type}',${r.strike},${r.ltp})">BUY</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ---------- trade ----------
+async function buy(inst, type, strike, ltp){
+  if (!(ltp>0)){ toast('No live LTP yet for this strike','warn'); return; }
+  if (!confirm(`PAPER BUY\n\n${inst} ${strike} ${type} @ ₹${ltp}\n\nProceed?`)) return;
+  try{
+    const r = await fetch(`${API}${CFG[inst].posApi}/enter`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type, strike, entryPrice: ltp })
+    });
+    const d = await r.json();
+    if (!r.ok){
+      toast(r.status===409 ? `A ${inst} position is already open — exit it first` : ('Failed: '+(d.error||r.status)), r.status===409?'warn':'err');
+      return;
+    }
+    const p = d.position||{};
+    toast(`✅ BUY ${inst} ${p.strike} ${p.type} @ ₹${p.entryPrice}${p.lots?' · '+p.lots+' lot':''}`, 'ok');
+    _seen[inst] = null;
+    loadLiveTrades();
+  }catch(e){ toast(e.message,'err'); }
+}
+
+async function exitPos(inst){
+  if (!confirm(`Exit (SELL) the open ${inst} position at current LTP?`)) return;
+  try{
+    const r = await fetch(`${API}${CFG[inst].posApi}/exit`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ reason:'MANUAL' })
+    });
+    const d = await r.json();
+    if (!r.ok){ toast('Exit failed: '+(d.error||r.status),'err'); return; }
+    const t = d.trade||{};
+    toast(`${parseFloat(t.finalMult)>=1?'✅':'❌'} SOLD ${inst} ${t.type} ${t.strike} @ ${t.finalMult}x (${t.finalPnlPct}%)`, parseFloat(t.finalMult)>=1?'ok':'err');
+    _seen[inst] = null;
+    loadLiveTrades();
+  }catch(e){ toast(e.message,'err'); }
+}
+
+// ---------- live trades (both) ----------
+async function loadLiveTrades(){
+  const results = await Promise.all(INSTS.map(async inst => {
+    try{ const r = await fetch(`${API}${CFG[inst].posApi}`, { cache:'no-store' }); return { inst, d: await r.json() }; }
+    catch(e){ return { inst, d:null }; }
+  }));
+  let html = '', open = 0;
+  results.forEach(({inst,d}) => {
+    if (!d || !d.open || !d.position){ _seen[inst]=null; return; }
+    open++;
+    const p = d.position;
+    const ltp = Number(d.currentPrice ?? p.currentPrice ?? p.entryPrice);
+    const entry = Number(p.entryPrice);
+    const sl = Number(p.movingStop ?? p.sl ?? 0);
+    const tp = Number(d.target ?? entry*2.5);
+    const trail = Number(d.trailStop ?? p.movingStop ?? 0);
+    const locked = !!(d.trailLocked || p.trailLocked);
+    const pct = Number(d.pnlPct ?? ((ltp-entry)/entry*100));
+    const abs = (ltp-entry) * Number(p.quantity || p.lots || 1);
+    const cls = pct>0.05?'up':pct<-0.05?'dn':'flat';
+    const side = (p.type||'').toLowerCase();
+    const key = `${p.strike}_${p.type}`;
+    const isNew = _seen[inst] !== key; _seen[inst] = key;
+    html += `<div class="card ${side} ${isNew?'blink':''}">
+      <div class="ct">
+        <span class="inst">${inst}</span>
+        <span class="strike mono">${fmt(p.strike)}</span>
+        <span class="side ${side}">${p.type}</span>
+        <span class="pnl">
+          <span class="pct mono ${cls}">${pct>=0?'+':''}${pct.toFixed(1)}%</span>
+          <span class="abs mono ${cls}">${abs>=0?'+':''}₹${Math.round(abs)}</span>
+        </span>
+      </div>
+      <div class="metrics">
+        <div class="m"><div class="k">LTP</div><div class="v ltp mono">${fmt(ltp)}</div></div>
+        <div class="m"><div class="k">SL</div><div class="v sl mono">${fmt(sl)}</div></div>
+        <div class="m"><div class="k">Target</div><div class="v tp mono">${fmt(tp)}</div></div>
+        <div class="m"><div class="k">Trail SL</div><div class="v tr mono">${fmt(trail)}${locked?'<span class="lock">🔒 locked</span>':''}</div></div>
+      </div>
+      <div class="crow">
+        <span class="entry">Entry ₹${fmt(entry)}${p.lots?' · '+p.lots+' lot':''}</span>
+        <button class="exit-btn" onclick="exitPos('${inst}')">⏹ SELL / EXIT</button>
+      </div>
+    </div>`;
+  });
+  $('liveCards').innerHTML = html + (open ? '' : '<div class="empty">No open positions — tap <b>BUY</b> on any strike below to open a paper trade.</div>');
+  $('liveMeta').textContent = open ? `${open} open` : '';
+}
+
+// ---------- mode badge ----------
+async function loadMode(){
+  try{
+    const h = await fetch(`${API}/api/health`,{cache:'no-store'}).then(r=>r.json());
+    const live = /live/i.test(h.tradeMode||'');
+    const b = $('modeBadge'); b.textContent = live?'LIVE':'PAPER'; b.className = 'mode'+(live?' live':'');
+  }catch(_){}
+}
+
+// ---------- boot ----------
+loadMode();
+loadAllChains();
+loadLiveTrades();
+setInterval(loadAllChains, 5000);
+setInterval(loadLiveTrades, 2000);
+</script>
+</body>
+</html>

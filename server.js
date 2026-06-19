@@ -2428,6 +2428,9 @@ app.get("/api/position", async (req, res) => {
     mult: mult.toFixed(3),
     pnlPct,
     status,
+    target: +(openPosition.entryPrice * TARGET_MULT).toFixed(2),
+    trailStop: +(openPosition.movingStop || 0).toFixed(2),
+    trailLocked: !!openPosition.trailLocked,
     marketOpen: session.inMarketHours,
     marketStatus: session.status
   });
@@ -2619,7 +2622,10 @@ app.get('/api/nifty/position', async (req, res) => {
     targetMult: TARGET_MULT,
     session
   });
-  res.json({ open: true, position: niftyOpenPosition, currentPrice, mult: mult.toFixed(3), pnlPct, status, marketOpen: session.inMarketHours, marketStatus: session.status });
+  const target = niftyOpenPosition.entryPrice * TARGET_MULT;
+  res.json({ open: true, position: niftyOpenPosition, currentPrice, mult: mult.toFixed(3), pnlPct, status,
+    target: +target.toFixed(2), trailStop: +(niftyOpenPosition.movingStop || 0).toFixed(2), trailLocked: !!niftyOpenPosition.trailLocked,
+    marketOpen: session.inMarketHours, marketStatus: session.status });
 });
 
 app.patch('/api/nifty/position/price', (req, res) => {
@@ -4366,9 +4372,17 @@ app.get('/api/watchlist', async (req, res) => {
       const prevClose = Number(ohlc.close ?? d.previous_close ?? c.prevClose ?? c.close ?? 0);
       const chng = prevClose ? ltp - prevClose : 0;
       const chngPct = prevClose ? (chng / prevClose) * 100 : 0;
+      // Feed the live tick into the session H/L tracker, then read it back. Upstox
+      // option quotes don't carry intraday OHLC (ohlc.high/low come back empty),
+      // so without this the watchlist Low/High columns stay 0 → render as "--".
+      if (ltp > 0) _updateOptHL(inst, m.strike, m.type, ltp);
+      const hl = _getOptHL(inst, m.strike, m.type) || {};
+      // Prefer the broker quote/chain OHLC, but those come back as 0 for Upstox
+      // options (not null), so `??` wouldn't fall through — use the session
+      // H/L tracker as the real intraday extreme. `||` skips the 0s correctly.
+      const high = Number(ohlc.high || c.high || hl.high || 0);
+      const low  = Number(ohlc.low  || c.low  || hl.low  || 0);
       // Typical price = (H+L+C)/3 when exchange avg not provided
-      const high = Number(ohlc.high ?? c.high ?? 0);
-      const low  = Number(ohlc.low  ?? c.low  ?? 0);
       const avg  = Number(d.average_price ?? d.avg_price ?? 0)
                 || (high && low && ltp ? (high + low + ltp) / 3 : 0);
       // UCL/LCL: if quote didn't provide, default to ±20% of prev close (NSE/BSE daily band)

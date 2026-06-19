@@ -81,6 +81,48 @@
         .top-mode { font-size:0.75rem; color:#6b7280; }
         .top-trades { font-size:0.75rem; color:#9ca3af; }
 
+        /* ===== Live Trades box ===== */
+        .livebox { margin:8px 12px 0; background:#0b0e17; border:1px solid #1f2937; border-radius:10px; padding:9px 12px; }
+        .livebox-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+        .lb-title { font-size:0.72rem; font-weight:700; letter-spacing:.8px; color:#fbbf24; }
+        .lb-mode { font-size:0.55rem; font-weight:700; padding:1px 7px; border-radius:4px; background:#1e3a5f; color:#7dd3fc; letter-spacing:.5px; }
+        .lb-mode.live { background:#3a1e1e; color:#fca5a5; }
+        .lb-empty { font-size:0.66rem; color:#6b7280; }
+        .lb-spacer { flex:1; }
+        .lb-hint { font-size:0.58rem; color:#4b5563; letter-spacing:.4px; }
+        .livebox-cards { display:flex; gap:10px; flex-wrap:wrap; }
+        .lb-card { flex:1 1 280px; min-width:260px; background:#0f1320; border:1px solid #1f2937; border-radius:9px;
+            padding:9px 11px; border-left:4px solid #374151; transition:border-color .2s, box-shadow .2s; }
+        .lb-card.ce { border-left-color:#10b981; }
+        .lb-card.pe { border-left-color:#fca5a5; }
+        .lb-card.blink { animation:lbBlink 1.1s ease-in-out 4; }
+        @keyframes lbBlink {
+            0%,100% { box-shadow:0 0 0 0 rgba(16,185,129,0); }
+            50%     { box-shadow:0 0 0 3px rgba(251,191,36,.55); border-color:#fbbf24; }
+        }
+        .lb-card-top { display:flex; align-items:baseline; gap:8px; margin-bottom:7px; }
+        .lb-inst { font-size:0.6rem; font-weight:700; color:#9ca3af; letter-spacing:.5px; }
+        .lb-strike { font-size:0.92rem; font-weight:700; color:#e5e7eb; }
+        .lb-side { font-size:0.56rem; font-weight:700; padding:1px 6px; border-radius:4px; letter-spacing:.4px; }
+        .lb-side.ce { background:#06301f; color:#34d399; }
+        .lb-side.pe { background:#3a0c0c; color:#fca5a5; }
+        .lb-pnl { margin-left:auto; font-size:0.8rem; font-weight:700; font-variant-numeric:tabular-nums; }
+        .lb-pnl.up { color:#10b981; } .lb-pnl.dn { color:#ef4444; } .lb-pnl.flat { color:#9ca3af; }
+        .lb-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px 4px; }
+        .lb-cell { text-align:center; }
+        .lb-cell .l { font-size:0.52rem; color:#6b7280; letter-spacing:.4px; text-transform:uppercase; }
+        .lb-cell .v { font-size:0.74rem; font-weight:600; font-variant-numeric:tabular-nums; color:#d1d5db; }
+        .lb-cell .v.ltp { color:#fbbf24; }
+        .lb-cell .v.sl  { color:#f87171; }
+        .lb-cell .v.tp  { color:#34d399; }
+        .lb-cell .v.tr  { color:#60a5fa; }
+        .lb-trlock { font-size:0.5rem; color:#60a5fa; }
+        .lb-actions { display:flex; gap:6px; margin-top:8px; }
+        .lb-exit { flex:1; border:none; border-radius:5px; padding:6px; font-size:0.6rem; font-weight:700;
+            letter-spacing:.4px; cursor:pointer; background:#3a1e1e; color:#fca5a5; transition:filter .12s; }
+        .lb-exit:hover { filter:brightness(1.2); }
+        .lb-status { font-size:0.52rem; color:#6b7280; align-self:center; }
+
         .mute-btn {
             background: none; border: 1px solid #374151; border-radius: 6px;
             padding: 3px 9px; color: #10b981; font-size: 0.72rem; cursor: pointer;
@@ -168,6 +210,16 @@
         .wl-dim  { color:#9ca3af; }
         .wl-atm-badge { display:inline-block; background:#1e1b4b; color:#a78bfa; font-size:0.56rem;
             padding:1px 5px; border-radius:3px; margin-left:6px; letter-spacing:.3px; font-weight:600; }
+        .wl-table th.wl-th-trade, .wl-table td.wl-td-trade { text-align:center; position:sticky; right:0;
+            background:#0b0e17; border-left:1px solid #1f2937; box-shadow:-6px 0 8px -6px rgba(0,0,0,.6); }
+        .wl-table tr:hover td.wl-td-trade { background:#0d1220; }
+        .wl-buy { border:none; border-radius:5px; padding:6px 12px; font-size:0.62rem; font-weight:700;
+            letter-spacing:.4px; cursor:pointer; color:#04140b; transition:filter .12s, transform .06s; }
+        .wl-buy.ce { background:#10b981; }
+        .wl-buy.pe { background:#fca5a5; color:#2a0808; }
+        .wl-buy:hover { filter:brightness(1.12); }
+        .wl-buy:active { transform:scale(.95); }
+        .wl-buy:disabled { background:#374151; color:#6b7280; cursor:not-allowed; filter:none; }
         .wl-filter-row { display:flex; gap:6px; align-items:center; }
         .wl-filter-btn {
             background:#111827; border:1px solid #374151; color:#9ca3af; font-size:0.58rem;
@@ -1594,6 +1646,18 @@
 
     <div class="disclaimer">⚠️ <b>High Risk:</b> Expiry options trading. Paper trade first. Never risk more than you can afford to lose.</div>
 
+    <!-- ===== LIVE TRADES BOX ===== -->
+    <div class="livebox" id="liveBox">
+        <div class="livebox-head">
+            <span class="lb-title">⚡ LIVE TRADES</span>
+            <span class="lb-mode" id="lbMode">PAPER</span>
+            <span class="lb-empty" id="lbEmpty">No open positions — BUY from the watchlist below</span>
+            <span class="lb-spacer"></span>
+            <span class="lb-hint">Strike · LTP · SL · TP · Trail SL</span>
+        </div>
+        <div class="livebox-cards" id="lbCards"></div>
+    </div>
+
     <!-- ===== MAIN GRID ===== -->
     <div class="main-grid">
 
@@ -2261,9 +2325,10 @@
                                 <th data-sort="wkHigh">52 Wk High <span class="wl-arrow">⇅</span></th>
                                 <th data-sort="wkLow">52 Wk Low <span class="wl-arrow">⇅</span></th>
                                 <th data-sort="avgPrice">Average Price <span class="wl-arrow">⇅</span></th>
+                                <th class="wl-th-trade">Trade</th>
                             </tr></thead>
                             <tbody id="wl-body">
-                                <tr><td colspan="17" style="color:#6b7280;padding:20px;text-align:center;">Loading...</td></tr>
+                                <tr><td colspan="18" style="color:#6b7280;padding:20px;text-align:center;">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -3317,7 +3382,7 @@
             // Reset position poll to use new instrument
             stopPositionPoll(); startPositionPoll();
             // Reload all panels
-            fetchData(); loadPnl(); loadEngineStatus(); loadSensibullData(); loadWatchlist(); loadGreeksMatrix(); loadHLRecord();
+            fetchData(); loadPnl(); loadEngineStatus(); loadSensibullData(); loadWatchlist(); loadGreeksMatrix(); loadHLRecord(); loadLiveTrades();
         }
 
         // Background NIFTY fetch — always running, updates top bar price
@@ -3696,6 +3761,9 @@
             bindWlSorting();
             loadWatchlist();
             setInterval(loadWatchlist, 5000);
+            // Live Trades box — poll open positions every 2s (fast P&L/SL/trail)
+            loadLiveTrades();
+            setInterval(loadLiveTrades, 2000);
             // Refresh performance analytics every 15s
             loadPerformance();
             setInterval(loadPerformance, 15000);
@@ -4725,6 +4793,123 @@
             }
         }
 
+        // ===== LIVE TRADES BOX =====
+        // Polls every open position (SENSEX + NIFTY) and renders a card per trade
+        // with Strike · LTP · SL · TP · Trailing-SL. New confirmations blink.
+        const LB_INSTS = [
+            { inst: 'SENSEX', api: '/api/position' },
+            { inst: 'NIFTY',  api: '/api/nifty/position' }
+        ];
+        let _lbSeen = {};   // inst -> "strike_type" of the last shown open trade (to detect NEW)
+
+        async function loadLiveTrades() {
+            const results = await Promise.all(LB_INSTS.map(async cfg => {
+                try {
+                    const r = await fetch(`${API_BASE}${cfg.api}`, { cache: 'no-store' });
+                    const d = await r.json();
+                    return { ...cfg, d };
+                } catch (e) { return { ...cfg, d: null }; }
+            }));
+            const cardsEl = document.getElementById('lbCards');
+            const emptyEl = document.getElementById('lbEmpty');
+            let html = '';
+            let openCount = 0;
+            results.forEach(({ inst, d }) => {
+                if (!d || !d.open || !d.position) { _lbSeen[inst] = null; return; }
+                openCount++;
+                const p = d.position;
+                const ltp = Number(d.currentPrice ?? p.currentPrice ?? p.entryPrice);
+                const entry = Number(p.entryPrice);
+                const sl = Number(p.movingStop ?? p.sl ?? 0);          // live stop (moves with trail)
+                const tp = Number(d.target ?? (entry * 2.5));
+                const trail = Number(d.trailStop ?? p.movingStop ?? 0);
+                const trailLocked = !!(d.trailLocked || p.trailLocked);
+                const pnlPct = Number(d.pnlPct ?? (((ltp - entry) / entry) * 100));
+                const pnlAbs = (ltp - entry) * Number(p.quantity || p.lots || 1);
+                const cls = pnlPct > 0.05 ? 'up' : pnlPct < -0.05 ? 'dn' : 'flat';
+                const side = (p.type || '').toLowerCase();
+                const key = `${p.strike}_${p.type}`;
+                const isNew = _lbSeen[inst] !== key;   // first time we see this exact trade → blink
+                _lbSeen[inst] = key;
+                html += `<div class="lb-card ${side} ${isNew ? 'blink' : ''}">
+                    <div class="lb-card-top">
+                        <span class="lb-inst">${inst}</span>
+                        <span class="lb-strike">${fmtNum(p.strike)}</span>
+                        <span class="lb-side ${side}">${p.type}</span>
+                        <span class="lb-pnl ${cls}">${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}% ${pnlAbs >= 0 ? '+' : ''}₹${Math.round(pnlAbs)}</span>
+                    </div>
+                    <div class="lb-grid">
+                        <div class="lb-cell"><div class="l">LTP</div><div class="v ltp">${fmtNum(ltp)}</div></div>
+                        <div class="lb-cell"><div class="l">SL</div><div class="v sl">${fmtNum(sl)}</div></div>
+                        <div class="lb-cell"><div class="l">TP</div><div class="v tp">${fmtNum(tp)}</div></div>
+                        <div class="lb-cell"><div class="l">Trail SL</div><div class="v tr">${fmtNum(trail)}${trailLocked ? '<div class="lb-trlock">🔒 locked</div>' : ''}</div></div>
+                    </div>
+                    <div class="lb-actions">
+                        <span class="lb-status">Entry ₹${fmtNum(entry)}${p.lots ? ' · ' + p.lots + ' lot' : ''}</span>
+                        <button class="lb-exit" onclick="lbExit('${inst}')">⏹ SELL / EXIT</button>
+                    </div>
+                </div>`;
+            });
+            cardsEl.innerHTML = html;
+            emptyEl.style.display = openCount ? 'none' : '';
+            const lbMode = document.getElementById('lbMode');
+            const modeTxt = (document.getElementById('modeBadge')?.textContent || 'PAPER');
+            if (lbMode) { lbMode.textContent = /live/i.test(modeTxt) ? 'LIVE' : 'PAPER'; lbMode.className = 'lb-mode' + (/live/i.test(modeTxt) ? ' live' : ''); }
+        }
+
+        async function lbExit(inst) {
+            const api = inst === 'NIFTY' ? '/api/nifty/position' : '/api/position';
+            if (!confirm(`Exit (SELL) the open ${inst} position at current LTP?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}${api}/exit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: 'MANUAL' })
+                });
+                const d = await res.json();
+                if (!res.ok) { showAlert('❌ ' + (d.error || res.status), 'error'); return; }
+                const t = d.trade || {};
+                showAlert(`${parseFloat(t.finalMult) >= 1 ? '✅' : '❌'} SOLD ${inst} ${t.type} ${t.strike} @ ${t.finalMult}x (${t.finalPnlPct}%)`, 'success');
+                _lbSeen[inst] = null;
+                loadLiveTrades();
+                try { loadPnl && loadPnl(); } catch (_) {}
+                try { refreshPosition && refreshPosition(); } catch (_) {}
+            } catch (e) { showAlert('❌ ' + e.message, 'error'); }
+        }
+
+        // Paper-trade straight from the watchlist row. Routes NIFTY to its own
+        // engine endpoint and everything else to the generic position endpoint.
+        // PAPER mode only — server refuses live orders unless TRADE_MODE=live.
+        async function wlTrade(type, strike, ltp) {
+            if (!(ltp > 0)) { showAlert('⚠️ No live LTP for this strike yet', 'warning'); return; }
+            const inst = _inst;
+            if (!confirm(`PAPER BUY\n\n${inst} ${strike} ${type} @ ₹${ltp}\n\nEntry = current LTP. SL / trail / target use your configured engine settings. Proceed?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}${INST_CFG[inst].posApi}/enter`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, strike, entryPrice: ltp })
+                });
+                const d = await res.json();
+                if (!res.ok) {
+                    if (res.status === 409) {
+                        showAlert('⚠️ A position is already open for ' + inst + '. Exit it first.', 'warning');
+                    } else {
+                        showAlert('❌ Trade failed: ' + (d.error || res.status), 'error');
+                    }
+                    return;
+                }
+                const p = d.position || {};
+                showAlert(`✅ PAPER BUY ${inst} ${p.strike} ${p.type} @ ₹${p.entryPrice}${p.lots ? ' · ' + p.lots + ' lot(s)' : ''}`, 'success');
+                _lbSeen[inst] = null;          // force the Live Trades card to blink as NEW
+                loadLiveTrades();
+                startPositionPoll();
+                try { loadPnl && loadPnl(); } catch (_) {}
+            } catch (e) {
+                showAlert('❌ ' + e.message, 'error');
+            }
+        }
+
         function setWatchlistFilter(filter) {
             _wlFilter = filter;
             updateWatchlistFilterButtons();
@@ -4752,7 +4937,7 @@
                 const msg = d.error
                     ? `⚠ Dhan error: ${String(d.error).slice(0, 120)}`
                     : 'No data';
-                tbody.innerHTML = `<tr><td colspan="17" style="color:#ef4444;padding:20px;text-align:center;font-size:0.68rem;">${msg}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="18" style="color:#ef4444;padding:20px;text-align:center;font-size:0.68rem;">${msg}</td></tr>`;
                 updateWatchlistFilterButtons();
                 return;
             }
@@ -4770,7 +4955,7 @@
 
             if (!filteredRows.length) {
                 const filterLabel = _wlFilter === 'CE' ? 'CALL' : _wlFilter === 'PE' ? 'PUT' : 'selected';
-                tbody.innerHTML = `<tr><td colspan="17" style="color:#9ca3af;padding:20px;text-align:center;font-size:0.68rem;">No ${filterLabel} quotes available</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="18" style="color:#9ca3af;padding:20px;text-align:center;font-size:0.68rem;">No ${filterLabel} quotes available</td></tr>`;
                 updateWlHeaderArrows();
                 updateWatchlistFilterButtons();
                 return;
@@ -4799,6 +4984,12 @@
                     <td class="wl-dim">${fmtNum(r.wkHigh)}</td>
                     <td class="wl-dim">${fmtNum(r.wkLow)}</td>
                     <td>${fmtNum(r.avgPrice)}</td>
+                    <td class="wl-td-trade">
+                        <button class="wl-buy ${r.type.toLowerCase()}" title="Paper-buy ${r.label} @ LTP ₹${fmtNum(r.ltp)}"
+                            onclick="wlTrade('${r.type}', ${r.strike}, ${r.ltp})" ${r.ltp > 0 ? '' : 'disabled'}>
+                            BUY ${r.type}
+                        </button>
+                    </td>
                 </tr>`;
             }).join('');
             updateWlHeaderArrows();
