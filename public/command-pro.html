@@ -245,6 +245,11 @@ function renderMR(){
     </div>
     ${_aiMR.logic?`<div class="ai-logic">${_aiMR.logic}</div>`:''}
     <div class="ai-meta"><span>Support ${fmt(_aiMR.support)}</span><span>Resistance ${fmt(_aiMR.resistance)}</span></div>
+    <div class="ai-meta">
+      <span>BB %B ${_aiMR.bollinger&&_aiMR.bollinger.pctB!=null?_aiMR.bollinger.pctB:'--'}</span>
+      <span>Stoch ${_aiMR.stochK!=null?Math.round(_aiMR.stochK):'--'}</span>
+      <span>MACD ${_aiMR.macdHist!=null?_aiMR.macdHist:'--'}</span>
+    </div>
   </div>`;
 }
 function renderGB(){
@@ -370,7 +375,7 @@ async function loadAI(){
   // Mean-reversion via ema-stack?ai=1; merges rsi/support/resistance for the card.
   try{
     const m = await fetch(`${API}/api/ema-stack?inst=${_inst}&ai=1`,{cache:'no-store'}).then(r=>r.json());
-    if (m.ai){ _aiMR = { ...m.ai, rsi:m.rsi, support:m.support, resistance:m.resistance }; }
+    if (m.ai){ _aiMR = { ...m.ai, rsi:m.rsi, support:m.support, resistance:m.resistance, bollinger:m.bollinger, stochK:m.stochastic, macdHist:m.macdHist }; }
     else { _aiMR = (m && ('ai' in m)) ? 'OFF' : null; if(m && m.ai===null && m.rsi!=null) _aiMR='OFF'; }
   }catch(e){ _aiMR=null; }
   renderMR();

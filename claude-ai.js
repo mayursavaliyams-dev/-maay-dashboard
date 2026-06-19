@@ -251,7 +251,9 @@ async function claudeMeanReversion(ctx) {
 
   const {
     symbol = 'NIFTY', currentPrice, rsiValue,
-    supportLevel, resistanceLevel, ema50
+    supportLevel, resistanceLevel, ema50,
+    // extra indicators (optional — improve the read when provided)
+    bbUpper, bbLower, bbPctB, stochK, macdHist
   } = ctx;
 
   const system = `તમે એક એક્સપર્ટ આલ્ગોરિધમિક ટ્રેડર છો. તમારી જવાબદારી "નીચે ખરીદો અને ઉપર વેચો" (Buy Low, Sell High / Mean Reversion) સ્ટ્રેટેજી પર કામ કરવાની છે. તમારો ઉદ્દેશ્ય ઓવરસોલ્ડ (Oversold) અને ઓવરબોટ (Overbought) કન્ડિશન શોધીને ટ્રેડ લેવાનો છે.`;
@@ -263,10 +265,13 @@ async function claudeMeanReversion(ctx) {
 - નજીકનો સપોર્ટ (Support) લેવલ: ${supportLevel}
 - નજીકનો રેઝિસ્ટન્સ (Resistance) લેવલ: ${resistanceLevel}
 - 50 EMA: ${ema50}
+- Bollinger Bands: અપર ${bbUpper ?? 'N/A'} / લોઅર ${bbLower ?? 'N/A'} / %B ${bbPctB ?? 'N/A'} (0=લોઅર બેન્ડ, 1=અપર બેન્ડ)
+- Stochastic %K: ${stochK ?? 'N/A'} (20 ની નીચે = oversold, 80 ની ઉપર = overbought)
+- MACD હિસ્ટોગ્રામ: ${macdHist ?? 'N/A'} (પોઝિટિવ = bullish મોમેન્ટમ)
 
 ### 🎯 તમારે આ ડેટાનું એનાલિસિસ કરવાનું છે:
-૧. **એન્ટ્રી ઝોન ચકાસો:** જો પ્રાઈઝ સપોર્ટની નજીક હોય અને RSI 30 ની નીચે હોય, તો તે "Buy Low" ની તક છે. જો પ્રાઈઝ રેઝિસ્ટન્સ પાસે હોય અને RSI 70 ની ઉપર હોય, તો તે "Sell High" (શોર્ટ) ની તક છે.
-૨. **ટ્રેન્ડ કન્ફર્મેશન:** 50 EMA ચેક કરો. જો ભાવ EMA થી ખૂબ દૂર હોય, તો તે પાછો EMA તરફ આવવાની શક્યતા છે.
+૧. **એન્ટ્રી ઝોન ચકાસો:** જો પ્રાઈઝ સપોર્ટ/લોઅર બેન્ડની નજીક હોય (%B ≤ 0.2) અને RSI 30 ની નીચે + Stochastic 20 ની નીચે હોય, તો તે મજબૂત "Buy Low" તક છે. જો પ્રાઈઝ રેઝિસ્ટન્સ/અપર બેન્ડ પાસે હોય (%B ≥ 0.8) અને RSI 70 ની ઉપર + Stochastic 80 ની ઉપર હોય, તો તે મજબૂત "Sell High" (શોર્ટ) તક છે.
+૨. **ટ્રેન્ડ કન્ફર્મેશન:** 50 EMA અને MACD હિસ્ટોગ્રામ ચેક કરો. ભાવ EMA થી ખૂબ દૂર હોય તો mean-reversion ની શક્યતા; પણ MACD strong-opposite હોય તો સાવધાન રહો (HOLD આપો).
 ૩. **રિસ્ક મેનેજમેન્ટ:** ટાર્ગેટ અને સ્ટોપલોસ એ રીતે નક્કી કરો કે રિસ્ક-રિવોર્ડ રેશિયો ઓછામાં ઓછો 1:2 રહે.
 
 ### 📝 ફાઇનલ આઉટપુટ ફોર્મેટ (ફક્ત JSON):

@@ -86,6 +86,59 @@ function emaCrosses(closes, fastLen, midLen, look) {
   return crosses;
 }
 
+// ── Bollinger Bands — SMA(period) ± mult·stdev. %B = position within bands. ──
+function bollinger(series, period = 20, mult = 2) {
+  if (!series || series.length < period) return null;
+  const win = series.slice(-period);
+  const mid = win.reduce((s, v) => s + v, 0) / period;
+  const variance = win.reduce((s, v) => s + (v - mid) ** 2, 0) / period;
+  const sd = Math.sqrt(variance);
+  const upper = mid + mult * sd, lower = mid - mult * sd;
+  const price = series[series.length - 1];
+  const pctB = upper !== lower ? (price - lower) / (upper - lower) : 0.5; // 0=lower, 1=upper
+  const bandwidth = mid > 0 ? (upper - lower) / mid : 0;
+  return { upper: +upper.toFixed(2), mid: +mid.toFixed(2), lower: +lower.toFixed(2), pctB: +pctB.toFixed(3), bandwidth: +bandwidth.toFixed(4) };
+}
+
+// ── MACD — EMA(fast) − EMA(slow); signal = EMA(macd, signalLen); hist = macd − signal. ──
+function macd(series, fast = 12, slow = 26, signalLen = 9) {
+  if (!series || series.length < slow + signalLen) return null;
+  const fastSer = emaSeries(series, fast), slowSer = emaSeries(series, slow);
+  const macdSer = fastSer.map((v, i) => v - slowSer[i]).slice(slow - 1); // align from where slow is valid
+  const sigSer = emaSeries(macdSer, signalLen);
+  const m = macdSer[macdSer.length - 1], sig = sigSer[sigSer.length - 1];
+  const histNow = m - sig;
+  const histPrev = macdSer.length >= 2 && sigSer.length >= 2 ? macdSer[macdSer.length - 2] - sigSer[sigSer.length - 2] : histNow;
+  return { macd: +m.toFixed(2), signal: +sig.toFixed(2), hist: +histNow.toFixed(2), rising: histNow > histPrev };
+}
+
+// ── Stochastic %K over closes (no per-bar H/L → use close window). ──
+function stochastic(series, period = 14, smooth = 3) {
+  if (!series || series.length < period + smooth) return null;
+  const k = (end) => {
+    const win = series.slice(end - period, end);
+    const hi = Math.max(...win), lo = Math.min(...win);
+    return hi !== lo ? ((series[end - 1] - lo) / (hi - lo)) * 100 : 50;
+  };
+  const ks = [];
+  for (let e = series.length - smooth + 1; e <= series.length; e++) ks.push(k(e));
+  const kSmoothed = ks.reduce((s, v) => s + v, 0) / ks.length;
+  return { k: +kSmoothed.toFixed(1) };
+}
+
+// ── OBV — On-Balance Volume; rising/falling tells volume-confirmed direction. ──
+function obv(closes, volumes, look = 10) {
+  if (!closes || !volumes || closes.length < look + 1) return null;
+  let o = 0; const series = [0];
+  for (let i = 1; i < closes.length; i++) {
+    if (closes[i] > closes[i - 1]) o += volumes[i] || 0;
+    else if (closes[i] < closes[i - 1]) o -= volumes[i] || 0;
+    series.push(o);
+  }
+  const now = series[series.length - 1], prev = series[series.length - 1 - look] ?? series[0];
+  return { value: now, rising: now > prev, slope: now - prev };
+}
+
 const DEFAULTS = {
   emaFast: 9, emaMid: 21, emaSlow: 50,
   rsiLen: 14, rsiOb: 70, rsiOs: 30, rsiBullMin: 45, rsiBearMax: 55,
@@ -94,6 +147,9 @@ const DEFAULTS = {
   swLookback: 20, swThreshold: 0.8, swCrossMax: 3, swCrossLook: 10,
   atrLen: 14, atrSlMult: 1.5, rrTarget1: 1.0, rrTarget2: 2.0,
   adxMin: 20, stFactor: 3.0, stAtrLen: 10,
+  // New indicators
+  bbLen: 20, bbMult: 2, macdFast: 12, macdSlow: 26, macdSignal: 9,
+  stochLen: 14, stochSmooth: 3, stochOb: 80, stochOs: 20, obvLook: 10,
   useAdx: true, useSupertrend: true, useHtf: true,
 };
 
@@ -168,17 +224,46 @@ function evaluate({ closes, volumes, candle, vwap, htfClose, cfg = {} }) {
   const htfBull = !C.useHtf || htfClose == null || price > htfClose;
   const htfBear = !C.useHtf || htfClose == null || price < htfClose;
 
-  // SCORES (core 5, like the Pine table)
-  const callScore = (bullStack ? 1 : 0) + (vwapBull ? 1 : 0) + (rsiBullOk ? 1 : 0) + (volSpike ? 1 : 0) + (bullCandle ? 1 : 0);
-  const putScore  = (bearStack ? 1 : 0) + (vwapBear ? 1 : 0) + (rsiBearOk ? 1 : 0) + (volSpike ? 1 : 0) + (bearCandle ? 1 : 0);
+  // ── EXTRA INDICATORS ───────────────────────────────────────────────────────
+  // Bollinger: bull bias when price reclaims from the lower band (%B < 0.2 →
+  // oversold rebound), bear bias near the upper band (%B > 0.8 → overbought).
+  const bb = bollinger(closes, C.bbLen, C.bbMult);
+  const bbBull = bb ? bb.pctB <= 0.2 : false;   // near/below lower band → mean-reversion long
+  const bbBear = bb ? bb.pctB >= 0.8 : false;   // near/above upper band → mean-reversion short
+
+  // MACD: histogram > 0 and rising = bullish momentum; < 0 and falling = bearish.
+  const mac = macd(closes, C.macdFast, C.macdSlow, C.macdSignal);
+  const macdBull = mac ? (mac.hist > 0 && mac.rising) : false;
+  const macdBear = mac ? (mac.hist < 0 && !mac.rising) : false;
+
+  // Stochastic: oversold (<20) leaving = bull, overbought (>80) leaving = bear.
+  const st = stochastic(closes, C.stochLen, C.stochSmooth);
+  const stochBull = st ? st.k <= C.stochOs : false;
+  const stochBear = st ? st.k >= C.stochOb : false;
+
+  // OBV: volume-confirmed direction.
+  const ob = obv(closes, volumes, C.obvLook);
+  const obvBull = ob ? ob.rising : false;
+  const obvBear = ob ? !ob.rising : false;
+
+  // SCORES — core 5 (Pine table) + 3 extra momentum confirmations (MACD, OBV,
+  // Bollinger). Stochastic stays advisory (mean-reversion timing, not trend).
+  const callScore = (bullStack ? 1 : 0) + (vwapBull ? 1 : 0) + (rsiBullOk ? 1 : 0) + (volSpike ? 1 : 0) + (bullCandle ? 1 : 0)
+                  + (macdBull ? 1 : 0) + (obvBull ? 1 : 0) + (bbBull ? 1 : 0);
+  const putScore  = (bearStack ? 1 : 0) + (vwapBear ? 1 : 0) + (rsiBearOk ? 1 : 0) + (volSpike ? 1 : 0) + (bearCandle ? 1 : 0)
+                  + (macdBear ? 1 : 0) + (obvBear ? 1 : 0) + (bbBear ? 1 : 0);
 
   const coreBuy  = bullMomentum && vwapBull && rsiBullOk && volSpike && bullCandle && notSideways;
   const coreSell = bearMomentum && vwapBear && rsiBearOk && volSpike && bearCandle && notSideways;
   const shieldsOk = adxOk;
+  // MACD as a momentum shield: don't take a CALL while MACD histogram is firmly
+  // bearish (and vice-versa). Permissive when MACD is unavailable/neutral.
+  const macdCallOk = !mac || mac.hist >= 0 || mac.rising;
+  const macdPutOk  = !mac || mac.hist <= 0 || !mac.rising;
 
   let signal = 'WAIT';
-  if (coreBuy && stBull && htfBull && shieldsOk) signal = 'CALL';
-  else if (coreSell && stBear && htfBear && shieldsOk) signal = 'PUT';
+  if (coreBuy && stBull && htfBull && shieldsOk && macdCallOk) signal = 'CALL';
+  else if (coreSell && stBear && htfBear && shieldsOk && macdPutOk) signal = 'PUT';
 
   // ATR-based SL/TP levels (for display + downstream use)
   const slDist = atrFromCloses(closes, C.atrLen) * C.atrSlMult;
@@ -197,15 +282,22 @@ function evaluate({ closes, volumes, candle, vwap, htfClose, cfg = {} }) {
       rsi:       { value: +r.toFixed(1), bull: rsiBullOk, bear: rsiBearOk },
       volume:    { ratio: volMa > 0 ? +(lastVol / volMa).toFixed(2) : 0, spike: volSpike },
       candle:    { bodyPct: +bodyPct.toFixed(0), bull: bullCandle, bear: bearCandle },
-      sideways:  { rangePct: +rangePct.toFixed(2), crosses, choppy: isSideways }
+      sideways:  { rangePct: +rangePct.toFixed(2), crosses, choppy: isSideways },
+      macd:      mac ? { ...mac, bull: macdBull, bear: macdBear } : null,
+      bollinger: bb  ? { ...bb, bull: bbBull, bear: bbBear } : null,
+      stochastic: st ? { k: st.k, bull: stochBull, bear: stochBear } : null,
+      obv:       ob  ? { rising: ob.rising, bull: obvBull, bear: obvBear } : null
     },
     shields: {
       adx:        { value: +adx.toFixed(1), ok: adxOk },
       supertrend: { bull: stBull, bear: stBear },
-      htf:        { bull: htfBull, bear: htfBear, ref: htfClose ?? null }
+      htf:        { bull: htfBull, bear: htfBear, ref: htfClose ?? null },
+      macd:       { callOk: macdCallOk, putOk: macdPutOk }
     },
-    values: { price: +price.toFixed(2), ema9: +eF.toFixed(2), ema21: +eM.toFixed(2), ema50: +eS.toFixed(2), vwap: vwap ? +vwap.toFixed(2) : null, atr: +atr.toFixed(2), ...levels }
+    values: { price: +price.toFixed(2), ema9: +eF.toFixed(2), ema21: +eM.toFixed(2), ema50: +eS.toFixed(2), vwap: vwap ? +vwap.toFixed(2) : null, atr: +atr.toFixed(2),
+      bbUpper: bb?.upper ?? null, bbLower: bb?.lower ?? null, bbPctB: bb?.pctB ?? null,
+      macdHist: mac?.hist ?? null, stochK: st?.k ?? null, ...levels }
   };
 }
 
-module.exports = { evaluate, DEFAULTS };
+module.exports = { evaluate, DEFAULTS, bollinger, macd, stochastic, obv, rsi };

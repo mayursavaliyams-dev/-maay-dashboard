@@ -3828,19 +3828,28 @@ async function _augmentMeanReversionAI(inst, data, closes) {
                                         : (orbLow        || dayLow        || null);
     const resistance = inst === 'NIFTY' ? (niftyOrbHigh || niftyDayHigh || null)
                                         : (orbHigh       || dayHigh       || null);
-    const rsiVal = closes ? _rsi14(closes.map(Number).filter(n => n > 0)) : null;
-    // Set RSI + the levels we fed the model FIRST, so they appear even if the
-    // AI call itself errors (kept advisory, never blocks the response).
+    const series = closes ? closes.map(Number).filter(n => n > 0) : null;
+    const rsiVal = series ? _rsi14(series) : null;
+    // Extra indicators from the same close series (reuse multiconfirm helpers).
+    const bb    = series ? multiconfirm.bollinger(series, 20, 2) : null;
+    const stoch = series ? multiconfirm.stochastic(series, 14, 3) : null;
+    const mac   = series ? multiconfirm.macd(series, 12, 26, 9) : null;
+    // Set indicators + levels FIRST, so they appear even if the AI call errors.
     data.rsi = rsiVal != null ? +rsiVal.toFixed(1) : null;
     data.support = support || null;
     data.resistance = resistance || null;
+    data.bollinger = bb;
+    data.stochastic = stoch ? stoch.k : null;
+    data.macdHist = mac ? mac.hist : null;
     data.ai = await claudeMeanReversion({
       symbol: inst,
       currentPrice: data.price,
       rsiValue: rsiVal != null ? +rsiVal.toFixed(1) : 'N/A',
       supportLevel: support || 'N/A',
       resistanceLevel: resistance || 'N/A',
-      ema50: data.ema50 ?? 'N/A'
+      ema50: data.ema50 ?? 'N/A',
+      bbUpper: bb?.upper, bbLower: bb?.lower, bbPctB: bb?.pctB,
+      stochK: stoch?.k, macdHist: mac?.hist
     });
   } catch (_) { data.ai = null; }
   return data;
