@@ -18,6 +18,7 @@ const OptionAnalyzer = require("./option-analyzer");
 const SimpleDB = require("./database");
 const LiveConnector = require("./live-connector");
 const KotakNeoConnector = require("./kotak-neo-connector");
+const UpstoxConnector = require("./upstox-connector");
 const { getChainAroundATM } = require("./sensibull-fetcher");
 const AmiBrokerBridge = require("./amibroker-bridge");
 const ExecutionEngine = require("./execution-engine");
@@ -80,22 +81,36 @@ const PORT = process.env.PORT || 3000;
 // Set LIVE_CONNECTOR=auto   → try Kotak first, fallback to Dhan
 const CONNECTOR_MODE = (process.env.LIVE_CONNECTOR || 'auto').toLowerCase();
 let live;
-if (CONNECTOR_MODE === 'kotak') {
+if (CONNECTOR_MODE === 'upstox') {
+  live = new UpstoxConnector({ accessToken: process.env.UPSTOX_ACCESS_TOKEN });
+  console.log('[server] Using Upstox connector');
+} else if (CONNECTOR_MODE === 'kotak') {
   live = new KotakNeoConnector();
   console.log('[server] Using Kotak Neo connector');
 } else if (CONNECTOR_MODE === 'dhan') {
   live = new LiveConnector({ dhanClientId: process.env.DHAN_CLIENT_ID, dhanAccessToken: process.env.DHAN_ACCESS_TOKEN });
   console.log('[server] Using Dhan connector');
 } else {
+  // AUTO — prefer Upstox when its token is set (Dhan Data API often unsubscribed).
+  const upstoxTok = process.env.UPSTOX_ACCESS_TOKEN;
   const kotakKey = process.env.KOTAK_CONSUMER_KEY;
-  if (kotakKey && kotakKey !== 'your_consumer_key_here') {
+  if (upstoxTok && upstoxTok.length > 40) {
+    live = new UpstoxConnector({ accessToken: upstoxTok });
+    console.log('[server] AUTO — Upstox connector selected');
+  } else if (kotakKey && kotakKey !== 'your_consumer_key_here') {
     live = new KotakNeoConnector();
     console.log('[server] AUTO — Kotak Neo connector selected');
   } else {
     live = new LiveConnector({ dhanClientId: process.env.DHAN_CLIENT_ID, dhanAccessToken: process.env.DHAN_ACCESS_TOKEN });
-    console.log('[server] AUTO — Dhan connector selected (Kotak key not set)');
+    console.log('[server] AUTO — Dhan connector selected (no Upstox/Kotak)');
   }
 }
+
+// Human-readable name of the active data source — used in `source:` fields and
+// the health label so the UI reflects the real provider (not a hardcoded "dhan").
+const DATA_SOURCE = live instanceof UpstoxConnector ? 'upstox'
+                  : live instanceof KotakNeoConnector ? 'kotak'
+                  : 'dhan';
 
 // Initialize Option Analyzer, Database
 const optionAnalyzer = new OptionAnalyzer();
@@ -300,11 +315,29 @@ async function _fetchYahooNiftyPrice() {
 // Each breakthrough appends {t, p} — lets the dashboard show full session history.
 const _optHL = { SENSEX: new Map(), NIFTY: new Map(), BANKNIFTY: new Map() };
 let _optHLPurgeDate = '';
+
+// High/Low TOUCH alerts — when a CALL/PUT LTP makes a NEW session high or low,
+// we log a touch event (newest first). Drives a dashboard "X strike CE touched
+// new HIGH/LOW" feed. Per-instrument, capped, purged on new day.
+const _hlTouchAlerts = { SENSEX: [], NIFTY: [], BANKNIFTY: [] };
+function _pushHlTouch(inst, strike, type, kind, price, prev) {
+  const arr = _hlTouchAlerts[inst]; if (!arr) return;
+  const now = Date.now();
+  arr.unshift({
+    inst, strike, type, kind,            // kind: 'HIGH' | 'LOW'
+    price: +Number(price).toFixed(2),
+    prev:  +Number(prev || 0).toFixed(2),
+    movePct: prev ? +(((price - prev) / prev) * 100).toFixed(2) : 0,
+    time: _fmtHms(now), at: now
+  });
+  if (arr.length > 100) arr.length = 100;
+}
 function _purgeOptHLIfNewDay() {
   const today = _istDateStr();
   if (_optHLPurgeDate === today) return;
   _optHLPurgeDate = today;
   Object.values(_optHL).forEach(m => m.clear());
+  Object.keys(_hlTouchAlerts).forEach(k => { _hlTouchAlerts[k] = []; });
 }
 function _optHLKey(strike, type) { return `${strike}_${type}`; }
 function _fmtHms(ms) {
@@ -364,8 +397,12 @@ function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0) {
 
   const newHigh = observedHigh > rec.high;
   const newLow  = observedLow < rec.low;
+  const prevHigh = rec.high, prevLow = rec.low;
   if (newHigh) { rec.high = observedHigh; rec.highAt = now; }
   if (newLow)  { rec.low  = observedLow; rec.lowAt  = now; }
+  // Touch alert: this CE/PE just made a NEW session high / low.
+  if (newHigh) _pushHlTouch(inst, strike, type, 'HIGH', observedHigh, prevHigh);
+  if (newLow)  _pushHlTouch(inst, strike, type, 'LOW',  observedLow,  prevLow);
 
   // Record every genuine new extreme with exact timestamp — no bucket dedup.
   if (newHigh) {
@@ -383,6 +420,9 @@ function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0) {
       if (rec.tickPath.length > 500) rec.tickPath.shift();
     }
   }
+  // Persist option-strike record to Redis on any new extreme (fire-and-forget) so
+  // the H/L timeline survives a restart/crash — mirrors the spot-H/L persistence.
+  if (newHigh || newLow) redisStore.saveOptHL(inst, strike, type, rec).catch(() => {});
 }
 function _getOptHL(inst, strike, type) {
   return _optHL[inst]?.get(_optHLKey(strike, type)) || null;
@@ -1153,7 +1193,7 @@ app.get("/api/sensex", async (req, res) => {
         marketOpen: false,
         marketStatus: session.status,
         time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
-        source: 'dhan'
+        source: DATA_SOURCE
       });
     }
 
@@ -1262,7 +1302,7 @@ app.get("/api/sensex", async (req, res) => {
 app.get("/api/nifty", async (req, res) => {
   try {
     let quote;
-    let source = 'dhan';
+    let source = DATA_SOURCE;
     try {
       quote = await _withTimeout(live.getNiftyPrice(), QUOTE_TIMEOUT_MS, 'Dhan NIFTY quote');
     } catch (_) {
@@ -1402,7 +1442,7 @@ app.get("/api/nifty", async (req, res) => {
 app.get("/api/banknifty", async (req, res) => {
   try {
     let quote;
-    let source = 'dhan';
+    let source = DATA_SOURCE;
     try {
       quote = await _withTimeout(live.getBankNiftyPrice(), QUOTE_TIMEOUT_MS, 'Dhan BANKNIFTY quote');
     } catch (_) {
@@ -1730,7 +1770,7 @@ setInterval(async () => {
 
 // Health check
 app.get("/api/health", (req, res) => {
-  const source = live instanceof KotakNeoConnector ? 'Kotak Neo' : 'Dhan';
+  const source = live instanceof UpstoxConnector ? 'Upstox' : live instanceof KotakNeoConnector ? 'Kotak Neo' : 'Dhan';
   res.json({
     status: "OK",
     mode: live.connected ? `DATA (${source})` : "DISCONNECTED",
@@ -1887,7 +1927,7 @@ async function _buildOptionSnapshot(instrument = 'NIFTY') {
       spotPrice: +spot.toFixed(2),
       atmStrike,
       instrument: inst,
-      source: chain?.source || 'dhan',
+      source: chain?.source || DATA_SOURCE,
       timestamp: new Date(analyticsAt).toISOString(),
       ts: analyticsAt,
       highLow: hl ? {
@@ -3483,6 +3523,66 @@ app.get('/api/reversals', (req, res) => {
   res.json({ inst, date: log.date, count: events.length, events });
 });
 
+// ── High/Low TOUCH alerts ─────────────────────────────────────────────────────
+// Recent "CE/PE touched a NEW session high/low" events for a feed/banner.
+app.get('/api/hl-alerts', (req, res) => {
+  const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+  const kind = String(req.query.kind || '').toUpperCase(); // optional HIGH|LOW filter
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 40));
+  let list = _hlTouchAlerts[inst] || [];
+  if (kind === 'HIGH' || kind === 'LOW') list = list.filter(e => e.kind === kind);
+  res.json({ inst, count: list.length, alerts: list.slice(0, limit) });
+});
+
+// ── Last trading-session index H/L (real, from Dhan 1-min candles) ───────────
+// When today has no candles (holiday / pre-open / after a fresh restart with an
+// empty live H/L store), the dashboard would otherwise show "--". This serves
+// the most recent trading day's REAL index high/low + times so the panel is
+// never blank — clearly dated so it is never mistaken for "today live".
+const _lastHlCache = {}; // inst -> { at, data }
+app.get('/api/last-session-hl', async (req, res) => {
+  const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+  try {
+    const cached = _lastHlCache[inst];
+    if (cached && Date.now() - cached.at < 5 * 60 * 1000) return res.json(cached.data);
+    const meta = getInstrumentMeta(inst);
+    const secId = inst === 'NIFTY' ? (process.env.DHAN_NIFTY_SECURITY_ID || '13')
+                : inst === 'BANKNIFTY' ? (process.env.DHAN_BANKNIFTY_SECURITY_ID || '25')
+                : (process.env.DHAN_SENSEX_SECURITY_ID || '51');
+    const idxSeg = inst === 'SENSEX' ? 'IDX_I' : 'IDX_I';
+    // Walk back up to 7 days to the most recent day that actually traded.
+    const istNow = new Date(Date.now() + IST_OFFSET_MIN * 60 * 1000);
+    let found = null;
+    for (let back = 1; back <= 7 && !found; back++) {
+      const d = new Date(istNow.getTime() - back * 86400000);
+      const day = d.toISOString().slice(0, 10);
+      try {
+        const r = await live.client._post('/v2/charts/intraday', {
+          securityId: String(secId), exchangeSegment: idxSeg, instrument: 'INDEX',
+          interval: '1', fromDate: `${day} 09:14:00`, toDate: `${day} 15:30:00`
+        });
+        const ts = r?.timestamp || [], H = r?.high || [], L = r?.low || [], O = r?.open || [], C = r?.close || [];
+        if (!ts.length) continue;
+        const hi = Math.max(...H), lo = Math.min(...L.filter(x => x > 0));
+        const hIdx = H.indexOf(hi), lIdx = L.indexOf(lo);
+        const tm = (i) => { const t = new Date(ts[i] * 1000 + IST_OFFSET_MIN * 60000); return String(t.getUTCHours()).padStart(2,'0')+':'+String(t.getUTCMinutes()).padStart(2,'0'); };
+        found = {
+          inst, date: day, source: 'dhan-1min', live: false,
+          high: +hi.toFixed(2), highAt: tm(hIdx),
+          low: +lo.toFixed(2), lowAt: tm(lIdx),
+          open: +Number(O[0] || 0).toFixed(2), close: +Number(C[C.length - 1] || 0).toFixed(2),
+          rangePct: lo > 0 ? +(((hi - lo) / lo) * 100).toFixed(2) : 0
+        };
+      } catch (_) { /* try previous day */ }
+    }
+    if (!found) return res.status(404).json({ inst, error: 'no recent trading-day data available' });
+    _lastHlCache[inst] = { at: Date.now(), data: found };
+    res.json(found);
+  } catch (err) {
+    res.status(500).json({ inst, error: err.message });
+  }
+});
+
 // ==================== POP SELLER (Sensibull-style) ====================
 // Scan high-PoP sell candidates from the live option chain.
 app.get('/api/pop/scan', async (req, res) => {
@@ -4527,6 +4627,25 @@ async function _restoreFromRedis() {
     } catch (e) {
       console.warn(`[redis] restore ${inst} error:`, e.message);
     }
+  }
+
+  // Restore per-strike option H/L record timelines (survive restart, not just spot).
+  try {
+    const recs = await redisStore.loadAllOptHL();
+    let n = 0;
+    for (const { inst, strike, type, rec } of recs) {
+      if (!_optHL[inst]) continue;
+      _optHL[inst].set(_optHLKey(Number(strike), type), {
+        date: rec.date, high: rec.high, highAt: rec.highAt, low: rec.low, lowAt: rec.lowAt,
+        highPath: rec.highPath || [], lowPath: rec.lowPath || [], tickPath: rec.tickPath || []
+      });
+      n++;
+    }
+    // Mark today's purge as already done so the first chain access does NOT clear
+    // the records we just restored (the new-day purge fires when date != last-seen).
+    if (n) { _optHLPurgeDate = _istDateStr(); console.log(`[redis] Restored ${n} option-strike H/L records`); }
+  } catch (e) {
+    console.warn('[redis] restore optHL error:', e.message);
   }
 }
 
