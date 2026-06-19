@@ -24,6 +24,7 @@ const AmiBrokerBridge = require("./amibroker-bridge");
 const ExecutionEngine = require("./execution-engine");
 const AfternoonEngine = require("./afternoon-engine");
 const BounceEngine = require("./bounce-engine");
+const StrangleEngine = require("./strangle-engine");
 const TelegramAlerter = require("./telegram");
 
 // Initialize Telegram (no-op if TELEGRAM_ENABLED=false or credentials missing)
@@ -3068,6 +3069,22 @@ bounceEngine.onTrade = (event, d) => {
 app.get('/api/bounce/status', (req, res) => res.json(bounceEngine.status()));
 app.post('/api/bounce/enable', (req, res) => { bounceEngine.enabled = req.body?.enabled !== false; res.json({ ok: true, enabled: bounceEngine.enabled }); });
 
+// ==================== STRANGLE ENGINE (premium selling, PAPER) ====================
+// Validated SHORT_STRANGLE from bt-strategies.js: 89% win / +₹53k / 4.3% DD on
+// 120 days real bhavcopy. PAPER-only; off by default (STRANGLE_ENGINE_ENABLED).
+const strangleEngine = new StrangleEngine();
+strangleEngine.onTrade = (event, d) => {
+  if (event === 'SELL_OPEN') {
+    console.log(`[strangle] OPEN ${d.inst} ${d.pe.strike}PE/${d.ce.strike}CE credit ₹${d.credit} (exp ${d.expiry})`);
+    if (telegram?.enabled) telegram.sendAlert('🟣 Strangle OPEN', `${d.inst} ${d.pe.strike}PE + ${d.ce.strike}CE\nCredit ₹${d.credit}`).catch(() => {});
+  } else {
+    console.log(`[strangle] CLOSE ${d.inst} ${d.reason} ₹${d.pnlAbs} (${d.pnlPct}% of credit)`);
+    if (telegram?.enabled) telegram.sendAlert(d.pnlAbs >= 0 ? '✅ Strangle CLOSE' : '❌ Strangle CLOSE', `${d.inst} ${d.reason}\nP&L ₹${d.pnlAbs} (${d.pnlPct}%)`).catch(() => {});
+  }
+};
+app.get('/api/strangle/status', (req, res) => res.json(strangleEngine.status()));
+app.post('/api/strangle/enable', (req, res) => { strangleEngine.enabled = req.body?.enabled !== false; res.json({ ok: true, enabled: strangleEngine.enabled }); });
+
 // ==================== AFTERNOON ENGINE ENDPOINTS ====================
 app.get('/api/afternoon/status', (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
@@ -4453,11 +4470,15 @@ function runBotEngine() {
     niftyAfternoonEngine.tick().catch(err => console.error('[nifty-afternoon] tick error:', err.message));
   }, 4000);
 
-  // Bounce engine (paper) — feed it the live NIFTY chain to track per-strike H/L bounces.
-  if (bounceEngine.enabled) {
+  // Bounce + Strangle engines (paper) — feed the live NIFTY chain once per loop.
+  if (bounceEngine.enabled || strangleEngine.enabled) {
     setTimeout(() => {
       live.getNiftyOptionChain(_niftyLivePrice)
-        .then(chain => bounceEngine.update('NIFTY', { atm: chain.atmStrike, interval: 50, rows: chain.strikes }))
+        .then(chain => {
+          const feed = { atm: chain.atmStrike, interval: 50, rows: chain.strikes, expiry: chain.expiry };
+          if (bounceEngine.enabled)   bounceEngine.update('NIFTY', feed);
+          if (strangleEngine.enabled) strangleEngine.update('NIFTY', feed);
+        })
         .catch(() => {});
     }, 4500);
   }
