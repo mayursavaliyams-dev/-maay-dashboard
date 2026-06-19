@@ -233,6 +233,75 @@ LOGIC: [Explain the OI trap and Gamma levels in 2 concise sentences]`;
   }
 }
 
+// ─── 4. Mean-Reversion (Buy Low / Sell High) — Gujarati ──────────────────────
+
+/**
+ * AI mean-reversion advisor (oversold buy / overbought sell). Reads RSI, the
+ * nearest support/resistance, and EMA50 vs price, and returns a JSON decision.
+ * The prompt + the `logic` field are in Gujarati per the user's preference.
+ *
+ * @param {object} ctx — { symbol, currentPrice, rsiValue, supportLevel,
+ *                          resistanceLevel, ema50 }
+ * Returns parsed object or null (disabled / timeout / parse fail):
+ *   { action: 'BUY_LOW'|'SELL_HIGH'|'HOLD', entryPrice, stopLoss, targetPrice,
+ *     confidenceScore, logic }
+ */
+async function claudeMeanReversion(ctx) {
+  if (!ENABLED || !API_KEY) return null;
+
+  const {
+    symbol = 'NIFTY', currentPrice, rsiValue,
+    supportLevel, resistanceLevel, ema50
+  } = ctx;
+
+  const system = `તમે એક એક્સપર્ટ આલ્ગોરિધમિક ટ્રેડર છો. તમારી જવાબદારી "નીચે ખરીદો અને ઉપર વેચો" (Buy Low, Sell High / Mean Reversion) સ્ટ્રેટેજી પર કામ કરવાની છે. તમારો ઉદ્દેશ્ય ઓવરસોલ્ડ (Oversold) અને ઓવરબોટ (Overbought) કન્ડિશન શોધીને ટ્રેડ લેવાનો છે.`;
+
+  const user = `### 📊 લાઈવ માર્કેટ ડેટા:
+- સિમ્બોલ: ${symbol}
+- હાલનો ભાવ (LTP): ${currentPrice}
+- RSI (14-પિરિયડ): ${rsiValue}
+- નજીકનો સપોર્ટ (Support) લેવલ: ${supportLevel}
+- નજીકનો રેઝિસ્ટન્સ (Resistance) લેવલ: ${resistanceLevel}
+- 50 EMA: ${ema50}
+
+### 🎯 તમારે આ ડેટાનું એનાલિસિસ કરવાનું છે:
+૧. **એન્ટ્રી ઝોન ચકાસો:** જો પ્રાઈઝ સપોર્ટની નજીક હોય અને RSI 30 ની નીચે હોય, તો તે "Buy Low" ની તક છે. જો પ્રાઈઝ રેઝિસ્ટન્સ પાસે હોય અને RSI 70 ની ઉપર હોય, તો તે "Sell High" (શોર્ટ) ની તક છે.
+૨. **ટ્રેન્ડ કન્ફર્મેશન:** 50 EMA ચેક કરો. જો ભાવ EMA થી ખૂબ દૂર હોય, તો તે પાછો EMA તરફ આવવાની શક્યતા છે.
+૩. **રિસ્ક મેનેજમેન્ટ:** ટાર્ગેટ અને સ્ટોપલોસ એ રીતે નક્કી કરો કે રિસ્ક-રિવોર્ડ રેશિયો ઓછામાં ઓછો 1:2 રહે.
+
+### 📝 ફાઇનલ આઉટપુટ ફોર્મેટ (ફક્ત JSON):
+મારે જવાબમાં કોઈપણ પ્રકારની વધારાની સમજૂતી કે ટેક્સ્ટ જોઈતી નથી. કૃપા કરીને મને માત્ર નીચે મુજબના JSON ફોર્મેટમાં જ જવાબ આપો:
+
+{
+  "action": "BUY_LOW" | "SELL_HIGH" | "HOLD",
+  "entryPrice": <એન્ટ્રી માટેનો ભાવ>,
+  "stopLoss": <સ્ટોપલોસ નો ભાવ>,
+  "targetPrice": <ટાર્ગેટ ભાવ>,
+  "confidenceScore": <0 થી 100 વચ્ચેનો સ્કોર>,
+  "logic": "<તમારો નિર્ણય શા માટે લીધો તે માત્ર 1 લાઈનમાં ગુજરાતીમાં જણાવો>"
+}`;
+
+  try {
+    const text = await _claude(system, user, 350);
+    if (!text) return null;
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    const p = JSON.parse(match[0]);
+    const action = ['BUY_LOW', 'SELL_HIGH', 'HOLD'].includes(p.action) ? p.action : 'HOLD';
+    const num = (v) => (typeof v === 'number' && isFinite(v)) ? v : (parseFloat(v) || null);
+    return {
+      action,
+      entryPrice:      num(p.entryPrice),
+      stopLoss:        num(p.stopLoss),
+      targetPrice:     num(p.targetPrice),
+      confidenceScore: p.confidenceScore != null ? Math.min(100, Math.max(0, parseInt(p.confidenceScore, 10) || 0)) : null,
+      logic:           typeof p.logic === 'string' ? p.logic : ''
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── health check ─────────────────────────────────────────────────────────────
 
 function claudeAiStatus() {
@@ -248,5 +317,6 @@ module.exports = {
   claudeSignalFilter,
   claudeTradeNarration,
   claudeGammaBlast,
+  claudeMeanReversion,
   claudeAiStatus
 };

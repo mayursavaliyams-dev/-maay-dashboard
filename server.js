@@ -9,7 +9,7 @@ if (process.env.DHAN_ACCESS_TOKEN) {
 
 const { calculateVWAP, detectTrend } = require("./strategy");
 const { aiDecision, aiDecisionWithClaude } = require("./ai");
-const { claudeTradeNarration, claudeGammaBlast, claudeAiStatus } = require("./claude-ai");
+const { claudeTradeNarration, claudeGammaBlast, claudeMeanReversion, claudeAiStatus } = require("./claude-ai");
 const popSeller   = require("./pop-seller");
 const redisStore  = require("./redis-store");
 const multiconfirm = require("./multiconfirm");
@@ -3795,6 +3795,7 @@ setInterval(() => {
 // Cached 30s per inst — EMAs don't move fast enough to need finer.
 const _emaCache = { NIFTY: null, SENSEX: null };
 const _emaCacheAt = { NIFTY: 0, SENSEX: 0 };
+const _emaClosesCache = { NIFTY: null, SENSEX: null };   // close series for RSI on cache hits
 const EMA_TTL_MS = 30 * 1000;
 
 function _ema(values, period) {
@@ -3805,10 +3806,54 @@ function _ema(values, period) {
   return ema;
 }
 
+// Local 14-period RSI from a close series (matches multiconfirm.js's formula).
+function _rsi14(series, period = 14) {
+  if (!series || series.length < period + 1) return null;
+  let gain = 0, loss = 0;
+  for (let i = series.length - period; i < series.length; i++) {
+    const d = series[i] - series[i - 1];
+    if (d >= 0) gain += d; else loss -= d;
+  }
+  if (loss === 0) return 100;
+  const rs = (gain / period) / (loss / period);
+  return 100 - 100 / (1 + rs);
+}
+
+// Augment an ema-stack `data` object with an advisory AI mean-reversion call.
+// Support = ORB/day low, Resistance = ORB/day high. Off unless CLAUDE_AI_ENABLED.
+async function _augmentMeanReversionAI(inst, data, closes) {
+  try {
+    // Support = nearest floor (ORB low → day low), Resistance = nearest ceiling.
+    const support    = inst === 'NIFTY' ? (niftyOrbLow  || niftyDayLow  || null)
+                                        : (orbLow        || dayLow        || null);
+    const resistance = inst === 'NIFTY' ? (niftyOrbHigh || niftyDayHigh || null)
+                                        : (orbHigh       || dayHigh       || null);
+    const rsiVal = closes ? _rsi14(closes.map(Number).filter(n => n > 0)) : null;
+    // Set RSI + the levels we fed the model FIRST, so they appear even if the
+    // AI call itself errors (kept advisory, never blocks the response).
+    data.rsi = rsiVal != null ? +rsiVal.toFixed(1) : null;
+    data.support = support || null;
+    data.resistance = resistance || null;
+    data.ai = await claudeMeanReversion({
+      symbol: inst,
+      currentPrice: data.price,
+      rsiValue: rsiVal != null ? +rsiVal.toFixed(1) : 'N/A',
+      supportLevel: support || 'N/A',
+      resistanceLevel: resistance || 'N/A',
+      ema50: data.ema50 ?? 'N/A'
+    });
+  } catch (_) { data.ai = null; }
+  return data;
+}
+
 app.get('/api/ema-stack', async (req, res) => {
   const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+  const wantAI = req.query.ai === '1';
   if (_emaCache[inst] && Date.now() - _emaCacheAt[inst] < EMA_TTL_MS) {
-    return res.json(_emaCache[inst]);
+    if (!wantAI) return res.json(_emaCache[inst]);
+    // Serve cached EMA values but run a fresh advisory AI pass on top. Reuse the
+    // cached close series so RSI is still computed on the cache-hit path.
+    return res.json(await _augmentMeanReversionAI(inst, { ..._emaCache[inst] }, _emaClosesCache[inst] || null));
   }
   const secId = inst === 'NIFTY'
     ? (process.env.DHAN_NIFTY_SECURITY_ID  || '13')
@@ -3857,6 +3902,8 @@ app.get('/api/ema-stack', async (req, res) => {
     };
     _emaCache[inst] = data;
     _emaCacheAt[inst] = Date.now();
+    _emaClosesCache[inst] = closes;
+    if (wantAI) return res.json(await _augmentMeanReversionAI(inst, { ...data }, closes));
     res.json(data);
   } catch (err) {
     res.status(500).json({ inst, ready: false, error: err.message });
