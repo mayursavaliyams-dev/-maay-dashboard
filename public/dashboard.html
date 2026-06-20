@@ -1668,6 +1668,40 @@
         <!-- ===== LEFT COLUMN ===== -->
         <div class="col col-scroll">
 
+            <!-- Multi-Confirmation Strategy Panel (ported from Pine F&O strategy) — pinned to top -->
+            <div class="card" id="mcPanel" style="padding:8px 10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <div style="font-size:0.6rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">🎯 Multi-Confirm</div>
+                    <span id="mcSignal" style="font-size:0.6rem;padding:1px 7px;border-radius:4px;background:#1f2937;color:#9ca3af;font-weight:700;">WAIT</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:0.55rem;color:#6b7280;margin-bottom:5px;">
+                    <span>Inst: <b id="mcInst" style="color:#9ca3af;cursor:pointer;" onclick="mcToggleInst()">NIFTY</b></span>
+                    <span>Score: <b id="mcScore" style="color:#9ca3af;">0/8</b></span>
+                </div>
+                <div id="mcLayers" style="font-size:0.56rem;line-height:1.6;color:#9ca3af;">
+                    <div class="mc-row" data-k="emaStack">① EMA Stack <span>–</span></div>
+                    <div class="mc-row" data-k="vwap">② VWAP <span>–</span></div>
+                    <div class="mc-row" data-k="rsi">③ RSI <span>–</span></div>
+                    <div class="mc-row" data-k="volume">④ Volume <span>–</span></div>
+                    <div class="mc-row" data-k="candle">⑤ Candle <span>–</span></div>
+                    <div class="mc-row" data-k="macd">⑥ MACD <span>–</span></div>
+                    <div class="mc-row" data-k="bollinger">⑦ Bollinger <span>–</span></div>
+                    <div class="mc-row" data-k="obv">⑧ OBV <span>–</span></div>
+                    <div class="mc-row" data-k="stochastic">Stochastic <span>–</span></div>
+                    <div style="border-top:1px solid #1f2937;margin:4px 0;"></div>
+                    <div class="mc-row" data-k="sideways">Market <span>–</span></div>
+                    <div class="mc-row" data-k="adx">🛡 ADX <span>–</span></div>
+                    <div class="mc-row" data-k="supertrend">🛡 Supertrend <span>–</span></div>
+                    <div class="mc-row" data-k="htf">🛡 HTF EMA <span>–</span></div>
+                </div>
+                <div style="font-size:0.5rem;color:#4b5563;margin-top:4px;">Read-only confirmation read-out · not auto-trading</div>
+            </div>
+            <style>
+              #mcLayers .mc-row{display:flex;justify-content:space-between;}
+              #mcLayers .mc-row span{font-weight:700;}
+              .mc-ok{color:#34d399!important;} .mc-no{color:#6b7280!important;} .mc-warn{color:#fbbf24!important;}
+            </style>
+
             <!-- Signal -->
             <div class="signal-card" id="signalCard">
                 <div class="sig-row">
@@ -2163,36 +2197,6 @@
                     ⛔ Emergency Stop Both
                 </button>
             </div>
-
-            <!-- Multi-Confirmation Strategy Panel (ported from Pine F&O strategy) -->
-            <div class="card" id="mcPanel" style="padding:8px 10px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <div style="font-size:0.6rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">🎯 Multi-Confirm</div>
-                    <span id="mcSignal" style="font-size:0.6rem;padding:1px 7px;border-radius:4px;background:#1f2937;color:#9ca3af;font-weight:700;">WAIT</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;font-size:0.55rem;color:#6b7280;margin-bottom:5px;">
-                    <span>Inst: <b id="mcInst" style="color:#9ca3af;cursor:pointer;" onclick="mcToggleInst()">NIFTY</b></span>
-                    <span>Score: <b id="mcScore" style="color:#9ca3af;">0/5</b></span>
-                </div>
-                <div id="mcLayers" style="font-size:0.56rem;line-height:1.6;color:#9ca3af;">
-                    <div class="mc-row" data-k="emaStack">① EMA Stack <span>–</span></div>
-                    <div class="mc-row" data-k="vwap">② VWAP <span>–</span></div>
-                    <div class="mc-row" data-k="rsi">③ RSI <span>–</span></div>
-                    <div class="mc-row" data-k="volume">④ Volume <span>–</span></div>
-                    <div class="mc-row" data-k="candle">⑤ Candle <span>–</span></div>
-                    <div style="border-top:1px solid #1f2937;margin:4px 0;"></div>
-                    <div class="mc-row" data-k="sideways">Market <span>–</span></div>
-                    <div class="mc-row" data-k="adx">🛡 ADX <span>–</span></div>
-                    <div class="mc-row" data-k="supertrend">🛡 Supertrend <span>–</span></div>
-                    <div class="mc-row" data-k="htf">🛡 HTF EMA <span>–</span></div>
-                </div>
-                <div style="font-size:0.5rem;color:#4b5563;margin-top:4px;">Read-only confirmation read-out · not auto-trading</div>
-            </div>
-            <style>
-              #mcLayers .mc-row{display:flex;justify-content:space-between;}
-              #mcLayers .mc-row span{font-weight:700;}
-              .mc-ok{color:#34d399!important;} .mc-no{color:#6b7280!important;} .mc-warn{color:#fbbf24!important;}
-            </style>
 
             <!-- Pine → JS strategy converter (agent-assisted) -->
             <div class="card" id="pinePanel" style="padding:8px 10px;">
@@ -3179,7 +3183,7 @@
                 const L = d.layers || {}, S = d.shields || {};
                 // Score reflects the dominant side
                 const score = Math.max(d.callScore || 0, d.putScore || 0);
-                document.getElementById('mcScore').textContent = `${score}/5`;
+                document.getElementById('mcScore').textContent = `${score}/8`;
                 if (!L.emaStack) {  // warming up
                     document.querySelectorAll('#mcLayers .mc-row span').forEach(s => { s.textContent = '–'; s.className = 'mc-no'; });
                     return;
@@ -3189,6 +3193,11 @@
                 mcMark('rsi', L.rsi.bull || L.rsi.bear, `${L.rsi.value} ${L.rsi.bull ? '✓' : L.rsi.bear ? '✓' : '✗'}`);
                 mcMark('volume', L.volume.spike, `${L.volume.ratio}× ${L.volume.spike ? '✓' : '✗'}`);
                 mcMark('candle', L.candle.bull || L.candle.bear, `${L.candle.bodyPct}% ${(L.candle.bull || L.candle.bear) ? '✓' : '✗'}`);
+                // New indicators (added to the engine) — null-guarded (may warm up later).
+                mcMark('macd', !!(L.macd && (L.macd.bull || L.macd.bear)), L.macd ? `${L.macd.hist} ${L.macd.bull ? '✓' : L.macd.bear ? '✓' : '✗'}` : '–');
+                mcMark('bollinger', !!(L.bollinger && (L.bollinger.bull || L.bollinger.bear)), L.bollinger ? `%B ${L.bollinger.pctB} ${L.bollinger.bull ? '✓' : L.bollinger.bear ? '✓' : '✗'}` : '–');
+                mcMark('obv', !!(L.obv && (L.obv.bull || L.obv.bear)), L.obv ? (L.obv.rising ? '✓ Rising' : '✓ Falling') : '–');
+                mcMark('stochastic', !!(L.stochastic && (L.stochastic.bull || L.stochastic.bear)), L.stochastic ? `${L.stochastic.k}${L.stochastic.bull ? ' ✓ os' : L.stochastic.bear ? ' ✓ ob' : ''}` : '–', L.stochastic && (L.stochastic.bull || L.stochastic.bear));
                 mcMark('sideways', !L.sideways.choppy, L.sideways.choppy ? '⚠ Choppy' : '✓ Trending', L.sideways.choppy);
                 mcMark('adx', S.adx.ok, `${S.adx.value} ${S.adx.ok ? '✓' : '✗'}`);
                 mcMark('supertrend', S.supertrend.bull || S.supertrend.bear, S.supertrend.bull ? '✓ Bull' : '✓ Bear');
