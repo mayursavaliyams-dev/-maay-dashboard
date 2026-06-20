@@ -76,6 +76,8 @@
         .status-dot.active { background:#10b981; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
         @keyframes dbpulse { 0%,100%{opacity:1} 50%{opacity:.72} }
+        @keyframes spin360 { to { transform: rotate(360deg); } }
+        #topRefreshBtn.spin { animation: spin360 .8s linear; }
 
         .top-bar .sep { width:1px; height:24px; background:#1f2937; }
 
@@ -1637,6 +1639,7 @@
         </div>
         <div class="top-mode" id="modeBadge">PAPER</div>
         <div class="top-trades" id="tradesCount">0/2 trades</div>
+<button class="hk-open-btn" id="topRefreshBtn" onclick="refreshAllPanels()" title="Refresh all data (R)">⟳ Refresh</button>
 <button class="tj-open-btn" onclick="openJournal()" title="Trade Journal (J)">📒 Journal</button>
 <button class="hk-open-btn" onclick="openOptionChain()" title="Full Option Chain (O)">📊 Chain</button>
 <button class="hk-open-btn" onclick="openLogs()" title="Live Logs (L)">📟 Logs</button>
@@ -3369,6 +3372,22 @@
                       analyticsApi: '/api/nifty/options/analytics',
                       color: '#f59e0b', expiry: 'Thu', lotSize: 65, label: 'NIFTY · NSE' }
         };
+
+        // Manual refresh — reload every data panel at once (top-bar ⟳ button / R key).
+        let _refreshing = false;
+        function refreshAllPanels() {
+            if (_refreshing) return;
+            _refreshing = true;
+            const btn = document.getElementById('topRefreshBtn');
+            if (btn) { btn.classList.add('spin'); btn.disabled = true; }
+            const run = (fn) => { try { return fn && fn(); } catch (e) {} };
+            run(fetchData); run(updateDashboard); run(fetchNiftyBackground); run(loadPnl); run(loadEngineStatus);
+            run(loadSensibullData); run(loadWatchlist); run(loadGreeksMatrix); run(loadHLRecord);
+            run(loadLiveTrades); run(loadMultiConfirm); run(loadDataHealth); run(loadRisk);
+            run(loadDhanStats); run(loadPerformance); run(loadCalendar); run(refreshPosition);
+            try { showAlert && showAlert('↻ Refreshed all panels', 'success'); } catch (e) {}
+            setTimeout(() => { if (btn) { btn.classList.remove('spin'); btn.disabled = false; } _refreshing = false; }, 900);
+        }
 
         function switchInstrument(inst) {
             _inst = inst;
@@ -6459,7 +6478,7 @@
             if (k === 'j' || k === 'J') { try { openJournal(); } catch(err) {} e.preventDefault(); return; }
             if (k === 'l' || k === 'L') { try { openLogs(); } catch(err) {} e.preventDefault(); return; }
             if ((k === 's' || k === 'S') && !e.shiftKey) { try { openConfig(); } catch(err) {} e.preventDefault(); return; }
-            if (k === 'r' || k === 'R') { hkRefreshAll(); e.preventDefault(); return; }
+            if (k === 'r' || k === 'R') { refreshAllPanels(); e.preventDefault(); return; }
 
             if (k === 'm' || k === 'M') {
                 try {
