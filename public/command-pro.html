@@ -30,6 +30,12 @@
   .sp .v{font-size:14px; font-weight:700}
   .mode{font-size:9px; font-weight:700; letter-spacing:.5px; padding:4px 9px; border-radius:6px; background:#13314f; color:#7dd3fc}
   .mode.live{background:var(--redbg); color:var(--red)}
+  /* Data-source watchdog banner */
+  .data-banner{padding:8px 16px; font-size:12.5px; font-weight:700; letter-spacing:.3px; text-align:center; flex:0 0 auto; animation:dbpulse 1.6s ease-in-out infinite}
+  .data-banner.down{background:#3a0d0d; color:#ff8a8a; border-bottom:1px solid #7a2b2b}
+  .data-banner.degraded{background:#3a2c0d; color:#f5c14a; border-bottom:1px solid #7a5e1f}
+  .data-banner .r{font-weight:500; opacity:.85; font-size:11px}
+  @keyframes dbpulse{0%,100%{opacity:1}50%{opacity:.72}}
 
   /* 3-panel grid */
   .grid{flex:1 1 auto; display:grid; grid-template-columns:330px 1fr 320px; gap:1px; background:var(--line); min-height:0}
@@ -116,6 +122,8 @@
     <span class="mode" id="modeBadge">PAPER</span>
   </div>
 </header>
+
+<div id="dataBanner" class="data-banner" style="display:none"></div>
 
 <div class="grid">
   <!-- ░░ LEFT — AI Intelligence ░░ -->
@@ -392,7 +400,26 @@ async function loadPnl(){ try{ renderPnl(await fetch(`${API}/api/pnl`,{cache:'no
 
 function refreshAll(){ loadData(); loadOtherSpot(); loadAI(); loadHealth(); loadBot(); loadPnl(); }
 
+// ── Data-source watchdog banner ─────────────────────────────────────────────
+async function loadDataHealth(){
+  try{
+    const h = await fetch(`${API}/api/data-health`,{cache:'no-store'}).then(r=>r.json());
+    const el = $('dataBanner');
+    if (!h || h.status==='HEALTHY' || h.status==='UNKNOWN'){ el.style.display='none'; return; }
+    const mins = h.since ? Math.max(0, Math.round((Date.now()-h.since)/60000)) : 0;
+    const icon = h.status==='DOWN' ? '⛔' : '⚠️';
+    const head = h.status==='DOWN' ? 'DATA SOURCE DOWN' : 'DATA SOURCE DEGRADED';
+    el.className = 'data-banner '+(h.status==='DOWN'?'down':'degraded');
+    el.innerHTML = `${icon} ${head} — ${h.connector||''} · for ${mins}m`
+      + (h.reasons&&h.reasons.length?`<div class="r">${h.reasons.join(' · ')}</div>`:'')
+      + `<div class="r">Refresh the Upstox token in .env and restart if this persists.</div>`;
+    el.style.display='block';
+  }catch(e){}
+}
+
 // boot
+loadDataHealth();
+setInterval(loadDataHealth, 15000);
 refreshAll();
 setInterval(loadData, 2000);
 setInterval(loadOtherSpot, 5000);

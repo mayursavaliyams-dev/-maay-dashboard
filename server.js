@@ -1789,6 +1789,55 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// ==================== DATA-SOURCE WATCHDOG ====================
+// A trading bot must NEVER silently run on stale/fallback data. (This session a
+// zombie process held the port for ~13.6h on an expired token: prices fell back
+// to Yahoo and every option chain 401'd, with zero visible warning.) This probes
+// the live connector every 60s — a real price quote AND a real option chain — and
+// classifies the data source HEALTHY / DEGRADED / DOWN. On any state change it
+// logs loudly and Telegram-alerts so an outage surfaces immediately.
+let _dataHealth = {
+  status: 'UNKNOWN', since: Date.now(), reasons: [], priceLive: null, chainOk: null,
+  connector: DATA_SOURCE, lastOkAt: 0, lastProbeAt: 0
+};
+
+async function _probeDataHealth() {
+  const reasons = [];
+  let priceLive = false, chainOk = false;
+  try {
+    const q = await _withTimeout(live.getNiftyPrice(), 4000, 'probe price');
+    if (q && Number(q.price) > 10000) priceLive = true; else reasons.push('price: no live quote');
+  } catch (e) { reasons.push('price: ' + String(e.message || 'fail').slice(0, 70)); }
+  try {
+    const c = await _withTimeout(live.getNiftyOptionChain(), 6000, 'probe chain');
+    if (c && Array.isArray(c.strikes) && c.strikes.length) chainOk = true; else reasons.push('chain: empty');
+  } catch (e) { reasons.push('chain: ' + String(e.message || 'fail').slice(0, 90)); }
+
+  const status = (priceLive && chainOk) ? 'HEALTHY' : (!priceLive && !chainOk) ? 'DOWN' : 'DEGRADED';
+  const prev = _dataHealth.status;
+  const now = Date.now();
+  _dataHealth = {
+    status, since: status === prev ? _dataHealth.since : now, reasons,
+    priceLive, chainOk, connector: DATA_SOURCE,
+    lastOkAt: status === 'HEALTHY' ? now : _dataHealth.lastOkAt, lastProbeAt: now
+  };
+
+  if (status !== prev && prev !== 'UNKNOWN') {
+    const sess = getMarketSession();
+    const emoji = status === 'HEALTHY' ? '✅' : status === 'DEGRADED' ? '⚠️' : '⛔';
+    const msg = `${emoji} Data source ${status} (${DATA_SOURCE})` + (reasons.length ? `\n${reasons.join('; ')}` : '');
+    console.log('\n' + '='.repeat(70) + '\n  ' + msg + '\n' + '='.repeat(70) + '\n');
+    // Alert on any degrade/down, and on recovery. Skip degrade noise outside market hours.
+    if (telegram?.enabled && (sess.inMarketHours || status === 'HEALTHY')) {
+      try { await telegram.sendAlert(`Data source ${status}`, msg); } catch (_) {}
+    }
+  }
+}
+setTimeout(() => { _probeDataHealth().catch(() => {}); }, 12000);
+setInterval(() => { _probeDataHealth().catch(() => {}); }, 60 * 1000);
+
+app.get('/api/data-health', (req, res) => res.json(_dataHealth));
+
 // Send a test message via Telegram — used to verify TELEGRAM_BOT_TOKEN
 // and TELEGRAM_CHAT_ID are correct without waiting for a real trade signal.
 app.post("/api/telegram/test", async (req, res) => {
