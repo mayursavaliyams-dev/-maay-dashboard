@@ -10,6 +10,7 @@ if (process.env.DHAN_ACCESS_TOKEN) {
 const { calculateVWAP, detectTrend } = require("./strategy");
 const { aiDecision, aiDecisionWithClaude } = require("./ai");
 const { claudeTradeNarration, claudeGammaBlast, claudeMeanReversion, claudeAiStatus } = require("./claude-ai");
+const aiLogger = require("./ai-logger");
 const popSeller   = require("./pop-seller");
 const redisStore  = require("./redis-store");
 const multiconfirm = require("./multiconfirm");
@@ -1838,6 +1839,22 @@ setInterval(() => { _probeDataHealth().catch(() => {}); }, 60 * 1000);
 
 app.get('/api/data-health', (req, res) => res.json(_dataHealth));
 
+// ==================== AI ADVISOR HIT-RATE ====================
+// Mature logged AI signals against the latest spot every 2 min (15-min hold
+// window) so the otherwise-unbacktested advisors get a real, measured win-rate.
+setInterval(async () => {
+  try {
+    const [sx, nf] = await Promise.all([
+      getLivePrice().catch(() => 0),
+      getLiveNiftyPrice().catch(() => 0)
+    ]);
+    if (sx > 0) aiLogger.evaluate('SENSEX', sx);
+    if (nf > 0) aiLogger.evaluate('NIFTY', nf);
+  } catch (_) {}
+}, 120 * 1000);
+
+app.get('/api/ai-log/stats', (req, res) => res.json(aiLogger.stats()));
+
 // Send a test message via Telegram — used to verify TELEGRAM_BOT_TOKEN
 // and TELEGRAM_CHAT_ID are correct without waiting for a real trade signal.
 app.post("/api/telegram/test", async (req, res) => {
@@ -2319,7 +2336,10 @@ app.get("/api/options/gamma-blast", async (req, res) => {
     // caller asks for it (?ai=1). The rule-based `blast` stays the source of
     // truth; AI is advisory and never blocks the response on timeout.
     if (req.query.ai === '1' && realChain?.strikes?.length) {
-      try {
+      // Garbage-in guard: don't ask the AI to analyse a degraded/stale feed.
+      if (_dataHealth.status === 'DOWN') {
+        blast.ai = null; blast.aiSkipped = 'data source DOWN — AI gated';
+      } else try {
         const totals = realChain.strikes.reduce((s, r) => {
           s.callOI += Number(r.ce?.oi || 0); s.putOI += Number(r.pe?.oi || 0); return s;
         }, { callOI: 0, putOI: 0 });
@@ -2337,6 +2357,12 @@ app.get("/api/options/gamma-blast", async (req, res) => {
           pcr,
           optionChainData
         });
+        // Log the advisory so its real hit-rate can be measured over time.
+        if (blast.ai && blast.ai.setup) {
+          const dir = /bull/i.test(blast.ai.setup) ? 1 : /bear/i.test(blast.ai.setup) ? -1 : 0;
+          aiLogger.logSignal({ type: 'gamma', inst: 'SENSEX', spot: +price.toFixed(2), dir,
+            conf: blast.ai.probability, valid: blast.ai.valid, payload: { setup: blast.ai.setup, targetStrike: blast.ai.targetStrike } });
+        }
       } catch (_) { blast.ai = null; }
     }
     res.json(blast);
@@ -3890,6 +3916,8 @@ async function _augmentMeanReversionAI(inst, data, closes) {
     data.bollinger = bb;
     data.stochastic = stoch ? stoch.k : null;
     data.macdHist = mac ? mac.hist : null;
+    // Garbage-in guard: skip the AI when the live feed is down.
+    if (_dataHealth.status === 'DOWN') { data.ai = null; data.aiSkipped = 'data source DOWN — AI gated'; return data; }
     data.ai = await claudeMeanReversion({
       symbol: inst,
       currentPrice: data.price,
@@ -3900,6 +3928,13 @@ async function _augmentMeanReversionAI(inst, data, closes) {
       bbUpper: bb?.upper, bbLower: bb?.lower, bbPctB: bb?.pctB,
       stochK: stoch?.k, macdHist: mac?.hist
     });
+    // Log the advisory so its real hit-rate can be measured over time.
+    if (data.ai && data.ai.action && data.ai.action !== 'HOLD' && data.price > 0) {
+      const dir = data.ai.action === 'BUY_LOW' ? 1 : data.ai.action === 'SELL_HIGH' ? -1 : 0;
+      aiLogger.logSignal({ type: 'meanrev', inst, spot: data.price, dir,
+        target: data.ai.targetPrice, stop: data.ai.stopLoss, conf: data.ai.confidenceScore,
+        valid: data.ai.valid, payload: { action: data.ai.action } });
+    }
   } catch (_) { data.ai = null; }
   return data;
 }

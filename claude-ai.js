@@ -219,13 +219,25 @@ LOGIC: [Explain the OI trap and Gamma levels in 2 concise sentences]`;
     };
     const probRaw = grab('PROBABILITY');
     const probability = probRaw ? Math.min(100, Math.max(0, parseInt(probRaw.replace(/[^0-9]/g, ''), 10) || 0)) : null;
+    const setup = grab('SETUP') || 'No Setup';
+    const entrySpot = grab('ENTRY_TRIGGER_SPOT');
+    // ── Validate the trigger spot is actually near the live spot (catch made-up levels) ──
+    const spot = Number(spotPrice) || 0;
+    const eNum = parseFloat(String(entrySpot || '').replace(/[^0-9.]/g, ''));
+    const notes = [];
+    let valid = true;
+    if (!/no setup/i.test(setup) && spot && eNum && Math.abs(eNum - spot) / spot > 0.05) {
+      valid = false; notes.push('entry-trigger spot > 5% off live spot');
+    }
     return {
-      setup:            grab('SETUP') || 'No Setup',
+      setup,
       targetStrike:     grab('TARGET_STRIKE'),
-      entryTriggerSpot: grab('ENTRY_TRIGGER_SPOT'),
+      entryTriggerSpot: entrySpot,
       stopLossSpot:     grab('STOP_LOSS_SPOT'),
       probability,
       logic:            grab('LOGIC'),
+      valid,
+      validationNotes:  notes,
       raw:              text
     };
   } catch {
@@ -294,13 +306,26 @@ async function claudeMeanReversion(ctx) {
     const p = JSON.parse(match[0]);
     const action = ['BUY_LOW', 'SELL_HIGH', 'HOLD'].includes(p.action) ? p.action : 'HOLD';
     const num = (v) => (typeof v === 'number' && isFinite(v)) ? v : (parseFloat(v) || null);
+    const e = num(p.entryPrice), sl = num(p.stopLoss), tp = num(p.targetPrice);
+    // ── Validate against spot — catch hallucinated / incoherent levels ──
+    const spot = Number(currentPrice) || 0;
+    const notes = [];
+    let valid = true;
+    if (action !== 'HOLD') {
+      const nearSpot = (v) => v && spot && Math.abs(v - spot) / spot < 0.12;   // within 12% of spot
+      if (!nearSpot(e)) { valid = false; notes.push('entry far from spot'); }
+      if (action === 'BUY_LOW'  && !(tp > e && sl < e)) { valid = false; notes.push('BUY_LOW levels incoherent'); }
+      if (action === 'SELL_HIGH' && !(tp < e && sl > e)) { valid = false; notes.push('SELL_HIGH levels incoherent'); }
+    }
     return {
       action,
-      entryPrice:      num(p.entryPrice),
-      stopLoss:        num(p.stopLoss),
-      targetPrice:     num(p.targetPrice),
+      entryPrice:      e,
+      stopLoss:        sl,
+      targetPrice:     tp,
       confidenceScore: p.confidenceScore != null ? Math.min(100, Math.max(0, parseInt(p.confidenceScore, 10) || 0)) : null,
-      logic:           typeof p.logic === 'string' ? p.logic : ''
+      logic:           typeof p.logic === 'string' ? p.logic : '',
+      valid,
+      validationNotes: notes
     };
   } catch {
     return null;

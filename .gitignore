@@ -17,3 +17,6 @@ generated-strategies/
 
 # Raw NSE bhavcopy CSVs (40M, re-fetchable via bt-bhav-fetch.js)
 bt-data/bhav/
+
+# Runtime AI advisor signal log (measured hit-rate state)
+data/ai-signals.json
