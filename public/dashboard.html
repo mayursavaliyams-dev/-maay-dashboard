@@ -1916,22 +1916,6 @@
                 </div>
             </div>
 
-            <!-- TRADINGVIEW LIVE CHART -->
-            <div class="chart-panel" id="tvPanel" style="padding:14px;">
-                <div class="chart-hdr" style="margin-bottom:10px;">
-                    <span class="chart-title">📊 TradingView · <span id="tvSymLabel">NIFTY</span></span>
-                    <span style="display:flex; gap:6px;">
-                        <button class="tv-sym-btn active" data-tv="NSE:NIFTY" onclick="switchTV('NSE:NIFTY','NIFTY')"
-                                style="background:#1f2937; border:1px solid #243041; color:#e5e7eb; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.82rem;">NIFTY</button>
-                        <button class="tv-sym-btn" data-tv="BSE:SENSEX" onclick="switchTV('BSE:SENSEX','SENSEX')"
-                                style="background:none; border:1px solid #243041; color:#94a3b8; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.82rem;">SENSEX</button>
-                        <button class="tv-sym-btn" data-tv="NSE:BANKNIFTY" onclick="switchTV('NSE:BANKNIFTY','BANKNIFTY')"
-                                style="background:none; border:1px solid #243041; color:#94a3b8; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.82rem;">BANKNIFTY</button>
-                    </span>
-                </div>
-                <div id="tvChartContainer" style="height:480px; width:100%; border-radius:10px; overflow:hidden;"></div>
-            </div>
-
             <!-- HIGH/LOW MAPPING RECORD -->
             <div class="hl-panel hl-panel-large" id="hlPanel">
                 <div class="hl-hdr">
@@ -4008,51 +3992,6 @@
         }
         setInterval(loadStrikePair, 6000);
         setTimeout(loadStrikePair, 1500);
-
-        // ==================== TRADINGVIEW WIDGET ====================
-        let _tvWidget = null;
-        function buildTV(symbol) {
-            const c = document.getElementById('tvChartContainer');
-            if (!c || !window.TradingView) return;
-            c.innerHTML = '';
-            _tvWidget = new TradingView.widget({
-                autosize: true,
-                symbol: symbol,
-                interval: '5',
-                timezone: 'Asia/Kolkata',
-                theme: 'dark',
-                style: '1',
-                locale: 'in',
-                toolbar_bg: '#0b1220',
-                enable_publishing: false,
-                hide_side_toolbar: false,
-                allow_symbol_change: true,
-                studies: ['STD;VWAP', 'STD;EMA'],
-                container_id: 'tvChartContainer'
-            });
-        }
-        function switchTV(symbol, label) {
-            document.getElementById('tvSymLabel').textContent = label;
-            document.querySelectorAll('.tv-sym-btn').forEach(b => {
-                const on = b.dataset.tv === symbol;
-                b.classList.toggle('active', on);
-                b.style.background = on ? '#1f2937' : 'none';
-                b.style.color = on ? '#e5e7eb' : '#94a3b8';
-            });
-            buildTV(symbol);
-        }
-        // Lazy-load the TradingView library, then build the default NIFTY chart
-        (function loadTVLib() {
-            if (window.TradingView) { buildTV('NSE:NIFTY'); return; }
-            const s = document.createElement('script');
-            s.src = 'https://s3.tradingview.com/tv.js';
-            s.onload = () => buildTV('NSE:NIFTY');
-            s.onerror = () => {
-                const c = document.getElementById('tvChartContainer');
-                if (c) c.innerHTML = '<div style="padding:40px; text-align:center; color:#64748b;">TradingView load failed — check internet connection</div>';
-            };
-            document.head.appendChild(s);
-        })();
 
         // ==================== MAX HIGHER / MAX LOWER TRACKER ====================
         // Per-index session state — never mixes SENSEX and NIFTY.
