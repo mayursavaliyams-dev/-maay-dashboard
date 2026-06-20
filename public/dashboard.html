@@ -1639,7 +1639,7 @@
         </div>
         <div class="top-mode" id="modeBadge">PAPER</div>
         <div class="top-trades" id="tradesCount">0/2 trades</div>
-<button class="hk-open-btn" id="topRefreshBtn" onclick="refreshAllPanels()" title="Refresh all data (R)">⟳ Refresh</button>
+<button class="hk-open-btn" id="topRefreshBtn" onclick="refreshAllPanels()" title="Hard refresh — full page reload (R)">⟳ Refresh</button>
 <button class="tj-open-btn" onclick="openJournal()" title="Trade Journal (J)">📒 Journal</button>
 <button class="hk-open-btn" onclick="openOptionChain()" title="Full Option Chain (O)">📊 Chain</button>
 <button class="hk-open-btn" onclick="openLogs()" title="Live Logs (L)">📟 Logs</button>
@@ -3373,20 +3373,22 @@
                       color: '#f59e0b', expiry: 'Thu', lotSize: 65, label: 'NIFTY · NSE' }
         };
 
-        // Manual refresh — reload every data panel at once (top-bar ⟳ button / R key).
+        // HARD refresh — full page reload bypassing cache (top-bar ⟳ button / R key).
+        // dashboard.html is a single self-contained file, so a cache-busted reload
+        // pulls fresh HTML + inline CSS/JS — equivalent to Ctrl+Shift+R.
         let _refreshing = false;
         function refreshAllPanels() {
             if (_refreshing) return;
             _refreshing = true;
             const btn = document.getElementById('topRefreshBtn');
-            if (btn) { btn.classList.add('spin'); btn.disabled = true; }
-            const run = (fn) => { try { return fn && fn(); } catch (e) {} };
-            run(fetchData); run(updateDashboard); run(fetchNiftyBackground); run(loadPnl); run(loadEngineStatus);
-            run(loadSensibullData); run(loadWatchlist); run(loadGreeksMatrix); run(loadHLRecord);
-            run(loadLiveTrades); run(loadMultiConfirm); run(loadDataHealth); run(loadRisk);
-            run(loadDhanStats); run(loadPerformance); run(loadCalendar); run(refreshPosition);
-            try { showAlert && showAlert('↻ Refreshed all panels', 'success'); } catch (e) {}
-            setTimeout(() => { if (btn) { btn.classList.remove('spin'); btn.disabled = false; } _refreshing = false; }, 900);
+            if (btn) { btn.classList.add('spin'); btn.disabled = true; btn.textContent = '⟳ Refreshing…'; }
+            try {
+                const u = new URL(window.location.href);
+                u.searchParams.set('_', Date.now());   // cache-bust so the browser re-fetches fresh
+                window.location.replace(u.toString());
+            } catch (e) {
+                window.location.reload();
+            }
         }
 
         function switchInstrument(inst) {
