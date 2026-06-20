@@ -2388,6 +2388,44 @@
         <!-- ===== RIGHT COLUMN: POSITION + P&L + COMPOUND + GAMMA ===== -->
         <div class="col col-scroll lower-web-strip">
 
+            <!-- GREEKS MATRIX — pinned to top -->
+            <div class="gm-panel" id="gmPanel">
+                <div class="gm-hdr">
+                    <span class="gm-title">Ⲛ Greeks Matrix</span>
+                    <span class="gm-iv-pill" id="gmAtmIv">ATM IV --</span>
+                </div>
+                <div class="gm-pos" id="gmPosBox" style="display:none;">
+                    <div class="gm-pos-hdr">
+                        <span>Open Position Greeks</span>
+                        <span><b id="gmPosStrike">--</b> <span id="gmPosType">--</span> × <b id="gmPosQty">0</b></span>
+                    </div>
+                    <div class="gm-pos-grid">
+                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">Δ Delta</div><div class="gm-pos-k-val" id="gmPosDelta">--</div></div>
+                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">Γ Gamma</div><div class="gm-pos-k-val" id="gmPosGamma">--</div></div>
+                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">Θ Theta</div><div class="gm-pos-k-val" id="gmPosTheta">--</div></div>
+                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">ν Vega</div><div class="gm-pos-k-val" id="gmPosVega">--</div></div>
+                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">IV %</div><div class="gm-pos-k-val" id="gmPosIv">--</div></div>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="gm-table">
+                        <thead>
+                            <tr>
+                                <th colspan="4" style="color:#10b981;">CALL</th>
+                                <th style="color:#a78bfa;">STRIKE</th>
+                                <th colspan="4" style="color:#ef4444;">PUT</th>
+                            </tr>
+                            <tr>
+                                <th>Δ</th><th>Γ</th><th>Θ</th><th class="ce-sep">IV</th>
+                                <th>—</th>
+                                <th>Δ</th><th>Γ</th><th>Θ</th><th>IV</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gmBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- LIVE POSITION -->
             <div class="pos-panel" id="posPanel">
                 <div class="pos-head">
@@ -2596,44 +2634,6 @@
                 <div class="cal-extremes">
                     <span>Best: <b class="up" id="calBest">--</b></span>
                     <span>Worst: <b class="dn" id="calWorst">--</b></span>
-                </div>
-            </div>
-
-            <!-- GREEKS MATRIX -->
-            <div class="gm-panel" id="gmPanel">
-                <div class="gm-hdr">
-                    <span class="gm-title">Ⲛ Greeks Matrix</span>
-                    <span class="gm-iv-pill" id="gmAtmIv">ATM IV --</span>
-                </div>
-                <div class="gm-pos" id="gmPosBox" style="display:none;">
-                    <div class="gm-pos-hdr">
-                        <span>Open Position Greeks</span>
-                        <span><b id="gmPosStrike">--</b> <span id="gmPosType">--</span> × <b id="gmPosQty">0</b></span>
-                    </div>
-                    <div class="gm-pos-grid">
-                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">Δ Delta</div><div class="gm-pos-k-val" id="gmPosDelta">--</div></div>
-                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">Γ Gamma</div><div class="gm-pos-k-val" id="gmPosGamma">--</div></div>
-                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">Θ Theta</div><div class="gm-pos-k-val" id="gmPosTheta">--</div></div>
-                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">ν Vega</div><div class="gm-pos-k-val" id="gmPosVega">--</div></div>
-                        <div class="gm-pos-k"><div class="gm-pos-k-lbl">IV %</div><div class="gm-pos-k-val" id="gmPosIv">--</div></div>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="gm-table">
-                        <thead>
-                            <tr>
-                                <th colspan="4" style="color:#10b981;">CALL</th>
-                                <th style="color:#a78bfa;">STRIKE</th>
-                                <th colspan="4" style="color:#ef4444;">PUT</th>
-                            </tr>
-                            <tr>
-                                <th>Δ</th><th>Γ</th><th>Θ</th><th class="ce-sep">IV</th>
-                                <th>—</th>
-                                <th>Δ</th><th>Γ</th><th>Θ</th><th>IV</th>
-                            </tr>
-                        </thead>
-                        <tbody id="gmBody"></tbody>
-                    </table>
                 </div>
             </div>
 
