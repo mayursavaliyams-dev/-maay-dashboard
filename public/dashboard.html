@@ -3379,6 +3379,16 @@
             document.getElementById('tabNIFTY').className  = 'inst-tab' + (inst === 'NIFTY'  ? ' active nifty'  : '');
             document.getElementById('chainInstLabel').textContent = INST_CFG[inst].label;
             document.getElementById('instLabel').textContent = inst === 'NIFTY' ? 'NIFTY' : '';
+            // Clear the previous instrument's data IMMEDIATELY so a slow/failed
+            // reload can never leave SENSEX rows showing under a NIFTY label
+            // (and vice-versa). Drop cached payloads too.
+            sbData = null; _wlLastData = null;
+            const chainBody = document.getElementById('sb-chain-body');
+            if (chainBody) chainBody.innerHTML = `<tr><td colspan="9" style="color:#6b7280;padding:10px;">Loading ${INST_CFG[inst].label}…</td></tr>`;
+            const wlBody = document.getElementById('wl-body');
+            if (wlBody) wlBody.innerHTML = `<tr><td colspan="18" style="color:#6b7280;padding:14px;text-align:center;">Loading ${inst}…</td></tr>`;
+            const wlLabel = document.getElementById('wl-inst-label');
+            if (wlLabel) wlLabel.textContent = inst === 'NIFTY' ? 'NIFTY · NSE_FNO' : 'SENSEX · BSE_FNO';
             // Reset position poll to use new instrument
             stopPositionPoll(); startPositionPoll();
             // Reload all panels
