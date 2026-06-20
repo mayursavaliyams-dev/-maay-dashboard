@@ -5120,8 +5120,24 @@
             }
 
             // ---- OI CHAIN ----
-            const maxOI = Math.max(...d.optionChain.map(s => Math.max(s.ce.oi, s.pe.oi)));
-            const chainSlice = [...d.optionChain].sort((a, b) => b.strike - a.strike);
+            // The analytics API returns the full ~103-strike chain incl. far-OTM
+            // strikes (e.g. 21200 when spot is 24000) that have no real premium
+            // (CE/PE LTP = 0). Show only the tradeable zone: ATM ± window, and
+            // drop any remaining rows where BOTH legs have 0 LTP. ATM always kept.
+            const CHAIN_WINDOW = 12; // strikes each side of ATM
+            const _atm = d.atmStrike || 0;
+            const _step = d.optionChain.length >= 2
+                ? Math.min(...d.optionChain.slice(1).map((s, i) => Math.abs(s.strike - d.optionChain[i].strike)).filter(x => x > 0))
+                : 50;
+            let chainSlice = [...d.optionChain]
+                .filter(s => {
+                    if (s.isATM) return true;
+                    if (_atm && _step && Math.abs(s.strike - _atm) / _step > CHAIN_WINDOW) return false; // too far from ATM
+                    return (parseFloat(s.ce?.ltp || 0) > 0) || (parseFloat(s.pe?.ltp || 0) > 0);          // has real premium
+                })
+                .sort((a, b) => b.strike - a.strike);
+            if (!chainSlice.length) chainSlice = [...d.optionChain].sort((a, b) => b.strike - a.strike);
+            const maxOI = Math.max(...chainSlice.map(s => Math.max(s.ce.oi, s.pe.oi)));
 
             // High/Low strike mapping
             const dH = parseFloat(document.getElementById('dayHigh').textContent) || 0;
