@@ -30,6 +30,10 @@
   .sp .v{font-size:14px; font-weight:700}
   .mode{font-size:9px; font-weight:700; letter-spacing:.5px; padding:4px 9px; border-radius:6px; background:#13314f; color:#7dd3fc}
   .mode.live{background:var(--redbg); color:var(--red)}
+  .topnav{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .topnav a{padding:4px 11px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--dim);text-decoration:none;border:1px solid transparent;white-space:nowrap;transition:.12s}
+  .topnav a:hover{background:var(--panel2);color:var(--cyan)}
+  .topnav a.active{color:var(--cyan);border-color:rgba(54,214,223,.32);background:rgba(54,214,223,.1)}
   .refreshbtn{background:var(--bg); border:1px solid var(--line); color:var(--dim); width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:15px; line-height:1; transition:.12s}
   .refreshbtn:hover{color:var(--txt); border-color:var(--line2)}
   .refreshbtn.spin{animation:spin360 .8s linear}
@@ -127,6 +131,19 @@
     <button class="refreshbtn" id="topRefreshBtn" onclick="hardRefresh()" title="Hard refresh — full page reload">⟳</button>
   </div>
 </header>
+
+<nav class="topnav">
+  <a href="/">Command</a>
+  <a href="/command-pro.html" class="active">Pro</a>
+  <a href="/trade.html">Trade</a>
+  <a href="/dashboard.html">Dashboard</a>
+  <a href="/signal-heatmap.html">Signal Heatmap</a>
+  <a href="/strategy.html">Strategy</a>
+  <a href="/heatmap.html">OI Heatmap</a>
+  <a href="/pop.html">PoP</a>
+  <a href="/strike-history.html">Strike History</a>
+  <a href="/ami-heatmap.html">AMI Heatmap</a>
+</nav>
 
 <div id="dataBanner" class="data-banner" style="display:none"></div>
 
