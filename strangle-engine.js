@@ -25,12 +25,50 @@ class StrangleEngine {
     this.stopMult   = parseFloat(cfg.stopMult ?? process.env.STRANGLE_STOP_MULT ?? 2.0); // leg premium ×N = stop
     this.tpPct      = parseFloat(cfg.tpPct ?? process.env.STRANGLE_TP_PCT ?? 50);        // take profit at % of credit captured
     this.qtyPerLeg  = parseInt(cfg.qtyPerLeg ?? process.env.STRANGLE_QTY ?? 1);          // lots per leg
+    // Tier-1 #2 — IV-regime filter. Backtest (300d) showed selling ONLY when IV is
+    // in the upper half of its recent range nearly doubles net/trade and lowers
+    // drawdown. Sell only when IV percentile >= ivPctMin (0..1). Set 0 to disable.
+    this.ivPctMin   = parseFloat(cfg.ivPctMin ?? process.env.STRANGLE_IV_PCT_MIN ?? 0.5);
+    this.ivWindow   = parseInt(cfg.ivWindow ?? process.env.STRANGLE_IV_WINDOW ?? 40);    // trailing days for the percentile
 
     this._open  = new Map();   // inst -> open strangle position
     this._closed = [];         // closed paper trades (today/session)
     this._cycleExp = new Map();// inst -> expiry date we entered for (re-entry guard)
     this._date  = '';
+    this._ivHist = {};         // inst -> [{date, iv}] (persisted, one per day)
+    this._ivRecorded = {};     // inst -> last date IV was recorded
+    this._lastIv = {};         // inst -> { iv, pct } (latest, for status)
+    this._ivFile = require('path').join(__dirname, 'data', 'strangle-iv.json');
+    this._loadIv();
     this.onTrade = null;       // optional callback(event, data)
+  }
+
+  // ── IV-regime helpers ──────────────────────────────────────────────────────
+  _loadIv() { try { this._ivHist = JSON.parse(require('fs').readFileSync(this._ivFile, 'utf8')) || {}; } catch { this._ivHist = {}; } }
+  _saveIv() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._ivFile), { recursive: true }); fs.writeFileSync(this._ivFile, JSON.stringify(this._ivHist)); } catch (_) {} }
+  // Annualized ATM-straddle IV proxy: straddle / (0.8 * spot * sqrt(DTE/365)).
+  _ivProxy(chain) {
+    const atm = chain.atm; if (!atm) return null;
+    const row = (chain.rows || []).find(r => r.strike === atm);
+    const ce = Number(row?.ce?.ltp || 0), pe = Number(row?.pe?.ltp || 0);
+    if (!(ce > 0) || !(pe > 0)) return null;
+    let dte = 1;
+    if (chain.expiry) dte = Math.max(1, Math.round((Date.parse(chain.expiry) - Date.now()) / 86400000));
+    return (ce + pe) / (0.8 * atm * Math.sqrt(dte / 365));
+  }
+  _recordIv(inst, iv) {
+    const d = this._today();
+    const arr = this._ivHist[inst] = this._ivHist[inst] || [];
+    if (arr.length && arr[arr.length - 1].date === d) arr[arr.length - 1].iv = iv;   // refresh today's
+    else if (this._ivRecorded[inst] !== d) arr.push({ date: d, iv });
+    this._ivRecorded[inst] = d;
+    if (arr.length > 120) arr.shift();
+    this._saveIv();
+  }
+  _ivPercentile(inst, iv) {
+    const arr = (this._ivHist[inst] || []).slice(-this.ivWindow).map(x => x.iv).filter(v => v > 0);
+    if (arr.length < 10) return null;   // too little history → don't gate yet
+    return arr.filter(v => v <= iv).length / arr.length;
   }
 
   _today() { return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10); }
@@ -48,6 +86,13 @@ class StrangleEngine {
     const expiry = chain.expiry || null;
     const pos = this._open.get(inst);
 
+    // Track the IV regime every tick (records one IV/day; builds the percentile history).
+    const iv = this._ivProxy(chain);
+    if (iv != null) {
+      this._recordIv(inst, iv);
+      this._lastIv[inst] = { iv: +iv.toFixed(4), pct: this._ivPercentile(inst, iv) };
+    }
+
     if (pos) { this._manage(inst, chain, pos); return; }
 
     // ── No open position: maybe enter, if this weekly cycle isn't already used ──
@@ -57,6 +102,13 @@ class StrangleEngine {
     const peRow = chain.rows.find(r => r.strike === atm - off);
     const ceLtp = Number(ceRow?.ce?.ltp || 0), peLtp = Number(peRow?.pe?.ltp || 0);
     if (!(ceLtp > 0) || !(peLtp > 0)) return;
+
+    // IV-regime gate: sell only when IV is rich vs its recent range (premium worth
+    // selling). Skips low-IV cycles. Permissive until enough history accrues.
+    if (this.ivPctMin > 0 && iv != null) {
+      const pct = this._ivPercentile(inst, iv);
+      if (pct != null && pct < this.ivPctMin) return;   // not rich enough — wait for next cycle
+    }
 
     const entry = {
       inst, expiry, entryAt: this._hms(),
@@ -102,9 +154,17 @@ class StrangleEngine {
   status() {
     const wins = this._closed.filter(t => t.pnlAbs > 0).length;
     const net  = this._closed.reduce((s, t) => s + t.pnlAbs, 0);
+    // Current IV-regime snapshot (highest-history instrument shown if multiple).
+    const ivState = {};
+    for (const [inst, v] of Object.entries(this._lastIv)) {
+      ivState[inst] = { iv: v.iv, pct: v.pct != null ? +(v.pct * 100).toFixed(0) : null,
+        rich: v.pct != null ? v.pct >= this.ivPctMin : null, history: (this._ivHist[inst] || []).length };
+    }
     return {
       enabled: this.enabled,
-      config: { otmPct: this.otmPct, stopMult: this.stopMult, tpPct: this.tpPct, qtyPerLeg: this.qtyPerLeg },
+      config: { otmPct: this.otmPct, stopMult: this.stopMult, tpPct: this.tpPct, qtyPerLeg: this.qtyPerLeg,
+        ivPctMin: this.ivPctMin, ivWindow: this.ivWindow },
+      ivRegime: ivState,
       openPositions: [...this._open.values()],
       closedToday: this._closed.length,
       wins, winRate: this._closed.length ? +(100 * wins / this._closed.length).toFixed(0) : 0,

@@ -20,3 +20,6 @@ bt-data/bhav/
 
 # Runtime AI advisor signal log (measured hit-rate state)
 data/ai-signals.json
+
+# Runtime strangle IV-regime history
+data/strangle-iv.json
