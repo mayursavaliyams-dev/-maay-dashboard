@@ -1,0 +1,41 @@
+{
+ "days": 300,
+ "results": [
+  {
+   "name": "NO FILTER (baseline)",
+   "trades": 66,
+   "skipped": 0,
+   "winPct": 94,
+   "net": 155893,
+   "netPerTrade": 2362,
+   "maxDDpct": 2.4
+  },
+  {
+   "name": "Skip when |spot−SMA10| > 1.5%",
+   "trades": 60,
+   "skipped": 33,
+   "winPct": 97,
+   "net": 142946,
+   "netPerTrade": 2382,
+   "maxDDpct": 2.6
+  },
+  {
+   "name": "Skip when |5-day move| > 2.5%",
+   "trades": 61,
+   "skipped": 28,
+   "winPct": 93,
+   "net": 129421,
+   "netPerTrade": 2122,
+   "maxDDpct": 2.7
+  },
+  {
+   "name": "Skip when EITHER (trend strong)",
+   "trades": 59,
+   "skipped": 38,
+   "winPct": 95,
+   "net": 117908,
+   "netPerTrade": 1998,
+   "maxDDpct": 2.8
+  }
+ ]
+}

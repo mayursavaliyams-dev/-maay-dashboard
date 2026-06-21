@@ -3176,8 +3176,11 @@ app.post('/api/bounce/enable', (req, res) => { bounceEngine.enabled = req.body?.
 const strangleEngine = new StrangleEngine();
 strangleEngine.onTrade = (event, d) => {
   if (event === 'SELL_OPEN') {
-    console.log(`[strangle] OPEN ${d.inst} ${d.pe.strike}PE/${d.ce.strike}CE credit ₹${d.credit} (exp ${d.expiry})`);
-    if (telegram?.enabled) telegram.sendAlert('🟣 Strangle OPEN', `${d.inst} ${d.pe.strike}PE + ${d.ce.strike}CE\nCredit ₹${d.credit}`).catch(() => {});
+    console.log(`[strangle] OPEN ${d.structure} ${d.inst} ${d.pe.strike}PE/${d.ce.strike}CE credit ₹${d.credit}${d.maxLoss ? ` maxLoss ₹${d.maxLoss}` : ''} (exp ${d.expiry})`);
+    if (telegram?.enabled) telegram.sendAlert(`🟣 ${d.structure} OPEN`, `${d.inst} ${d.pe.strike}PE + ${d.ce.strike}CE\nCredit ₹${d.credit}${d.maxLoss ? ` · maxLoss ₹${d.maxLoss}` : ''}`).catch(() => {});
+  } else if (event === 'ADJUST') {
+    console.log(`[strangle] ⚠️ ADJUST ${d.inst} ${d.tested} tested @ ${d.mult}x — ${d.suggestion}`);
+    if (telegram?.enabled) telegram.sendAlert('⚠️ Strangle ADJUST', `${d.inst} ${d.tested} side tested @ ${d.mult}x\n${d.suggestion}`).catch(() => {});
   } else {
     console.log(`[strangle] CLOSE ${d.inst} ${d.reason} ₹${d.pnlAbs} (${d.pnlPct}% of credit)`);
     if (telegram?.enabled) telegram.sendAlert(d.pnlAbs >= 0 ? '✅ Strangle CLOSE' : '❌ Strangle CLOSE', `${d.inst} ${d.reason}\nP&L ₹${d.pnlAbs} (${d.pnlPct}%)`).catch(() => {});

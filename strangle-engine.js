@@ -43,6 +43,14 @@ class StrangleEngine {
     this.capital   = parseFloat(cfg.capital ?? process.env.STRANGLE_CAPITAL ?? 100000);
     this.useSizer  = String(cfg.useSizer ?? process.env.STRANGLE_USE_SIZER ?? 'false').toLowerCase() === 'true';
     this._stats    = { winRate: 0.94, avgWin: 2959, avgLoss: -3498 };   // from cost-net backtest
+    // Tier-3 — (#7) trend kill-switch: don't sell premium into a strong trend.
+    // OFF by default (backtest showed only marginal everyday benefit; rationale
+    // is crisis protection — AQR). Set trendSkipPct e.g. 0.015 to enable.
+    // (#6) adjustMult: early-warning when a leg reaches this × entry (before the
+    // 2x stop) → emit an ADJUST signal so the untested side can be rolled.
+    this.trendSkipPct = parseFloat(cfg.trendSkipPct ?? process.env.STRANGLE_TREND_SKIP_PCT ?? 0); // 0 disables
+    this.trendSmaN    = parseInt(cfg.trendSmaN ?? process.env.STRANGLE_TREND_SMA ?? 10);
+    this.adjustMult   = parseFloat(cfg.adjustMult ?? process.env.STRANGLE_ADJUST_MULT ?? 1.5);    // < stopMult
 
     this._open  = new Map();   // inst -> open strangle position
     this._closed = [];         // closed paper trades (today/session)
@@ -69,11 +77,11 @@ class StrangleEngine {
     if (chain.expiry) dte = Math.max(1, Math.round((Date.parse(chain.expiry) - Date.now()) / 86400000));
     return (ce + pe) / (0.8 * atm * Math.sqrt(dte / 365));
   }
-  _recordIv(inst, iv) {
+  _recordIv(inst, iv, spot) {
     const d = this._today();
     const arr = this._ivHist[inst] = this._ivHist[inst] || [];
-    if (arr.length && arr[arr.length - 1].date === d) arr[arr.length - 1].iv = iv;   // refresh today's
-    else if (this._ivRecorded[inst] !== d) arr.push({ date: d, iv });
+    if (arr.length && arr[arr.length - 1].date === d) { arr[arr.length - 1].iv = iv; if (spot) arr[arr.length - 1].spot = spot; }
+    else if (this._ivRecorded[inst] !== d) arr.push({ date: d, iv, spot: spot || null });
     this._ivRecorded[inst] = d;
     if (arr.length > 120) arr.shift();
     this._saveIv();
@@ -82,6 +90,15 @@ class StrangleEngine {
     const arr = (this._ivHist[inst] || []).slice(-this.ivWindow).map(x => x.iv).filter(v => v > 0);
     if (arr.length < 10) return null;   // too little history → don't gate yet
     return arr.filter(v => v <= iv).length / arr.length;
+  }
+  // Tier-3 #7 — trend strength: distance of spot from its SMA(N). Returns the
+  // fraction (e.g. 0.02 = 2% above/below SMA) or null if too little history.
+  _trendDist(inst, spot) {
+    const sp = (this._ivHist[inst] || []).map(x => x.spot).filter(v => v > 0);
+    if (sp.length < this.trendSmaN) return null;
+    const win = sp.slice(-this.trendSmaN);
+    const avg = win.reduce((a, b) => a + b, 0) / win.length;
+    return avg > 0 ? Math.abs(spot - avg) / spot : null;
   }
 
   _today() { return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10); }
@@ -99,10 +116,10 @@ class StrangleEngine {
     const expiry = chain.expiry || null;
     const pos = this._open.get(inst);
 
-    // Track the IV regime every tick (records one IV/day; builds the percentile history).
+    // Track the IV regime + daily spot every tick (one record/day → percentile + SMA history).
     const iv = this._ivProxy(chain);
     if (iv != null) {
-      this._recordIv(inst, iv);
+      this._recordIv(inst, iv, atm);
       this._lastIv[inst] = { iv: +iv.toFixed(4), pct: this._ivPercentile(inst, iv) };
     }
 
@@ -110,6 +127,12 @@ class StrangleEngine {
 
     // ── No open position: maybe enter, if this weekly cycle isn't already used ──
     if (expiry && this._cycleExp.get(inst) === expiry) return;   // already traded this expiry
+
+    // Tier-3 trend kill-switch (optional, off by default): don't sell into a strong trend.
+    if (this.trendSkipPct > 0) {
+      const td = this._trendDist(inst, atm);
+      if (td != null && td > this.trendSkipPct) return;   // trending hard — stand aside
+    }
     const off = Math.round((atm * (this.otmPct / 100)) / step) * step;
     const ceRow = chain.rows.find(r => r.strike === atm + off);
     const peRow = chain.rows.find(r => r.strike === atm - off);
@@ -180,6 +203,17 @@ class StrangleEngine {
     const tpHit = captured >= this.tpPct / 100;
     const stopHit = ceLtp >= pos.ce.entry * this.stopMult || peLtp >= pos.pe.entry * this.stopMult;
 
+    // Tier-3 #6 — defensive ADJUST early-warning: a leg reached adjustMult× (but
+    // not yet the 2x stop). Fire once so the untested side can be rolled/hedged.
+    const ceTested = ceLtp >= pos.ce.entry * this.adjustMult, peTested = peLtp >= pos.pe.entry * this.adjustMult;
+    if (!pos._adjusted && !stopHit && (ceTested || peTested)) {
+      pos._adjusted = true;
+      const tested = ceTested ? 'CE' : 'PE', untested = ceTested ? 'pe' : 'ce';
+      if (this.onTrade) try { this.onTrade('ADJUST', { inst, tested, testedStrike: pos[ceTested ? 'ce' : 'pe'].strike,
+        untestedStrike: pos[untested].strike, mult: +((ceTested ? ceLtp / pos.ce.entry : peLtp / pos.pe.entry)).toFixed(2),
+        suggestion: `${tested} side tested — roll the untested ${untested.toUpperCase()} closer to re-center delta & add credit, or close early.` }); } catch (_) {}
+    }
+
     if (stopHit || tpHit) {
       let pnlPerUnit = pos.credit - netCloseCost;
       // A condor can never lose more than its defined max loss — enforce the cap.
@@ -220,7 +254,8 @@ class StrangleEngine {
       enabled: this.enabled,
       config: { otmPct: this.otmPct, stopMult: this.stopMult, tpPct: this.tpPct, qtyPerLeg: this.qtyPerLeg,
         ivPctMin: this.ivPctMin, ivWindow: this.ivWindow, tailSafePct: this.tailSafePct, wingPts: this.wingPts,
-        capital: this.capital, useSizer: this.useSizer },
+        capital: this.capital, useSizer: this.useSizer,
+        trendSkipPct: this.trendSkipPct, adjustMult: this.adjustMult },
       ivRegime: ivState,
       sizing,
       openPositions: [...this._open.values()],
