@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoP Seller — Antigravity Pro</title>
+<style>
+:root {
+  --bg:#0a0a0f; --panel:#0f0f18; --border:#1a1a2e; --text:#e8e8f0; --muted:#4a4a6a;
+  --green:#00e676; --red:#ff4444; --blue:#448aff; --yellow:#ffd740; --orange:#ff6d00; --purple:#ce93d8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospace;font-size:13px;}
+
+.topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);
+  border-bottom:1px solid var(--border);padding:8px 14px;position:sticky;top:0;z-index:50;}
+.brand{font-weight:800;color:var(--green);font-size:1rem;}
+.tb-sep{width:1px;height:22px;background:var(--border);}
+.tb-chip{display:flex;flex-direction:column;gap:1px;}
+.tb-lbl{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.tb-val{font-weight:700;font-size:.88rem;}
+.inst-tabs{display:flex;gap:3px;}
+.inst-tab{padding:4px 12px;border-radius:5px;font-size:.75rem;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);transition:.1s;}
+.inst-tab.active{background:rgba(0,230,118,.12);color:var(--green);border-color:rgba(0,230,118,.3);}
+.refresh-btn{padding:4px 12px;border-radius:5px;font-size:.72rem;font-weight:700;cursor:pointer;
+  border:1px solid rgba(0,230,118,.3);background:rgba(0,230,118,.1);color:var(--green);margin-left:auto;}
+.back-link{color:var(--muted);font-size:.72rem;text-decoration:none;}
+
+.warn-bar{background:rgba(255,68,68,.1);border-bottom:1px solid rgba(255,68,68,.3);
+  color:#ff8a8a;padding:6px 14px;font-size:.72rem;text-align:center;}
+
+.layout{display:grid;grid-template-columns:1fr 380px;gap:10px;padding:10px;align-items:start;}
+@media(max-width:900px){.layout{grid-template-columns:1fr;}}
+
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;}
+.panel-title{font-size:.78rem;font-weight:700;color:var(--text);margin-bottom:10px;
+  text-transform:uppercase;letter-spacing:.06em;}
+
+/* Controls */
+.controls{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+.ctrl-group{display:flex;align-items:center;gap:5px;}
+.ctrl-group label{font-size:.68rem;color:var(--muted);}
+.slider{width:120px;}
+.pop-val{font-weight:800;color:var(--green);min-width:40px;}
+
+/* Table */
+table{width:100%;border-collapse:collapse;}
+th{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;
+  padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;}
+th:first-child{text-align:left;}
+td{padding:6px 8px;border-bottom:1px solid #14141f;text-align:right;font-size:.78rem;}
+td:first-child{text-align:left;font-weight:700;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.side-ce{color:var(--red);}
+.side-pe{color:var(--green);}
+.pop-100{color:var(--green);font-weight:800;}
+.pop-95{color:var(--yellow);font-weight:700;}
+.sell-btn{background:rgba(255,109,0,.15);border:1px solid rgba(255,109,0,.4);color:var(--orange);
+  border-radius:5px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;}
+.sell-btn:hover{background:rgba(255,109,0,.3);}
+
+/* Iron Condor card */
+.ic-card{background:#0d0d18;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;}
+.ic-row{display:flex;justify-content:space-between;padding:4px 0;font-size:.78rem;border-bottom:1px solid #14141f;}
+.ic-row:last-child{border-bottom:none;}
+.ic-lbl{color:var(--muted);}
+.ic-val{font-weight:700;}
+
+/* Payoff chart */
+#payoffChart{width:100%;height:200px;}
+
+/* Book */
+.book-item{display:flex;justify-content:space-between;align-items:center;background:#0d0d18;
+  border:1px solid var(--border);border-radius:7px;padding:6px 9px;margin-bottom:5px;font-size:.74rem;}
+.book-pnl{font-weight:700;}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:99px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">PoP SELLER</div>
+  <div class="tb-sep"></div>
+  <div class="inst-tabs">
+    <button class="inst-tab active" data-inst="NIFTY">NIFTY</button>
+    <button class="inst-tab" data-inst="BANKNIFTY">BANKNIFTY</button>
+    <button class="inst-tab" data-inst="SENSEX">SENSEX</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-chip"><div class="tb-lbl">Spot</div><div class="tb-val" id="tbSpot" style="color:var(--green)">--</div></div>
+  <div class="tb-sep"></div>
+  <div class="tb-chip"><div class="tb-lbl">Mode</div><div class="tb-val" id="tbMode" style="color:var(--yellow)">PAPER</div></div>
+  <button class="refresh-btn" onclick="loadScan()">⟳ Scan</button>
+  <nav style="display:flex;align-items:center;gap:4px;margin-left:auto;flex-wrap:wrap;">
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/">Command</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/command-pro.html">Pro</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/trade.html">Trade</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/dashboard.html">Dashboard</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/signal-heatmap.html">Signal Heatmap</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strategy.html">Strategy</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/heatmap.html">OI Heatmap</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#78a8ff;text-decoration:none;border:1px solid rgba(120,168,255,.3);background:rgba(120,168,255,.1);white-space:nowrap;" href="/pop.html">PoP</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strike-history.html">Strike History</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/ami-heatmap.html">AMI Heatmap</a>
+  </nav>
+</div>
+
+<div class="warn-bar" id="warnBar">
+  ⚠️ Selling defaults to PAPER. Live is hard-gated (IC backtest: 0/26 wins — validate on paper first).
+</div>
+
+<div class="layout">
+
+  <!-- LEFT: Scanner -->
+  <div class="panel">
+    <div class="controls">
+      <div class="ctrl-group">
+        <label>Min PoP</label>
+        <input class="slider" type="range" id="popSlider" min="60" max="100" value="75" oninput="onFilterChange()">
+        <span class="pop-val" id="popValLbl">75%</span>
+      </div>
+      <div class="ctrl-group">
+        <label>Min Premium ₹</label>
+        <input type="number" id="minPremInput" value="20" min="0" step="5"
+          style="width:70px;background:#0d0d0d;border:1px solid var(--border);color:var(--text);
+                 border-radius:5px;padding:3px 6px;font-size:.75rem" oninput="onFilterChange()">
+      </div>
+      <div class="ctrl-group">
+        <label>Sort</label>
+        <select id="sortMode" onchange="onFilterChange()"
+          style="background:#0d0d0d;border:1px solid var(--border);color:var(--text);
+                 border-radius:5px;padding:3px 6px;font-size:.75rem">
+          <option value="premium">Max Premium</option>
+          <option value="nearest">Nearest Strike</option>
+          <option value="pop">Highest PoP</option>
+        </select>
+      </div>
+      <span style="color:var(--muted);font-size:.7rem;margin-left:auto" id="scanInfo">--</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Side</th><th>Strike</th><th>Premium</th><th>PoP%</th>
+          <th>Dist%</th><th>IV · DTE</th><th>Max Profit</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="scanBody">
+        <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- RIGHT: Iron Condor + Payoff + Book -->
+  <div>
+    <div class="panel" style="margin-bottom:10px">
+      <div class="panel-title">🦅 Iron Condor (auto-built)</div>
+      <div class="ic-card" id="icCard">
+        <div style="color:var(--muted);font-size:.74rem">Scanning...</div>
+      </div>
+      <button class="sell-btn" style="width:100%;padding:7px" onclick="sellIronCondor()">SELL IRON CONDOR (paper)</button>
+    </div>
+
+    <div class="panel" style="margin-bottom:10px">
+      <div class="panel-title">📈 Payoff</div>
+      <canvas id="payoffChart"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">📒 Open Positions <span id="bookCredit" style="color:var(--green);float:right;font-size:.74rem"></span></div>
+      <div id="bookList">
+        <div style="color:var(--muted);font-size:.72rem">No positions yet.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let activeInst = 'NIFTY';
+  let scanData = null;
+  let curIC = null;
+
+  const fmtN = v => Number(v).toLocaleString('en-IN');
+
+  document.querySelectorAll('.inst-tab').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.inst-tab').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    activeInst = b.dataset.inst;
+    loadScan();
+  }));
+
+  function onFilterChange() {
+    const v = document.getElementById('popSlider').value;
+    document.getElementById('popValLbl').textContent = v + '%';
+    if (scanData) renderScan();
+  }
+
+  function popClass(p) { return p >= 99.5 ? 'pop-100' : p >= 95 ? 'pop-95' : ''; }
+
+  function renderScan() {
+    const minPoP   = Number(document.getElementById('popSlider').value);
+    const minPrem  = Number(document.getElementById('minPremInput').value) || 0;
+    const sortMode = document.getElementById('sortMode').value;
+    let rows = (scanData.candidates || []).filter(c => c.pop >= minPoP && c.premium >= minPrem);
+    // Sort
+    if (sortMode === 'nearest') rows.sort((a,b) => a.distance - b.distance);
+    else if (sortMode === 'pop') rows.sort((a,b) => b.pop - a.pop || b.premium - a.premium);
+    else rows.sort((a,b) => b.premium - a.premium); // max premium default
+    const body = document.getElementById('scanBody');
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">No strikes ≥ ${minPoP}% PoP</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows.map(c => {
+      const sideCls = c.type === 'CE' ? 'side-ce' : 'side-pe';
+      const sideTxt = c.side === 'SELL_CE' ? 'SELL CE' : 'SELL PE';
+      const srcBadge = c.fromChain
+        ? '<span style="font-size:.6rem;background:rgba(0,230,118,.15);color:var(--green);border-radius:3px;padding:1px 4px;margin-left:3px">live</span>'
+        : '<span style="font-size:.6rem;background:rgba(255,215,64,.1);color:var(--yellow);border-radius:3px;padding:1px 4px;margin-left:3px">BS</span>';
+      return `<tr>
+        <td class="${sideCls}">${sideTxt}${srcBadge}</td>
+        <td>${fmtN(c.strike)}</td>
+        <td>₹${c.premium}</td>
+        <td class="${popClass(c.pop)}">${c.pop}%</td>
+        <td>${c.distancePct}%</td>
+        <td>${c.iv != null ? c.iv+'%' : '--'} <span style="font-size:.62rem;color:var(--muted)">(${c.dte}d)</span></td>
+        <td style="color:var(--green)">₹${fmtN(c.maxProfit)}</td>
+        <td><button class="sell-btn" onclick='sellOne(${JSON.stringify(c).replace(/'/g,"&#39;")})'>SELL</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderIC(ic) {
+    curIC = ic;
+    const card = document.getElementById('icCard');
+    if (!ic) { card.innerHTML = '<div style="color:var(--muted);font-size:.74rem">No qualifying IC at this PoP.</div>'; return; }
+    card.innerHTML = `
+      <div class="ic-row"><span class="ic-lbl">Sell CE</span><span class="ic-val side-ce">${fmtN(ic.legs[0].strike)} @ ₹${ic.legs[0].premium}</span></div>
+      <div class="ic-row"><span class="ic-lbl">Sell PE</span><span class="ic-val side-pe">${fmtN(ic.legs[1].strike)} @ ₹${ic.legs[1].premium}</span></div>
+      <div class="ic-row"><span class="ic-lbl">Net Credit</span><span class="ic-val" style="color:var(--green)">₹${ic.credit}</span></div>
+      <div class="ic-row"><span class="ic-lbl">Max Profit</span><span class="ic-val" style="color:var(--green)">₹${fmtN(ic.maxProfit)}</span></div>
+      <div class="ic-row"><span class="ic-lbl">Combined PoP</span><span class="ic-val pop-100">${ic.combinedPoP}%</span></div>
+      <div class="ic-row"><span class="ic-lbl">Breakevens</span><span class="ic-val">${fmtN(ic.lowerBreakeven)} – ${fmtN(ic.upperBreakeven)}</span></div>`;
+    drawPayoff(ic);
+  }
+
+  // Simple canvas payoff
+  async function drawPayoff(ic) {
+    try {
+      const legs = ic.legs.map(l => ({ action: 'SELL', type: l.type, strike: l.strike, premium: l.premium }));
+      const r = await fetch('/api/pop/payoff', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ inst: activeInst, spot: ic.spot, legs })
+      });
+      const d = await r.json();
+      const curve = d.curve || [];
+      const cv = document.getElementById('payoffChart');
+      const ctx = cv.getContext('2d');
+      const W = cv.width = cv.clientWidth, H = cv.height = 200;
+      ctx.clearRect(0,0,W,H);
+      if (!curve.length) return;
+      const pnls = curve.map(p => p.pnl);
+      const maxP = Math.max(...pnls), minP = Math.min(...pnls);
+      const range = (maxP - minP) || 1;
+      const x = i => (i/(curve.length-1))*W;
+      const y = p => H - ((p - minP)/range)*(H-20) - 10;
+      // zero line
+      ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.beginPath();
+      ctx.moveTo(0, y(0)); ctx.lineTo(W, y(0)); ctx.stroke();
+      // curve
+      ctx.strokeStyle = '#00e676'; ctx.lineWidth = 2; ctx.beginPath();
+      curve.forEach((p,i) => { i===0 ? ctx.moveTo(x(i),y(p.pnl)) : ctx.lineTo(x(i),y(p.pnl)); });
+      ctx.stroke();
+      // fill profit zone
+      ctx.fillStyle = 'rgba(0,230,118,.08)';
+      ctx.lineTo(W, y(0)); ctx.lineTo(0, y(0)); ctx.closePath(); ctx.fill();
+    } catch {}
+  }
+
+  async function sellOne(c) {
+    const r = await fetch('/api/pop/sell', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ inst: activeInst, side: c.side, strike: c.strike, type: c.type, premium: c.premium, lot: c.lot, pop: c.pop })
+    });
+    const d = await r.json();
+    if (d.ok) { loadBook(); }
+    else alert(d.reason || 'Sell blocked');
+  }
+
+  async function sellIronCondor() {
+    if (!curIC) return;
+    for (const leg of curIC.legs) {
+      await fetch('/api/pop/sell', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ inst: activeInst, side: 'SELL_'+leg.type, strike: leg.strike, type: leg.type, premium: leg.premium, lot: curIC.lot, pop: leg.pop })
+      });
+    }
+    loadBook();
+  }
+
+  async function loadScan() {
+    const minPoP = Number(document.getElementById('popSlider').value);
+    document.getElementById('scanBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">Scanning...</td></tr>';
+    try {
+      const r = await fetch(`/api/pop/scan?inst=${activeInst}&minPoP=60`, { cache:'no-store' });
+      scanData = await r.json();
+      if (scanData.error) { document.getElementById('scanBody').innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:30px">${scanData.error}</td></tr>`; return; }
+      document.getElementById('tbSpot').textContent = scanData.spot ? '₹'+fmtN(scanData.spot) : '--';
+      const ivInfo  = scanData.atmIV ? ` · ATM IV ${scanData.atmIV}%` : ' · IV estimated';
+      const dteInfo = scanData.daysToExpiry ? ` · DTE ${scanData.daysToExpiry}d` : '';
+      document.getElementById('scanInfo').textContent = `${scanData.count} candidates · ${activeInst}${ivInfo}${dteInfo}`;
+      renderScan();
+      renderIC(scanData.ironCondor);
+    } catch(e) {
+      document.getElementById('scanBody').innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:30px">${e.message}</td></tr>`;
+    }
+  }
+
+  async function loadBook() {
+    try {
+      const r = await fetch('/api/pop/status', { cache:'no-store' });
+      const d = await r.json();
+      document.getElementById('tbMode').textContent = d.liveEnabled ? 'LIVE-CAP' : 'PAPER';
+      const open = (d.book || []).filter(p => p.status === 'OPEN');
+      document.getElementById('bookCredit').textContent = open.length ? `Credit ₹${fmtN(d.totalCredit)}` : '';
+      const list = document.getElementById('bookList');
+      if (!open.length) { list.innerHTML = '<div style="color:var(--muted);font-size:.72rem">No positions yet.</div>'; return; }
+      list.innerHTML = open.map(p => `
+        <div class="book-item">
+          <span class="${p.type==='CE'?'side-ce':'side-pe'}" style="font-weight:700">${p.side==='SELL_CE'?'SELL CE':'SELL PE'} ${fmtN(p.strike)}</span>
+          <span style="color:var(--muted)">@₹${p.premium} ×${p.lot}</span>
+          <span class="book-pnl" style="color:var(--green)">₹${fmtN(p.creditCollected)}</span>
+          <button class="sell-btn" style="padding:2px 8px" onclick="closePos(${p.id})">CLOSE</button>
+        </div>`).join('');
+    } catch {}
+  }
+
+  async function closePos(id) {
+    await fetch('/api/pop/close', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, exitPremium: 0 }) });
+    loadBook();
+  }
+
+  loadScan();
+  loadBook();
+  setInterval(loadScan, 15000);
+  setInterval(loadBook, 8000);
+</script>
+</body>
+</html>

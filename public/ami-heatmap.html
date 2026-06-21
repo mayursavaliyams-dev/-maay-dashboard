@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMI Heatmap — Antigravity Pro</title>
+<style>
+:root{
+  --bg:#0b0b10;--panel:#0f0f18;--border:#1e1e30;--text:#e8e8f0;--muted:#4a4a6a;
+  --green:#00e676;--red:#ff4444;--blue:#448aff;--yellow:#ffd740;--orange:#ff6d00;
+  --purple:#ce93d8;--teal:#00bcd4;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospace;font-size:12px;height:100%;overflow:hidden;}
+
+/* ── TOP BAR ── */
+.topbar{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  background:#0d0d18;border-bottom:1px solid var(--border);
+  padding:0 10px;height:44px;flex-shrink:0;z-index:100;
+}
+.brand{font-weight:800;color:var(--green);font-size:.9rem;white-space:nowrap;}
+.tb-sep{width:1px;height:22px;background:var(--border);flex-shrink:0;}
+.tb-chip{display:flex;flex-direction:column;gap:1px;}
+.tb-lbl{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.tb-val{font-weight:700;font-size:.82rem;}
+.signal-pill{padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:800;}
+.sig-call{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);}
+.sig-put{background:rgba(255,68,68,.15);color:var(--red);border:1px solid rgba(255,68,68,.3);}
+.sig-wait{background:rgba(74,74,106,.2);color:var(--muted);border:1px solid #333;}
+
+/* AMI panel */
+.ami-panel{display:flex;align-items:center;gap:5px;background:rgba(206,147,216,.06);border:1px solid rgba(206,147,216,.2);border-radius:6px;padding:3px 8px;flex-shrink:0;}
+.ami-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.ami-dot.live{background:var(--green);box-shadow:0 0 5px rgba(0,230,118,.7);animation:pulse 1.5s infinite;}
+.ami-dot.stale{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+.pos-badge{padding:1px 6px;border-radius:3px;font-size:.66rem;font-weight:800;}
+.pos-call{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);}
+.pos-put{background:rgba(255,68,68,.15);color:var(--red);border:1px solid rgba(255,68,68,.3);}
+.pos-none{background:rgba(74,74,106,.12);color:var(--muted);border:1px solid #333;}
+
+.view-tabs{display:flex;gap:2px;margin-left:auto;}
+.view-tab{padding:3px 9px;border-radius:5px;font-size:.68rem;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);transition:.1s;}
+.view-tab.active{background:rgba(68,138,255,.12);color:var(--blue);border-color:rgba(68,138,255,.3);}
+.back-btn{padding:3px 9px;border-radius:5px;font-size:.68rem;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);}
+.upd-lbl{font-size:.62rem;color:var(--muted);}
+
+/* ── 3-PANEL LAYOUT ── */
+.panels-wrap{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  height:calc(100vh - 44px);
+  gap:0;
+  overflow:hidden;
+}
+.panel{
+  display:flex;flex-direction:column;
+  border-right:1px solid var(--border);
+  overflow:hidden;
+  min-width:0;
+}
+.panel:last-child{border-right:none;}
+
+/* Panel header */
+.ph{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:5px 8px;flex-shrink:0;
+}
+.ph-name{font-weight:800;font-size:.85rem;}
+.ph-name.nifty  {color:var(--blue);}
+.ph-name.sensex {color:var(--orange);}
+.ph-name.bnifty {color:var(--purple);}
+.ph-spot{font-size:.8rem;font-weight:700;}
+.ph-atm{font-size:.7rem;color:var(--yellow);}
+.ph-sig{margin-left:auto;}
+.ph-pcr{font-size:.7rem;}
+.ph-upd{font-size:.6rem;color:var(--muted);}
+
+/* Panel strip */
+.ps{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;
+  background:#0c0c16;border-bottom:1px solid var(--border);flex-shrink:0;}
+.ps::-webkit-scrollbar{display:none;}
+.ps-item{display:flex;flex-direction:column;gap:1px;padding:4px 10px;
+  border-right:1px solid var(--border);white-space:nowrap;flex-shrink:0;}
+.si-lbl{font-size:.52rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.si-val{font-size:.78rem;font-weight:700;}
+
+/* Heatmap scroll */
+.hm-scroll{overflow-y:auto;overflow-x:hidden;flex:1;padding:5px;}
+.hm-scroll::-webkit-scrollbar{width:3px;}
+.hm-scroll::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:99px;}
+
+/* Heatmap grid */
+.hm-header{display:grid;gap:2px;margin-bottom:3px;}
+.hm-col-hdr{text-align:center;font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:2px 0;}
+.hm-col-hdr.ce-hdr{color:var(--green);}
+.hm-col-hdr.pe-hdr{color:var(--red);}
+.hm-col-hdr.st-hdr{color:var(--yellow);}
+
+.hm-row{display:grid;gap:2px;align-items:center;margin-bottom:2px;}
+
+.hm-strike{
+  background:#0d0d18;border:1px solid var(--border);border-radius:4px;
+  padding:3px 4px;text-align:center;font-weight:800;font-size:.7rem;
+  color:var(--yellow);white-space:nowrap;
+}
+.hm-strike.atm{background:#1a1400;color:#fff;border-color:var(--yellow);}
+.hm-strike.atm::after{content:" ★";color:var(--yellow);font-size:.55rem;}
+.hm-strike.ami-target{background:#1a0d2e !important;color:var(--purple) !important;border-color:var(--purple) !important;box-shadow:0 0 6px rgba(206,147,216,.4);}
+.hm-strike.ami-target::after{content:" ◀";color:var(--purple);font-size:.55rem;}
+
+.hm-cell{
+  border-radius:4px;padding:4px 5px;cursor:pointer;
+  transition:filter .1s,transform .05s;min-width:0;
+}
+.hm-cell:hover{filter:brightness(1.3);transform:scale(1.02);z-index:2;}
+
+/* CE colors */
+.ce-100{background:rgba(0,230,118,.55);}
+.ce-95{background:rgba(0,230,118,.40);}
+.ce-90{background:rgba(0,230,118,.28);}
+.ce-85{background:rgba(0,230,118,.18);}
+.ce-80{background:rgba(0,230,118,.10);}
+.ce-70{background:rgba(0,230,118,.05);}
+.ce-atm{background:rgba(255,215,64,.22);border:1px solid rgba(255,215,64,.35);}
+.ce-itm{background:rgba(0,230,118,.08);}
+/* PE colors */
+.pe-100{background:rgba(255,68,68,.55);}
+.pe-95{background:rgba(255,68,68,.40);}
+.pe-90{background:rgba(255,68,68,.28);}
+.pe-85{background:rgba(255,68,68,.18);}
+.pe-80{background:rgba(255,68,68,.10);}
+.pe-70{background:rgba(255,68,68,.05);}
+.pe-atm{background:rgba(255,215,64,.22);border:1px solid rgba(255,215,64,.35);}
+.pe-itm{background:rgba(255,68,68,.08);}
+
+.ami-hl-ce{outline:2px solid rgba(0,230,118,.8) !important;outline-offset:-1px;}
+.ami-hl-pe{outline:2px solid rgba(255,68,68,.8) !important;outline-offset:-1px;}
+
+.cell-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1px;}
+.cell-ltp{font-size:.78rem;font-weight:800;}
+.cell-pop{font-size:.58rem;font-weight:800;padding:1px 4px;border-radius:2px;}
+.pop-hi{background:rgba(0,230,118,.3);color:var(--green);}
+.pop-mid{background:rgba(255,215,64,.2);color:var(--yellow);}
+.pop-lo{background:rgba(255,68,68,.2);color:var(--red);}
+.cell-bot{display:flex;justify-content:space-between;font-size:.58rem;color:rgba(255,255,255,.5);}
+.oi-bar-bg{height:2px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:2px;overflow:hidden;}
+.oi-bar-fill{height:100%;border-radius:99px;}
+
+/* Tooltip */
+.tooltip{
+  position:fixed;z-index:500;background:#1a1a2e;border:1px solid var(--border);
+  border-radius:8px;padding:7px 11px;font-size:.7rem;pointer-events:none;
+  display:none;min-width:150px;box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+.tt-row{display:flex;justify-content:space-between;gap:10px;padding:1px 0;}
+.tt-lbl{color:var(--muted);}
+.tt-val{font-weight:700;}
+</style>
+</head>
+<body>
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip">
+  <div class="tt-row"><span class="tt-lbl">Strike</span><span class="tt-val" id="tt-strike"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Type</span><span class="tt-val" id="tt-type"></span></div>
+  <div class="tt-row"><span class="tt-lbl">LTP</span><span class="tt-val" id="tt-ltp"></span></div>
+  <div class="tt-row"><span class="tt-lbl">PoP</span><span class="tt-val" id="tt-pop"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Delta</span><span class="tt-val" id="tt-delta"></span></div>
+  <div class="tt-row"><span class="tt-lbl">IV</span><span class="tt-val" id="tt-iv"></span></div>
+  <div class="tt-row"><span class="tt-lbl">OI</span><span class="tt-val" id="tt-oi"></span></div>
+  <div class="tt-row"><span class="tt-lbl">ΔOI</span><span class="tt-val" id="tt-chgoi"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Vol</span><span class="tt-val" id="tt-vol"></span></div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">AMI Heatmap</div>
+  <div class="tb-sep"></div>
+
+  <!-- AMI SIGNAL PANEL -->
+  <div class="ami-panel">
+    <div class="ami-dot" id="amiDot"></div>
+    <div class="tb-chip"><div class="tb-lbl">AMI</div><div id="amiSigPill"><span class="signal-pill sig-wait">WAIT</span></div></div>
+    <div class="tb-sep" style="background:rgba(255,255,255,.07)"></div>
+    <div class="tb-chip"><div class="tb-lbl">Conf</div><div class="tb-val" id="amiConf" style="color:var(--yellow)">--</div></div>
+    <div class="tb-chip"><div class="tb-lbl">Strike</div><div class="tb-val" id="amiStrike" style="color:var(--purple)">--</div></div>
+    <div class="tb-chip"><div class="tb-lbl">Target</div><div class="tb-val" id="amiTarget" style="color:var(--teal)">--</div></div>
+    <div class="tb-chip"><div class="tb-lbl">Price</div><div class="tb-val" id="amiPrice">--</div></div>
+    <div class="tb-sep" style="background:rgba(255,255,255,.07)"></div>
+    <div class="tb-chip"><div class="tb-lbl">Position</div><div id="amiPosBadge"><span class="pos-badge pos-none">NONE</span></div></div>
+    <div class="tb-chip"><div class="tb-lbl">P&amp;L</div><div class="tb-val" id="amiPnl" style="color:var(--muted)">--</div></div>
+    <div class="tb-chip"><div class="tb-lbl">Time</div><div class="tb-val" id="amiTime" style="color:var(--muted);font-size:.68rem">--</div></div>
+  </div>
+
+  <div class="view-tabs">
+    <button class="view-tab active" onclick="switchView('pop',this)">PoP</button>
+    <button class="view-tab" onclick="switchView('oi',this)">OI</button>
+    <button class="view-tab" onclick="switchView('ltp',this)">LTP</button>
+  </div>
+  <div class="tb-sep"></div>
+  <span class="upd-lbl" id="tbUpd">--</span>
+  <nav style="display:flex;align-items:center;gap:4px;margin-left:auto;flex-wrap:wrap;">
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/">Command</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/command-pro.html">Pro</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/trade.html">Trade</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/dashboard.html">Dashboard</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/signal-heatmap.html">Signal Heatmap</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strategy.html">Strategy</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/heatmap.html">OI Heatmap</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/pop.html">PoP</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strike-history.html">Strike History</a>
+    <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#78a8ff;text-decoration:none;border:1px solid rgba(120,168,255,.3);background:rgba(120,168,255,.1);white-space:nowrap;" href="/ami-heatmap.html">AMI Heatmap</a>
+  </nav>
+</div>
+
+<!-- 3 PANELS -->
+<div class="panels-wrap">
+
+  <!-- NIFTY -->
+  <div class="panel" id="panel-NIFTY">
+    <div class="ph">
+      <span class="ph-name nifty">NIFTY</span>
+      <span class="ph-spot" style="color:var(--green)" id="spot-NIFTY">--</span>
+      <span class="ph-atm" id="atm-NIFTY">ATM --</span>
+      <span class="ph-pcr" id="pcr-NIFTY">PCR --</span>
+      <span class="ph-sig" id="sig-NIFTY"><span class="signal-pill sig-wait">WAIT</span></span>
+      <span class="ph-upd" id="upd-NIFTY">--</span>
+    </div>
+    <div class="ps" id="strip-NIFTY">
+      <div class="ps-item"><div class="si-lbl">CE OI</div><div class="si-val" style="color:var(--green)" id="sCeOI-NIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">PE OI</div><div class="si-val" style="color:var(--red)"   id="sPeOI-NIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">MaxPain</div><div class="si-val" style="color:var(--orange)" id="sMP-NIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">ORB H</div><div class="si-val" style="color:var(--green)" id="sOH-NIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">ORB L</div><div class="si-val" style="color:var(--red)"   id="sOL-NIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">VWAP</div><div class="si-val" style="color:var(--blue)"   id="sVW-NIFTY">--</div></div>
+    </div>
+    <div class="hm-scroll" id="hm-NIFTY"><div style="text-align:center;padding:30px;color:var(--muted)">Loading...</div></div>
+  </div>
+
+  <!-- SENSEX -->
+  <div class="panel" id="panel-SENSEX">
+    <div class="ph">
+      <span class="ph-name sensex">SENSEX</span>
+      <span class="ph-spot" style="color:var(--orange)" id="spot-SENSEX">--</span>
+      <span class="ph-atm" id="atm-SENSEX">ATM --</span>
+      <span class="ph-pcr" id="pcr-SENSEX">PCR --</span>
+      <span class="ph-sig" id="sig-SENSEX"><span class="signal-pill sig-wait">WAIT</span></span>
+      <span class="ph-upd" id="upd-SENSEX">--</span>
+    </div>
+    <div class="ps" id="strip-SENSEX">
+      <div class="ps-item"><div class="si-lbl">CE OI</div><div class="si-val" style="color:var(--green)" id="sCeOI-SENSEX">--</div></div>
+      <div class="ps-item"><div class="si-lbl">PE OI</div><div class="si-val" style="color:var(--red)"   id="sPeOI-SENSEX">--</div></div>
+      <div class="ps-item"><div class="si-lbl">MaxPain</div><div class="si-val" style="color:var(--orange)" id="sMP-SENSEX">--</div></div>
+      <div class="ps-item"><div class="si-lbl">ORB H</div><div class="si-val" style="color:var(--green)" id="sOH-SENSEX">--</div></div>
+      <div class="ps-item"><div class="si-lbl">ORB L</div><div class="si-val" style="color:var(--red)"   id="sOL-SENSEX">--</div></div>
+      <div class="ps-item"><div class="si-lbl">VWAP</div><div class="si-val" style="color:var(--blue)"   id="sVW-SENSEX">--</div></div>
+    </div>
+    <div class="hm-scroll" id="hm-SENSEX"><div style="text-align:center;padding:30px;color:var(--muted)">Loading...</div></div>
+  </div>
+
+  <!-- BANKNIFTY -->
+  <div class="panel" id="panel-BANKNIFTY">
+    <div class="ph">
+      <span class="ph-name bnifty">BANKNIFTY</span>
+      <span class="ph-spot" style="color:var(--purple)" id="spot-BANKNIFTY">--</span>
+      <span class="ph-atm" id="atm-BANKNIFTY">ATM --</span>
+      <span class="ph-pcr" id="pcr-BANKNIFTY">PCR --</span>
+      <span class="ph-sig" id="sig-BANKNIFTY"><span class="signal-pill sig-wait">WAIT</span></span>
+      <span class="ph-upd" id="upd-BANKNIFTY">--</span>
+    </div>
+    <div class="ps" id="strip-BANKNIFTY">
+      <div class="ps-item"><div class="si-lbl">CE OI</div><div class="si-val" style="color:var(--green)" id="sCeOI-BANKNIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">PE OI</div><div class="si-val" style="color:var(--red)"   id="sPeOI-BANKNIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">MaxPain</div><div class="si-val" style="color:var(--orange)" id="sMP-BANKNIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">ORB H</div><div class="si-val" style="color:var(--green)" id="sOH-BANKNIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">ORB L</div><div class="si-val" style="color:var(--red)"   id="sOL-BANKNIFTY">--</div></div>
+      <div class="ps-item"><div class="si-lbl">VWAP</div><div class="si-val" style="color:var(--blue)"   id="sVW-BANKNIFTY">--</div></div>
+    </div>
+    <div class="hm-scroll" id="hm-BANKNIFTY"><div style="text-align:center;padding:30px;color:var(--muted)">Loading...</div></div>
+  </div>
+
+</div><!-- panels-wrap -->
+
+<script>
+const INSTS = ['NIFTY','SENSEX','BANKNIFTY'];
+const CHAIN_REFRESH_MS = 5000;
+let activeView = 'pop';
+let loadAllBusy = false;
+let loadAllQueued = false;
+
+const fmtN  = v => Number(v).toLocaleString('en-IN');
+const fmtOI = v => { const a=Math.abs(Number(v)); return a>=1e7?(a/1e7).toFixed(1)+'Cr':a>=1e5?(a/1e5).toFixed(1)+'L':a>=1e3?(a/1e3).toFixed(0)+'K':String(v); };
+const fmtP  = (v,d=2) => Number(v).toFixed(d);
+
+// per-instrument data store
+const store = {};
+INSTS.forEach(i => { store[i] = { chain:null, sig:null, pcr:null, mp:null }; });
+
+// ── AMI signal ──────────────────────────────────────────────────────────────
+let amiData = { signal:'WAIT', conf:0, strike:0, target:0, price:0, time:'--' };
+let amiPos  = { type:'NONE', strike:0, entry:0, current:0, mult:0, status:'CLOSED' };
+let amiLastMs = 0;
+
+async function loadAmi() {
+  try {
+    const [rS, rP] = await Promise.all([
+      // last-signal = the signal YOUR AmiBroker AFL pushed (not the server's own)
+      fetch('/api/amibroker/last-signal',{cache:'no-store'}).catch(()=>null),
+      fetch('/api/amibroker/position?key=antigravity',{cache:'no-store'}).catch(()=>null)
+    ]);
+    if (rS&&rS.ok) {
+      const j = await rS.json();
+      const t = j.time ? new Date(j.time).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour12:false}) : '--';
+      amiData = { signal:j.signal||'WAIT', conf:parseFloat(j.conf)||0, strike:parseInt(j.strike)||0,
+                  target:parseFloat(j.target)||0, price:parseFloat(j.price)||0, time:t };
+      amiLastMs = Date.now();
+    }
+    if (rP&&rP.ok) {
+      const t = (await rP.text()).split('|');
+      amiPos = { type:t[0]||'NONE', strike:parseInt(t[1])||0, entry:parseFloat(t[2])||0,
+                 current:parseFloat(t[3])||0, mult:parseFloat(t[4])||0, status:t[5]||'CLOSED' };
+    }
+  } catch(e) {}
+  paintAmi();
+  INSTS.forEach(renderHeatmap);
+}
+
+function paintAmi() {
+  const stale = amiLastMs > 0 && (Date.now()-amiLastMs) > 15000;
+  const dot = document.getElementById('amiDot');
+  dot.className = 'ami-dot' + (amiLastMs===0?'': stale?' stale':' live');
+
+  const sig = amiData.signal;
+  document.getElementById('amiSigPill').innerHTML =
+    sig==='CALL'?'<span class="signal-pill sig-call">CALL ▲</span>':
+    sig==='PUT' ?'<span class="signal-pill sig-put">PUT ▼</span>'  :
+                 '<span class="signal-pill sig-wait">WAIT</span>';
+
+  const cEl = document.getElementById('amiConf');
+  cEl.textContent = amiData.conf ? amiData.conf.toFixed(0)+'%' : '--';
+  cEl.style.color = amiData.conf>=85?'var(--green)':amiData.conf>=75?'var(--yellow)':'var(--red)';
+
+  document.getElementById('amiStrike').textContent = amiData.strike ? fmtN(amiData.strike) : '--';
+  document.getElementById('amiTarget').textContent = amiData.target ? amiData.target.toFixed(1)+'x' : '--';
+  document.getElementById('amiPrice').textContent  = amiData.price  ? '₹'+fmtP(amiData.price,1) : '--';
+  document.getElementById('amiTime').textContent   = amiData.time;
+
+  const posType = amiPos.type||'NONE';
+  const posCls  = posType==='CALL'?'pos-badge pos-call':posType==='PUT'?'pos-badge pos-put':'pos-badge pos-none';
+  document.getElementById('amiPosBadge').innerHTML =
+    `<span class="${posCls}">${posType==='NONE'?'NONE':posType+' '+fmtN(amiPos.strike)}</span>`;
+
+  const pnlEl = document.getElementById('amiPnl');
+  if (amiPos.type!=='NONE' && amiPos.entry>0) {
+    const pct = ((amiPos.mult-1)*100).toFixed(1);
+    pnlEl.textContent = (pct>0?'+':'')+pct+'%';
+    pnlEl.style.color = amiPos.mult>=1?'var(--green)':'var(--red)';
+  } else { pnlEl.textContent='--'; pnlEl.style.color='var(--muted)'; }
+}
+
+// ── PoP helpers ─────────────────────────────────────────────────────────────
+function pop(delta){ return Math.max(0,Math.min(100,(1-Math.abs(Number(delta)||0))*100)); }
+function popCls(p,side){
+  const s=side==='CE'?'ce':'pe';
+  if(p>=99)return s+'-100'; if(p>=95)return s+'-95'; if(p>=90)return s+'-90';
+  if(p>=85)return s+'-85';  if(p>=80)return s+'-80'; return s+'-70';
+}
+function popBadge(p){
+  const c=p>=90?'pop-hi':p>=75?'pop-mid':'pop-lo';
+  return `<span class="cell-pop ${c}">${p.toFixed(0)}%</span>`;
+}
+
+// ── Load data for one instrument ─────────────────────────────────────────────
+async function loadInst(inst) {
+  const sp = inst==='SENSEX'?'sensex':inst==='NIFTY'?'nifty':'banknifty';
+  try {
+    // Record index H/L first, then use one chain for every downstream metric.
+    const rS = await fetch(`/api/${sp}`,{cache:'no-store'}).catch(()=>null);
+    if(rS&&rS.ok) store[inst].sig   = await rS.json();
+    const rSnapshot = await fetch(`/api/options/snapshot?instrument=${inst}`,{cache:'no-store'}).catch(()=>null);
+    if(rSnapshot&&rSnapshot.ok) {
+      const snapshot = await rSnapshot.json();
+      store[inst].chain = snapshot;
+      store[inst].pcr = snapshot.pcr || null;
+      store[inst].mp = snapshot.maxPain || null;
+    }
+  } catch(e){}
+  paintPanel(inst);
+  renderHeatmap(inst);
+}
+
+function paintPanel(inst) {
+  const {chain,sig,pcr,mp} = store[inst];
+  const spot = parseFloat(chain?.spotPrice||sig?.price||0);
+  const atm  = chain?.atmStrike||0;
+
+  document.getElementById(`spot-${inst}`).textContent = spot?'₹'+fmtN(spot.toFixed(0)):'--';
+  document.getElementById(`atm-${inst}`).textContent  = atm?'ATM '+fmtN(atm):'ATM --';
+
+  const pcrV = pcr?.pcrOI||0;
+  const pcrEl = document.getElementById(`pcr-${inst}`);
+  pcrEl.textContent = pcrV?'PCR '+parseFloat(pcrV).toFixed(2):'PCR --';
+  pcrEl.style.color = pcrV>1.2?'var(--green)':pcrV<0.8?'var(--red)':'var(--yellow)';
+
+  const s = sig?.signal||'WAIT';
+  document.getElementById(`sig-${inst}`).innerHTML =
+    s==='CALL'?'<span class="signal-pill sig-call">CALL ▲</span>':
+    s==='PUT' ?'<span class="signal-pill sig-put">PUT ▼</span>'  :
+               '<span class="signal-pill sig-wait">WAIT</span>';
+
+  document.getElementById(`upd-${inst}`).textContent =
+    new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour12:false});
+
+  // strip
+  let totCe=0,totPe=0;
+  (chain?.strikes||[]).forEach(s=>{totCe+=s.ce?.oi||0;totPe+=s.pe?.oi||0;});
+  document.getElementById(`sCeOI-${inst}`).textContent = fmtOI(totCe);
+  document.getElementById(`sPeOI-${inst}`).textContent = fmtOI(totPe);
+  document.getElementById(`sMP-${inst}`).textContent   = mp?.maxPain?fmtN(mp.maxPain):'--';
+  document.getElementById(`sOH-${inst}`).textContent   = sig?.orbHigh||'--';
+  document.getElementById(`sOL-${inst}`).textContent   = sig?.orbLow||'--';
+  document.getElementById(`sVW-${inst}`).textContent   = sig?.vwap||'--';
+}
+
+// ── Render heatmap for one instrument ────────────────────────────────────────
+function renderHeatmap(inst) {
+  const chain = store[inst].chain;
+  const el    = document.getElementById(`hm-${inst}`);
+  if (!chain?.strikes?.length) {
+    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">No data</div>';
+    return;
+  }
+  const strikes = chain.strikes;
+  const atm     = chain.atmStrike||0;
+  let maxCe=1, maxPe=1;
+  strikes.forEach(s=>{maxCe=Math.max(maxCe,s.ce?.oi||0);maxPe=Math.max(maxPe,s.pe?.oi||0);});
+
+  const cols = '1fr 50px 1fr';
+  let html = `<div class="hm-header" style="grid-template-columns:${cols}">
+    <div class="hm-col-hdr ce-hdr">CE</div>
+    <div class="hm-col-hdr st-hdr">STRIKE</div>
+    <div class="hm-col-hdr pe-hdr">PE</div>
+  </div>`;
+
+  for (const s of strikes) {
+    const isATM = s.strike===atm;
+    const isAmi = amiData.strike>0 && s.strike===amiData.strike;
+    const ce=s.ce||{}, pe=s.pe||{};
+    const cePop=pop(ce.delta), pePop=pop(pe.delta);
+    const ceOI=ce.oi||0, peOI=pe.oi||0;
+    const ceChg=ce.changeOI||0, peChg=pe.changeOI||0;
+    const ceLtp=parseFloat(ce.ltp||0), peLtp=parseFloat(pe.ltp||0);
+    const ceBarW=Math.min(100,(ceOI/maxCe)*100).toFixed(0);
+    const peBarW=Math.min(100,(peOI/maxPe)*100).toFixed(0);
+
+    const strikeCls = isATM?'hm-strike atm':isAmi?'hm-strike ami-target':'hm-strike';
+
+    let ceCls,peCls,ceCnt,peCnt;
+
+    if (activeView==='pop') {
+      ceCls = isATM?'hm-cell ce-atm':`hm-cell ${popCls(cePop,'CE')}`;
+      peCls = isATM?'hm-cell pe-atm':`hm-cell ${popCls(pePop,'PE')}`;
+      ceCnt = `<div class="cell-top"><span class="cell-ltp">₹${fmtP(ceLtp,1)}</span>${popBadge(cePop)}</div>
+               <div class="cell-bot"><span>${fmtOI(ceOI)}</span><span>Δ${fmtP(Math.abs(ce.delta||0),2)}</span></div>
+               <div class="oi-bar-bg"><div class="oi-bar-fill" style="width:${ceBarW}%;background:rgba(0,230,118,.5)"></div></div>`;
+      peCnt = `<div class="cell-top"><span class="cell-ltp">₹${fmtP(peLtp,1)}</span>${popBadge(pePop)}</div>
+               <div class="cell-bot"><span>${fmtOI(peOI)}</span><span>Δ${fmtP(Math.abs(pe.delta||0),2)}</span></div>
+               <div class="oi-bar-bg"><div class="oi-bar-fill" style="width:${peBarW}%;background:rgba(255,68,68,.5)"></div></div>`;
+    } else if (activeView==='oi') {
+      const cOIc=ceOI/maxCe>.6?'ce-95':ceOI/maxCe>.3?'ce-85':'ce-70';
+      const pOIc=peOI/maxPe>.6?'pe-95':peOI/maxPe>.3?'pe-85':'pe-70';
+      ceCls = isATM?'hm-cell ce-atm':`hm-cell ${cOIc}`;
+      peCls = isATM?'hm-cell pe-atm':`hm-cell ${pOIc}`;
+      const cCol=ceChg>0?'var(--green)':ceChg<0?'var(--red)':'var(--muted)';
+      const pCol=peChg>0?'var(--green)':peChg<0?'var(--red)':'var(--muted)';
+      ceCnt = `<div class="cell-top"><span class="cell-ltp">${fmtOI(ceOI)}</span><span style="font-size:.58rem;color:${cCol}">${ceChg>0?'+':''}${fmtOI(ceChg)}</span></div>
+               <div class="cell-bot"><span>Vol ${fmtOI(ce.volume||0)}</span><span>₹${fmtP(ceLtp,1)}</span></div>
+               <div class="oi-bar-bg"><div class="oi-bar-fill" style="width:${ceBarW}%;background:rgba(0,230,118,.5)"></div></div>`;
+      peCnt = `<div class="cell-top"><span style="font-size:.58rem;color:${pCol}">${peChg>0?'+':''}${fmtOI(peChg)}</span><span class="cell-ltp">${fmtOI(peOI)}</span></div>
+               <div class="cell-bot"><span>₹${fmtP(peLtp,1)}</span><span>Vol ${fmtOI(pe.volume||0)}</span></div>
+               <div class="oi-bar-bg"><div class="oi-bar-fill" style="width:${peBarW}%;background:rgba(255,68,68,.5)"></div></div>`;
+    } else { // ltp
+      ceCls = isATM?'hm-cell ce-atm':`hm-cell ${s.itmCE?'ce-itm':'ce-70'}`;
+      peCls = isATM?'hm-cell pe-atm':`hm-cell ${s.itmPE?'pe-itm':'pe-70'}`;
+      ceCnt = `<div class="cell-top"><span class="cell-ltp">₹${fmtP(ceLtp,2)}</span><span style="font-size:.58rem;color:var(--muted)">${ce.iv?fmtP(ce.iv,1)+'%':'--'}</span></div>
+               <div class="cell-bot"><span>${fmtOI(ceOI)}</span></div>`;
+      peCnt = `<div class="cell-top"><span style="font-size:.58rem;color:var(--muted)">${pe.iv?fmtP(pe.iv,1)+'%':'--'}</span><span class="cell-ltp">₹${fmtP(peLtp,2)}</span></div>
+               <div class="cell-bot"><span>${fmtOI(peOI)}</span></div>`;
+    }
+
+    if (isAmi && amiData.signal==='CALL') ceCls += ' ami-hl-ce';
+    if (isAmi && amiData.signal==='PUT')  peCls += ' ami-hl-pe';
+
+    const ceD=`data-strike="${s.strike}" data-inst="${inst}" data-type="CE" data-ltp="${ceLtp}" data-pop="${cePop.toFixed(1)}" data-delta="${fmtP(Math.abs(ce.delta||0),4)}" data-iv="${ce.iv||0}" data-oi="${ceOI}" data-chgoi="${ceChg}" data-vol="${ce.volume||0}"`;
+    const peD=`data-strike="${s.strike}" data-inst="${inst}" data-type="PE" data-ltp="${peLtp}" data-pop="${pePop.toFixed(1)}" data-delta="${fmtP(Math.abs(pe.delta||0),4)}" data-iv="${pe.iv||0}" data-oi="${peOI}" data-chgoi="${peChg}" data-vol="${pe.volume||0}"`;
+
+    html += `<div class="hm-row" style="grid-template-columns:${cols}">
+      <div class="${ceCls}" ${ceD} onmouseenter="showTip(event,this)" onmouseleave="hideTip()" onclick="addToStrategy(this)">${ceCnt}</div>
+      <div class="${strikeCls}">${fmtN(s.strike)}</div>
+      <div class="${peCls}" ${peD} onmouseenter="showTip(event,this)" onmouseleave="hideTip()" onclick="addToStrategy(this)">${peCnt}</div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────
+const tip = document.getElementById('tooltip');
+function showTip(e,el) {
+  const d=el.dataset;
+  document.getElementById('tt-strike').textContent = fmtN(d.strike);
+  document.getElementById('tt-type').textContent   = d.type;
+  document.getElementById('tt-ltp').textContent    = '₹'+fmtP(d.ltp,2);
+  document.getElementById('tt-pop').textContent    = d.pop+'%';
+  document.getElementById('tt-delta').textContent  = d.delta;
+  document.getElementById('tt-iv').textContent     = d.iv?fmtP(d.iv,1)+'%':'--';
+  document.getElementById('tt-oi').textContent     = fmtOI(d.oi);
+  document.getElementById('tt-chgoi').textContent  = (d.chgoi>0?'+':'')+fmtOI(d.chgoi);
+  document.getElementById('tt-vol').textContent    = fmtOI(d.vol);
+  tip.style.display='block'; moveTip(e);
+}
+function moveTip(e) {
+  const x=e.clientX+14, y=e.clientY-10;
+  tip.style.left=(x+170>window.innerWidth?x-185:x)+'px';
+  tip.style.top =(y+155>window.innerHeight?y-165:y)+'px';
+}
+document.addEventListener('mousemove',e=>{ if(tip.style.display==='block') moveTip(e); });
+function hideTip(){ tip.style.display='none'; }
+
+function addToStrategy(el) {
+  const {strike,type,inst} = el.dataset;
+  window.open(`/strategy.html?inst=${inst}&strike=${strike}&type=${type}`,'_blank');
+}
+
+// ── View switch ───────────────────────────────────────────────────────────
+function switchView(view,btn) {
+  document.querySelectorAll('.view-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeView=view;
+  INSTS.forEach(renderHeatmap);
+}
+
+// ── Load all ──────────────────────────────────────────────────────────────
+async function loadAll() {
+  if (loadAllBusy) {
+    loadAllQueued = true;
+    return;
+  }
+  loadAllBusy = true;
+  try {
+    await Promise.all(INSTS.map(loadInst));
+    document.getElementById('tbUpd').textContent =
+      new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour12:false});
+  } finally {
+    loadAllBusy = false;
+    if (loadAllQueued) {
+      loadAllQueued = false;
+      loadAll();
+    }
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadAll();
+loadAmi();
+setInterval(loadAll, CHAIN_REFRESH_MS);
+setInterval(loadAmi, 5000);
+</script>
+</body>
+</html>

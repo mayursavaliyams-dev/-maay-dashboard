@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Heatmap — Antigravity Pro</title>
+<style>
+:root{
+  --bg:#080810;--panel:#0d0d18;--border:#1a1a2e;--text:#e8e8f0;--muted:#4a4a6a;
+  --green:#00e676;--red:#ff4444;--blue:#448aff;--yellow:#ffd740;--orange:#ff6d00;
+  --purple:#ce93d8;--teal:#00bcd4;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospace;font-size:11px;height:100%;overflow:hidden;}
+
+/* ── TOP BAR ── */
+.topbar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  background:#0b0b16;border-bottom:1px solid var(--border);
+  padding:0 10px;min-height:38px;flex-shrink:0;
+}
+.nav-links{display:flex;align-items:center;gap:4px;margin-left:auto;}
+.nav-link{padding:4px 11px;border-radius:6px;font-size:.7rem;font-weight:600;
+  color:var(--muted);text-decoration:none;border:1px solid transparent;
+  white-space:nowrap;transition:.15s;}
+.nav-link:hover{color:#edf3ff;background:rgba(255,255,255,.06);border-color:var(--border);}
+.nav-link.active{color:#78a8ff;background:rgba(120,168,255,.1);border-color:rgba(120,168,255,.3);}
+.brand{font-weight:800;color:var(--green);font-size:.86rem;}
+.tb-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;}
+.tb-chip{display:flex;flex-direction:column;gap:1px;}
+.tb-lbl{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.tb-val{font-weight:700;font-size:.85rem;}
+.signal-pill{padding:2px 9px;border-radius:999px;font-size:.68rem;font-weight:800;letter-spacing:.04em;}
+.sig-call{background:rgba(0,230,118,.18);color:var(--green);border:1px solid rgba(0,230,118,.4);}
+.sig-put {background:rgba(255,68,68,.18); color:var(--red);  border:1px solid rgba(255,68,68,.4);}
+.sig-wait{background:rgba(74,74,106,.2); color:var(--muted);border:1px solid #2a2a40;}
+
+.inst-tabs{display:flex;gap:3px;}
+.inst-tab{padding:3px 9px;border-radius:5px;font-size:.68rem;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);transition:.1s;}
+.inst-tab.active{background:rgba(0,230,118,.1);color:var(--green);border-color:rgba(0,230,118,.3);}
+
+.ami-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.ami-dot.live{background:var(--green);box-shadow:0 0 6px rgba(0,230,118,.8);animation:pulse 1.4s infinite;}
+.ami-dot.stale{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+.back-btn{padding:3px 10px;border-radius:5px;font-size:.7rem;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);margin-left:auto;}
+
+/* ── SIGNAL HERO CARD ── */
+.hero{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:6px 12px;flex-shrink:0;
+}
+.hero-sig{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.hero-pill{padding:4px 14px;border-radius:999px;font-size:.9rem;font-weight:900;letter-spacing:.06em;}
+.hero-call{background:rgba(0,230,118,.2);color:var(--green);border:2px solid rgba(0,230,118,.5);box-shadow:0 0 20px rgba(0,230,118,.15);}
+.hero-put {background:rgba(255,68,68,.2); color:var(--red);  border:2px solid rgba(255,68,68,.5); box-shadow:0 0 20px rgba(255,68,68,.15);}
+.hero-wait{background:rgba(74,74,106,.15);color:var(--muted);border:2px solid #2a2a40;}
+.hero-inst{font-size:.65rem;color:var(--muted);text-align:center;}
+
+.hero-stat{display:flex;flex-direction:column;gap:1px;padding:0 8px;border-right:1px solid var(--border);}
+.hero-stat:last-child{border-right:none;}
+.hs-lbl{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.hs-val{font-size:.88rem;font-weight:800;}
+
+.conf-bar-wrap{width:88px;height:4px;background:#111;border-radius:99px;overflow:hidden;margin-top:2px;}
+.conf-bar-fill{height:100%;border-radius:99px;transition:width .4s;}
+
+/* ── SUMMARY STRIP ── */
+.strip{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;
+  background:#0b0b14;border-bottom:1px solid var(--border);flex-shrink:0;}
+.strip::-webkit-scrollbar{display:none;}
+.strip-item{display:flex;flex-direction:column;gap:1px;padding:4px 12px;
+  border-right:1px solid var(--border);white-space:nowrap;flex-shrink:0;}
+.si-lbl{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.si-val{font-size:.82rem;font-weight:700;}
+
+/* ── HEATMAP AREA ── */
+.hm-wrap{flex:1;overflow-y:auto;overflow-x:hidden;padding:5px 8px;}
+.hm-wrap::-webkit-scrollbar{width:4px;}
+.hm-wrap::-webkit-scrollbar-thumb{background:#1e1e30;border-radius:99px;}
+
+/* Column header */
+.hm-header{display:grid;grid-template-columns:1fr 78px 1fr;gap:2px;margin-bottom:4px;}
+.hm-col-hdr{text-align:center;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:2px 0;}
+.ce-hdr{color:var(--green);}
+.pe-hdr{color:var(--red);}
+.st-hdr{color:var(--yellow);}
+
+/* Strike row */
+.hm-row{display:grid;grid-template-columns:1fr 78px 1fr;gap:2px;margin-bottom:2px;}
+
+/* Strike label */
+.hm-strike{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:46px;
+  background:#0d0d18;border:1px solid var(--border);border-radius:4px;
+  padding:4px 5px;text-align:center;font-weight:800;font-size:.72rem;color:var(--yellow);
+}
+.hm-strike.atm{background:#1a1400;border-color:var(--yellow);color:#fff;}
+.hm-strike.signal-row{background:#120a1e;border-color:var(--purple);color:var(--purple);box-shadow:0 0 10px rgba(206,147,216,.35);}
+.hm-strike.next-best-row{border-color:var(--teal);box-shadow:0 0 12px rgba(0,188,212,.28);}
+.hm-strike.algo-row{background:#001b1b;border-color:#00f5d4;color:#eaffff;box-shadow:0 0 0 1px rgba(0,245,212,.55),0 0 16px rgba(0,245,212,.35);}
+.strike-price{font-size:.82rem;line-height:1;color:inherit;}
+.hm-strike.atm .strike-price::after{content:" ★";color:var(--yellow);font-size:.56rem;}
+.strike-signal-top{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;}
+.strike-signal-chip{width:100%;border-radius:999px;padding:2px 4px;font-size:.5rem;font-weight:900;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid transparent;}
+.strike-signal-chip.call{background:rgba(0,230,118,.22);color:var(--green);border-color:rgba(0,230,118,.55);box-shadow:0 0 10px rgba(0,230,118,.22);}
+.strike-signal-chip.put{background:rgba(255,68,68,.22);color:var(--red);border-color:rgba(255,68,68,.55);box-shadow:0 0 10px rgba(255,68,68,.22);}
+.strike-signal-chip.best{background:rgba(0,188,212,.2);color:var(--teal);border-color:rgba(0,188,212,.55);box-shadow:0 0 10px rgba(0,188,212,.2);}
+.strike-signal-chip.algo{background:rgba(0,245,212,.2);color:#b8fffb;border-color:rgba(0,245,212,.7);box-shadow:0 0 12px rgba(0,245,212,.32);}
+.strike-signal-conf{color:rgba(255,255,255,.7);font-weight:800;}
+
+/* Cells */
+.hm-cell{border-radius:4px;padding:4px 6px;cursor:pointer;transition:filter .1s,transform .05s;min-width:0;}
+.hm-cell:hover{filter:brightness(1.3);transform:scale(1.02);}
+
+/* CE */
+.ce-100{background:rgba(0,230,118,.55);}
+.ce-95{background:rgba(0,230,118,.40);}
+.ce-90{background:rgba(0,230,118,.28);}
+.ce-85{background:rgba(0,230,118,.18);}
+.ce-80{background:rgba(0,230,118,.10);}
+.ce-70{background:rgba(0,230,118,.05);}
+.ce-atm{background:rgba(255,215,64,.22);border:1px solid rgba(255,215,64,.35);}
+/* PE */
+.pe-100{background:rgba(255,68,68,.55);}
+.pe-95{background:rgba(255,68,68,.40);}
+.pe-90{background:rgba(255,68,68,.28);}
+.pe-85{background:rgba(255,68,68,.18);}
+.pe-80{background:rgba(255,68,68,.10);}
+.pe-70{background:rgba(255,68,68,.05);}
+.pe-atm{background:rgba(255,215,64,.22);border:1px solid rgba(255,215,64,.35);}
+
+/* Signal cell highlight */
+.sig-hl-ce{outline:2px solid var(--green) !important;outline-offset:-1px;box-shadow:0 0 8px rgba(0,230,118,.4);}
+.sig-hl-pe{outline:2px solid var(--red)   !important;outline-offset:-1px;box-shadow:0 0 8px rgba(255,68,68,.4);}
+.next-best-ce,.next-best-pe{outline:2px solid var(--teal) !important;outline-offset:-1px;box-shadow:0 0 12px rgba(0,188,212,.42);}
+.algo-target-ce,.algo-target-pe{outline:3px solid #00f5d4 !important;outline-offset:-2px;box-shadow:0 0 18px rgba(0,245,212,.58),inset 0 0 0 1px rgba(255,255,255,.34);}
+.algo-target-ce .cell-ltp,.algo-target-pe .cell-ltp{color:#fff;}
+.strike-sigs{display:flex;justify-content:center;gap:2px;margin-top:3px;min-height:12px;overflow:hidden;}
+.strike-sig{display:inline-flex;align-items:center;justify-content:center;min-width:14px;height:12px;border-radius:3px;font-size:.5rem;font-weight:900;line-height:1;}
+.strike-sig.call{background:rgba(0,230,118,.2);color:var(--green);border:1px solid rgba(0,230,118,.45);}
+.strike-sig.put{background:rgba(255,68,68,.2);color:var(--red);border:1px solid rgba(255,68,68,.45);}
+
+.signal-tape{display:flex;align-items:center;gap:5px;overflow-x:auto;scrollbar-width:none;background:#0b0b14;border-bottom:1px solid var(--border);padding:4px 10px;min-height:28px;flex-shrink:0;}
+.signal-tape::-webkit-scrollbar{display:none;}
+.tape-lbl{font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap;flex-shrink:0;}
+.tape-empty{font-size:.65rem;color:var(--muted);}
+.tape-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;font-size:.64rem;font-weight:800;white-space:nowrap;border:1px solid transparent;flex-shrink:0;}
+.tape-pill.latest{box-shadow:0 0 12px rgba(120,168,255,.22);border-color:rgba(120,168,255,.5);}
+.tape-pill.call{background:rgba(0,230,118,.14);color:var(--green);border-color:rgba(0,230,118,.35);}
+.tape-pill.put{background:rgba(255,68,68,.14);color:var(--red);border-color:rgba(255,68,68,.35);}
+.tape-meta{font-weight:700;color:rgba(255,255,255,.58);}
+
+.bt-strip{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;
+  background:#090914;border-bottom:1px solid var(--border);flex-shrink:0;}
+.bt-strip::-webkit-scrollbar{display:none;}
+.bt-item{display:flex;flex-direction:column;gap:1px;padding:4px 12px;border-right:1px solid var(--border);white-space:nowrap;flex-shrink:0;}
+.bt-lbl{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.bt-val{font-size:.82rem;font-weight:800;}
+.bt-good{color:var(--green);}
+.bt-bad{color:var(--red);}
+.bt-flat{color:var(--yellow);}
+
+/* ── BLINK animations — fire on new signal ── */
+@keyframes blink-call{
+  0%,100%{background:rgba(0,230,118,.05);}
+  25%{background:rgba(0,230,118,.55);box-shadow:0 0 24px rgba(0,230,118,.7);}
+  50%{background:rgba(0,230,118,.12);}
+  75%{background:rgba(0,230,118,.45);box-shadow:0 0 20px rgba(0,230,118,.6);}
+}
+@keyframes blink-put{
+  0%,100%{background:rgba(255,68,68,.05);}
+  25%{background:rgba(255,68,68,.55);box-shadow:0 0 24px rgba(255,68,68,.7);}
+  50%{background:rgba(255,68,68,.12);}
+  75%{background:rgba(255,68,68,.45);box-shadow:0 0 20px rgba(255,68,68,.6);}
+}
+@keyframes blink-strike{
+  0%,100%{background:#120a1e;border-color:var(--purple);}
+  30%{background:rgba(206,147,216,.35);border-color:#fff;box-shadow:0 0 18px rgba(206,147,216,.8);}
+  60%{background:#120a1e;border-color:var(--purple);}
+}
+@keyframes hero-flash-call{
+  0%,100%{box-shadow:none;}
+  20%{box-shadow:0 0 40px rgba(0,230,118,.6),inset 0 0 20px rgba(0,230,118,.15);}
+  60%{box-shadow:0 0 20px rgba(0,230,118,.3);}
+}
+@keyframes hero-flash-put{
+  0%,100%{box-shadow:none;}
+  20%{box-shadow:0 0 40px rgba(255,68,68,.6),inset 0 0 20px rgba(255,68,68,.15);}
+  60%{box-shadow:0 0 20px rgba(255,68,68,.3);}
+}
+.cell-blink-call{animation:blink-call .55s ease-in-out 6 !important;}
+.cell-blink-put {animation:blink-put  .55s ease-in-out 6 !important;}
+.strike-blink   {animation:blink-strike .55s ease-in-out 6 !important;}
+.hero-blink-call{animation:hero-flash-call .7s ease-in-out 5;}
+.hero-blink-put {animation:hero-flash-put  .7s ease-in-out 5;}
+
+/* Cell content */
+.cell-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;}
+.cell-ltp{font-size:.78rem;font-weight:800;}
+.cell-pop{font-size:.62rem;font-weight:800;padding:1px 5px;border-radius:3px;}
+.pop-hi{background:rgba(0,230,118,.3);color:var(--green);}
+.pop-mid{background:rgba(255,215,64,.2);color:var(--yellow);}
+.pop-lo{background:rgba(255,68,68,.2);color:var(--red);}
+.hl-row{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:2px 0;}
+.hl-box{display:flex;align-items:center;justify-content:space-between;gap:3px;padding:1px 4px;border-radius:3px;background:rgba(255,255,255,.045);min-width:0;}
+.hl-tag{font-size:.5rem;font-weight:900;letter-spacing:.04em;color:rgba(255,255,255,.45);}
+.hl-val{font-size:.56rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hl-box.high .hl-tag,.hl-box.high .hl-val{color:var(--green);}
+.hl-box.low .hl-tag,.hl-box.low .hl-val{color:var(--red);}
+.hl-meter{height:3px;border-radius:99px;background:linear-gradient(90deg,rgba(255,68,68,.55),rgba(255,215,64,.4),rgba(0,230,118,.6));position:relative;margin:3px 0 2px;overflow:hidden;}
+.hl-pin{position:absolute;top:-2px;width:3px;height:7px;border-radius:99px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.7);}
+.near-high{box-shadow:inset 0 0 0 1px rgba(0,230,118,.5),0 0 10px rgba(0,230,118,.18);}
+.near-low{box-shadow:inset 0 0 0 1px rgba(255,68,68,.5),0 0 10px rgba(255,68,68,.18);}
+.cell-bot{display:flex;justify-content:space-between;font-size:.56rem;color:rgba(255,255,255,.45);}
+.oi-bar{height:2px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:3px;overflow:hidden;}
+.oi-bar-fill{height:100%;border-radius:99px;}
+
+/* No signal placeholder */
+.no-signal{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--muted);}
+.no-signal-icon{font-size:2.5rem;opacity:.3;}
+.no-signal-txt{font-size:.82rem;}
+.no-signal-sub{font-size:.68rem;opacity:.6;}
+
+/* Tooltip */
+.tooltip{position:fixed;z-index:500;background:#16162a;border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;font-size:.7rem;pointer-events:none;display:none;min-width:155px;box-shadow:0 4px 24px rgba(0,0,0,.6);}
+.tt-row{display:flex;justify-content:space-between;gap:12px;padding:1px 0;}
+.tt-lbl{color:var(--muted);}
+.tt-val{font-weight:700;}
+
+/* ── TRADE ALERT BAR ── */
+.alert-bar{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  background:#0a0a14;border-bottom:1px solid var(--border);
+  padding:3px 10px;min-height:26px;flex-shrink:0;
+}
+.alert-lbl{font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap;flex-shrink:0;}
+.alert-pill{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:800;
+  white-space:nowrap;animation:ab-pop .25s ease;cursor:default;
+}
+.alert-call{background:rgba(0,230,118,.18);color:var(--green);border:1px solid rgba(0,230,118,.45);}
+.alert-put {background:rgba(255,68,68,.18); color:var(--red);  border:1px solid rgba(255,68,68,.45);}
+.alert-idle{font-size:.65rem;color:var(--muted);}
+@keyframes ab-pop{from{opacity:0;transform:scale(.88);}to{opacity:1;transform:scale(1);}}
+
+/* Row blink on trade alert */
+@keyframes rb-call{0%,100%{outline:none;}20%,60%{outline:2px solid var(--green);box-shadow:0 0 16px rgba(0,230,118,.6);}40%,80%{outline:2px solid rgba(0,230,118,.4);}}
+@keyframes rb-put {0%,100%{outline:none;}20%,60%{outline:2px solid var(--red);  box-shadow:0 0 16px rgba(255,68,68,.6); }40%,80%{outline:2px solid rgba(255,68,68,.4); }}
+.rb-call{animation:rb-call .5s ease-in-out 6 !important;}
+.rb-put {animation:rb-put  .5s ease-in-out 6 !important;}
+
+/* Layout */
+.page{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip">
+  <div class="tt-row"><span class="tt-lbl">Strike</span><span class="tt-val" id="tt-strike"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Type</span><span class="tt-val" id="tt-type"></span></div>
+  <div class="tt-row"><span class="tt-lbl">LTP</span><span class="tt-val" id="tt-ltp"></span></div>
+  <div class="tt-row"><span class="tt-lbl">High</span><span class="tt-val" id="tt-high"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Low</span><span class="tt-val" id="tt-low"></span></div>
+  <div class="tt-row"><span class="tt-lbl">PoP</span><span class="tt-val" id="tt-pop"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Delta</span><span class="tt-val" id="tt-delta"></span></div>
+  <div class="tt-row"><span class="tt-lbl">IV</span><span class="tt-val" id="tt-iv"></span></div>
+  <div class="tt-row"><span class="tt-lbl">OI</span><span class="tt-val" id="tt-oi"></span></div>
+  <div class="tt-row"><span class="tt-lbl">ΔOI</span><span class="tt-val" id="tt-chgoi"></span></div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">Signal Heatmap</div>
+  <div class="tb-sep"></div>
+  <div class="ami-dot" id="amiDot"></div>
+  <div class="tb-chip"><div class="tb-lbl">AMI</div><div id="amiPill"><span class="signal-pill sig-wait">WAIT</span></div></div>
+  <div class="tb-sep"></div>
+  <div class="inst-tabs">
+    <button class="inst-tab active" data-inst="NIFTY"     onclick="switchInst(this)">NIFTY</button>
+    <button class="inst-tab"        data-inst="SENSEX"    onclick="switchInst(this)">SENSEX</button>
+    <button class="inst-tab"        data-inst="BANKNIFTY" onclick="switchInst(this)">BNIFTY</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-chip"><div class="tb-lbl">Spot</div><div class="tb-val" id="tbSpot" style="color:var(--green)">--</div></div>
+  <div class="tb-sep"></div>
+  <div class="tb-chip"><div class="tb-lbl">ATM</div><div class="tb-val" id="tbAtm" style="color:var(--yellow)">--</div></div>
+  <div class="tb-sep"></div>
+  <div class="tb-chip"><div class="tb-lbl">Signals</div><div class="tb-val" id="tbSigCount" style="color:var(--purple)">0</div></div>
+  <div class="tb-sep"></div>
+  <div class="tb-chip"><div class="tb-lbl">Next Best</div><div class="tb-val" id="tbNextBest" style="color:var(--teal)">--</div></div>
+  <div class="tb-sep"></div>
+  <div class="tb-chip"><div class="tb-lbl">Algo Target</div><div class="tb-val" id="tbAlgoTarget" style="color:var(--muted)">--</div></div>
+  <div class="tb-sep"></div>
+  <div class="tb-chip"><div class="tb-lbl">Updated (IST)</div><div class="tb-val" id="tbUpd" style="color:var(--muted);font-size:.7rem">--</div></div>
+  <nav class="nav-links">
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/">Command</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/command-pro.html">Pro</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/trade.html">Trade</a>
+    <a class="nav-link" href="/dashboard.html">Dashboard</a>
+    <a class="nav-link active" href="/signal-heatmap.html">Signal Heatmap</a>
+    <a class="nav-link" href="/strategy.html">Strategy</a>
+    <a class="nav-link" href="/heatmap.html">OI Heatmap</a>
+    <a class="nav-link" href="/pop.html">PoP</a>
+    <a class="nav-link" href="/strike-history.html">Strike History</a>
+    <a class="nav-link" href="/ami-heatmap.html">AMI Heatmap</a>
+  </nav>
+</div>
+
+<!-- SIGNAL HERO CARD -->
+<div class="hero" id="heroCard">
+  <div class="hero-sig">
+    <div id="heroPill"><span class="hero-pill hero-wait">WAIT</span></div>
+    <div class="hero-inst" id="heroInst">Waiting for AMI signal...</div>
+  </div>
+  <div class="hero-stat">
+    <div class="hs-lbl">Confidence</div>
+    <div class="hs-val" id="heroConf" style="color:var(--yellow)">--</div>
+    <div class="conf-bar-wrap"><div class="conf-bar-fill" id="confBar" style="width:0%;background:var(--yellow)"></div></div>
+  </div>
+  <div class="hero-stat">
+    <div class="hs-lbl">Signal Strike</div>
+    <div class="hs-val" id="heroStrike" style="color:var(--purple)">--</div>
+  </div>
+  <div class="hero-stat">
+    <div class="hs-lbl">Target</div>
+    <div class="hs-val" id="heroTarget" style="color:var(--teal)">--</div>
+  </div>
+  <div class="hero-stat">
+    <div class="hs-lbl">AMI Price</div>
+    <div class="hs-val" id="heroPrice">--</div>
+  </div>
+  <div class="hero-stat">
+    <div class="hs-lbl">Signal Time</div>
+    <div class="hs-val" id="heroTime" style="color:var(--muted);font-size:.75rem">--</div>
+  </div>
+</div>
+
+<!-- RECENT SIGNALS -->
+<div class="signal-tape" id="signalTape">
+  <span class="tape-lbl">Signals</span>
+  <span class="tape-empty">No signals yet</span>
+</div>
+
+<!-- DAY BACKTEST -->
+<div class="bt-strip" id="btStrip">
+  <div class="bt-item"><div class="bt-lbl">Day BT</div><div class="bt-val" id="btMode">--</div></div>
+  <div class="bt-item"><div class="bt-lbl">Signals</div><div class="bt-val" id="btSignals">0</div></div>
+  <div class="bt-item"><div class="bt-lbl">Trades</div><div class="bt-val" id="btTrades">0</div></div>
+  <div class="bt-item"><div class="bt-lbl">Closed</div><div class="bt-val" id="btClosed">0</div></div>
+  <div class="bt-item"><div class="bt-lbl">Points</div><div class="bt-val" id="btPoints">0.00</div></div>
+  <div class="bt-item"><div class="bt-lbl">Win%</div><div class="bt-val" id="btWin">0%</div></div>
+  <div class="bt-item"><div class="bt-lbl">Open</div><div class="bt-val" id="btOpen">0</div></div>
+</div>
+
+<!-- SUMMARY STRIP -->
+<div class="strip">
+  <div class="strip-item"><div class="si-lbl">CE OI</div><div class="si-val" style="color:var(--green)" id="sCeOI">--</div></div>
+  <div class="strip-item"><div class="si-lbl">PE OI</div><div class="si-val" style="color:var(--red)"   id="sPeOI">--</div></div>
+  <div class="strip-item"><div class="si-lbl">PCR</div><div class="si-val" id="sPcr">--</div></div>
+  <div class="strip-item"><div class="si-lbl">Max Pain</div><div class="si-val" style="color:var(--orange)" id="sMP">--</div></div>
+  <div class="strip-item"><div class="si-lbl">ORB High</div><div class="si-val" style="color:var(--green)" id="sOH">--</div></div>
+  <div class="strip-item"><div class="si-lbl">ORB Low</div><div class="si-val" style="color:var(--red)"   id="sOL">--</div></div>
+  <div class="strip-item"><div class="si-lbl">VWAP</div><div class="si-val" style="color:var(--blue)"   id="sVW">--</div></div>
+  <div class="strip-item"><div class="si-lbl">CE ΔOI</div><div class="si-val" id="sCeChg">--</div></div>
+  <div class="strip-item"><div class="si-lbl">PE ΔOI</div><div class="si-val" id="sPeChg">--</div></div>
+</div>
+
+<!-- TRADE ALERT BAR -->
+<div class="alert-bar" id="alertBar">
+  <span class="alert-lbl">Trade Alert</span>
+  <span class="alert-idle" id="alertIdle">Watching for ORB / Day High-Low breaks...</span>
+</div>
+
+<!-- HEATMAP -->
+<div class="hm-wrap" id="hmWrap">
+  <div class="no-signal">
+    <div class="no-signal-icon">📡</div>
+    <div class="no-signal-txt">Waiting for AMI signal...</div>
+    <div class="no-signal-sub">AFL → signal fires → heatmap auto-loads</div>
+  </div>
+</div>
+
+</div><!-- .page -->
+
+<script>
+const fmtN  = v => Number(v).toLocaleString('en-IN');
+const fmtOI = v => { const a=Math.abs(Number(v)); return a>=1e7?(a/1e7).toFixed(1)+'Cr':a>=1e5?(a/1e5).toFixed(1)+'L':a>=1e3?(a/1e3).toFixed(0)+'K':String(v); };
+const fmtP  = (v,d=2) => Number(v).toFixed(d);
+const KOLKATA_TIME = new Intl.DateTimeFormat('en-IN', {
+  timeZone: 'Asia/Kolkata',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true
+});
+
+function fmtKolkataTime(value = Date.now()) {
+  if (typeof value === 'string' && /^\d{1,2}:\d{2}(?::\d{2})?$/.test(value)) {
+    const [hour, minute, second = 0] = value.split(':').map(Number);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return '--';
+    const hour12 = ((hour + 11) % 12) + 1;
+    return `${String(hour12).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'} IST`;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? '--' : `${KOLKATA_TIME.format(date).toUpperCase()} IST`;
+}
+
+let activeInst  = 'NIFTY';
+let chainData   = null;
+let sigData     = null;
+let pcrData     = null;
+let mpData      = null;
+let amiSig      = { signal:'WAIT', instrument:'NIFTY', strike:0, conf:0, price:0, target:0, time:null };
+let amiSignals  = [];
+let amiBacktest = null;
+let nextBest    = null;
+let algoChain   = null;
+let algoTarget  = null;
+let algoBusy    = false;
+let amiLastMs   = 0;
+let prevSigKey  = '';   // "CALL-23400" — detects new signal
+let blinkTimer  = null;
+let loadAllBusy = false;
+let loadAllQueued = false;
+const CHAIN_REFRESH_MS = 3000;
+const ALGO_API_BASE = 'http://127.0.0.1:8091';
+
+// ── PoP helpers ──────────────────────────────────────────────────────────────
+function pop(delta){ return Math.max(0,Math.min(100,(1-Math.abs(Number(delta)||0))*100)); }
+function popCls(p,side){
+  const s=side==='CE'?'ce':'pe';
+  if(p>=99)return s+'-100'; if(p>=95)return s+'-95'; if(p>=90)return s+'-90';
+  if(p>=85)return s+'-85';  if(p>=80)return s+'-80'; return s+'-70';
+}
+function popBadge(p){
+  const c=p>=90?'pop-hi':p>=75?'pop-mid':'pop-lo';
+  return `<span class="cell-pop ${c}">${p.toFixed(0)}%</span>`;
+}
+
+function legHighLow(leg, ltp) {
+  const price = Number(ltp || leg?.ltp || 0);
+  const high = Number(leg?.high || 0);
+  const low = Number(leg?.low || 0);
+  const hi = high > 0 ? high : price;
+  const lo = low > 0 ? low : price;
+  const range = Math.max(0, hi - lo);
+  const pos = range > 0 && price > 0 ? Math.max(0, Math.min(100, ((price - lo) / range) * 100)) : 50;
+  const nearHigh = hi > 0 && price > 0 && (range <= 0 || pos >= 85);
+  const nearLow = lo > 0 && price > 0 && (range <= 0 || pos <= 15);
+  return { high: hi, low: lo, pos, nearHigh, nearLow };
+}
+
+function highLowHtml(leg, ltp) {
+  const hl = legHighLow(leg, ltp);
+  return `
+    <div class="hl-row">
+      <div class="hl-box high"><span class="hl-tag">H</span><span class="hl-val">${hl.high ? fmtP(hl.high,1) : '--'}</span></div>
+      <div class="hl-box low"><span class="hl-tag">L</span><span class="hl-val">${hl.low ? fmtP(hl.low,1) : '--'}</span></div>
+    </div>
+    <div class="hl-meter"><span class="hl-pin" style="left:calc(${hl.pos.toFixed(0)}% - 1px)"></span></div>`;
+}
+
+function hasDhanQuote(leg) {
+  if (!leg) return false;
+  return [
+    'ltp', 'open', 'high', 'low', 'close', 'prevClose',
+    'bid', 'ask', 'oi', 'changeOI', 'volume', 'bidQty', 'askQty'
+  ].some(key => Number(leg[key] || 0) !== 0);
+}
+
+function isDhanStrike(row) {
+  return hasDhanQuote(row?.ce) || hasDhanQuote(row?.pe);
+}
+
+function scoreNextBestLeg(row, side, atm, step, sigStrike) {
+  const leg = side === 'CALL' ? row?.ce : row?.pe;
+  const ltp = Number(leg?.ltp || 0);
+  if (!leg || ltp <= 0) return null;
+  if (sigStrike && Number(row.strike) === Number(sigStrike)) return null;
+
+  const oi = Math.max(0, Number(leg.oi || 0));
+  const volume = Math.max(0, Number(leg.volume || 0));
+  const chgOi = Math.abs(Number(leg.changeOI || 0));
+  const bid = Number(leg.bid || 0);
+  const ask = Number(leg.ask || 0);
+  const spreadPenalty = bid > 0 && ask > 0 && ask >= bid
+    ? Math.min(12, ((ask - bid) / Math.max(ltp, 1)) * 100)
+    : 4;
+  const hl = legHighLow(leg, ltp);
+  const atmDistance = Math.abs(Number(row.strike || 0) - atm) / step;
+  const sigDistance = sigStrike ? Math.abs(Number(row.strike || 0) - sigStrike) / step : atmDistance;
+  const liquidity = Math.log10(oi + volume * 3 + chgOi * 2 + 10) * 12;
+  const momentum = hl.pos * 0.35;
+  const atmScore = Math.max(0, 24 - atmDistance * 3);
+  const signalScore = sigStrike ? Math.max(0, 18 - sigDistance * 4) : 0;
+  const priceScore = ltp >= 10 && ltp <= 800 ? 8 : 2;
+  const score = liquidity + momentum + atmScore + signalScore + priceScore - spreadPenalty;
+  return {
+    side,
+    strike: Number(row.strike || 0),
+    ltp,
+    score: +score.toFixed(1),
+    position: +hl.pos.toFixed(0)
+  };
+}
+
+function computeNextBest(strikes, activeSignals, atm, step) {
+  const latest = activeSignals[0] || null;
+  let side = String(latest?.signal || '').toUpperCase();
+  if (side !== 'CALL' && side !== 'PUT') side = '';
+  const sigStrike = Number(latest?.displayStrike || 0);
+  const sides = side ? [side] : ['CALL', 'PUT'];
+  const candidates = [];
+  for (const row of strikes) {
+    for (const candidateSide of sides) {
+      const item = scoreNextBestLeg(row, candidateSide, atm, step, sigStrike);
+      if (item) candidates.push(item);
+    }
+  }
+  candidates.sort((a, b) => b.score - a.score || Math.abs(a.strike - atm) - Math.abs(b.strike - atm));
+  return candidates[0] || null;
+}
+
+function paintNextBest(best) {
+  const el = document.getElementById('tbNextBest');
+  if (!el) return;
+  if (!best) {
+    el.textContent = '--';
+    el.style.color = 'var(--muted)';
+    return;
+  }
+  el.textContent = `${best.side === 'CALL' ? 'C' : 'P'} ${fmtN(best.strike)}`;
+  el.style.color = 'var(--teal)';
+}
+
+// ── Load AMI last signal ─────────────────────────────────────────────────────
+function inferAlgoTrend() {
+  const sig = String(amiSig?.signal || activeSignalList()[0]?.signal || '').toUpperCase();
+  if (sig === 'CALL') return 'BULLISH';
+  if (sig === 'PUT') return 'BEARISH';
+  return 'BULLISH';
+}
+
+function normalizeAlgoTarget(payload, trend) {
+  const t = payload?.target;
+  if (!t || !Number(t.strike)) return null;
+  const optionType = String(t.option_type || '').toUpperCase() === 'PE' ? 'PE' : 'CE';
+  const rawDelta = t.abs_delta !== undefined ? t.abs_delta : Math.abs(Number(t.delta || 0));
+  return {
+    strike: Number(t.strike),
+    optionType,
+    side: optionType === 'PE' ? 'PUT' : 'CALL',
+    trend,
+    ltp: Number(t.ltp || 0),
+    delta: Math.abs(Number(rawDelta || 0)),
+    oi: Number(t.oi || 0),
+    volume: Number(t.volume || 0),
+    score: Number(t.score || 0),
+    symbol: String(t.trading_symbol || '')
+  };
+}
+
+function paintAlgoTarget(target) {
+  const el = document.getElementById('tbAlgoTarget');
+  if (!el) return;
+  if (!target) {
+    el.textContent = '--';
+    el.style.color = 'var(--muted)';
+    el.title = 'Python algo API did not return a target';
+    return;
+  }
+  const prefix = target.optionType === 'PE' ? 'P' : 'C';
+  const premium = target.ltp > 0 ? ` @ ${fmtP(target.ltp,1)}` : '';
+  el.textContent = `${prefix} ${fmtN(target.strike)}${premium}`;
+  el.style.color = '#00f5d4';
+  el.title = `${target.symbol} | trend ${target.trend} | delta ${fmtP(target.delta,2)} | score ${fmtP(target.score,1)}`;
+}
+
+async function loadAlgoTarget() {
+  if (algoBusy) return;
+  algoBusy = true;
+  const requestedInst = activeInst;
+  const trend = inferAlgoTrend();
+  try {
+    const url = `${ALGO_API_BASE}/api/option-chain?index=${encodeURIComponent(requestedInst)}&trend=${encodeURIComponent(trend)}`;
+    const r = await fetch(url, {cache:'no-store'}).catch(()=>null);
+    if (requestedInst !== activeInst) return;
+    if (r && r.ok) {
+      const j = await r.json();
+      algoChain = j;
+      algoTarget = normalizeAlgoTarget(j, trend);
+    } else {
+      algoChain = null;
+      algoTarget = null;
+    }
+  } catch(e) {
+    if (requestedInst === activeInst) {
+      algoChain = null;
+      algoTarget = null;
+    }
+  } finally {
+    if (requestedInst === activeInst) {
+      paintAlgoTarget(algoTarget);
+      renderHeatmap();
+    }
+    algoBusy = false;
+  }
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
+function isEntrySignal(s) {
+  const sig = String(s?.signal || '').toUpperCase();
+  return sig === 'CALL' || sig === 'PUT';
+}
+
+function signalDisplayStrike(s) {
+  const raw = Number(s?.strike || 0);
+  if (raw > 0) return raw;
+  const spot = Number(s?.price || 0);
+  const step = activeInst === 'NIFTY' ? 50 : 100;
+  if (spot > 1000) return Math.round(spot / step) * step;
+  return Number(chainData?.atmStrike || 0);
+}
+
+function activeSignalList() {
+  return (amiSignals || [])
+    .filter(s => String(s.instrument || '').toUpperCase() === activeInst && isEntrySignal(s))
+    .map(s => ({ ...s, displayStrike: signalDisplayStrike(s) }))
+    .filter(s => Number(s.displayStrike || 0) > 0);
+}
+
+function renderSignalTape() {
+  const tape = document.getElementById('signalTape');
+  if (!tape) return;
+  const list = activeSignalList().slice(0, 16);
+  const countEl = document.getElementById('tbSigCount');
+  if (countEl) countEl.textContent = String(list.length);
+  if (!list.length) {
+    tape.innerHTML = `<span class="tape-lbl">Signals</span><span class="tape-empty">No ${activeInst} signals yet</span>`;
+    return;
+  }
+  tape.innerHTML = `<span class="tape-lbl">${activeInst} Signals</span>` + list.map((s, index) => {
+    const sig = String(s.signal || '').toUpperCase();
+    const cls = sig === 'CALL' ? 'call' : 'put';
+    const mark = sig === 'CALL' ? 'C' : 'P';
+    const conf = Number(s.conf || 0);
+    const time = s.receivedAt || s.time;
+    return `<span class="tape-pill ${cls}${index === 0 ? ' latest' : ''}">
+      ${mark} ${fmtN(s.displayStrike)}
+      <span class="tape-meta">${conf ? conf.toFixed(0)+'%' : '--'} ${time ? fmtKolkataTime(time).replace(' IST','') : ''}</span>
+    </span>`;
+  }).join('');
+}
+
+function setBtText(id, value, cls = '') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = value;
+  el.className = `bt-val ${cls}`.trim();
+}
+
+function renderBacktest() {
+  if (!amiBacktest) {
+    setBtText('btMode', '--');
+    setBtText('btSignals', '0');
+    setBtText('btTrades', '0');
+    setBtText('btClosed', '0');
+    setBtText('btPoints', '0.00');
+    setBtText('btWin', '0%');
+    setBtText('btOpen', '0');
+    return;
+  }
+  const sum = amiBacktest.summary || {};
+  const points = Number(sum.totalPoints || 0);
+  const openCount = (amiBacktest.trades || []).filter(t => t.status === 'OPEN').length;
+  const mode = amiBacktest.mode === 'option_premium' ? 'OPT' : 'SPOT';
+  const cls = points > 0 ? 'bt-good' : points < 0 ? 'bt-bad' : 'bt-flat';
+  setBtText('btMode', mode, mode === 'OPT' ? 'bt-good' : 'bt-flat');
+  setBtText('btSignals', String(amiBacktest.signalCount || 0));
+  setBtText('btTrades', String(amiBacktest.tradeCount || 0));
+  setBtText('btClosed', String(amiBacktest.closedTrades || 0));
+  setBtText('btPoints', points.toFixed(2), cls);
+  setBtText('btWin', `${Number(sum.winRate || 0).toFixed(0)}%`, Number(sum.winRate || 0) >= 50 ? 'bt-good' : 'bt-flat');
+  setBtText('btOpen', String(openCount), openCount ? 'bt-flat' : '');
+}
+
+async function loadBacktest() {
+  try {
+    const requestedInst = activeInst;
+    const r = await fetch(`/api/amibroker/backtest?inst=${requestedInst}&from=09:30&to=15:30`, {cache:'no-store'}).catch(()=>null);
+    if (r && r.ok && requestedInst === activeInst) amiBacktest = await r.json();
+  } catch(e) {}
+  renderBacktest();
+}
+
+async function loadAmi() {
+  try {
+    const requestedInst = activeInst;
+    const [r, h] = await Promise.all([
+      fetch('/api/amibroker/last-signal', {cache:'no-store'}).catch(()=>null),
+      fetch(`/api/amibroker/signals?inst=${requestedInst}&limit=120`, {cache:'no-store'}).catch(()=>null)
+    ]);
+      if (h && h.ok && requestedInst === activeInst) {
+        const hist = await h.json();
+        amiSignals = Array.isArray(hist.signals) ? hist.signals : [];
+      }
+    loadBacktest();
+    if (r && r.ok) {
+      const j = await r.json();
+      const newKey = `${j.signal}-${j.strike}-${j.instrument}`;
+      const isNew  = (j.signal === 'CALL' || j.signal === 'PUT') && newKey !== prevSigKey;
+
+      amiSig    = j;
+      amiLastMs = j.time ? Date.now() : 0;
+
+      if (isNew) {
+        prevSigKey = newKey;
+        // Auto-switch instrument tab if needed, then blink after chain data loads
+        if (j.instrument && j.instrument !== activeInst) {
+          const tab = document.querySelector(`.inst-tab[data-inst="${j.instrument}"]`);
+          if (tab) {
+            switchInst(tab, true); // loads chain + calls paintAmi inside
+            // Wait for loadAll + renderHeatmap to finish, then blink
+            setTimeout(() => { loadAmi(); triggerBlink(j.signal); }, 2000);
+            return;
+          }
+        }
+        // Same instrument — paintAmi calls renderHeatmap synchronously
+        paintAmi();
+        loadAlgoTarget();
+        triggerBlink(j.signal);
+        return;
+      }
+
+      // Auto-switch instrument tab if AMI changed it (non-new, e.g. reload)
+      if (j.instrument && j.instrument !== activeInst && j.signal !== 'WAIT') {
+        const tab = document.querySelector(`.inst-tab[data-inst="${j.instrument}"]`);
+        if (tab) { switchInst(tab, true); setTimeout(loadAmi, 800); return; }
+      }
+    }
+  } catch(e){}
+  paintAmi();
+}
+
+function paintAmi() {
+  const stale = amiLastMs > 0 && (Date.now()-amiLastMs) > 30000;
+  const dot = document.getElementById('amiDot');
+  dot.className = 'ami-dot' + (amiLastMs===0?'': stale?' stale':' live');
+
+  const sig = amiSig.signal || 'WAIT';
+
+  // Topbar pill
+  document.getElementById('amiPill').innerHTML =
+    sig==='CALL'?'<span class="signal-pill sig-call">CALL ▲</span>':
+    sig==='PUT' ?'<span class="signal-pill sig-put">PUT ▼</span>'  :
+                 '<span class="signal-pill sig-wait">WAIT</span>';
+
+  // Hero card
+  const heroPillEl = document.getElementById('heroPill');
+  heroPillEl.innerHTML =
+    sig==='CALL'?'<span class="hero-pill hero-call">CALL ▲</span>':
+    sig==='PUT' ?'<span class="hero-pill hero-put">PUT ▼</span>'  :
+                 '<span class="hero-pill hero-wait">WAIT</span>';
+
+  document.getElementById('heroInst').textContent = amiSig.instrument || activeInst;
+
+  const conf = amiSig.conf || 0;
+  const confEl = document.getElementById('heroConf');
+  confEl.textContent = conf ? conf.toFixed(0)+'%' : '--';
+  confEl.style.color = conf>=85?'var(--green)':conf>=75?'var(--yellow)':'var(--red)';
+
+  const barEl = document.getElementById('confBar');
+  barEl.style.width = conf+'%';
+  barEl.style.background = conf>=85?'var(--green)':conf>=75?'var(--yellow)':'var(--red)';
+
+  document.getElementById('heroStrike').textContent = amiSig.strike ? fmtN(amiSig.strike) : '--';
+  document.getElementById('heroTarget').textContent = amiSig.target ? amiSig.target.toFixed(1)+'x' : '--';
+  document.getElementById('heroPrice').textContent  = amiSig.price  ? '₹'+fmtP(amiSig.price,1) : '--';
+  document.getElementById('heroTime').textContent = amiSig.time ? fmtKolkataTime(amiSig.time) : '--';
+
+  renderSignalTape();
+  renderHeatmap();
+}
+
+// ── Blink trigger — fires when new signal arrives ─────────────────────────
+function triggerBlink(sig) {
+  if (blinkTimer) clearTimeout(blinkTimer);
+
+  // Hero card flash
+  const hero = document.getElementById('heroCard');
+  hero.classList.remove('hero-blink-call','hero-blink-put');
+  void hero.offsetWidth; // reflow to restart animation
+  hero.classList.add(sig==='CALL' ? 'hero-blink-call' : 'hero-blink-put');
+
+  // Strike row + cells — find after render
+  setTimeout(() => {
+    const strikeCls = sig==='CALL' ? 'cell-blink-call' : 'cell-blink-put';
+
+    // Blink all signal-row strikes and their cells
+    document.querySelectorAll('.signal-row').forEach(el => {
+      el.classList.remove('strike-blink');
+      void el.offsetWidth;
+      el.classList.add('strike-blink');
+    });
+    document.querySelectorAll('.sig-hl-ce, .sig-hl-pe').forEach(el => {
+      el.classList.remove('cell-blink-call','cell-blink-put');
+      void el.offsetWidth;
+      el.classList.add(strikeCls);
+    });
+
+    // Remove blink classes after animation completes (6 × 0.55s ≈ 3.5s)
+    blinkTimer = setTimeout(() => {
+      document.querySelectorAll('.strike-blink').forEach(el => el.classList.remove('strike-blink'));
+      document.querySelectorAll('.cell-blink-call,.cell-blink-put').forEach(el => {
+        el.classList.remove('cell-blink-call','cell-blink-put');
+      });
+      hero.classList.remove('hero-blink-call','hero-blink-put');
+    }, 3600);
+  }, 250); // wait for renderHeatmap() DOM injection to complete
+}
+
+// ── Load chain data ──────────────────────────────────────────────────────────
+async function loadAll() {
+  if (loadAllBusy) {
+    loadAllQueued = true;
+    return;
+  }
+  loadAllBusy = true;
+  const requestedInst = activeInst;
+  try {
+  const sp = activeInst==='SENSEX'?'sensex':activeInst==='NIFTY'?'nifty':'banknifty';
+  try {
+    const [rC,rS,rP,rM] = await Promise.all([
+      fetch(`/api/options/chain?instrument=${activeInst}`,   {cache:'no-store'}).catch(()=>null),
+      fetch(`/api/${sp}`,                                     {cache:'no-store'}).catch(()=>null),
+      fetch(`/api/options/pcr?instrument=${activeInst}`,     {cache:'no-store'}).catch(()=>null),
+      fetch(`/api/options/maxpain?instrument=${activeInst}`, {cache:'no-store'}).catch(()=>null)
+    ]);
+    if(rC&&rC.ok) chainData = await rC.json();
+    if(rS&&rS.ok) sigData   = await rS.json();
+    if(rP&&rP.ok) pcrData   = await rP.json();
+    if(rM&&rM.ok) mpData    = await rM.json();
+  } catch(e){}
+
+  if (requestedInst !== activeInst) return;
+
+  // Prefer the live index feed while option rows come from Dhan's live chain.
+  const spot = parseFloat(sigData?.price || chainData?.spotPrice || 0);
+  const atm  = chainData?.atmStrike || 0;
+  document.getElementById('tbSpot').textContent = spot ? '₹'+fmtN(spot.toFixed(0)) : '--';
+  document.getElementById('tbAtm').textContent  = atm  ? fmtN(atm) : '--';
+  document.getElementById('tbUpd').textContent  = fmtKolkataTime();
+
+  // Strip
+  const strikes = chainData?.strikes || [];
+  let totCe=0, totPe=0, netCeChg=0, netPeChg=0;
+  strikes.forEach(s=>{totCe+=s.ce?.oi||0;totPe+=s.pe?.oi||0;netCeChg+=s.ce?.changeOI||0;netPeChg+=s.pe?.changeOI||0;});
+  const pcr = totPe&&totCe ? (totPe/totCe).toFixed(2) : '--';
+  document.getElementById('sCeOI').textContent = fmtOI(totCe);
+  document.getElementById('sPeOI').textContent = fmtOI(totPe);
+  const pEl = document.getElementById('sPcr');
+  pEl.textContent = pcr; pEl.style.color = pcr>1.2?'var(--green)':pcr<0.8?'var(--red)':'var(--yellow)';
+  document.getElementById('sMP').textContent = mpData?.maxPain ? fmtN(mpData.maxPain) : '--';
+  document.getElementById('sOH').textContent = sigData?.orbHigh || '--';
+  document.getElementById('sOL').textContent = sigData?.orbLow  || '--';
+  document.getElementById('sVW').textContent = sigData?.vwap    || '--';
+  const cChg = document.getElementById('sCeChg');
+  cChg.textContent=(netCeChg>=0?'+':'')+fmtOI(netCeChg); cChg.style.color=netCeChg>=0?'var(--green)':'var(--red)';
+  const pChg = document.getElementById('sPeChg');
+  pChg.textContent=(netPeChg>=0?'+':'')+fmtOI(netPeChg); pChg.style.color=netPeChg>=0?'var(--green)':'var(--red)';
+
+  renderSignalTape();
+  renderHeatmap();
+  } finally {
+    loadAllBusy = false;
+    if (loadAllQueued) {
+      loadAllQueued = false;
+      loadAll();
+    }
+  }
+}
+
+// ── Render heatmap ────────────────────────────────────────────────────────────
+function renderHeatmap() {
+  const el = document.getElementById('hmWrap');
+  if (!chainData?.strikes?.length) {
+    nextBest = null;
+    paintNextBest(null);
+    el.innerHTML = `<div class="no-signal">
+      <div class="no-signal-icon">📡</div>
+      <div class="no-signal-txt">Waiting for AMI signal...</div>
+      <div class="no-signal-sub">AFL → signal fires → heatmap auto-loads</div>
+    </div>`;
+    return;
+  }
+
+  const allStrikes = chainData.strikes.filter(isDhanStrike);
+  if (!allStrikes.length) {
+    nextBest = null;
+    paintNextBest(null);
+    el.innerHTML = `<div class="no-signal">
+      <div class="no-signal-icon">--</div>
+      <div class="no-signal-txt">No active Dhan strikes yet</div>
+      <div class="no-signal-sub">Rows with only contract id and zero quote are hidden</div>
+    </div>`;
+    return;
+  }
+  const atm        = chainData.atmStrike || 0;
+  const step = activeInst==='NIFTY'?50:100;
+  const activeSignals = activeSignalList();
+  const signalByStrike = new Map();
+  activeSignals.forEach(s => {
+    const strike = Number(s.displayStrike || 0);
+    if (!signalByStrike.has(strike)) signalByStrike.set(strike, []);
+    signalByStrike.get(strike).push(s);
+  });
+  const sigStrike  = activeSignals[0]?.displayStrike || 0;
+  const algoStrike = Number(algoTarget?.strike || 0);
+  nextBest = computeNextBest(allStrikes, activeSignals, atm, step);
+  paintNextBest(nextBest);
+
+  // Focus: show ±7 strikes around signal strike (or ATM if no signal)
+  const center = sigStrike || algoStrike || nextBest?.strike || atm;
+  const focused = allStrikes.filter(s =>
+    Math.abs(s.strike - center) <= 7 * step ||
+    signalByStrike.has(Number(s.strike)) ||
+    (algoStrike > 0 && Number(s.strike) === algoStrike) ||
+    (nextBest && Number(s.strike) === Number(nextBest.strike))
+  );
+  const strikes = focused.length >= 5 ? focused : allStrikes;
+
+  let maxCe=1, maxPe=1;
+  strikes.forEach(s=>{maxCe=Math.max(maxCe,s.ce?.oi||0);maxPe=Math.max(maxPe,s.pe?.oi||0);});
+
+  let html = `<div class="hm-header">
+    <div class="hm-col-hdr ce-hdr">CALL (CE)</div>
+    <div class="hm-col-hdr st-hdr">STRIKE</div>
+    <div class="hm-col-hdr pe-hdr">PUT (PE)</div>
+  </div>`;
+
+  for (const s of strikes) {
+    const isATM  = s.strike === atm;
+    const rowSignals = signalByStrike.get(Number(s.strike)) || [];
+    const isSig  = rowSignals.length > 0;
+    const isBest = nextBest && Number(nextBest.strike) === Number(s.strike);
+    const isBestCall = isBest && nextBest.side === 'CALL';
+    const isBestPut = isBest && nextBest.side === 'PUT';
+    const isAlgo = algoTarget && Number(algoTarget.strike) === Number(s.strike);
+    const isAlgoCall = isAlgo && algoTarget.optionType === 'CE';
+    const isAlgoPut = isAlgo && algoTarget.optionType === 'PE';
+    const hasCallSig = rowSignals.some(x => String(x.signal || '').toUpperCase() === 'CALL');
+    const hasPutSig  = rowSignals.some(x => String(x.signal || '').toUpperCase() === 'PUT');
+    const ce=s.ce||{}, pe=s.pe||{};
+    const cePop=pop(ce.delta), pePop=pop(pe.delta);
+    const ceOI=ce.oi||0, peOI=pe.oi||0;
+    const ceLtp=parseFloat(ce.ltp||0), peLtp=parseFloat(pe.ltp||0);
+    const ceChg=ce.changeOI||0, peChg=pe.changeOI||0;
+    const ceBarW=Math.min(100,(ceOI/maxCe)*100).toFixed(0);
+    const peBarW=Math.min(100,(peOI/maxPe)*100).toFixed(0);
+    const ceHL=legHighLow(ce, ceLtp), peHL=legHighLow(pe, peLtp);
+
+    const strikeCls = `hm-strike${isATM ? ' atm' : ''}${isSig ? ' signal-row' : ''}${isBest ? ' next-best-row' : ''}${isAlgo ? ' algo-row' : ''}`;
+
+    let ceCls = isATM ? 'hm-cell ce-atm' : `hm-cell ${popCls(cePop,'CE')}`;
+    let peCls = isATM ? 'hm-cell pe-atm' : `hm-cell ${popCls(pePop,'PE')}`;
+    if (ceHL.nearHigh) ceCls += ' near-high';
+    if (ceHL.nearLow)  ceCls += ' near-low';
+    if (peHL.nearHigh) peCls += ' near-high';
+    if (peHL.nearLow)  peCls += ' near-low';
+    if (hasCallSig) ceCls += ' sig-hl-ce';
+    if (hasPutSig)  peCls += ' sig-hl-pe';
+    if (isBestCall) ceCls += ' next-best-ce';
+    if (isBestPut)  peCls += ' next-best-pe';
+    if (isAlgoCall) ceCls += ' algo-target-ce';
+    if (isAlgoPut)  peCls += ' algo-target-pe';
+
+    const ceCnt = `
+      <div class="cell-top"><span class="cell-ltp">₹${fmtP(ceLtp,1)}</span>${popBadge(cePop)}</div>
+      ${highLowHtml(ce, ceLtp)}
+      <div class="cell-bot"><span>${fmtOI(ceOI)}</span><span>Δ${fmtP(Math.abs(ce.delta||0),2)}</span></div>
+      <div class="oi-bar"><div class="oi-bar-fill" style="width:${ceBarW}%;background:rgba(0,230,118,.5)"></div></div>`;
+    const peCnt = `
+      <div class="cell-top"><span class="cell-ltp">₹${fmtP(peLtp,1)}</span>${popBadge(pePop)}</div>
+      ${highLowHtml(pe, peLtp)}
+      <div class="cell-bot"><span>${fmtOI(peOI)}</span><span>Δ${fmtP(Math.abs(pe.delta||0),2)}</span></div>
+      <div class="oi-bar"><div class="oi-bar-fill" style="width:${peBarW}%;background:rgba(255,68,68,.5)"></div></div>`;
+
+    const ceD=`data-strike="${s.strike}" data-inst="${activeInst}" data-type="CE" data-ltp="${ceLtp}" data-high="${ceHL.high}" data-low="${ceHL.low}" data-pop="${cePop.toFixed(1)}" data-delta="${fmtP(Math.abs(ce.delta||0),4)}" data-iv="${ce.iv||0}" data-oi="${ceOI}" data-chgoi="${ceChg}"`;
+    const peD=`data-strike="${s.strike}" data-inst="${activeInst}" data-type="PE" data-ltp="${peLtp}" data-high="${peHL.high}" data-low="${peHL.low}" data-pop="${pePop.toFixed(1)}" data-delta="${fmtP(Math.abs(pe.delta||0),4)}" data-iv="${pe.iv||0}" data-oi="${peOI}" data-chgoi="${peChg}"`;
+    const algoChipHtml = isAlgo
+      ? `<span class="strike-signal-chip algo">ALGO ${algoTarget.optionType} ${algoTarget.ltp ? fmtP(algoTarget.ltp,1) : '--'}</span>`
+      : '';
+    const bestChipHtml = isBest
+      ? `<span class="strike-signal-chip best">NB ${nextBest.side} ${nextBest.score}</span>`
+      : '';
+    const rowSignalTopHtml = rowSignals.slice(0,2).map(x => {
+          const sig = String(x.signal || '').toUpperCase();
+          const side = sig === 'CALL' ? 'call' : 'put';
+          const conf = Number(x.conf || 0);
+          return `<span class="strike-signal-chip ${side}">${sig} <span class="strike-signal-conf">${conf ? conf.toFixed(0) + '%' : ''}</span></span>`;
+        }).join('');
+    const strikeSignalTopHtml = (algoChipHtml || bestChipHtml || rowSignalTopHtml)
+      ? `<div class="strike-signal-top">${algoChipHtml}${bestChipHtml}${rowSignalTopHtml}</div>`
+      : '';
+    const strikeSignalHtml = rowSignals.length > 2
+      ? `<div class="strike-sigs">${rowSignals.slice(2,6).map(x => {
+          const side = String(x.signal || '').toUpperCase() === 'CALL' ? 'call' : 'put';
+          return `<span class="strike-sig ${side}">${side === 'call' ? 'C' : 'P'}</span>`;
+        }).join('')}</div>`
+      : '';
+
+    html += `<div class="hm-row">
+      <div class="${ceCls}" ${ceD} onmouseenter="showTip(event,this)" onmouseleave="hideTip()" onclick="addToStrategy(this)">${ceCnt}</div>
+      <div class="${strikeCls}">${strikeSignalTopHtml}<div class="strike-price">${fmtN(s.strike)}</div>${strikeSignalHtml}</div>
+      <div class="${peCls}" ${peD} onmouseenter="showTip(event,this)" onmouseleave="hideTip()" onclick="addToStrategy(this)">${peCnt}</div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+
+  // Scroll signal/algo strike into view
+  const scrollClass = sigStrike > 0 ? '.signal-row' : (algoStrike > 0 ? '.algo-row' : '');
+  if (scrollClass) {
+    setTimeout(() => {
+      const rows = el.querySelectorAll('.hm-row');
+      for (const row of rows) {
+        if (row.querySelector(scrollClass)) {
+          row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          break;
+        }
+      }
+    }, 80);
+  }
+}
+
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+const tip = document.getElementById('tooltip');
+function showTip(e,el) {
+  const d=el.dataset;
+  document.getElementById('tt-strike').textContent = fmtN(d.strike);
+  document.getElementById('tt-type').textContent   = d.type;
+  document.getElementById('tt-ltp').textContent    = '₹'+fmtP(d.ltp,2);
+  document.getElementById('tt-high').textContent   = d.high > 0 ? '₹'+fmtP(d.high,2) : '--';
+  document.getElementById('tt-low').textContent    = d.low > 0 ? '₹'+fmtP(d.low,2) : '--';
+  document.getElementById('tt-pop').textContent    = d.pop+'%';
+  document.getElementById('tt-delta').textContent  = d.delta;
+  document.getElementById('tt-iv').textContent     = d.iv?fmtP(d.iv,1)+'%':'--';
+  document.getElementById('tt-oi').textContent     = fmtOI(d.oi);
+  document.getElementById('tt-chgoi').textContent  = (d.chgoi>0?'+':'')+fmtOI(d.chgoi);
+  tip.style.display='block'; moveTip(e);
+}
+function moveTip(e){
+  const x=e.clientX+14,y=e.clientY-10;
+  tip.style.left=(x+170>window.innerWidth?x-185:x)+'px';
+  tip.style.top =(y+155>window.innerHeight?y-165:y)+'px';
+}
+document.addEventListener('mousemove',e=>{ if(tip.style.display==='block') moveTip(e); });
+function hideTip(){ tip.style.display='none'; }
+
+function addToStrategy(el) {
+  const {strike,type,inst} = el.dataset;
+  window.open(`/strategy.html?inst=${inst}&strike=${strike}&type=${type}`,'_blank');
+}
+
+// ── Switch instrument ────────────────────────────────────────────────────────
+function switchInst(btn, silent=false) {
+  document.querySelectorAll('.inst-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  activeInst = btn.dataset.inst;
+  chainData = null;
+  amiSignals = [];
+  amiBacktest = null;
+  nextBest = null;
+  algoChain = null;
+  algoTarget = null;
+  paintNextBest(null);
+  paintAlgoTarget(null);
+  renderSignalTape();
+  renderBacktest();
+  if (!silent) { loadAll(); loadAmi(); loadAlgoTarget(); }
+  else { loadAll(); loadAlgoTarget(); }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Trade Alert — ORB / DAY breaks only (no SWING noise) ────────────────────
+let _alertLastAt  = 0;
+let _alertEmaKey  = '';
+let _alertRowTimer = null;
+
+function _emaToSide(tactic) {
+  if (!tactic || tactic === 'NEUTRAL') return null;
+  if (['STRONG_UP','TREND_CHANGE_UP','PULLBACK_UP'].includes(tactic))   return 'CALL';
+  if (['STRONG_DOWN','REGIME_CHANGE_DOWN','STOP_HIT','PULLBACK_DOWN'].includes(tactic)) return 'PUT';
+  return null;
+}
+
+function _blinkHeatmapRow(price, side) {
+  const rows = document.querySelectorAll('.hm-row');
+  let best = null, bestDiff = Infinity;
+  rows.forEach(row => {
+    const el = row.querySelector('.hm-strike');
+    if (!el) return;
+    const s = parseFloat(el.textContent.replace(/,/g,''));
+    if (!isNaN(s) && Math.abs(s - price) < bestDiff) { bestDiff = Math.abs(s - price); best = row; }
+  });
+  if (!best) return;
+  const cls = side === 'CALL' ? 'rb-call' : 'rb-put';
+  best.classList.remove('rb-call','rb-put');
+  void best.offsetWidth;
+  best.classList.add(cls);
+  if (_alertRowTimer) clearTimeout(_alertRowTimer);
+  _alertRowTimer = setTimeout(() => best.classList.remove('rb-call','rb-put'), 3200);
+  best.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function _pushAlert(side, label, price) {
+  const bar  = document.getElementById('alertBar');
+  const idle = document.getElementById('alertIdle');
+  idle.style.display = 'none';
+
+  const pill = document.createElement('span');
+  pill.className = `alert-pill ${side === 'CALL' ? 'alert-call' : 'alert-put'}`;
+  pill.textContent = `${side === 'CALL' ? '▲ CALL' : '▼ PUT'} — ${label}`;
+  // Insert after the label
+  bar.insertBefore(pill, idle);
+
+  // Keep max 4 pills
+  const pills = bar.querySelectorAll('.alert-pill');
+  if (pills.length > 4) pills[0].remove();
+
+  if (price) _blinkHeatmapRow(price, side);
+}
+
+async function loadTradeAlerts() {
+  try {
+    // 1. ORB + DAY breaks → trade signal
+    const bRes = await fetch(`/api/breakouts?inst=${activeInst}`, {cache:'no-store'}).catch(()=>null);
+    if (bRes && bRes.ok) {
+      const bj = await bRes.json();
+      const fresh = (bj.events || []).filter(e =>
+        e.at > _alertLastAt &&
+        (e.type === 'ORB' || e.type === 'DAY')   // ignore SWING noise
+      );
+      if (fresh.length) {
+        _alertLastAt = Math.max(...fresh.map(e => e.at));
+        fresh.forEach(ev => {
+          const side  = ev.dir === 'HIGH' ? 'CALL' : 'PUT';
+          const label = `${ev.type} ${ev.dir === 'HIGH' ? 'High' : 'Low'} Break ${fmtN(ev.level)}`;
+          _pushAlert(side, label, ev.level);
+        });
+      }
+    }
+
+    // 2. EMA cross → trade signal (fires once per tactic change)
+    const eRes = await fetch(`/api/ema-stack?inst=${activeInst}`, {cache:'no-store'}).catch(()=>null);
+    if (eRes && eRes.ok) {
+      const ej = await eRes.json();
+      const tactic = ej.tactic || '';
+      if (tactic && tactic !== _alertEmaKey) {
+        _alertEmaKey = tactic;
+        const side = _emaToSide(tactic);
+        if (side) {
+          const atm = chainData?.atmStrike || 0;
+          _pushAlert(side, `EMA — ${ej.tacticLabel || tactic}`, atm);
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadAll();
+loadAmi();
+loadAlgoTarget();
+loadBacktest();
+loadTradeAlerts();
+setInterval(loadAll,         CHAIN_REFRESH_MS);
+setInterval(loadAmi,         1500);
+setInterval(loadAlgoTarget,  5000);
+setInterval(loadBacktest,    5000);
+setInterval(loadTradeAlerts, 2000);
+</script>
+</body>
+</html>
