@@ -36,6 +36,13 @@ class StrangleEngine {
     // up the account. Costs ~half the credit, so only used in the danger regime.
     this.tailSafePct = parseFloat(cfg.tailSafePct ?? process.env.STRANGLE_TAILSAFE_PCT ?? 0.8); // >1 disables
     this.wingPts     = parseInt(cfg.wingPts ?? process.env.STRANGLE_WING_PTS ?? 200);
+    // Tier-2 — margin-aware, fractional-Kelly, IV-scaled sizing. Surfaces the
+    // recommended REAL-capital lot count (paper still trades qtyPerLeg unless
+    // useSizer). Stats default to the validated strangle backtest.
+    this._sizer    = require('./position-sizer.js');
+    this.capital   = parseFloat(cfg.capital ?? process.env.STRANGLE_CAPITAL ?? 100000);
+    this.useSizer  = String(cfg.useSizer ?? process.env.STRANGLE_USE_SIZER ?? 'false').toLowerCase() === 'true';
+    this._stats    = { winRate: 0.94, avgWin: 2959, avgLoss: -3498 };   // from cost-net backtest
 
     this._open  = new Map();   // inst -> open strangle position
     this._closed = [];         // closed paper trades (today/session)
@@ -128,6 +135,17 @@ class StrangleEngine {
     }
     const structure = (ceWing && peWing) ? 'CONDOR' : 'STRANGLE';
     const wingCost = (ceWing && peWing) ? ceWing.entry + peWing.entry : 0;
+    const netCredit = +((ceLtp + peLtp) - wingCost).toFixed(2);
+    const maxLoss = structure === 'CONDOR' ? +(this.wingPts - netCredit).toFixed(2) : null;
+
+    // Tier-2 sizing — margin-aware fractional-Kelly, IV-scaled. Paper still uses
+    // qtyPerLeg unless useSizer; the recommendation is always surfaced.
+    const sizing = this._sizer.recommend({
+      capital: this.capital, structure, maxLossPerUnit: maxLoss || undefined,
+      winRate: this._stats.winRate, avgWin: this._stats.avgWin, avgLoss: this._stats.avgLoss,
+      ivPct: ivPct ?? 0.5,
+    });
+    const qty = this.useSizer ? Math.max(this.qtyPerLeg, sizing.recommendedLots) : this.qtyPerLeg;
 
     const entry = {
       inst, expiry, entryAt: this._hms(), structure,
@@ -135,9 +153,7 @@ class StrangleEngine {
       pe: { strike: atm - off, entry: peLtp, ltp: peLtp },
       ceWing, peWing,
       ivPctAtEntry: ivPct != null ? +(ivPct * 100).toFixed(0) : null,
-      credit: +((ceLtp + peLtp) - wingCost).toFixed(2),       // net credit (after buying wings)
-      maxLoss: structure === 'CONDOR' ? +(this.wingPts - ((ceLtp + peLtp) - wingCost)).toFixed(2) : null,
-      qty: this.qtyPerLeg
+      credit: netCredit, maxLoss, sizing, qty
     };
     this._open.set(inst, entry);
     if (expiry) this._cycleExp.set(inst, expiry);
@@ -192,17 +208,27 @@ class StrangleEngine {
       ivState[inst] = { iv: v.iv, pct: v.pct != null ? +(v.pct * 100).toFixed(0) : null,
         rich: v.pct != null ? v.pct >= this.ivPctMin : null, history: (this._ivHist[inst] || []).length };
     }
+    // Tier-2 sizing snapshot — what real-capital lot count each structure warrants
+    // right now (uses the live IV percentile of the most-tracked instrument).
+    const anyIv = Object.values(this._lastIv)[0];
+    const sizing = {
+      capital: this.capital, useSizer: this.useSizer,
+      strangle: this._sizer.recommend({ capital: this.capital, structure: 'STRANGLE', ...this._stats, ivPct: anyIv?.pct ?? 0.5 }),
+      condor:   this._sizer.recommend({ capital: this.capital, structure: 'CONDOR', maxLossPerUnit: this.wingPts * 0.85, ...this._stats, ivPct: anyIv?.pct ?? 0.5 }),
+    };
     return {
       enabled: this.enabled,
       config: { otmPct: this.otmPct, stopMult: this.stopMult, tpPct: this.tpPct, qtyPerLeg: this.qtyPerLeg,
-        ivPctMin: this.ivPctMin, ivWindow: this.ivWindow, tailSafePct: this.tailSafePct, wingPts: this.wingPts },
+        ivPctMin: this.ivPctMin, ivWindow: this.ivWindow, tailSafePct: this.tailSafePct, wingPts: this.wingPts,
+        capital: this.capital, useSizer: this.useSizer },
       ivRegime: ivState,
+      sizing,
       openPositions: [...this._open.values()],
       closedToday: this._closed.length,
       wins, winRate: this._closed.length ? +(100 * wins / this._closed.length).toFixed(0) : 0,
       netPnl: +net.toFixed(2),
       recent: this._closed.slice(-12).reverse(),
-      note: 'PAPER-only short strangle. Validated 89% win on 120d bhavcopy. Forward-test before trusting.'
+      note: 'PAPER-only premium seller. Regime ladder: skip <50% IV / strangle 50-80% / tail-safe condor ≥80%. Sizing is margin-aware fractional-Kelly. Forward-test before trusting.'
     };
   }
 }
