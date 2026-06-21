@@ -93,6 +93,15 @@
   .str-trade .legs{font-weight:600} .str-trade .tag{font-size:9.5px; padding:1px 7px; border-radius:5px; letter-spacing:.4px; font-weight:700}
   .str-trade .tag.open{background:#13314f; color:#7dd3fc} .str-trade .tag.tp{background:var(--greenbg); color:var(--green)} .str-trade .tag.stop{background:var(--redbg); color:var(--red)}
   .str-trade .pnl{margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums}
+  .str-regime{margin-top:11px; display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px}
+  .str-cell{background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:9px 11px}
+  .str-cell .k{font-size:9px; color:var(--dimmer); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px}
+  .str-cell .v{font-size:13px; font-weight:700}
+  .str-cell .sub{font-size:9.5px; color:var(--dim); margin-top:2px}
+  .str-ladder{display:flex; gap:4px; margin-top:5px}
+  .str-step{flex:1; text-align:center; font-size:8.5px; font-weight:700; padding:3px 2px; border-radius:5px; background:var(--bg); color:var(--dimmer); border:1px solid var(--line)}
+  .str-step.on{background:var(--greenbg); color:var(--green); border-color:var(--green)}
+  .str-step.danger.on{background:var(--redbg); color:var(--red); border-color:var(--red)}
   .str-note{margin-top:10px; font-size:10.5px; color:var(--dimmer); line-height:1.5}
 
   /* ===== Two chains side by side ===== */
@@ -169,6 +178,7 @@
     <span class="str-stats" id="strStats"></span>
     <button class="str-toggle off" id="strToggle" onclick="toggleStrangle()">Enable</button>
   </div>
+  <div class="str-regime" id="strRegime"></div>
   <div class="str-trades" id="strTrades"></div>
   <div class="str-note" id="strNote"></div>
 </div>
@@ -385,9 +395,29 @@ async function loadStrangle(){
     $('strStats').innerHTML = `Today: <b>${s.closedToday||0}</b> closed · <b>${s.winRate||0}%</b> win · P&L <b class="${(s.netPnl||0)>=0?'up':'dn'}">${(s.netPnl||0)>=0?'+':''}₹${Math.round(s.netPnl||0)}</b>`;
     $('strMeta').textContent = s.enabled ? 'live · NIFTY weekly' : 'idle';
     $('strNote').textContent = s.note||'';
+
+    // ── Regime ladder + sizing (the Tier-1/2/3 intelligence) ──
+    const iv = (s.ivRegime && (s.ivRegime.NIFTY || s.ivRegime.SENSEX)) || null;
+    const ivPct = iv && iv.pct != null ? iv.pct : null;
+    const minPct = Math.round((c.ivPctMin||0.5)*100), tailPct = Math.round((c.tailSafePct||0.8)*100);
+    // which rung is active right now
+    const rung = ivPct==null ? 'wait' : ivPct < minPct ? 'skip' : ivPct >= tailPct ? 'condor' : 'strangle';
+    const step = (id,label,danger)=>`<div class="str-step ${danger?'danger':''} ${rung===id?'on':''}">${label}</div>`;
+    const sz = s.sizing || {};
+    const szLine = sz.strangle ? `naked ${sz.strangle.recommendedLots} lot${sz.strangle.recommendedLots!==1?'s':''} · condor ${sz.condor?sz.condor.recommendedLots:'–'} lot${(sz.condor&&sz.condor.recommendedLots!==1)?'s':''}` : '—';
+    $('strRegime').innerHTML = `
+      <div class="str-cell"><div class="k">IV regime</div>
+        <div class="v">${ivPct!=null?ivPct+'%':'—'} <span style="font-size:9px;color:var(--dim)">percentile</span></div>
+        <div class="sub">${iv&&iv.iv!=null?'IV '+(iv.iv*100).toFixed(1)+'%':'building history…'} ${iv?'· '+(iv.history||0)+'d':''}</div></div>
+      <div class="str-cell"><div class="k">Active structure</div>
+        <div class="v">${rung==='skip'?'⏸ SKIP':rung==='condor'?'🛡 CONDOR':rung==='strangle'?'STRANGLE':'—'}</div>
+        <div class="str-ladder">${step('skip','&lt;'+minPct+'% skip')}${step('strangle',minPct+'-'+tailPct+'% strangle')}${step('condor','≥'+tailPct+'% condor',true)}</div></div>
+      <div class="str-cell"><div class="k">Sizing @ ₹${((c.capital||100000)/100000).toFixed(0)}L</div>
+        <div class="v">${szLine}</div>
+        <div class="sub">${sz.strangle?'half-Kelly · IV-scaled · margin-aware':''}</div></div>`;
     // open + recent closed
     const open = (s.openPositions||[]).map(p =>
-      `<div class="str-trade"><span class="tag open">OPEN</span><span class="legs">${p.inst} ${p.pe.strike}PE / ${p.ce.strike}CE</span><span style="color:var(--dim)">credit ₹${p.credit} · exp ${p.expiry||'—'}</span></div>`);
+      `<div class="str-trade"><span class="tag open">${p.structure==='CONDOR'?'🛡 CONDOR':'OPEN'}</span><span class="legs">${p.inst} ${p.pe.strike}PE / ${p.ce.strike}CE${p.structure==='CONDOR'&&p.peWing?` <span style="color:var(--dimmer);font-size:10px">[${p.peWing.strike}/${p.ceWing.strike} wings]</span>`:''}</span><span style="color:var(--dim)">credit ₹${p.credit}${p.maxLoss?` · maxLoss ₹${p.maxLoss}`:''} · ${p.qty} lot</span></div>`);
     const closed = (s.recent||[]).map(t =>
       `<div class="str-trade"><span class="tag ${t.reason==='TAKE_PROFIT'?'tp':'stop'}">${t.reason==='TAKE_PROFIT'?'TP':'STOP'}</span><span class="legs">${t.inst} ${t.pe.strike}PE / ${t.ce.strike}CE</span><span style="color:var(--dim)">${t.entryAt}→${t.exitAt}</span><span class="pnl ${t.pnlAbs>=0?'up':'dn'}">${t.pnlAbs>=0?'+':''}₹${Math.round(t.pnlAbs)}</span></div>`);
     const all = open.concat(closed);
