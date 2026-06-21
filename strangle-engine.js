@@ -30,6 +30,12 @@ class StrangleEngine {
     // drawdown. Sell only when IV percentile >= ivPctMin (0..1). Set 0 to disable.
     this.ivPctMin   = parseFloat(cfg.ivPctMin ?? process.env.STRANGLE_IV_PCT_MIN ?? 0.5);
     this.ivWindow   = parseInt(cfg.ivWindow ?? process.env.STRANGLE_IV_WINDOW ?? 40);    // trailing days for the percentile
+    // Tier-1 #3 — TAIL-SAFE. When IV percentile is VERY high (>= tailSafePct), a
+    // gap/event is most likely; switch from naked strangle to a defined-risk IRON
+    // CONDOR (buy wings wingPts beyond each short) so a stop-failing gap can't blow
+    // up the account. Costs ~half the credit, so only used in the danger regime.
+    this.tailSafePct = parseFloat(cfg.tailSafePct ?? process.env.STRANGLE_TAILSAFE_PCT ?? 0.8); // >1 disables
+    this.wingPts     = parseInt(cfg.wingPts ?? process.env.STRANGLE_WING_PTS ?? 200);
 
     this._open  = new Map();   // inst -> open strangle position
     this._closed = [];         // closed paper trades (today/session)
@@ -105,16 +111,33 @@ class StrangleEngine {
 
     // IV-regime gate: sell only when IV is rich vs its recent range (premium worth
     // selling). Skips low-IV cycles. Permissive until enough history accrues.
-    if (this.ivPctMin > 0 && iv != null) {
-      const pct = this._ivPercentile(inst, iv);
-      if (pct != null && pct < this.ivPctMin) return;   // not rich enough — wait for next cycle
+    const ivPct = (iv != null) ? this._ivPercentile(inst, iv) : null;
+    if (this.ivPctMin > 0 && ivPct != null && ivPct < this.ivPctMin) return;  // not rich enough
+
+    // Tail-safe: in a very-high-IV regime, buy wings → defined-risk iron condor.
+    const wantCondor = this.tailSafePct <= 1 && ivPct != null && ivPct >= this.tailSafePct;
+    let ceWing = null, peWing = null;
+    if (wantCondor) {
+      const lceRow = chain.rows.find(r => r.strike === atm + off + this.wingPts);
+      const lpeRow = chain.rows.find(r => r.strike === atm - off - this.wingPts);
+      const lceLtp = Number(lceRow?.ce?.ltp || 0), lpeLtp = Number(lpeRow?.pe?.ltp || 0);
+      if (lceLtp > 0 && lpeLtp > 0) {                          // only if both wings priced
+        ceWing = { strike: atm + off + this.wingPts, entry: lceLtp, ltp: lceLtp };
+        peWing = { strike: atm - off - this.wingPts, entry: lpeLtp, ltp: lpeLtp };
+      }
     }
+    const structure = (ceWing && peWing) ? 'CONDOR' : 'STRANGLE';
+    const wingCost = (ceWing && peWing) ? ceWing.entry + peWing.entry : 0;
 
     const entry = {
-      inst, expiry, entryAt: this._hms(),
+      inst, expiry, entryAt: this._hms(), structure,
       ce: { strike: atm + off, entry: ceLtp, ltp: ceLtp },
       pe: { strike: atm - off, entry: peLtp, ltp: peLtp },
-      credit: +(ceLtp + peLtp).toFixed(2), qty: this.qtyPerLeg
+      ceWing, peWing,
+      ivPctAtEntry: ivPct != null ? +(ivPct * 100).toFixed(0) : null,
+      credit: +((ceLtp + peLtp) - wingCost).toFixed(2),       // net credit (after buying wings)
+      maxLoss: structure === 'CONDOR' ? +(this.wingPts - ((ceLtp + peLtp) - wingCost)).toFixed(2) : null,
+      qty: this.qtyPerLeg
     };
     this._open.set(inst, entry);
     if (expiry) this._cycleExp.set(inst, expiry);
@@ -122,25 +145,34 @@ class StrangleEngine {
   }
 
   _manage(inst, chain, pos) {
-    const ceRow = chain.rows.find(r => r.strike === pos.ce.strike);
-    const peRow = chain.rows.find(r => r.strike === pos.pe.strike);
-    const ceLtp = Number(ceRow?.ce?.ltp || pos.ce.ltp);
-    const peLtp = Number(peRow?.pe?.ltp || pos.pe.ltp);
+    const find = (strike, type) => { const r = chain.rows.find(x => x.strike === strike); return Number(r?.[type]?.ltp || 0); };
+    const ceLtp = find(pos.ce.strike, 'ce') || pos.ce.ltp;
+    const peLtp = find(pos.pe.strike, 'pe') || pos.pe.ltp;
     pos.ce.ltp = ceLtp; pos.pe.ltp = peLtp;
 
-    const stopHit = ceLtp >= pos.ce.entry * this.stopMult || peLtp >= pos.pe.entry * this.stopMult;
-    const nowPrem = ceLtp + peLtp;
-    const captured = (pos.credit - nowPrem) / pos.credit;                  // fraction of credit decayed
+    // Condor: the long wings offset the short buy-back cost (and cap the loss).
+    let wingValue = 0;
+    if (pos.structure === 'CONDOR' && pos.ceWing && pos.peWing) {
+      const wce = find(pos.ceWing.strike, 'ce') || pos.ceWing.ltp;
+      const wpe = find(pos.peWing.strike, 'pe') || pos.peWing.ltp;
+      pos.ceWing.ltp = wce; pos.peWing.ltp = wpe;
+      wingValue = wce + wpe;                          // value to sell the wings back
+    }
+
+    const netCloseCost = (ceLtp + peLtp) - wingValue;   // net cost to close the whole structure
+    const captured = (pos.credit - netCloseCost) / pos.credit;   // fraction of net credit kept
     const tpHit = captured >= this.tpPct / 100;
+    const stopHit = ceLtp >= pos.ce.entry * this.stopMult || peLtp >= pos.pe.entry * this.stopMult;
 
     if (stopHit || tpHit) {
-      // P&L per unit on a short = credit collected − cost to buy back
-      const pnlPerUnit = pos.credit - nowPrem;
+      let pnlPerUnit = pos.credit - netCloseCost;
+      // A condor can never lose more than its defined max loss — enforce the cap.
+      if (pos.structure === 'CONDOR' && pos.maxLoss != null) pnlPerUnit = Math.max(pnlPerUnit, -pos.maxLoss);
       const pnlAbs = +(pnlPerUnit * pos.qty).toFixed(2);
       const closed = {
-        inst, expiry: pos.expiry, entryAt: pos.entryAt, exitAt: this._hms(),
-        ce: { ...pos.ce }, pe: { ...pos.pe },
-        credit: pos.credit, exitPrem: +nowPrem.toFixed(2),
+        inst, expiry: pos.expiry, entryAt: pos.entryAt, exitAt: this._hms(), structure: pos.structure,
+        ce: { ...pos.ce }, pe: { ...pos.pe }, ceWing: pos.ceWing, peWing: pos.peWing,
+        credit: pos.credit, exitPrem: +netCloseCost.toFixed(2),
         pnlPerUnit: +pnlPerUnit.toFixed(2), pnlAbs,
         pnlPct: +(captured * 100).toFixed(1),
         reason: stopHit ? 'STOP' : 'TAKE_PROFIT'
@@ -163,7 +195,7 @@ class StrangleEngine {
     return {
       enabled: this.enabled,
       config: { otmPct: this.otmPct, stopMult: this.stopMult, tpPct: this.tpPct, qtyPerLeg: this.qtyPerLeg,
-        ivPctMin: this.ivPctMin, ivWindow: this.ivWindow },
+        ivPctMin: this.ivPctMin, ivWindow: this.ivWindow, tailSafePct: this.tailSafePct, wingPts: this.wingPts },
       ivRegime: ivState,
       openPositions: [...this._open.values()],
       closedToday: this._closed.length,
