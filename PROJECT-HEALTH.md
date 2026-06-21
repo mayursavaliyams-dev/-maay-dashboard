@@ -7,17 +7,10 @@ _Full-program audit + cleanup, 2026-06-21. Snapshot of what's clean, what's left
 - **Orphan pages dropped:** `index.html` (duplicate of the default `command.html`), `multi-heatmap.html`, `multi-heatmap-compact.html` — all zero inbound links.
 - **Verified clean:** 0 root-`.js` orphans (all 37 are active modules or standalone backtest/util tools); all 7 npm deps used; server healthy (Upstox); default route + active pages serve 200.
 
-## 🟡 Extras to review (surfaced, NOT auto-removed — you didn't create them)
-Low/zero reachability from the active app (`command.html` → `dashboard.html` → analysis ring + `command-pro`/`trade`):
-| Page | Reachability | Note |
-|------|--------------|------|
-| `terminal.html` | 0 inbound | alt command center, superseded by command/command-pro |
-| `site.html` | 0 inbound | landing/marketing shell |
-| `app.html` | 1 inbound | React-variant dashboard |
-| `chain-trend.html` | only via app.html | trend analyzer |
-| `chain-visual.html` ↔ `indicators.html` | only link each other | dead island — no app entry point |
+## ✅ Extras removed (round 2, user-approved)
+Removed 6 pages that formed a disconnected subgraph — **zero links from the active app**, so no dead links left behind: `app.html`, `terminal.html`, `site.html`, `chain-trend.html`, `chain-visual.html`, `indicators.html`.
 
-→ Recommend removing the dead island (`chain-visual` + `indicators`) and deciding on `terminal`/`site`/`app`/`chain-trend` based on whether you still open them directly.
+**Active app is now 10 pages:** `command.html` (default) · `command-pro.html` · `trade.html` · `dashboard.html` (hub) · analysis ring (`ami-heatmap`, `heatmap`, `pop`, `signal-heatmap`, `strategy`, `strike-history`).
 
 ## 🔧 Optimization opportunities (do incrementally — it's a live bot)
 1. **`server.js` is a 215 KB monolith.** Split routes into modules (`routes/options.js`, `routes/strangle.js`, `routes/health.js`) over time. High value, medium risk — do one slice at a time with the server running.
