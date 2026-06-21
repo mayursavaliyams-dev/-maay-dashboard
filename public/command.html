@@ -115,6 +115,8 @@
   .siggrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
   .siggrid .met .v.tg{color:var(--green)} .siggrid .met .v.sl{color:var(--red)}
   .reason{margin-top:11px;font-size:11.5px;color:var(--dim);font-style:italic;border-left:2px solid var(--line);padding-left:9px;line-height:1.5}
+  .mcrows{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;font-family:var(--mono);font-size:10px}
+  @keyframes dbpulse{0%,100%{opacity:1}50%{opacity:.72}}
 
   /* position */
   .posrow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(120,140,170,.08);font-family:var(--mono);font-size:12px}
@@ -264,6 +266,9 @@
   <div class="kpi a"><div class="lab">Trades Today</div><div class="val" id="k_trades">--</div><div class="sub" id="k_tradessub">/ max</div></div>
 </div>
 
+<!-- ===== DATA-SOURCE WATCHDOG BANNER ===== -->
+<div id="dataBanner" style="display:none;margin:6px 14px 0;padding:8px 12px;border-radius:9px;font-family:var(--mono);font-size:11.5px;font-weight:700;text-align:center;letter-spacing:.4px;animation:dbpulse 1.6s ease-in-out infinite"></div>
+
 <!-- ===== MAIN GRID ===== -->
 <div class="grid">
 
@@ -342,6 +347,15 @@
         <div class="reason" id="emaReason">Awaiting EMA telemetry…</div>
       </div>
     </div>
+
+    <!-- MULTI-CONFIRM -->
+    <div class="panel">
+      <div class="phead"><span class="led" id="mcLed"></span><h3>Multi-Confirm</h3><span class="hx"><b id="mcScore">0</b>/8</span></div>
+      <div class="pbody">
+        <div id="mcRows" class="mcrows"></div>
+        <div class="reason" id="mcReason">Awaiting confirmation telemetry…</div>
+      </div>
+    </div>
   </div>
 
   <!-- CENTER COLUMN -->
@@ -384,6 +398,14 @@
         <div class="reason" id="ms_interp">Awaiting option-structure telemetry…</div>
       </div>
     </div>
+
+    <!-- AI ADVISORS -->
+    <div class="panel">
+      <div class="phead"><span class="led" id="aiLed"></span><h3>AI Advisors · Claude</h3><span class="hx" id="aiMode">checking…</span></div>
+      <div class="pbody" id="aiBody">
+        <div class="empty"><div class="ic">◌</div><div class="t">AI advisors loading…</div></div>
+      </div>
+    </div>
   </div>
 
   <!-- RIGHT COLUMN -->
@@ -403,6 +425,16 @@
           <div class="pl"><span>TARGET PROGRESS</span><span id="p_progtxt">--%</span></div>
           <div class="progbar"><i id="p_progbar" style="width:0%"></i></div>
         </div>
+      </div>
+    </div>
+
+    <!-- SHORT STRANGLE ENGINE -->
+    <div class="panel">
+      <div class="phead"><span class="led" id="strLed"></span><h3>Short Strangle</h3><span class="hx" id="strState">OFF</span>
+        <button id="strToggle" onclick="toggleStrangle()" style="margin-left:8px;background:var(--panel2);border:1px solid var(--line2);color:var(--dim);font-family:var(--mono);font-size:9.5px;font-weight:700;padding:2px 9px;border-radius:5px;cursor:pointer;letter-spacing:.5px">ENABLE</button>
+      </div>
+      <div class="pbody" id="strBody">
+        <div class="empty"><div class="ic">⟁</div><div class="t">Strangle engine idle</div></div>
       </div>
     </div>
 
@@ -857,6 +889,110 @@
   ];
 
   // ---------- POLL CYCLE ----------
+  // ---------- MULTI-CONFIRM ----------
+  function mcChip(label, state){ // state: 'ok' | 'no' | 'warn'
+    var col = state==='ok'?'var(--green)':state==='warn'?'var(--amber)':'var(--dimmer)';
+    var mk = state==='ok'?'✓':state==='warn'?'⚠':'·';
+    return '<div style="display:flex;justify-content:space-between;background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:4px 7px"><span style="color:var(--dim)">'+label+'</span><b style="color:'+col+'">'+mk+'</b></div>';
+  }
+  function renderMultiConfirm(d){
+    if(!d || !d.layers || !d.layers.emaStack){ $("mcReason").textContent = d&&d.reason ? d.reason : "warming up…"; $("mcScore").textContent="0"; $("mcLed").className="led"; return; }
+    var L=d.layers, S=d.shields||{}, sig=(d.signal||"WAIT").toUpperCase();
+    var score=Math.max(d.callScore||0,d.putScore||0);
+    $("mcScore").textContent=score;
+    $("mcLed").className="led "+(sig==="CALL"?"g live":sig==="PUT"?"r live":"");
+    var side=function(l){ return l&&l.bull?'ok':l&&l.bear?'ok':'no'; };
+    var rows="";
+    rows+=mcChip("EMA",side(L.emaStack));
+    rows+=mcChip("VWAP",side(L.vwap));
+    rows+=mcChip("RSI "+(L.rsi?L.rsi.value:'--'),side(L.rsi));
+    rows+=mcChip("Vol "+(L.volume?L.volume.ratio+"×":''),L.volume&&L.volume.spike?'ok':'no');
+    rows+=mcChip("Candle",side(L.candle));
+    rows+=mcChip("MACD",L.macd?side(L.macd):'no');
+    rows+=mcChip("Boll",L.bollinger?side(L.bollinger):'no');
+    rows+=mcChip("OBV",L.obv?side(L.obv):'no');
+    rows+=mcChip("ADX "+(S.adx?S.adx.value:''),S.adx&&S.adx.ok?'ok':'no');
+    rows+=mcChip("SupT",S.supertrend&&(S.supertrend.bull||S.supertrend.bear)?'ok':'no');
+    rows+=mcChip("HTF",S.htf&&(S.htf.bull||S.htf.bear)?'ok':'no');
+    rows+=mcChip("Chop",L.sideways&&L.sideways.choppy?'warn':'ok');
+    $("mcRows").innerHTML=rows;
+    $("mcReason").textContent=sig==="WAIT"?"No confluence — waiting.":(sig+" — "+score+"/8 layers aligned.");
+  }
+
+  // ---------- DATA-SOURCE WATCHDOG ----------
+  async function renderDataHealth(){
+    var h=await getJSON("/api/data-health"); var el=$("dataBanner");
+    if(!h||h.status==="HEALTHY"||h.status==="UNKNOWN"){ el.style.display="none"; return; }
+    var down=h.status==="DOWN", mins=h.since?Math.max(0,Math.round((Date.now()-h.since)/60000)):0;
+    el.style.background=down?"#3a0d0d":"#3a2c0d"; el.style.color=down?"#ff8a8a":"#f5c14a"; el.style.border="1px solid "+(down?"#7a2b2b":"#7a5e1f");
+    el.innerHTML=(down?"⛔ DATA SOURCE DOWN":"⚠️ DATA SOURCE DEGRADED")+" — "+(h.connector||"")+" · "+mins+"m"+(h.reasons&&h.reasons.length?'<div style="font-weight:500;opacity:.85;font-size:10px;margin-top:2px">'+h.reasons.join(" · ")+'</div>':'');
+    el.style.display="block";
+  }
+
+  // ---------- SHORT STRANGLE ----------
+  var _strEnabled=false;
+  async function renderStrangle(){
+    var s=await getJSON("/api/strangle/status"); if(!s){ return; }
+    _strEnabled=!!s.enabled;
+    var st=$("strState"); st.textContent=s.enabled?"RUNNING":"OFF"; st.style.color=s.enabled?"var(--green)":"var(--dimmer)";
+    $("strLed").className="led "+(s.enabled?"g live":"");
+    var tg=$("strToggle"); tg.textContent=s.enabled?"DISABLE":"ENABLE"; tg.style.color=s.enabled?"var(--red)":"var(--dim)";
+    var c=s.config||{}, iv=s.ivRegime&&(s.ivRegime[inst]||s.ivRegime.NIFTY||s.ivRegime.SENSEX);
+    var ivPct=iv&&iv.pct!=null?iv.pct:null, minP=Math.round((c.ivPctMin||.5)*100), tailP=Math.round((c.tailSafePct||.8)*100);
+    var rung=ivPct==null?'wait':ivPct<minP?'skip':ivPct>=tailP?'condor':'strangle';
+    var step=function(id,lab,dn){ var on=rung===id; return '<div style="flex:1;text-align:center;font-size:8.5px;font-weight:700;padding:3px 2px;border-radius:5px;background:'+(on?(dn?'var(--redbg,#2c1212)':'rgba(56,211,159,.15)'):'var(--panel2)')+';color:'+(on?(dn?'var(--red)':'var(--green)'):'var(--dimmer)')+';border:1px solid '+(on?(dn?'var(--red)':'var(--green)'):'var(--line2)')+'">'+lab+'</div>'; };
+    var sz=s.sizing||{}, szLine=sz.strangle?('naked '+sz.strangle.recommendedLots+' · condor '+(sz.condor?sz.condor.recommendedLots:'–')+' lot'):'—';
+    var recent=(s.recent||[]).slice(0,3).map(function(t){ return '<div style="display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);padding:2px 0"><span style="color:var(--dim)">'+(t.reason==='TAKE_PROFIT'?'TP':'STOP')+' '+(t.inst||'')+'</span><span style="color:'+(t.pnlAbs>=0?'var(--green)':'var(--red)')+'">'+(t.pnlAbs>=0?'+':'')+'₹'+Math.round(t.pnlAbs)+'</span></div>'; }).join('');
+    $("strBody").innerHTML=
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px">'+
+        '<div class="msbox"><div class="l">IV percentile</div><div class="v">'+(ivPct!=null?ivPct+'%':'—')+'</div><div class="s">'+(iv?(iv.history||0)+'d history':'building…')+'</div></div>'+
+        '<div class="msbox"><div class="l">Sizing @ ₹'+(((c.capital||100000)/100000).toFixed(0))+'L</div><div class="v" style="font-size:11px">'+szLine+'</div><div class="s">½-Kelly · IV-scaled</div></div>'+
+      '</div>'+
+      '<div style="display:flex;gap:4px;margin-bottom:9px">'+step('skip','&lt;'+minP+'% skip')+step('strangle',minP+'-'+tailP+'%')+step('condor','≥'+tailP+'% condor',true)+'</div>'+
+      (recent?('<div style="border-top:1px solid var(--line2);padding-top:6px">'+recent+'</div>'):'<div style="font-size:10.5px;color:var(--dimmer);text-align:center;padding:4px">No strangles today</div>');
+  }
+  async function toggleStrangle(){
+    var want=!_strEnabled;
+    if(want && !confirm("Enable the PAPER short-strangle auto-seller?")) return;
+    await fetch("/api/strangle/enable",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:want})});
+    pushLog(want?"OK":"INFO","Strangle engine "+(want?"ENABLED":"disabled"));
+    renderStrangle();
+  }
+
+  // ---------- AI ADVISORS (Claude) ----------
+  async function renderAI(){
+    var mr=await getJSON("/api/ema-stack?inst="+inst+"&ai=1");
+    var gb=await getJSON("/api/options/gamma-blast?ai=1");
+    var aiOn = mr && (mr.ai || ('rsi' in mr));
+    $("aiMode").textContent = (mr&&mr.ai)?"LIVE":"off";
+    $("aiLed").className="led "+((mr&&mr.ai)?"c live":"");
+    var html="";
+    // Mean-reversion
+    if(mr&&mr.ai){
+      var a=mr.ai, act=a.action||"HOLD", cls=act==="BUY_LOW"?"up":act==="SELL_HIGH"?"down":"neu";
+      html+='<div style="border-left:3px solid '+(act==="BUY_LOW"?"var(--green)":act==="SELL_HIGH"?"var(--red)":"var(--line2)")+';background:var(--panel2);border-radius:8px;padding:9px;margin-bottom:8px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b class="'+cls+'" style="font-size:13px">'+act.replace("_"," ")+'</b><span style="font-size:10px;color:var(--dim)">conf '+(a.confidenceScore!=null?a.confidenceScore+"%":"--")+'</span></div>'+
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;font-family:var(--mono);font-size:10.5px"><div><span style="color:var(--dimmer)">E</span> '+fmt(a.entryPrice,1)+'</div><div><span style="color:var(--green)">T</span> '+fmt(a.targetPrice,1)+'</div><div><span style="color:var(--red)">SL</span> '+fmt(a.stopLoss,1)+'</div></div>'+
+        (a.logic?'<div class="reason" style="margin-top:7px">'+a.logic+'</div>':'')+'</div>';
+    } else if(mr){
+      html+='<div style="background:var(--panel2);border:1px dashed var(--line2);border-radius:8px;padding:10px;margin-bottom:8px;font-size:10.5px;color:var(--dim);font-family:var(--mono)">Mean-Rev AI <b style="color:var(--amber)">off</b> · RSI '+(mr.rsi!=null?mr.rsi:'--')+' · S '+fmt(mr.support,0)+' / R '+fmt(mr.resistance,0)+'<br><span style="color:var(--dimmer)">enable: CLAUDE_AI_ENABLED=true + ANTHROPIC_API_KEY</span></div>';
+    }
+    // Gamma blast AI
+    if(gb&&gb.ai){
+      var g=gb.ai, gc=/bull/i.test(g.setup)?"up":/bear/i.test(g.setup)?"down":"neu";
+      html+='<div style="border-left:3px solid var(--violet,#a78bfa);background:var(--panel2);border-radius:8px;padding:9px">'+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><b class="'+gc+'" style="font-size:12px">⚡ '+g.setup+'</b><span style="font-size:10px;color:var(--dim)">prob '+(g.probability!=null?g.probability+"%":"--")+'</span></div>'+
+        '<div style="font-family:var(--mono);font-size:10.5px;color:var(--dim)">Strike '+(g.targetStrike||'--')+' · Entry '+(g.entryTriggerSpot||'--')+'</div>'+
+        (g.logic?'<div class="reason" style="margin-top:6px">'+g.logic+'</div>':'')+'</div>';
+    } else {
+      html+='<div style="font-size:10px;color:var(--dimmer);text-align:center;font-family:var(--mono)">Gamma-blast AI off (rule score '+(gb&&gb.blastScore!=null?gb.blastScore:'--')+')</div>';
+    }
+    $("aiBody").innerHTML=html||'<div class="empty"><div class="ic">◌</div><div class="t">No AI data</div></div>';
+  }
+
+  // ---------- SLOW POLL (expensive: AI, strangle, health) ----------
+  async function slowTick(){ try{ await renderDataHealth(); }catch(e){} try{ await renderStrangle(); }catch(e){} try{ await renderAI(); }catch(e){} }
+
   async function tick(){
     var ix=inst.toLowerCase();
     var results = await Promise.all([
@@ -874,7 +1010,8 @@
       getJSON("/api/options/maxpain?instrument="+inst),
       getJSON("/api/options/pcr?instrument="+inst),
       getJSON("/api/options/oi-analysis?instrument="+inst),
-      getJSON("/api/eod-summary")
+      getJSON("/api/eod-summary"),
+      getJSON("/api/multiconfirm/"+ix)
     ]);
     demoMode=false;
     renderIndex(results[0]);
@@ -890,6 +1027,7 @@
     renderStruct(results[11],results[12]);
     renderOi(results[13]);
     renderEod(results[14]);
+    renderMultiConfirm(results[15]);
     // mode chip
     var modeLed=$("modeChip").querySelector(".led");
     if(demoMode){ $("modeVal").textContent="PAPER·DEMO"; modeLed.className="led a"; }
@@ -934,6 +1072,8 @@
   renderLastSession();
   tick();
   setInterval(tick, 4000);
+  slowTick();
+  setInterval(slowTick, 15000);   // AI/strangle/health — slower (AI is expensive)
   setInterval(renderLastSession, 5*60*1000); // refresh last-session H/L every 5 min
   // periodic synthetic log activity (demo flavour)
   setInterval(function(){
