@@ -1,0 +1,90 @@
+{
+ "days": 300,
+ "range": [
+  "2025-03-27",
+  "2026-06-17"
+ ],
+ "breakevenSlip": null,
+ "sweep": [
+  {
+   "slip": 0,
+   "trades": 66,
+   "winPct": 94,
+   "net": 169482,
+   "final": 269482,
+   "maxDDpct": 2.1,
+   "avgWin": 2959,
+   "avgLoss": -3498
+  },
+  {
+   "slip": 0.0025,
+   "trades": 66,
+   "winPct": 94,
+   "net": 166347,
+   "final": 266347,
+   "maxDDpct": 2.2,
+   "avgWin": 2913,
+   "avgLoss": -3571
+  },
+  {
+   "slip": 0.005,
+   "trades": 66,
+   "winPct": 94,
+   "net": 162144,
+   "final": 262144,
+   "maxDDpct": 2.3,
+   "avgWin": 2850,
+   "avgLoss": -3643
+  },
+  {
+   "slip": 0.0075,
+   "trades": 66,
+   "winPct": 94,
+   "net": 159024,
+   "final": 259024,
+   "maxDDpct": 2.4,
+   "avgWin": 2805,
+   "avgLoss": -3716
+  },
+  {
+   "slip": 0.01,
+   "trades": 66,
+   "winPct": 94,
+   "net": 155893,
+   "final": 255893,
+   "maxDDpct": 2.4,
+   "avgWin": 2759,
+   "avgLoss": -3789
+  },
+  {
+   "slip": 0.015,
+   "trades": 66,
+   "winPct": 91,
+   "net": 149645,
+   "final": 249645,
+   "maxDDpct": 2.6,
+   "avgWin": 2759,
+   "avgLoss": -2645
+  },
+  {
+   "slip": 0.02,
+   "trades": 66,
+   "winPct": 91,
+   "net": 143149,
+   "final": 243149,
+   "maxDDpct": 2.7,
+   "avgWin": 2665,
+   "avgLoss": -2794
+  },
+  {
+   "slip": 0.03,
+   "trades": 66,
+   "winPct": 88,
+   "net": 121739,
+   "final": 221739,
+   "maxDDpct": 3.2,
+   "avgWin": 2424,
+   "avgLoss": -2360
+  }
+ ]
+}
