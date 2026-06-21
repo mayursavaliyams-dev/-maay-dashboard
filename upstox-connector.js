@@ -156,8 +156,20 @@ class UpstoxConnector {
                  : body.instrument === 'OPTIDX' ? null : 'NIFTY';
       const ikey = inst ? IKEY[inst] : null;
       if (!ikey) return { timestamp: [], open: [], high: [], low: [], close: [], volume: [] }; // option intraday not mapped
-      const j = await this._get(`/historical-candle/intraday/${enc(ikey)}/1minute`);
-      const candles = (j?.data?.candles || []).slice().reverse(); // upstox returns newest-first
+      // Upstox's intraday endpoint only returns TODAY. server.js's last-session-hl
+      // walks back to past days, so for a past fromDate use the HISTORICAL endpoint.
+      const today = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+      const reqDate = String(body.fromDate || '').slice(0, 10);  // 'YYYY-MM-DD' (may have a time suffix)
+      let candles = [];
+      try {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(reqDate) && reqDate < today) {
+          const j = await this._get(`/historical-candle/${enc(ikey)}/1minute/${reqDate}/${reqDate}`);
+          candles = (j?.data?.candles || []).slice().reverse();
+        } else {
+          const j = await this._get(`/historical-candle/intraday/${enc(ikey)}/1minute`);
+          candles = (j?.data?.candles || []).slice().reverse(); // upstox returns newest-first
+        }
+      } catch (_) { candles = []; }   // graceful — caller handles empty
       const out = { timestamp: [], open: [], high: [], low: [], close: [], volume: [] };
       for (const c of candles) {
         out.timestamp.push(Math.floor(new Date(c[0]).getTime() / 1000));
