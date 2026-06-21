@@ -23,3 +23,22 @@ data/ai-signals.json
 
 # Runtime strangle IV-regime history
 data/strangle-iv.json
+
+# ── Repo hygiene (added during full-program cleanup) ──
+# Regenerable API-response caches (~18k files)
+data/dhan-cache-*/
+data/sweep-cache/
+# Runtime market state & session snapshots (not source)
+data/market-state.json
+data/prices.json
+data/signals.json
+data/trades.json
+data/candles.json
+data/optionchain.json
+data/equity-*.json
+data/eod-*.json
+# Python build artifacts / old backend (deleted)
+__pycache__/
+*.pyc
+backend/
+backtest-real/
