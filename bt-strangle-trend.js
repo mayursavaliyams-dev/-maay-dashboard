@@ -15,24 +15,11 @@ const fs = require('fs');
 const path = require('path');
 const { roundTripCharges } = require('./charges.js');
 
-const BHAV = 'bt-data/bhav';
-const LOT = 75, CAPITAL = 100000, RISK_PCT = 0.05;
+const { BHAV, LOT, CAPITAL, RISK_PCT, loadDay, leg, atmStrike, sizeLots } = require('./bt-lib.js');
 const OTM_PCT = 0.015, STOP_MULT = 2.0, SLIP = 0.01;
 const SMA_N = 10, MOM_N = 5;
 
-function loadDay(file) {
-  const rows = fs.readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).map(l => l.split(','));
-  if (!rows.length) return null;
-  const date = rows[0][0], underlying = +rows[0][20];
-  const opts = rows.map(r => ({ xpry: r[9], strike: +r[11], type: r[12], o: +r[14], h: +r[15], l: +r[16], c: +r[17], oi: +r[22] }))
-    .filter(o => o.o > 0 && o.strike > 0);
-  if (!opts.length) return null;
-  const exps = [...new Set(opts.map(o => o.xpry))].filter(e => e >= date).sort();
-  return { date, underlying, nearExp: exps[0], opts };
-}
-const leg = (day, type, strike) => day.opts.find(o => o.type === type && o.strike === strike && o.xpry === day.nearExp);
-const atmStrike = (day, step = 50) => Math.round(day.underlying / step) * step;
-const sizeLots = (cap, prem) => Math.min(25, Math.max(1, Math.floor((cap * RISK_PCT) / Math.max(1, prem * LOT))));
+// loadDay / leg / atmStrike / sizeLots come from bt-lib.js (shared loader).
 function sellLegPnl(open, dayHigh, exitClose) {
   let exit = exitClose, reason = 'CLOSE';
   if (dayHigh >= open * STOP_MULT) { exit = open * STOP_MULT; reason = 'SL'; }
