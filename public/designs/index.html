@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antigravity Pro — 10 Website Designs</title>
+<style>
+  :root{--bg:#08101d;--panel:rgba(15,26,44,.6);--line:rgba(255,255,255,.1);--ink:#eef3fb;--dim:#9fb0c8;--green:#38d39f;--amber:#ffbf69;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"IBM Plex Sans","Segoe UI",sans-serif;background:
+    radial-gradient(900px 600px at 80% -10%,rgba(68,138,255,.1),transparent 60%),
+    linear-gradient(180deg,#08101d,#0c1628 50%,#09111f);color:var(--ink);min-height:100vh;padding:32px 20px 60px}
+  .wrap{max-width:1200px;margin:0 auto}
+  h1{font-size:clamp(26px,5vw,40px);font-weight:600;letter-spacing:-1px}
+  h1 em{font-style:normal;color:var(--green)}
+  .sub{color:var(--dim);margin:10px 0 28px;font-size:15px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    backdrop-filter:blur(12px);transition:transform .2s,border-color .2s,box-shadow .2s;display:flex;flex-direction:column}
+  .card:hover{transform:translateY(-4px);border-color:rgba(56,211,159,.4);box-shadow:0 18px 50px rgba(0,0,0,.5)}
+  .card.win{border-color:var(--green);box-shadow:0 0 0 1px var(--green),0 18px 50px rgba(56,211,159,.18)}
+  .thumb{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;background:#0c1628;border-bottom:1px solid var(--line)}
+  .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-weight:600;font-size:15px;text-transform:capitalize}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;font-variant-numeric:tabular-nums}
+  .badge.s{background:rgba(56,211,159,.16);color:var(--green)}
+  .tag{font-size:11px;color:var(--amber);font-weight:600;letter-spacing:.5px}
+  .actions{display:flex;gap:8px;margin-top:auto}
+  .btn{flex:1;text-align:center;text-decoration:none;font-size:13px;font-weight:600;padding:9px;border-radius:8px;
+    border:1px solid var(--line);color:var(--ink);transition:background .2s}
+  .btn:hover{background:rgba(255,255,255,.06)}
+  .btn.primary{background:var(--green);color:#06231a;border-color:var(--green)}
+  .note{margin-top:30px;color:var(--dim);font-size:13px;line-height:1.7;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>10 Website Designs — <em>Antigravity Pro</em></h1>
+  <p class="sub">Built &amp; tested autonomously. Click any card to open it full-screen. 🥇 = applied winner (live at <code>/site.html</code>).</p>
+  <div class="grid" id="grid"></div>
+  <div class="note">
+    <b>Applied winner:</b> minimal-swiss (92/100) — live at <code>/site.html</code>.<br>
+    To switch: copy any design over the live file, e.g. <code>cp design-candidates/design-08-chart-hero.html public/site.html</code>.<br>
+    Full write-up: <code>design-candidates/REPORT.md</code>.
+  </div>
+</div>
+<script>
+  const designs = [
+    {id:'04',name:'minimal-swiss',score:92,win:true},
+    {id:'08',name:'chart-hero',score:91},
+    {id:'07',name:'pro-corporate',score:89},
+    {id:'09',name:'dark-luxe-gold',score:89},
+    {id:'01',name:'glass-terminal',score:88},
+    {id:'05',name:'gradient-aurora',score:88},
+    {id:'03',name:'neon-cyber',score:86},
+    {id:'06',name:'card-grid-bento',score:84},
+    {id:'10',name:'motion-animated',score:78},
+    {id:'02',name:'bloomberg-dense',score:71},
+  ];
+  document.getElementById('grid').innerHTML = designs.map(d=>{
+    const file = `design-${d.id}-${d.name}.html`;
+    return `<div class="card ${d.win?'win':''}">
+      <iframe class="thumb" src="${file}" loading="lazy" scrolling="no" style="border:0;pointer-events:none"></iframe>
+      <div class="body">
+        <div class="row">
+          <span class="name">${d.win?'🥇 ':''}${d.name.replace(/-/g,' ')}</span>
+          <span class="badge s">${d.score}</span>
+        </div>
+        ${d.win?'<span class="tag">APPLIED — LIVE</span>':''}
+        <div class="actions">
+          <a class="btn primary" href="${file}" target="_blank" rel="noopener">Open full ↗</a>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+</script>
+</body>
+</html>

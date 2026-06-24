@@ -1,7 +1,6 @@
 // Service Worker for PWA support
-const CACHE_NAME = 'antigravity-v1';
+const CACHE_NAME = 'antigravity-v3';
 const urlsToCache = [
-  '/',
   '/dashboard.html',
   '/manifest.json'
 ];
@@ -14,15 +13,29 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then(response => {
-        if (response) {
+        if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
         }
-        return fetch(event.request);
-      }
-    )
+
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() =>
+        caches.match(event.request).then(response =>
+          response || (event.request.mode === 'navigate'
+            ? caches.match('/dashboard.html')
+            : undefined)
+        )
+      )
   );
 });
 

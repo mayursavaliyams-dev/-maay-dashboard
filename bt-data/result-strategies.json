@@ -1,77 +1,707 @@
 {
- "generatedOnDays": 300,
+ "generatedOnDays": 600,
  "range": [
-  "2025-03-27",
+  "2024-01-08",
   "2026-06-17"
  ],
  "leaderboard": [
   {
    "name": "EXPIRY_STRADDLE",
-   "trades": 65,
-   "winPct": 89,
-   "net": 765009,
-   "final": 865009,
-   "maxDDpct": 4.4,
-   "cagrPct": 512,
-   "best": 36795,
-   "worst": -17992
+   "trades": 127,
+   "winPct": 90,
+   "net": 6213617,
+   "final": 6313617,
+   "maxDDpct": 4.9,
+   "cagrPct": 470,
+   "best": 270729,
+   "worst": -179066
   },
   {
    "name": "SHORT_STRADDLE",
-   "trades": 66,
+   "trades": 129,
    "winPct": 86,
-   "net": 212319,
-   "final": 312319,
-   "maxDDpct": 5.6,
-   "cagrPct": 160,
-   "best": 12999,
-   "worst": -13954
+   "net": 494247,
+   "final": 594247,
+   "maxDDpct": 6.9,
+   "cagrPct": 111,
+   "best": 24182,
+   "worst": -17175
   },
   {
    "name": "SHORT_STRANGLE",
-   "trades": 66,
-   "winPct": 94,
-   "net": 169482,
-   "final": 269482,
-   "maxDDpct": 2.1,
-   "cagrPct": 130,
-   "best": 8486,
-   "worst": -4893
+   "trades": 129,
+   "winPct": 91,
+   "net": 441104,
+   "final": 541104,
+   "maxDDpct": 5.9,
+   "cagrPct": 103,
+   "best": 13068,
+   "worst": -11222
   },
   {
    "name": "IRON_CONDOR",
-   "trades": 66,
-   "winPct": 77,
-   "net": 67812,
-   "final": 167812,
-   "maxDDpct": 4.2,
+   "trades": 129,
+   "winPct": 81,
+   "net": 179102,
+   "final": 279102,
+   "maxDDpct": 3.9,
    "cagrPct": 54,
-   "best": 5116,
-   "worst": -5038
+   "best": 7511,
+   "worst": -7632
   },
   {
    "name": "GAP_BUY",
-   "trades": 245,
+   "trades": 470,
    "winPct": 2,
-   "net": 10865,
-   "final": 110865,
-   "maxDDpct": 27.3,
-   "cagrPct": 9,
-   "best": 20314,
-   "worst": -380
+   "net": 15007,
+   "final": 115007,
+   "maxDDpct": 33.3,
+   "cagrPct": 6,
+   "best": 22411,
+   "worst": -399
   }
  ],
  "trades": {
   "SHORT_STRADDLE": [
    {
-    "date": "2025-03-27",
+    "date": "2024-01-08",
     "strat": "SHORT_STRADDLE",
-    "strike": 23600,
-    "credit": 165,
+    "strike": 21500,
+    "credit": 287.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 9569,
+    "cap": 109569
+   },
+   {
+    "date": "2024-01-12",
+    "strat": "SHORT_STRADDLE",
+    "strike": 21900,
+    "credit": 297.1,
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 9447,
-    "cap": 109447
+    "pnl": 5792,
+    "cap": 115361
+   },
+   {
+    "date": "2024-01-19",
+    "strat": "SHORT_STRADDLE",
+    "strike": 21600,
+    "credit": 322.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1738,
+    "cap": 117099
+   },
+   {
+    "date": "2024-01-29",
+    "strat": "SHORT_STRADDLE",
+    "strike": 21750,
+    "credit": 360.3,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 7764,
+    "cap": 124863
+   },
+   {
+    "date": "2024-02-02",
+    "strat": "SHORT_STRADDLE",
+    "strike": 21850,
+    "credit": 310,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": -1963,
+    "cap": 122900
+   },
+   {
+    "date": "2024-02-09",
+    "strat": "SHORT_STRADDLE",
+    "strike": 21800,
+    "credit": 347.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2835,
+    "cap": 125735
+   },
+   {
+    "date": "2024-02-16",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22050,
+    "credit": 301,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": -411,
+    "cap": 125324
+   },
+   {
+    "date": "2024-02-23",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22200,
+    "credit": 368.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 5160,
+    "cap": 130484
+   },
+   {
+    "date": "2024-03-01",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22350,
+    "credit": 334.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 6386,
+    "cap": 136870
+   },
+   {
+    "date": "2024-03-11",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22350,
+    "credit": 310.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 6042,
+    "cap": 142912
+   },
+   {
+    "date": "2024-03-15",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22000,
+    "credit": 363.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 3573,
+    "cap": 146485
+   },
+   {
+    "date": "2024-03-22",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22100,
+    "credit": 272.9,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 307,
+    "cap": 146792
+   },
+   {
+    "date": "2024-04-01",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22450,
+    "credit": 225.9,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": -1605,
+    "cap": 145187
+   },
+   {
+    "date": "2024-04-05",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22500,
+    "credit": 256.4,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1443,
+    "cap": 146630
+   },
+   {
+    "date": "2024-04-12",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22500,
+    "credit": 284.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 2590,
+    "cap": 149220
+   },
+   {
+    "date": "2024-04-19",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22150,
+    "credit": 270,
+    "lots": 1,
+    "exit": "SL/SL",
+    "pnl": -10271,
+    "cap": 138949
+   },
+   {
+    "date": "2024-04-26",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22400,
+    "credit": 331.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 3346,
+    "cap": 142295
+   },
+   {
+    "date": "2024-05-03",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22500,
+    "credit": 364.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 12557,
+    "cap": 154852
+   },
+   {
+    "date": "2024-05-10",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22050,
+    "credit": 339,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2983,
+    "cap": 157835
+   },
+   {
+    "date": "2024-05-17",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22450,
+    "credit": 312.2,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3264,
+    "cap": 161099
+   },
+   {
+    "date": "2024-05-24",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22950,
+    "credit": 338,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1391,
+    "cap": 162490
+   },
+   {
+    "date": "2024-05-31",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22550,
+    "credit": 1057,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 14460,
+    "cap": 176950
+   },
+   {
+    "date": "2024-06-07",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23300,
+    "credit": 561.2,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 19931,
+    "cap": 196881
+   },
+   {
+    "date": "2024-06-14",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23450,
+    "credit": 279.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3205,
+    "cap": 200086
+   },
+   {
+    "date": "2024-06-21",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23500,
+    "credit": 280,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 1827,
+    "cap": 201913
+   },
+   {
+    "date": "2024-06-28",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24000,
+    "credit": 336,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2273,
+    "cap": 204186
+   },
+   {
+    "date": "2024-07-05",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24300,
+    "credit": 264.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1498,
+    "cap": 205684
+   },
+   {
+    "date": "2024-07-12",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24500,
+    "credit": 260.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 686,
+    "cap": 206370
+   },
+   {
+    "date": "2024-07-19",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24550,
+    "credit": 538.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 9339,
+    "cap": 215709
+   },
+   {
+    "date": "2024-07-26",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24850,
+    "credit": 484.4,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 24182,
+    "cap": 239891
+   },
+   {
+    "date": "2024-08-02",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24700,
+    "credit": 271,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": -620,
+    "cap": 239271
+   },
+   {
+    "date": "2024-08-09",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24350,
+    "credit": 340,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3182,
+    "cap": 242453
+   },
+   {
+    "date": "2024-08-16",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24550,
+    "credit": 365,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 10632,
+    "cap": 253085
+   },
+   {
+    "date": "2024-08-23",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24800,
+    "credit": 286.2,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1507,
+    "cap": 254592
+   },
+   {
+    "date": "2024-08-30",
+    "strat": "SHORT_STRADDLE",
+    "strike": 25250,
+    "credit": 285.4,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2784,
+    "cap": 257376
+   },
+   {
+    "date": "2024-09-06",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24850,
+    "credit": 391.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 11868,
+    "cap": 269244
+   },
+   {
+    "date": "2024-09-13",
+    "strat": "SHORT_STRADDLE",
+    "strike": 25350,
+    "credit": 302.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2988,
+    "cap": 272232
+   },
+   {
+    "date": "2024-09-20",
+    "strat": "SHORT_STRADDLE",
+    "strike": 25800,
+    "credit": 345.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 9223,
+    "cap": 281455
+   },
+   {
+    "date": "2024-09-27",
+    "strat": "SHORT_STRADDLE",
+    "strike": 26200,
+    "credit": 318.5,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 4033,
+    "cap": 285488
+   },
+   {
+    "date": "2024-10-04",
+    "strat": "SHORT_STRADDLE",
+    "strike": 25000,
+    "credit": 453.1,
+    "lots": 1,
+    "exit": "SL/SL",
+    "pnl": -17175,
+    "cap": 268313
+   },
+   {
+    "date": "2024-10-11",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24950,
+    "credit": 361.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 5462,
+    "cap": 273775
+   },
+   {
+    "date": "2024-10-18",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24850,
+    "credit": 345.3,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 3973,
+    "cap": 277748
+   },
+   {
+    "date": "2024-10-25",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24200,
+    "credit": 405.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 11686,
+    "cap": 289434
+   },
+   {
+    "date": "2024-11-01",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24300,
+    "credit": 421.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 846,
+    "cap": 290280
+   },
+   {
+    "date": "2024-11-08",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24150,
+    "credit": 385,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 6649,
+    "cap": 296929
+   },
+   {
+    "date": "2024-11-18",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23450,
+    "credit": 289.4,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 1949,
+    "cap": 298878
+   },
+   {
+    "date": "2024-11-22",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23900,
+    "credit": 534,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 21764,
+    "cap": 320642
+   },
+   {
+    "date": "2024-11-29",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24150,
+    "credit": 377.6,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 3621,
+    "cap": 324263
+   },
+   {
+    "date": "2024-12-06",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24700,
+    "credit": 443.2,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 5849,
+    "cap": 330112
+   },
+   {
+    "date": "2024-12-13",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24750,
+    "credit": 380.8,
+    "lots": 1,
+    "exit": "SL/SL",
+    "pnl": -14446,
+    "cap": 315666
+   },
+   {
+    "date": "2024-12-20",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23600,
+    "credit": 554.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 19010,
+    "cap": 334676
+   },
+   {
+    "date": "2024-12-27",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23800,
+    "credit": 360,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 5147,
+    "cap": 339823
+   },
+   {
+    "date": "2025-01-03",
+    "strat": "SHORT_STRADDLE",
+    "strike": 24000,
+    "credit": 410.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 6026,
+    "cap": 345849
+   },
+   {
+    "date": "2025-01-10",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23450,
+    "credit": 405,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 3619,
+    "cap": 349468
+   },
+   {
+    "date": "2025-01-17",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23200,
+    "credit": 393.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 583,
+    "cap": 350051
+   },
+   {
+    "date": "2025-01-24",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23100,
+    "credit": 405.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 3657,
+    "cap": 353708
+   },
+   {
+    "date": "2025-01-31",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23500,
+    "credit": 616.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 8821,
+    "cap": 362529
+   },
+   {
+    "date": "2025-02-07",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23550,
+    "credit": 383.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 5962,
+    "cap": 368491
+   },
+   {
+    "date": "2025-02-14",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22950,
+    "credit": 312.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": -912,
+    "cap": 367579
+   },
+   {
+    "date": "2025-02-21",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22800,
+    "credit": 347.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 1622,
+    "cap": 369201
+   },
+   {
+    "date": "2025-02-28",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22100,
+    "credit": 443.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 15143,
+    "cap": 384344
+   },
+   {
+    "date": "2025-03-07",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22550,
+    "credit": 309.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2228,
+    "cap": 386572
+   },
+   {
+    "date": "2025-03-17",
+    "strat": "SHORT_STRADDLE",
+    "strike": 22500,
+    "credit": 226.8,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": -1403,
+    "cap": 385169
+   },
+   {
+    "date": "2025-03-21",
+    "strat": "SHORT_STRADDLE",
+    "strike": 23350,
+    "credit": 305.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 6206,
+    "cap": 391375
    },
    {
     "date": "2025-03-28",
@@ -81,7 +711,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 6513,
-    "cap": 115960
+    "cap": 397888
    },
    {
     "date": "2025-04-04",
@@ -91,7 +721,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 12579,
-    "cap": 128539
+    "cap": 410467
    },
    {
     "date": "2025-04-11",
@@ -101,7 +731,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 72,
-    "cap": 128611
+    "cap": 410539
    },
    {
     "date": "2025-04-21",
@@ -111,7 +741,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 10333,
-    "cap": 138944
+    "cap": 420872
    },
    {
     "date": "2025-04-25",
@@ -121,7 +751,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 11329,
-    "cap": 150273
+    "cap": 432201
    },
    {
     "date": "2025-05-02",
@@ -131,7 +761,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": -3549,
-    "cap": 146724
+    "cap": 428652
    },
    {
     "date": "2025-05-09",
@@ -141,7 +771,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": -4075,
-    "cap": 142649
+    "cap": 424577
    },
    {
     "date": "2025-05-16",
@@ -151,7 +781,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 3555,
-    "cap": 146204
+    "cap": 428132
    },
    {
     "date": "2025-05-23",
@@ -161,7 +791,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 3219,
-    "cap": 149423
+    "cap": 431351
    },
    {
     "date": "2025-05-30",
@@ -171,7 +801,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 1801,
-    "cap": 151224
+    "cap": 433152
    },
    {
     "date": "2025-06-06",
@@ -181,7 +811,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 8353,
-    "cap": 159577
+    "cap": 441505
    },
    {
     "date": "2025-06-13",
@@ -191,7 +821,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 807,
-    "cap": 160384
+    "cap": 442312
    },
    {
     "date": "2025-06-20",
@@ -201,7 +831,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 12999,
-    "cap": 173383
+    "cap": 455311
    },
    {
     "date": "2025-06-27",
@@ -211,7 +841,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2746,
-    "cap": 176129
+    "cap": 458057
    },
    {
     "date": "2025-07-04",
@@ -221,7 +851,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 3500,
-    "cap": 179629
+    "cap": 461557
    },
    {
     "date": "2025-07-11",
@@ -231,7 +861,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 2763,
-    "cap": 182392
+    "cap": 464320
    },
    {
     "date": "2025-07-18",
@@ -241,7 +871,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 7112,
-    "cap": 189504
+    "cap": 471432
    },
    {
     "date": "2025-07-25",
@@ -251,7 +881,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 6571,
-    "cap": 196075
+    "cap": 478003
    },
    {
     "date": "2025-08-01",
@@ -261,7 +891,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 6898,
-    "cap": 202973
+    "cap": 484901
    },
    {
     "date": "2025-08-08",
@@ -271,7 +901,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 9122,
-    "cap": 212095
+    "cap": 494023
    },
    {
     "date": "2025-08-18",
@@ -281,7 +911,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": -4282,
-    "cap": 207813
+    "cap": 489741
    },
    {
     "date": "2025-08-22",
@@ -291,7 +921,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 7695,
-    "cap": 215508
+    "cap": 497436
    },
    {
     "date": "2025-08-29",
@@ -301,7 +931,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 5200,
-    "cap": 220708
+    "cap": 502636
    },
    {
     "date": "2025-09-03",
@@ -311,7 +941,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 60,
-    "cap": 220768
+    "cap": 502696
    },
    {
     "date": "2025-09-10",
@@ -321,7 +951,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": -2037,
-    "cap": 218731
+    "cap": 500659
    },
    {
     "date": "2025-09-17",
@@ -331,7 +961,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2976,
-    "cap": 221707
+    "cap": 503635
    },
    {
     "date": "2025-09-24",
@@ -341,7 +971,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 1769,
-    "cap": 223476
+    "cap": 505404
    },
    {
     "date": "2025-10-01",
@@ -351,7 +981,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 8013,
-    "cap": 231489
+    "cap": 513417
    },
    {
     "date": "2025-10-08",
@@ -361,7 +991,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 4957,
-    "cap": 236446
+    "cap": 518374
    },
    {
     "date": "2025-10-15",
@@ -371,7 +1001,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 3991,
-    "cap": 240437
+    "cap": 522365
    },
    {
     "date": "2025-10-21",
@@ -381,7 +1011,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 151,
-    "cap": 240588
+    "cap": 522516
    },
    {
     "date": "2025-10-29",
@@ -391,7 +1021,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2589,
-    "cap": 243177
+    "cap": 525105
    },
    {
     "date": "2025-11-06",
@@ -401,7 +1031,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 7923,
-    "cap": 251100
+    "cap": 533028
    },
    {
     "date": "2025-11-12",
@@ -411,7 +1041,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 693,
-    "cap": 251793
+    "cap": 533721
    },
    {
     "date": "2025-11-19",
@@ -421,7 +1051,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2276,
-    "cap": 254069
+    "cap": 535997
    },
    {
     "date": "2025-11-26",
@@ -431,7 +1061,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 9906,
-    "cap": 263975
+    "cap": 545903
    },
    {
     "date": "2025-12-03",
@@ -441,7 +1071,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 812,
-    "cap": 264787
+    "cap": 546715
    },
    {
     "date": "2025-12-10",
@@ -451,7 +1081,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2647,
-    "cap": 267434
+    "cap": 549362
    },
    {
     "date": "2025-12-17",
@@ -461,7 +1091,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 3212,
-    "cap": 270646
+    "cap": 552574
    },
    {
     "date": "2025-12-24",
@@ -471,7 +1101,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 3795,
-    "cap": 274441
+    "cap": 556369
    },
    {
     "date": "2025-12-31",
@@ -481,7 +1111,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 5053,
-    "cap": 279494
+    "cap": 561422
    },
    {
     "date": "2026-01-07",
@@ -491,7 +1121,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2450,
-    "cap": 281944
+    "cap": 563872
    },
    {
     "date": "2026-01-14",
@@ -501,7 +1131,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 1989,
-    "cap": 283933
+    "cap": 565861
    },
    {
     "date": "2026-01-21",
@@ -511,7 +1141,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": -1336,
-    "cap": 282597
+    "cap": 564525
    },
    {
     "date": "2026-01-28",
@@ -521,7 +1151,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 3569,
-    "cap": 286166
+    "cap": 568094
    },
    {
     "date": "2026-02-04",
@@ -531,7 +1161,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 6402,
-    "cap": 292568
+    "cap": 574496
    },
    {
     "date": "2026-02-11",
@@ -541,7 +1171,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2514,
-    "cap": 295082
+    "cap": 577010
    },
    {
     "date": "2026-02-18",
@@ -551,7 +1181,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2245,
-    "cap": 297327
+    "cap": 579255
    },
    {
     "date": "2026-02-25",
@@ -561,7 +1191,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": -5451,
-    "cap": 291876
+    "cap": 573804
    },
    {
     "date": "2026-03-04",
@@ -571,7 +1201,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": -11060,
-    "cap": 280816
+    "cap": 562744
    },
    {
     "date": "2026-03-11",
@@ -581,7 +1211,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 11981,
-    "cap": 292797
+    "cap": 574725
    },
    {
     "date": "2026-03-18",
@@ -591,7 +1221,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 1098,
-    "cap": 293895
+    "cap": 575823
    },
    {
     "date": "2026-03-25",
@@ -601,7 +1231,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 4129,
-    "cap": 298024
+    "cap": 579952
    },
    {
     "date": "2026-04-01",
@@ -611,7 +1241,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 956,
-    "cap": 298980
+    "cap": 580908
    },
    {
     "date": "2026-04-08",
@@ -621,7 +1251,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 9116,
-    "cap": 308096
+    "cap": 590024
    },
    {
     "date": "2026-04-15",
@@ -631,7 +1261,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 13,
-    "cap": 308109
+    "cap": 590037
    },
    {
     "date": "2026-04-22",
@@ -641,7 +1271,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 4424,
-    "cap": 312533
+    "cap": 594461
    },
    {
     "date": "2026-04-29",
@@ -651,7 +1281,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 645,
-    "cap": 313178
+    "cap": 595106
    },
    {
     "date": "2026-05-06",
@@ -661,7 +1291,7 @@
     "lots": 1,
     "exit": "SL/SL",
     "pnl": -13954,
-    "cap": 299224
+    "cap": 581152
    },
    {
     "date": "2026-05-13",
@@ -671,7 +1301,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 3277,
-    "cap": 302501
+    "cap": 584429
    },
    {
     "date": "2026-05-20",
@@ -681,7 +1311,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 4387,
-    "cap": 306888
+    "cap": 588816
    },
    {
     "date": "2026-05-27",
@@ -691,7 +1321,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 5692,
-    "cap": 312580
+    "cap": 594508
    },
    {
     "date": "2026-06-03",
@@ -701,7 +1331,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": -4922,
-    "cap": 307658
+    "cap": 589586
    },
    {
     "date": "2026-06-10",
@@ -711,7 +1341,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 3021,
-    "cap": 310679
+    "cap": 592607
    },
    {
     "date": "2026-06-17",
@@ -721,22 +1351,841 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 1640,
-    "cap": 312319
+    "cap": 594247
    }
   ],
   "SHORT_STRANGLE": [
    {
-    "date": "2025-03-27",
+    "date": "2024-01-08",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21200,
+     21800
+    ],
+    "credit": 79.5,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 3409,
+    "cap": 103409
+   },
+   {
+    "date": "2024-01-12",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21550,
+     22250
+    ],
+    "credit": 78.9,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 1986,
+    "cap": 105395
+   },
+   {
+    "date": "2024-01-19",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21300,
+     21900
+    ],
+    "credit": 91.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": -370,
+    "cap": 105025
+   },
+   {
+    "date": "2024-01-29",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21400,
+     22100
+    ],
+    "credit": 185.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 7375,
+    "cap": 112400
+   },
+   {
+    "date": "2024-02-02",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21500,
+     22200
+    ],
+    "credit": 84.4,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": -2025,
+    "cap": 110375
+   },
+   {
+    "date": "2024-02-09",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21450,
+     22150
+    ],
+    "credit": 110.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2192,
+    "cap": 112567
+   },
+   {
+    "date": "2024-02-16",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21700,
+     22400
+    ],
+    "credit": 86,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 555,
+    "cap": 113122
+   },
+   {
+    "date": "2024-02-23",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21850,
+     22550
+    ],
+    "credit": 99.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2036,
+    "cap": 115158
+   },
+   {
+    "date": "2024-03-01",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22000,
+     22700
+    ],
+    "credit": 94,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 1481,
+    "cap": 116639
+   },
+   {
+    "date": "2024-03-11",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22000,
+     22700
+    ],
+    "credit": 67.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2168,
+    "cap": 118807
+   },
+   {
+    "date": "2024-03-15",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21650,
+     22350
+    ],
+    "credit": 94,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 133,
+    "cap": 118940
+   },
+   {
+    "date": "2024-03-22",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21750,
+     22450
+    ],
+    "credit": 49.5,
+    "lots": 1,
+    "exit": "SL/SL",
+    "pnl": -3819,
+    "cap": 115121
+   },
+   {
+    "date": "2024-04-01",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22100,
+     22800
+    ],
+    "credit": 52.8,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 191,
+    "cap": 115312
+   },
+   {
+    "date": "2024-04-05",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22150,
+     22850
+    ],
+    "credit": 44.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 493,
+    "cap": 115805
+   },
+   {
+    "date": "2024-04-12",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22150,
+     22850
+    ],
+    "credit": 81.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2989,
+    "cap": 118794
+   },
+   {
+    "date": "2024-04-19",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21800,
+     22500
+    ],
+    "credit": 122,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 1650,
+    "cap": 120444
+   },
+   {
+    "date": "2024-04-26",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22050,
+     22750
+    ],
+    "credit": 84.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2031,
+    "cap": 122475
+   },
+   {
+    "date": "2024-05-03",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22150,
+     22850
+    ],
+    "credit": 93.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 3122,
+    "cap": 125597
+   },
+   {
+    "date": "2024-05-10",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21700,
+     22400
+    ],
+    "credit": 111.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2800,
+    "cap": 128397
+   },
+   {
+    "date": "2024-05-17",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22100,
+     22800
+    ],
+    "credit": 74.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1401,
+    "cap": 129798
+   },
+   {
+    "date": "2024-05-24",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22600,
+     23300
+    ],
+    "credit": 103.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1326,
+    "cap": 131124
+   },
+   {
+    "date": "2024-05-31",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22200,
+     22900
+    ],
+    "credit": 582,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1946,
+    "cap": 133070
+   },
+   {
+    "date": "2024-06-07",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22950,
+     23650
+    ],
+    "credit": 290.9,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 11356,
+    "cap": 144426
+   },
+   {
+    "date": "2024-06-14",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23100,
+     23800
+    ],
+    "credit": 56.5,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1231,
+    "cap": 145657
+   },
+   {
+    "date": "2024-06-21",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23150,
+     23850
+    ],
+    "credit": 69,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": -389,
+    "cap": 145268
+   },
+   {
+    "date": "2024-06-28",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23650,
+     24350
+    ],
+    "credit": 100.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1642,
+    "cap": 146910
+   },
+   {
+    "date": "2024-07-05",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23950,
+     24650
+    ],
+    "credit": 67.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1886,
+    "cap": 148796
+   },
+   {
+    "date": "2024-07-12",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24150,
+     24850
+    ],
+    "credit": 51.2,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 173,
+    "cap": 148969
+   },
+   {
+    "date": "2024-07-19",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24200,
+     24900
+    ],
+    "credit": 237.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2666,
+    "cap": 151635
+   },
+   {
+    "date": "2024-07-26",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24500,
+     25200
+    ],
+    "credit": 218.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 13068,
+    "cap": 164703
+   },
+   {
+    "date": "2024-08-02",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24350,
+     25050
+    ],
+    "credit": 85,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 145,
+    "cap": 164848
+   },
+   {
+    "date": "2024-08-09",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24000,
+     24700
+    ],
+    "credit": 120,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3539,
+    "cap": 168387
+   },
+   {
+    "date": "2024-08-16",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24200,
+     24900
+    ],
+    "credit": 142.2,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 6675,
+    "cap": 175062
+   },
+   {
+    "date": "2024-08-23",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24450,
+     25150
+    ],
+    "credit": 57.6,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 686,
+    "cap": 175748
+   },
+   {
+    "date": "2024-08-30",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24850,
+     25650
+    ],
+    "credit": 46.4,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2304,
+    "cap": 178052
+   },
+   {
+    "date": "2024-09-06",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24500,
+     25200
+    ],
+    "credit": 122.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 4399,
+    "cap": 182451
+   },
+   {
+    "date": "2024-09-13",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24950,
+     25750
+    ],
+    "credit": 67.2,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1706,
+    "cap": 184157
+   },
+   {
+    "date": "2024-09-20",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     25400,
+     26200
+    ],
+    "credit": 109.8,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 3540,
+    "cap": 187697
+   },
+   {
+    "date": "2024-09-27",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     25800,
+     26600
+    ],
+    "credit": 60.9,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2743,
+    "cap": 190440
+   },
+   {
+    "date": "2024-10-04",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24600,
+     25400
+    ],
+    "credit": 165.4,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": -11222,
+    "cap": 179218
+   },
+   {
+    "date": "2024-10-11",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24600,
+     25300
+    ],
+    "credit": 119.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3607,
+    "cap": 182825
+   },
+   {
+    "date": "2024-10-18",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24500,
+     25200
+    ],
+    "credit": 112.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3758,
+    "cap": 186583
+   },
+   {
+    "date": "2024-10-25",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23850,
+     24550
+    ],
+    "credit": 142.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 4580,
+    "cap": 191163
+   },
+   {
+    "date": "2024-11-01",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23950,
+     24650
+    ],
+    "credit": 163.4,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 900,
+    "cap": 192063
+   },
+   {
+    "date": "2024-11-08",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23800,
+     24500
+    ],
+    "credit": 115.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3093,
+    "cap": 195156
+   },
+   {
+    "date": "2024-11-18",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23100,
+     23800
+    ],
+    "credit": 81.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 1441,
+    "cap": 196597
+   },
+   {
+    "date": "2024-11-22",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23550,
+     24250
+    ],
+    "credit": 277.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 12774,
+    "cap": 209371
+   },
+   {
+    "date": "2024-11-29",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23800,
+     24500
+    ],
+    "credit": 137.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 4070,
+    "cap": 213441
+   },
+   {
+    "date": "2024-12-06",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24350,
+     25050
+    ],
+    "credit": 179.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 4586,
+    "cap": 218027
+   },
+   {
+    "date": "2024-12-13",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     24400,
+     25100
+    ],
+    "credit": 125.1,
+    "lots": 1,
+    "exit": "SL/SL",
+    "pnl": -9508,
+    "cap": 208519
+   },
+   {
+    "date": "2024-12-20",
     "strat": "SHORT_STRANGLE",
     "strikes": [
      23250,
      23950
     ],
-    "credit": 17.3,
+    "credit": 265.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 11138,
+    "cap": 219657
+   },
+   {
+    "date": "2024-12-27",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23450,
+     24150
+    ],
+    "credit": 109.5,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3387,
+    "cap": 223044
+   },
+   {
+    "date": "2025-01-03",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23650,
+     24350
+    ],
+    "credit": 137,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 4138,
+    "cap": 227182
+   },
+   {
+    "date": "2025-01-10",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23100,
+     23800
+    ],
+    "credit": 128.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 526,
+    "cap": 227708
+   },
+   {
+    "date": "2025-01-17",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22850,
+     23550
+    ],
+    "credit": 128.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2625,
+    "cap": 230333
+   },
+   {
+    "date": "2025-01-24",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22750,
+     23450
+    ],
+    "credit": 150.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 3846,
+    "cap": 234179
+   },
+   {
+    "date": "2025-01-31",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23150,
+     23850
+    ],
+    "credit": 291.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 4950,
+    "cap": 239129
+   },
+   {
+    "date": "2025-02-07",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23200,
+     23900
+    ],
+    "credit": 132.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 4142,
+    "cap": 243271
+   },
+   {
+    "date": "2025-02-14",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22600,
+     23300
+    ],
+    "credit": 124.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": -228,
+    "cap": 243043
+   },
+   {
+    "date": "2025-02-21",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22450,
+     23150
+    ],
+    "credit": 92.5,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 2105,
+    "cap": 245148
+   },
+   {
+    "date": "2025-02-28",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     21750,
+     22450
+    ],
+    "credit": 194.2,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 9485,
+    "cap": 254633
+   },
+   {
+    "date": "2025-03-07",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22200,
+     22900
+    ],
+    "credit": 86.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 1993,
+    "cap": 256626
+   },
+   {
+    "date": "2025-03-17",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     22150,
+     22850
+    ],
+    "credit": 54,
     "lots": 3,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 4919,
+    "cap": 261545
+   },
+   {
+    "date": "2025-03-21",
+    "strat": "SHORT_STRANGLE",
+    "strikes": [
+     23000,
+     23700
+    ],
+    "credit": 75,
+    "lots": 2,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 2951,
-    "cap": 102951
+    "pnl": 4076,
+    "cap": 265621
    },
    {
     "date": "2025-03-28",
@@ -749,7 +2198,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 5600,
-    "cap": 108551
+    "cap": 271221
    },
    {
     "date": "2025-04-04",
@@ -762,7 +2211,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 8486,
-    "cap": 117037
+    "cap": 279707
    },
    {
     "date": "2025-04-11",
@@ -775,7 +2224,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 1482,
-    "cap": 118519
+    "cap": 281189
    },
    {
     "date": "2025-04-21",
@@ -788,7 +2237,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 5879,
-    "cap": 124398
+    "cap": 287068
    },
    {
     "date": "2025-04-25",
@@ -801,7 +2250,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 4988,
-    "cap": 129386
+    "cap": 292056
    },
    {
     "date": "2025-05-02",
@@ -814,7 +2263,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": -2769,
-    "cap": 126617
+    "cap": 289287
    },
    {
     "date": "2025-05-09",
@@ -827,7 +2276,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 6116,
-    "cap": 132733
+    "cap": 295403
    },
    {
     "date": "2025-05-16",
@@ -840,7 +2289,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 1634,
-    "cap": 134367
+    "cap": 297037
    },
    {
     "date": "2025-05-23",
@@ -853,7 +2302,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 959,
-    "cap": 135326
+    "cap": 297996
    },
    {
     "date": "2025-05-30",
@@ -866,7 +2315,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 492,
-    "cap": 135818
+    "cap": 298488
    },
    {
     "date": "2025-06-06",
@@ -879,7 +2328,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 2371,
-    "cap": 138189
+    "cap": 300859
    },
    {
     "date": "2025-06-13",
@@ -892,7 +2341,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 1112,
-    "cap": 139301
+    "cap": 301971
    },
    {
     "date": "2025-06-20",
@@ -905,7 +2354,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 6090,
-    "cap": 145391
+    "cap": 308061
    },
    {
     "date": "2025-06-27",
@@ -915,10 +2364,10 @@
      26050
     ],
     "credit": 93.1,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 2777,
-    "cap": 148168
+    "pnl": 5648,
+    "cap": 313709
    },
    {
     "date": "2025-07-04",
@@ -928,10 +2377,10 @@
      25850
     ],
     "credit": 68.3,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1255,
-    "cap": 149423
+    "pnl": 3955,
+    "cap": 317664
    },
    {
     "date": "2025-07-11",
@@ -941,10 +2390,10 @@
      25550
     ],
     "credit": 78.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 2490,
-    "cap": 151913
+    "pnl": 5073,
+    "cap": 322737
    },
    {
     "date": "2025-07-18",
@@ -954,10 +2403,10 @@
      25300
     ],
     "credit": 75.6,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 567,
-    "cap": 152480
+    "pnl": 1229,
+    "cap": 323966
    },
    {
     "date": "2025-07-25",
@@ -967,10 +2416,10 @@
      25200
     ],
     "credit": 67.9,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 1162,
-    "cap": 153642
+    "pnl": 3674,
+    "cap": 327640
    },
    {
     "date": "2025-08-01",
@@ -983,7 +2432,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2691,
-    "cap": 156333
+    "cap": 330331
    },
    {
     "date": "2025-08-08",
@@ -996,7 +2445,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 3641,
-    "cap": 159974
+    "cap": 333972
    },
    {
     "date": "2025-08-18",
@@ -1006,10 +2455,10 @@
      25250
     ],
     "credit": 58.9,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1692,
-    "cap": 161666
+    "pnl": 5266,
+    "cap": 339238
    },
    {
     "date": "2025-08-22",
@@ -1019,10 +2468,10 @@
      25200
     ],
     "credit": 85,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 3007,
-    "cap": 164673
+    "pnl": 6108,
+    "cap": 345346
    },
    {
     "date": "2025-08-29",
@@ -1032,10 +2481,10 @@
      24800
     ],
     "credit": 43,
-    "lots": 2,
+    "lots": 5,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 3326,
-    "cap": 167999
+    "pnl": 8456,
+    "cap": 353802
    },
    {
     "date": "2025-09-03",
@@ -1045,10 +2494,10 @@
      25050
     ],
     "credit": 66.6,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1973,
-    "cap": 169972
+    "pnl": 6108,
+    "cap": 359910
    },
    {
     "date": "2025-09-10",
@@ -1058,10 +2507,10 @@
      25300
     ],
     "credit": 40.2,
-    "lots": 2,
+    "lots": 5,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 142,
-    "cap": 170114
+    "pnl": 497,
+    "cap": 360407
    },
    {
     "date": "2025-09-17",
@@ -1071,10 +2520,10 @@
      25750
     ],
     "credit": 41.1,
-    "lots": 2,
+    "lots": 5,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1960,
-    "cap": 172074
+    "pnl": 5040,
+    "cap": 365447
    },
    {
     "date": "2025-09-24",
@@ -1084,10 +2533,10 @@
      25450
     ],
     "credit": 53.3,
-    "lots": 2,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 3954,
-    "cap": 176028
+    "pnl": 8002,
+    "cap": 373449
    },
    {
     "date": "2025-10-01",
@@ -1097,10 +2546,10 @@
      25200
     ],
     "credit": 71.1,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 3403,
-    "cap": 179431
+    "pnl": 10398,
+    "cap": 383847
    },
    {
     "date": "2025-10-08",
@@ -1110,10 +2559,10 @@
      25450
     ],
     "credit": 24.7,
-    "lots": 4,
+    "lots": 10,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 868,
-    "cap": 180299
+    "pnl": 2312,
+    "cap": 386159
    },
    {
     "date": "2025-10-15",
@@ -1123,10 +2572,10 @@
      25700
     ],
     "credit": 56.4,
-    "lots": 2,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 4682,
-    "cap": 184981
+    "pnl": 9458,
+    "cap": 395617
    },
    {
     "date": "2025-10-21",
@@ -1136,10 +2585,10 @@
      26250
     ],
     "credit": 64.3,
-    "lots": 1,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1143,
-    "cap": 186124
+    "pnl": 4857,
+    "cap": 400474
    },
    {
     "date": "2025-10-29",
@@ -1149,10 +2598,10 @@
      26450
     ],
     "credit": 76.2,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1100,
-    "cap": 187224
+    "pnl": 3490,
+    "cap": 403964
    },
    {
     "date": "2025-11-06",
@@ -1162,10 +2611,10 @@
      25900
     ],
     "credit": 57,
-    "lots": 2,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 4929,
-    "cap": 192153
+    "pnl": 9953,
+    "cap": 413917
    },
    {
     "date": "2025-11-12",
@@ -1175,10 +2624,10 @@
      26300
     ],
     "credit": 57.7,
-    "lots": 2,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1459,
-    "cap": 193612
+    "pnl": 3013,
+    "cap": 416930
    },
    {
     "date": "2025-11-19",
@@ -1188,10 +2637,10 @@
      26450
     ],
     "credit": 76.7,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1611,
-    "cap": 195223
+    "pnl": 5022,
+    "cap": 421952
    },
    {
     "date": "2025-11-26",
@@ -1201,10 +2650,10 @@
      26600
     ],
     "credit": 95.4,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 4113,
-    "cap": 199336
+    "pnl": 8321,
+    "cap": 430273
    },
    {
     "date": "2025-12-03",
@@ -1214,10 +2663,10 @@
      26400
     ],
     "credit": 53.1,
-    "lots": 2,
+    "lots": 5,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 2602,
-    "cap": 201938
+    "pnl": 6647,
+    "cap": 436920
    },
    {
     "date": "2025-12-10",
@@ -1227,10 +2676,10 @@
      26150
     ],
     "credit": 57.9,
-    "lots": 2,
+    "lots": 5,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 2143,
-    "cap": 204081
+    "pnl": 5498,
+    "cap": 442418
    },
    {
     "date": "2025-12-17",
@@ -1240,10 +2689,10 @@
      26200
     ],
     "credit": 45.4,
-    "lots": 2,
+    "lots": 6,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 2221,
-    "cap": 206302
+    "pnl": 6852,
+    "cap": 449270
    },
    {
     "date": "2025-12-24",
@@ -1253,10 +2702,10 @@
      26550
     ],
     "credit": 25.1,
-    "lots": 5,
+    "lots": 11,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 5371,
-    "cap": 211673
+    "pnl": 11929,
+    "cap": 461199
    },
    {
     "date": "2025-12-31",
@@ -1266,10 +2715,10 @@
      26550
     ],
     "credit": 35,
-    "lots": 4,
+    "lots": 8,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 4272,
-    "cap": 215945
+    "pnl": 8639,
+    "cap": 469838
    },
    {
     "date": "2026-01-07",
@@ -1279,10 +2728,10 @@
      26550
     ],
     "credit": 24.1,
-    "lots": 5,
+    "lots": 12,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 3250,
-    "cap": 219195
+    "pnl": 7932,
+    "cap": 477770
    },
    {
     "date": "2026-01-14",
@@ -1292,10 +2741,10 @@
      26050
     ],
     "credit": 52.8,
-    "lots": 2,
+    "lots": 6,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1408,
-    "cap": 220603
+    "pnl": 4413,
+    "cap": 482183
    },
    {
     "date": "2026-01-21",
@@ -1305,10 +2754,10 @@
      25550
     ],
     "credit": 80,
-    "lots": 1,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": -2685,
-    "cap": 217918
+    "pnl": -10459,
+    "cap": 471724
    },
    {
     "date": "2026-01-28",
@@ -1321,7 +2770,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 3716,
-    "cap": 221634
+    "cap": 475440
    },
    {
     "date": "2026-02-04",
@@ -1331,10 +2780,10 @@
      26200
     ],
     "credit": 118.3,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 2683,
-    "cap": 224317
+    "pnl": 5461,
+    "cap": 480901
    },
    {
     "date": "2026-02-11",
@@ -1344,10 +2793,10 @@
      26350
     ],
     "credit": 47,
-    "lots": 3,
+    "lots": 6,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1046,
-    "cap": 225363
+    "pnl": 2187,
+    "cap": 483088
    },
    {
     "date": "2026-02-18",
@@ -1357,10 +2806,10 @@
      26200
     ],
     "credit": 68.8,
-    "lots": 2,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 2538,
-    "cap": 227901
+    "pnl": 5170,
+    "cap": 488258
    },
    {
     "date": "2026-02-25",
@@ -1370,10 +2819,10 @@
      25900
     ],
     "credit": 93.9,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1928,
-    "cap": 229829
+    "pnl": 5972,
+    "cap": 494230
    },
    {
     "date": "2026-03-04",
@@ -1386,7 +2835,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": -4893,
-    "cap": 224936
+    "cap": 489337
    },
    {
     "date": "2026-03-11",
@@ -1399,7 +2848,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/SL",
     "pnl": 6383,
-    "cap": 231319
+    "cap": 495720
    },
    {
     "date": "2026-03-18",
@@ -1412,7 +2861,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 4424,
-    "cap": 235743
+    "cap": 500144
    },
    {
     "date": "2026-03-25",
@@ -1425,7 +2874,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 658,
-    "cap": 236401
+    "cap": 500802
    },
    {
     "date": "2026-04-01",
@@ -1438,7 +2887,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 6850,
-    "cap": 243251
+    "cap": 507652
    },
    {
     "date": "2026-04-08",
@@ -1451,7 +2900,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 4387,
-    "cap": 247638
+    "cap": 512039
    },
    {
     "date": "2026-04-15",
@@ -1464,7 +2913,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 5230,
-    "cap": 252868
+    "cap": 517269
    },
    {
     "date": "2026-04-22",
@@ -1477,7 +2926,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 5964,
-    "cap": 258832
+    "cap": 523233
    },
    {
     "date": "2026-04-29",
@@ -1487,10 +2936,10 @@
      24550
     ],
     "credit": 170.1,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 618,
-    "cap": 259450
+    "pnl": 1330,
+    "cap": 524563
    },
    {
     "date": "2026-05-06",
@@ -1500,10 +2949,10 @@
      24700
     ],
     "credit": 144.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 1688,
-    "cap": 261138
+    "pnl": 3470,
+    "cap": 528033
    },
    {
     "date": "2026-05-13",
@@ -1516,7 +2965,7 @@
     "lots": 1,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
     "pnl": 2886,
-    "cap": 264024
+    "cap": 530919
    },
    {
     "date": "2026-05-20",
@@ -1529,7 +2978,7 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 2889,
-    "cap": 266913
+    "cap": 533808
    },
    {
     "date": "2026-05-27",
@@ -1539,10 +2988,10 @@
      24250
     ],
     "credit": 127,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 3467,
-    "cap": 270380
+    "pnl": 7028,
+    "cap": 540836
    },
    {
     "date": "2026-06-03",
@@ -1552,10 +3001,10 @@
      23750
     ],
     "credit": 122.9,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": -3645,
-    "cap": 266735
+    "pnl": -7196,
+    "cap": 533640
    },
    {
     "date": "2026-06-10",
@@ -1565,10 +3014,10 @@
      23550
     ],
     "credit": 122,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1060,
-    "cap": 267795
+    "pnl": 2215,
+    "cap": 535855
    },
    {
     "date": "2026-06-17",
@@ -1578,21 +3027,588 @@
      24450
     ],
     "credit": 100.5,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 1687,
-    "cap": 269482
+    "pnl": 5249,
+    "cap": 541104
    }
   ],
   "IRON_CONDOR": [
    {
-    "date": "2025-03-27",
+    "date": "2024-01-08",
     "strat": "IRON_CONDOR",
-    "credit": 21.7,
-    "lots": 3,
+    "credit": 74,
+    "lots": 1,
     "exit": "CLOSE",
-    "pnl": 4679,
-    "cap": 104679
+    "pnl": 2691,
+    "cap": 102691
+   },
+   {
+    "date": "2024-01-12",
+    "strat": "IRON_CONDOR",
+    "credit": 70.8,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1022,
+    "cap": 103713
+   },
+   {
+    "date": "2024-01-19",
+    "strat": "IRON_CONDOR",
+    "credit": 58,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": -741,
+    "cap": 102972
+   },
+   {
+    "date": "2024-01-29",
+    "strat": "IRON_CONDOR",
+    "credit": 130.3,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 3345,
+    "cap": 106317
+   },
+   {
+    "date": "2024-02-02",
+    "strat": "IRON_CONDOR",
+    "credit": 79,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 528,
+    "cap": 106845
+   },
+   {
+    "date": "2024-02-09",
+    "strat": "IRON_CONDOR",
+    "credit": 96.4,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1735,
+    "cap": 108580
+   },
+   {
+    "date": "2024-02-16",
+    "strat": "IRON_CONDOR",
+    "credit": 56.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": -1079,
+    "cap": 107501
+   },
+   {
+    "date": "2024-02-23",
+    "strat": "IRON_CONDOR",
+    "credit": 101.9,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2356,
+    "cap": 109857
+   },
+   {
+    "date": "2024-03-01",
+    "strat": "IRON_CONDOR",
+    "credit": 76.1,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 121,
+    "cap": 109978
+   },
+   {
+    "date": "2024-03-11",
+    "strat": "IRON_CONDOR",
+    "credit": 69.5,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1402,
+    "cap": 111380
+   },
+   {
+    "date": "2024-03-15",
+    "strat": "IRON_CONDOR",
+    "credit": 95.8,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1949,
+    "cap": 113329
+   },
+   {
+    "date": "2024-03-22",
+    "strat": "IRON_CONDOR",
+    "credit": 58.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 273,
+    "cap": 113602
+   },
+   {
+    "date": "2024-04-01",
+    "strat": "IRON_CONDOR",
+    "credit": 56.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1064,
+    "cap": 114666
+   },
+   {
+    "date": "2024-04-05",
+    "strat": "IRON_CONDOR",
+    "credit": 54.7,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 409,
+    "cap": 115075
+   },
+   {
+    "date": "2024-04-12",
+    "strat": "IRON_CONDOR",
+    "credit": 81.1,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2034,
+    "cap": 117109
+   },
+   {
+    "date": "2024-04-19",
+    "strat": "IRON_CONDOR",
+    "credit": 57.7,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": -997,
+    "cap": 116112
+   },
+   {
+    "date": "2024-04-26",
+    "strat": "IRON_CONDOR",
+    "credit": 93.5,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2116,
+    "cap": 118228
+   },
+   {
+    "date": "2024-05-03",
+    "strat": "IRON_CONDOR",
+    "credit": 89.3,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1681,
+    "cap": 119909
+   },
+   {
+    "date": "2024-05-10",
+    "strat": "IRON_CONDOR",
+    "credit": 71.4,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 61,
+    "cap": 119970
+   },
+   {
+    "date": "2024-05-17",
+    "strat": "IRON_CONDOR",
+    "credit": 60.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 88,
+    "cap": 120058
+   },
+   {
+    "date": "2024-05-24",
+    "strat": "IRON_CONDOR",
+    "credit": 61.1,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": -150,
+    "cap": 119908
+   },
+   {
+    "date": "2024-05-31",
+    "strat": "IRON_CONDOR",
+    "credit": 124.6,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": -2257,
+    "cap": 117651
+   },
+   {
+    "date": "2024-06-07",
+    "strat": "IRON_CONDOR",
+    "credit": 83.3,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": -96,
+    "cap": 117555
+   },
+   {
+    "date": "2024-06-14",
+    "strat": "IRON_CONDOR",
+    "credit": 53.5,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1326,
+    "cap": 118881
+   },
+   {
+    "date": "2024-06-21",
+    "strat": "IRON_CONDOR",
+    "credit": 46.6,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 71,
+    "cap": 118952
+   },
+   {
+    "date": "2024-06-28",
+    "strat": "IRON_CONDOR",
+    "credit": 61.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 140,
+    "cap": 119092
+   },
+   {
+    "date": "2024-07-05",
+    "strat": "IRON_CONDOR",
+    "credit": 38.7,
+    "lots": 2,
+    "exit": "CLOSE",
+    "pnl": -301,
+    "cap": 118791
+   },
+   {
+    "date": "2024-07-12",
+    "strat": "IRON_CONDOR",
+    "credit": 37,
+    "lots": 2,
+    "exit": "CLOSE",
+    "pnl": 159,
+    "cap": 118950
+   },
+   {
+    "date": "2024-07-19",
+    "strat": "IRON_CONDOR",
+    "credit": 107.9,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 558,
+    "cap": 119508
+   },
+   {
+    "date": "2024-07-26",
+    "strat": "IRON_CONDOR",
+    "credit": 103.4,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 4232,
+    "cap": 123740
+   },
+   {
+    "date": "2024-08-02",
+    "strat": "IRON_CONDOR",
+    "credit": 60.5,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 34,
+    "cap": 123774
+   },
+   {
+    "date": "2024-08-09",
+    "strat": "IRON_CONDOR",
+    "credit": 58.7,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 256,
+    "cap": 124030
+   },
+   {
+    "date": "2024-08-16",
+    "strat": "IRON_CONDOR",
+    "credit": 121.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 5706,
+    "cap": 129736
+   },
+   {
+    "date": "2024-08-23",
+    "strat": "IRON_CONDOR",
+    "credit": 45.9,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": -64,
+    "cap": 129672
+   },
+   {
+    "date": "2024-08-30",
+    "strat": "IRON_CONDOR",
+    "credit": 45,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 475,
+    "cap": 130147
+   },
+   {
+    "date": "2024-09-06",
+    "strat": "IRON_CONDOR",
+    "credit": 121.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 4564,
+    "cap": 134711
+   },
+   {
+    "date": "2024-09-13",
+    "strat": "IRON_CONDOR",
+    "credit": 40.9,
+    "lots": 2,
+    "exit": "CLOSE",
+    "pnl": -136,
+    "cap": 134575
+   },
+   {
+    "date": "2024-09-20",
+    "strat": "IRON_CONDOR",
+    "credit": 82,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 3011,
+    "cap": 137586
+   },
+   {
+    "date": "2024-09-27",
+    "strat": "IRON_CONDOR",
+    "credit": 46.9,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 325,
+    "cap": 137911
+   },
+   {
+    "date": "2024-10-04",
+    "strat": "IRON_CONDOR",
+    "credit": 118.5,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 3399,
+    "cap": 141310
+   },
+   {
+    "date": "2024-10-11",
+    "strat": "IRON_CONDOR",
+    "credit": 78.6,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1903,
+    "cap": 143213
+   },
+   {
+    "date": "2024-10-18",
+    "strat": "IRON_CONDOR",
+    "credit": 79.7,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2227,
+    "cap": 145440
+   },
+   {
+    "date": "2024-10-25",
+    "strat": "IRON_CONDOR",
+    "credit": 94,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2787,
+    "cap": 148227
+   },
+   {
+    "date": "2024-11-01",
+    "strat": "IRON_CONDOR",
+    "credit": 97.7,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 687,
+    "cap": 148914
+   },
+   {
+    "date": "2024-11-08",
+    "strat": "IRON_CONDOR",
+    "credit": 80.6,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1887,
+    "cap": 150801
+   },
+   {
+    "date": "2024-11-18",
+    "strat": "IRON_CONDOR",
+    "credit": 49.6,
+    "lots": 2,
+    "exit": "CLOSE",
+    "pnl": 2106,
+    "cap": 152907
+   },
+   {
+    "date": "2024-11-22",
+    "strat": "IRON_CONDOR",
+    "credit": 96.4,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1034,
+    "cap": 153941
+   },
+   {
+    "date": "2024-11-29",
+    "strat": "IRON_CONDOR",
+    "credit": 68.1,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 384,
+    "cap": 154325
+   },
+   {
+    "date": "2024-12-06",
+    "strat": "IRON_CONDOR",
+    "credit": 84.5,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 619,
+    "cap": 154944
+   },
+   {
+    "date": "2024-12-13",
+    "strat": "IRON_CONDOR",
+    "credit": 80.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2037,
+    "cap": 156981
+   },
+   {
+    "date": "2024-12-20",
+    "strat": "IRON_CONDOR",
+    "credit": 129.1,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 4186,
+    "cap": 161167
+   },
+   {
+    "date": "2024-12-27",
+    "strat": "IRON_CONDOR",
+    "credit": 74.8,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1537,
+    "cap": 162704
+   },
+   {
+    "date": "2025-01-03",
+    "strat": "IRON_CONDOR",
+    "credit": 81.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1426,
+    "cap": 164130
+   },
+   {
+    "date": "2025-01-10",
+    "strat": "IRON_CONDOR",
+    "credit": 87.6,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1841,
+    "cap": 165971
+   },
+   {
+    "date": "2025-01-17",
+    "strat": "IRON_CONDOR",
+    "credit": 100.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2380,
+    "cap": 168351
+   },
+   {
+    "date": "2025-01-24",
+    "strat": "IRON_CONDOR",
+    "credit": 93.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1851,
+    "cap": 170202
+   },
+   {
+    "date": "2025-01-31",
+    "strat": "IRON_CONDOR",
+    "credit": 121.2,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1348,
+    "cap": 171550
+   },
+   {
+    "date": "2025-02-07",
+    "strat": "IRON_CONDOR",
+    "credit": 82.3,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1702,
+    "cap": 173252
+   },
+   {
+    "date": "2025-02-14",
+    "strat": "IRON_CONDOR",
+    "credit": 84.3,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 1124,
+    "cap": 174376
+   },
+   {
+    "date": "2025-02-21",
+    "strat": "IRON_CONDOR",
+    "credit": 56.2,
+    "lots": 2,
+    "exit": "CLOSE",
+    "pnl": -1476,
+    "cap": 172900
+   },
+   {
+    "date": "2025-02-28",
+    "strat": "IRON_CONDOR",
+    "credit": 106.8,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2373,
+    "cap": 175273
+   },
+   {
+    "date": "2025-03-07",
+    "strat": "IRON_CONDOR",
+    "credit": 69.7,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 541,
+    "cap": 175814
+   },
+   {
+    "date": "2025-03-17",
+    "strat": "IRON_CONDOR",
+    "credit": 77.1,
+    "lots": 1,
+    "exit": "CLOSE",
+    "pnl": 2243,
+    "cap": 178057
+   },
+   {
+    "date": "2025-03-21",
+    "strat": "IRON_CONDOR",
+    "credit": 46.4,
+    "lots": 2,
+    "exit": "CLOSE",
+    "pnl": 946,
+    "cap": 179003
    },
    {
     "date": "2025-03-28",
@@ -1601,7 +3617,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 2671,
-    "cap": 107350
+    "cap": 181674
    },
    {
     "date": "2025-04-04",
@@ -1610,7 +3626,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 1602,
-    "cap": 108952
+    "cap": 183276
    },
    {
     "date": "2025-04-11",
@@ -1619,7 +3635,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": -2663,
-    "cap": 106289
+    "cap": 180613
    },
    {
     "date": "2025-04-21",
@@ -1628,7 +3644,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 4937,
-    "cap": 111226
+    "cap": 185550
    },
    {
     "date": "2025-04-25",
@@ -1637,7 +3653,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 3114,
-    "cap": 114340
+    "cap": 188664
    },
    {
     "date": "2025-05-02",
@@ -1646,7 +3662,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 1134,
-    "cap": 115474
+    "cap": 189798
    },
    {
     "date": "2025-05-09",
@@ -1655,7 +3671,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 2877,
-    "cap": 118351
+    "cap": 192675
    },
    {
     "date": "2025-05-16",
@@ -1664,7 +3680,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 191,
-    "cap": 118542
+    "cap": 192866
    },
    {
     "date": "2025-05-23",
@@ -1673,7 +3689,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": -404,
-    "cap": 118138
+    "cap": 192462
    },
    {
     "date": "2025-05-30",
@@ -1682,7 +3698,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": -449,
-    "cap": 117689
+    "cap": 192013
    },
    {
     "date": "2025-06-06",
@@ -1691,16 +3707,16 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 1283,
-    "cap": 118972
+    "cap": 193296
    },
    {
     "date": "2025-06-13",
     "strat": "IRON_CONDOR",
     "credit": 34.6,
-    "lots": 2,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": -5038,
-    "cap": 113934
+    "pnl": -7463,
+    "cap": 185833
    },
    {
     "date": "2025-06-20",
@@ -1709,7 +3725,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 1282,
-    "cap": 115216
+    "cap": 187115
    },
    {
     "date": "2025-06-27",
@@ -1718,43 +3734,43 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 1738,
-    "cap": 116954
+    "cap": 188853
    },
    {
     "date": "2025-07-04",
     "strat": "IRON_CONDOR",
     "credit": 58.4,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 810,
-    "cap": 117764
+    "pnl": 1810,
+    "cap": 190663
    },
    {
     "date": "2025-07-11",
     "strat": "IRON_CONDOR",
     "credit": 55.3,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 1134,
-    "cap": 118898
+    "pnl": 2458,
+    "cap": 193121
    },
    {
     "date": "2025-07-18",
     "strat": "IRON_CONDOR",
     "credit": 59.6,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 1183,
-    "cap": 120081
+    "pnl": 2554,
+    "cap": 195675
    },
    {
     "date": "2025-07-25",
     "strat": "IRON_CONDOR",
     "credit": 57.3,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 1383,
-    "cap": 121464
+    "pnl": 2955,
+    "cap": 198630
    },
    {
     "date": "2025-08-01",
@@ -1763,7 +3779,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 1814,
-    "cap": 123278
+    "cap": 200444
    },
    {
     "date": "2025-08-08",
@@ -1772,223 +3788,223 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 2958,
-    "cap": 126236
+    "cap": 203402
    },
    {
     "date": "2025-08-18",
     "strat": "IRON_CONDOR",
     "credit": 53.9,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 1563,
-    "cap": 127799
+    "pnl": 3315,
+    "cap": 206717
    },
    {
     "date": "2025-08-22",
     "strat": "IRON_CONDOR",
     "credit": 52.7,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 1201,
-    "cap": 129000
+    "pnl": 2591,
+    "cap": 209308
    },
    {
     "date": "2025-08-29",
     "strat": "IRON_CONDOR",
     "credit": 33.9,
-    "lots": 2,
+    "lots": 4,
     "exit": "CLOSE",
-    "pnl": 2154,
-    "cap": 131154
+    "pnl": 4496,
+    "cap": 213804
    },
    {
     "date": "2025-09-03",
     "strat": "IRON_CONDOR",
     "credit": 47.1,
-    "lots": 1,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": 970,
-    "cap": 132124
+    "pnl": 3287,
+    "cap": 217091
    },
    {
     "date": "2025-09-10",
     "strat": "IRON_CONDOR",
     "credit": 34.5,
-    "lots": 2,
+    "lots": 4,
     "exit": "CLOSE",
-    "pnl": 233,
-    "cap": 132357
+    "pnl": 656,
+    "cap": 217747
    },
    {
     "date": "2025-09-17",
     "strat": "IRON_CONDOR",
     "credit": 41.6,
-    "lots": 2,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": 1974,
-    "cap": 134331
+    "pnl": 3055,
+    "cap": 220802
    },
    {
     "date": "2025-09-24",
     "strat": "IRON_CONDOR",
     "credit": 50.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 1515,
-    "cap": 135846
+    "pnl": 3218,
+    "cap": 224020
    },
    {
     "date": "2025-10-01",
     "strat": "IRON_CONDOR",
     "credit": 43.6,
-    "lots": 2,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": 3161,
-    "cap": 139007
+    "pnl": 4836,
+    "cap": 228856
    },
    {
     "date": "2025-10-08",
     "strat": "IRON_CONDOR",
     "credit": 35.5,
-    "lots": 2,
+    "lots": 4,
     "exit": "CLOSE",
-    "pnl": 1587,
-    "cap": 140594
+    "pnl": 3363,
+    "cap": 232219
    },
    {
     "date": "2025-10-15",
     "strat": "IRON_CONDOR",
     "credit": 26,
-    "lots": 3,
+    "lots": 5,
     "exit": "CLOSE",
-    "pnl": -826,
-    "cap": 139768
+    "pnl": -1250,
+    "cap": 230969
    },
    {
     "date": "2025-10-21",
     "strat": "IRON_CONDOR",
     "credit": 43.3,
-    "lots": 2,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": -1022,
-    "cap": 138746
+    "pnl": -1438,
+    "cap": 229531
    },
    {
     "date": "2025-10-29",
     "strat": "IRON_CONDOR",
     "credit": 70.3,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 988,
-    "cap": 139734
+    "pnl": 2165,
+    "cap": 231696
    },
    {
     "date": "2025-11-06",
     "strat": "IRON_CONDOR",
     "credit": 56.2,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 1987,
-    "cap": 141721
+    "pnl": 4163,
+    "cap": 235859
    },
    {
     "date": "2025-11-12",
     "strat": "IRON_CONDOR",
     "credit": 53.4,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 531,
-    "cap": 142252
+    "pnl": 1251,
+    "cap": 237110
    },
    {
     "date": "2025-11-19",
     "strat": "IRON_CONDOR",
     "credit": 56.6,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 202,
-    "cap": 142454
+    "pnl": 592,
+    "cap": 237702
    },
    {
     "date": "2025-11-26",
     "strat": "IRON_CONDOR",
     "credit": 76.7,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 2227,
-    "cap": 144681
+    "pnl": 4643,
+    "cap": 242345
    },
    {
     "date": "2025-12-03",
     "strat": "IRON_CONDOR",
     "credit": 49.5,
-    "lots": 1,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": 654,
-    "cap": 145335
+    "pnl": 2339,
+    "cap": 244684
    },
    {
     "date": "2025-12-10",
     "strat": "IRON_CONDOR",
     "credit": 52.3,
-    "lots": 1,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": 637,
-    "cap": 145972
+    "pnl": 2289,
+    "cap": 246973
    },
    {
     "date": "2025-12-17",
     "strat": "IRON_CONDOR",
     "credit": 49.1,
-    "lots": 1,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": 877,
-    "cap": 146849
+    "pnl": 3008,
+    "cap": 249981
    },
    {
     "date": "2025-12-24",
     "strat": "IRON_CONDOR",
     "credit": 32.9,
-    "lots": 2,
+    "lots": 5,
     "exit": "CLOSE",
-    "pnl": 2891,
-    "cap": 149740
+    "pnl": 7511,
+    "cap": 257492
    },
    {
     "date": "2025-12-31",
     "strat": "IRON_CONDOR",
     "credit": 35.5,
-    "lots": 2,
+    "lots": 4,
     "exit": "CLOSE",
-    "pnl": 1874,
-    "cap": 151614
+    "pnl": 3937,
+    "cap": 261429
    },
    {
     "date": "2026-01-07",
     "strat": "IRON_CONDOR",
     "credit": 33.5,
-    "lots": 3,
+    "lots": 5,
     "exit": "CLOSE",
-    "pnl": 2977,
-    "cap": 154591
+    "pnl": 5087,
+    "cap": 266516
    },
    {
     "date": "2026-01-14",
     "strat": "IRON_CONDOR",
     "credit": 54.2,
-    "lots": 1,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": 997,
-    "cap": 155588
+    "pnl": 3368,
+    "cap": 269884
    },
    {
     "date": "2026-01-21",
     "strat": "IRON_CONDOR",
     "credit": 56.2,
-    "lots": 1,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": -197,
-    "cap": 155391
+    "pnl": -215,
+    "cap": 269669
    },
    {
     "date": "2026-01-28",
@@ -1997,52 +4013,52 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 831,
-    "cap": 156222
+    "cap": 270500
    },
    {
     "date": "2026-02-04",
     "strat": "IRON_CONDOR",
     "credit": 60.9,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 167,
-    "cap": 156389
+    "pnl": 523,
+    "cap": 271023
    },
    {
     "date": "2026-02-11",
     "strat": "IRON_CONDOR",
     "credit": 37.6,
-    "lots": 2,
+    "lots": 4,
     "exit": "CLOSE",
-    "pnl": 692,
-    "cap": 157081
+    "pnl": 1572,
+    "cap": 272595
    },
    {
     "date": "2026-02-18",
     "strat": "IRON_CONDOR",
     "credit": 54.8,
-    "lots": 1,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": 871,
-    "cap": 157952
+    "pnl": 2990,
+    "cap": 275585
    },
    {
     "date": "2026-02-25",
     "strat": "IRON_CONDOR",
     "credit": 80.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 2162,
-    "cap": 160114
+    "pnl": 4514,
+    "cap": 280099
    },
    {
     "date": "2026-03-04",
     "strat": "IRON_CONDOR",
     "credit": 91.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": -2183,
-    "cap": 157931
+    "pnl": -4177,
+    "cap": 275922
    },
    {
     "date": "2026-03-11",
@@ -2051,7 +4067,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": -735,
-    "cap": 157196
+    "cap": 275187
    },
    {
     "date": "2026-03-18",
@@ -2060,16 +4076,16 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 1293,
-    "cap": 158489
+    "cap": 276480
    },
    {
     "date": "2026-03-25",
     "strat": "IRON_CONDOR",
     "credit": 90.1,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": -1472,
-    "cap": 157017
+    "pnl": -2754,
+    "cap": 273726
    },
    {
     "date": "2026-04-01",
@@ -2078,7 +4094,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 5116,
-    "cap": 162133
+    "cap": 278842
    },
    {
     "date": "2026-04-08",
@@ -2087,16 +4103,16 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 4382,
-    "cap": 166515
+    "cap": 283224
    },
    {
     "date": "2026-04-15",
     "strat": "IRON_CONDOR",
     "credit": 58.3,
-    "lots": 1,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": -2670,
-    "cap": 163845
+    "pnl": -7632,
+    "cap": 275592
    },
    {
     "date": "2026-04-22",
@@ -2105,7 +4121,7 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 5106,
-    "cap": 168951
+    "cap": 280698
    },
    {
     "date": "2026-04-29",
@@ -2114,16 +4130,16 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": 2835,
-    "cap": 171786
+    "cap": 283533
    },
    {
     "date": "2026-05-06",
     "strat": "IRON_CONDOR",
     "credit": 50.3,
-    "lots": 2,
+    "lots": 3,
     "exit": "CLOSE",
-    "pnl": -4825,
-    "cap": 166961
+    "pnl": -7143,
+    "cap": 276390
    },
    {
     "date": "2026-05-13",
@@ -2132,84 +4148,704 @@
     "lots": 1,
     "exit": "CLOSE",
     "pnl": -68,
-    "cap": 166893
+    "cap": 276322
    },
    {
     "date": "2026-05-20",
     "strat": "IRON_CONDOR",
     "credit": 86.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": -31,
-    "cap": 166862
+    "pnl": 127,
+    "cap": 276449
    },
    {
     "date": "2026-05-27",
     "strat": "IRON_CONDOR",
     "credit": 72.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 870,
-    "cap": 167732
+    "pnl": 1928,
+    "cap": 278377
    },
    {
     "date": "2026-06-03",
     "strat": "IRON_CONDOR",
     "credit": 72.5,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": -636,
-    "cap": 167096
+    "pnl": -1084,
+    "cap": 277293
    },
    {
     "date": "2026-06-10",
     "strat": "IRON_CONDOR",
     "credit": 74.3,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 96,
-    "cap": 167192
+    "pnl": 380,
+    "cap": 277673
    },
    {
     "date": "2026-06-17",
     "strat": "IRON_CONDOR",
     "credit": 65.3,
-    "lots": 1,
+    "lots": 2,
     "exit": "CLOSE",
-    "pnl": 620,
-    "cap": 167812
+    "pnl": 1429,
+    "cap": 279102
    }
   ],
   "EXPIRY_STRADDLE": [
+   {
+    "date": "2024-01-11",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 21650,
+    "credit": 111,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 7600,
+    "cap": 107600
+   },
+   {
+    "date": "2024-01-18",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 21450,
+    "credit": 129.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": -1385,
+    "cap": 106215
+   },
+   {
+    "date": "2024-01-25",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 21350,
+    "credit": 192.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 9019,
+    "cap": 115234
+   },
+   {
+    "date": "2024-02-01",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 21700,
+    "credit": 231.2,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 16596,
+    "cap": 131830
+   },
+   {
+    "date": "2024-02-08",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 21700,
+    "credit": 302.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 21610,
+    "cap": 153440
+   },
+   {
+    "date": "2024-02-15",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 21900,
+    "credit": 135.4,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 322,
+    "cap": 153762
+   },
+   {
+    "date": "2024-02-22",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22200,
+    "credit": 239.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 16287,
+    "cap": 170049
+   },
+   {
+    "date": "2024-02-29",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22000,
+    "credit": 174.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 10261,
+    "cap": 180310
+   },
+   {
+    "date": "2024-03-07",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22500,
+    "credit": 119,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 8147,
+    "cap": 188457
+   },
+   {
+    "date": "2024-03-14",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22150,
+    "credit": 204,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 10719,
+    "cap": 199176
+   },
+   {
+    "date": "2024-03-21",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22000,
+    "credit": 134.3,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 9215,
+    "cap": 208391
+   },
+   {
+    "date": "2024-03-28",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22350,
+    "credit": 209.7,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 12558,
+    "cap": 220949
+   },
+   {
+    "date": "2024-04-04",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22500,
+    "credit": 107,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 2865,
+    "cap": 223814
+   },
+   {
+    "date": "2024-04-10",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22750,
+    "credit": 109.8,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 7461,
+    "cap": 231275
+   },
+   {
+    "date": "2024-04-18",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22000,
+    "credit": 234.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 14184,
+    "cap": 245459
+   },
+   {
+    "date": "2024-04-25",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22550,
+    "credit": 203,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 14354,
+    "cap": 259813
+   },
+   {
+    "date": "2024-05-02",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22650,
+    "credit": 141.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 9815,
+    "cap": 269628
+   },
+   {
+    "date": "2024-05-09",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 21950,
+    "credit": 341.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 24068,
+    "cap": 293696
+   },
+   {
+    "date": "2024-05-16",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22400,
+    "credit": 171.2,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": -10494,
+    "cap": 283202
+   },
+   {
+    "date": "2024-05-30",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22500,
+    "credit": 194.6,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 10506,
+    "cap": 293708
+   },
+   {
+    "date": "2024-06-06",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22800,
+    "credit": 325,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 22689,
+    "cap": 316397
+   },
+   {
+    "date": "2024-06-13",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23400,
+    "credit": 153,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 10865,
+    "cap": 327262
+   },
+   {
+    "date": "2024-06-20",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23550,
+    "credit": 134.7,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": -2408,
+    "cap": 324854
+   },
+   {
+    "date": "2024-06-27",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24050,
+    "credit": 255.8,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 15913,
+    "cap": 340767
+   },
+   {
+    "date": "2024-07-04",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24300,
+    "credit": 141,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 10074,
+    "cap": 350841
+   },
+   {
+    "date": "2024-07-11",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24300,
+    "credit": 110.1,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 5335,
+    "cap": 356176
+   },
+   {
+    "date": "2024-07-18",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24800,
+    "credit": 205,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 14147,
+    "cap": 370323
+   },
+   {
+    "date": "2024-07-25",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24400,
+    "credit": 168,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 12008,
+    "cap": 382331
+   },
+   {
+    "date": "2024-08-01",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 25000,
+    "credit": 150,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 10279,
+    "cap": 392610
+   },
+   {
+    "date": "2024-08-08",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24100,
+    "credit": 220.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 9635,
+    "cap": 402245
+   },
+   {
+    "date": "2024-08-14",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24150,
+    "credit": 166.9,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 11798,
+    "cap": 414043
+   },
+   {
+    "date": "2024-08-22",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24800,
+    "credit": 109.2,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 14656,
+    "cap": 428699
+   },
+   {
+    "date": "2024-08-29",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 25150,
+    "credit": 151.8,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 8462,
+    "cap": 437161
+   },
+   {
+    "date": "2024-09-05",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 25150,
+    "credit": 119.1,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 16779,
+    "cap": 453940
+   },
+   {
+    "date": "2024-09-12",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 25400,
+    "credit": 430,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 31180,
+    "cap": 485120
+   },
+   {
+    "date": "2024-09-19",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 25400,
+    "credit": 154,
+    "lots": 2,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": -8827,
+    "cap": 476293
+   },
+   {
+    "date": "2024-09-26",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 26200,
+    "credit": 226.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 15106,
+    "cap": 491399
+   },
+   {
+    "date": "2024-10-03",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 25250,
+    "credit": 355.1,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 25325,
+    "cap": 516724
+   },
+   {
+    "date": "2024-10-10",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 25000,
+    "credit": 159,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 23031,
+    "cap": 539755
+   },
+   {
+    "date": "2024-10-17",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24750,
+    "credit": 254,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 18106,
+    "cap": 557861
+   },
+   {
+    "date": "2024-10-24",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24400,
+    "credit": 160,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 23414,
+    "cap": 581275
+   },
+   {
+    "date": "2024-10-31",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24200,
+    "credit": 194,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 13923,
+    "cap": 595198
+   },
+   {
+    "date": "2024-11-07",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24200,
+    "credit": 242,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 16861,
+    "cap": 612059
+   },
+   {
+    "date": "2024-11-14",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23550,
+    "credit": 202,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 26437,
+    "cap": 638496
+   },
+   {
+    "date": "2024-11-21",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23350,
+    "credit": 211.4,
+    "lots": 2,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 17504,
+    "cap": 656000
+   },
+   {
+    "date": "2024-11-28",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23900,
+    "credit": 568.5,
+    "lots": 1,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 41461,
+    "cap": 697461
+   },
+   {
+    "date": "2024-12-05",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24700,
+    "credit": 285.1,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 15304,
+    "cap": 712765
+   },
+   {
+    "date": "2024-12-12",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24550,
+    "credit": 130.6,
+    "lots": 3,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 28466,
+    "cap": 741231
+   },
+   {
+    "date": "2024-12-19",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23950,
+    "credit": 153,
+    "lots": 3,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 788,
+    "cap": 742019
+   },
+   {
+    "date": "2024-12-26",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23750,
+    "credit": 130.3,
+    "lots": 3,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 6250,
+    "cap": 748269
+   },
+   {
+    "date": "2025-01-02",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 24200,
+    "credit": 397.5,
+    "lots": 1,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 28143,
+    "cap": 776412
+   },
+   {
+    "date": "2025-01-09",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23550,
+    "credit": 146.9,
+    "lots": 3,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 25823,
+    "cap": 802235
+   },
+   {
+    "date": "2025-01-16",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23300,
+    "credit": 110.5,
+    "lots": 4,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 31373,
+    "cap": 833608
+   },
+   {
+    "date": "2025-01-23",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23200,
+    "credit": 149.8,
+    "lots": 3,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 31917,
+    "cap": 865525
+   },
+   {
+    "date": "2025-01-30",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23250,
+    "credit": 253.2,
+    "lots": 2,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 17643,
+    "cap": 883168
+   },
+   {
+    "date": "2025-02-06",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23600,
+    "credit": 154.8,
+    "lots": 3,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 32974,
+    "cap": 916142
+   },
+   {
+    "date": "2025-02-13",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23050,
+    "credit": 167.8,
+    "lots": 3,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": -6868,
+    "cap": 909274
+   },
+   {
+    "date": "2025-02-20",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22900,
+    "credit": 150.2,
+    "lots": 4,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 40815,
+    "cap": 950089
+   },
+   {
+    "date": "2025-02-27",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22550,
+    "credit": 108.9,
+    "lots": 5,
+    "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
+    "pnl": 39148,
+    "cap": 989237
+   },
+   {
+    "date": "2025-03-06",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22550,
+    "credit": 160.3,
+    "lots": 4,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": -35123,
+    "cap": 954114
+   },
+   {
+    "date": "2025-03-13",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 22400,
+    "credit": 159.5,
+    "lots": 3,
+    "exit": "EXPIRY/CLOSE/SL",
+    "pnl": 25469,
+    "cap": 979583
+   },
+   {
+    "date": "2025-03-20",
+    "strat": "EXPIRY_STRADDLE",
+    "strike": 23200,
+    "credit": 204.1,
+    "lots": 3,
+    "exit": "SL/EXPIRY/CLOSE",
+    "pnl": 40434,
+    "cap": 1020017
+   },
    {
     "date": "2025-03-27",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23600,
     "credit": 165,
-    "lots": 1,
+    "lots": 4,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 8696,
-    "cap": 108696
+    "pnl": 35068,
+    "cap": 1055085
    },
    {
     "date": "2025-04-03",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23250,
     "credit": 119,
-    "lots": 1,
+    "lots": 5,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 4219,
-    "cap": 112915
+    "pnl": 21472,
+    "cap": 1076557
    },
    {
     "date": "2025-04-09",
     "strat": "EXPIRY_STRADDLE",
     "strike": 22400,
     "credit": 288.3,
-    "lots": 1,
+    "lots": 2,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 8033,
-    "cap": 120948
+    "pnl": 16161,
+    "cap": 1092718
    },
    {
     "date": "2025-04-17",
@@ -2219,620 +4855,3095 @@
     "lots": 1,
     "exit": "SL/EXPIRY/CLOSE",
     "pnl": 36795,
-    "cap": 157743
+    "cap": 1129513
    },
    {
     "date": "2025-04-24",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24250,
     "credit": 105.7,
-    "lots": 1,
+    "lots": 7,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 7379,
-    "cap": 165122
+    "pnl": 52219,
+    "cap": 1181732
    },
    {
     "date": "2025-04-30",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24350,
     "credit": 107.3,
-    "lots": 1,
+    "lots": 7,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 6740,
-    "cap": 171862
+    "pnl": 47749,
+    "cap": 1229481
    },
    {
     "date": "2025-05-08",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24250,
     "credit": 188,
-    "lots": 1,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 10578,
-    "cap": 182440
+    "pnl": 42596,
+    "cap": 1272077
    },
    {
     "date": "2025-05-15",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25050,
     "credit": 394.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 28594,
-    "cap": 211034
+    "pnl": 57282,
+    "cap": 1329359
    },
    {
     "date": "2025-05-22",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24600,
     "credit": 223.4,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 8380,
-    "cap": 219414
+    "pnl": 25329,
+    "cap": 1354688
    },
    {
     "date": "2025-05-29",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24850,
     "credit": 225,
-    "lots": 1,
+    "lots": 4,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 14595,
-    "cap": 234009
+    "pnl": 58663,
+    "cap": 1413351
    },
    {
     "date": "2025-06-05",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24750,
     "credit": 181.3,
-    "lots": 1,
+    "lots": 5,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 7019,
-    "cap": 241028
+    "pnl": 35473,
+    "cap": 1448824
    },
    {
     "date": "2025-06-12",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24900,
     "credit": 269.9,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 18509,
-    "cap": 259537
+    "pnl": 55717,
+    "cap": 1504541
    },
    {
     "date": "2025-06-19",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24800,
     "credit": 115,
-    "lots": 1,
+    "lots": 8,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 8106,
-    "cap": 267643
+    "pnl": 65510,
+    "cap": 1570051
    },
    {
     "date": "2025-06-26",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25550,
     "credit": 287.9,
-    "lots": 1,
+    "lots": 3,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 20373,
-    "cap": 288016
+    "pnl": 61308,
+    "cap": 1631359
    },
    {
     "date": "2025-07-03",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25400,
     "credit": 132,
-    "lots": 1,
+    "lots": 8,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": -5791,
-    "cap": 282225
+    "pnl": -45666,
+    "cap": 1585693
    },
    {
     "date": "2025-07-10",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25350,
     "credit": 184,
-    "lots": 1,
+    "lots": 5,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 10410,
-    "cap": 292635
+    "pnl": 52427,
+    "cap": 1638120
    },
    {
     "date": "2025-07-17",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25100,
     "credit": 147,
-    "lots": 1,
+    "lots": 7,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 9747,
-    "cap": 302382
+    "pnl": 68792,
+    "cap": 1706912
    },
    {
     "date": "2025-07-24",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25050,
     "credit": 171.5,
-    "lots": 1,
+    "lots": 6,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 10389,
-    "cap": 312771
+    "pnl": 62806,
+    "cap": 1769718
    },
    {
     "date": "2025-07-31",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24750,
     "credit": 125.7,
-    "lots": 1,
+    "lots": 9,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 2554,
-    "cap": 315325
+    "pnl": 23744,
+    "cap": 1793462
    },
    {
     "date": "2025-08-07",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24600,
     "credit": 130.5,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": -5622,
-    "cap": 309703
+    "pnl": -49839,
+    "cap": 1743623
    },
    {
     "date": "2025-08-14",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24650,
     "credit": 116,
-    "lots": 1,
+    "lots": 10,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 7359,
-    "cap": 317062
+    "pnl": 74437,
+    "cap": 1818060
    },
    {
     "date": "2025-08-21",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25100,
     "credit": 89,
-    "lots": 2,
+    "lots": 13,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 10929,
-    "cap": 327991
+    "pnl": 71557,
+    "cap": 1889617
    },
    {
     "date": "2025-08-28",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24500,
     "credit": 211.9,
-    "lots": 1,
+    "lots": 5,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 14101,
-    "cap": 342092
+    "pnl": 70883,
+    "cap": 1960500
    },
    {
     "date": "2025-09-02",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24600,
     "credit": 99.1,
-    "lots": 2,
+    "lots": 13,
     "exit": "SL/SL",
-    "pnl": -15008,
-    "cap": 327084
+    "pnl": -97033,
+    "cap": 1863467
    },
    {
     "date": "2025-09-09",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24850,
     "credit": 86,
-    "lots": 2,
+    "lots": 14,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 10254,
-    "cap": 337338
+    "pnl": 72343,
+    "cap": 1935810
    },
    {
     "date": "2025-09-16",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25250,
     "credit": 163.1,
-    "lots": 1,
+    "lots": 7,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 10082,
-    "cap": 347420
+    "pnl": 71142,
+    "cap": 2006952
    },
    {
     "date": "2025-09-23",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25150,
     "credit": 111.3,
-    "lots": 2,
+    "lots": 12,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 7288,
-    "cap": 354708
+    "pnl": 44197,
+    "cap": 2051149
    },
    {
     "date": "2025-09-30",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24600,
     "credit": 134.8,
-    "lots": 1,
+    "lots": 10,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 6643,
-    "cap": 361351
+    "pnl": 67276,
+    "cap": 2118425
    },
    {
     "date": "2025-10-07",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25100,
     "credit": 83.4,
-    "lots": 2,
+    "lots": 16,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": -215,
-    "cap": 361136
+    "pnl": -1062,
+    "cap": 2117363
    },
    {
     "date": "2025-10-14",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25150,
     "credit": 146.9,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 8045,
-    "cap": 369181
+    "pnl": 73164,
+    "cap": 2190527
    },
    {
     "date": "2025-10-20",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25850,
     "credit": 123.2,
-    "lots": 1,
+    "lots": 11,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 977,
-    "cap": 370158
+    "pnl": 11696,
+    "cap": 2202223
    },
    {
     "date": "2025-10-28",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25950,
     "credit": 146.9,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 4215,
-    "cap": 374373
+    "pnl": 38690,
+    "cap": 2240913
    },
    {
     "date": "2025-11-04",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25600,
     "credit": 206.8,
-    "lots": 1,
+    "lots": 7,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 14748,
-    "cap": 389121
+    "pnl": 103801,
+    "cap": 2344714
    },
    {
     "date": "2025-11-11",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25700,
     "credit": 114.7,
-    "lots": 2,
+    "lots": 13,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": -10318,
-    "cap": 378803
+    "pnl": -66550,
+    "cap": 2278164
    },
    {
     "date": "2025-11-18",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25900,
     "credit": 160.8,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 7488,
-    "cap": 386291
+    "pnl": 68144,
+    "cap": 2346308
    },
    {
     "date": "2025-11-25",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25900,
     "credit": 165.9,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 10818,
-    "cap": 397109
+    "pnl": 98116,
+    "cap": 2444424
    },
    {
     "date": "2025-12-02",
     "strat": "EXPIRY_STRADDLE",
     "strike": 26050,
     "credit": 147.9,
-    "lots": 1,
+    "lots": 11,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 9052,
-    "cap": 406161
+    "pnl": 100512,
+    "cap": 2544936
    },
    {
     "date": "2025-12-09",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25850,
     "credit": 125,
-    "lots": 2,
+    "lots": 13,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 7389,
-    "cap": 413550
+    "pnl": 48547,
+    "cap": 2593483
    },
    {
     "date": "2025-12-16",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25850,
     "credit": 151.3,
-    "lots": 1,
+    "lots": 11,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 8037,
-    "cap": 421587
+    "pnl": 89354,
+    "cap": 2682837
    },
    {
     "date": "2025-12-23",
     "strat": "EXPIRY_STRADDLE",
     "strike": 26200,
     "credit": 113,
-    "lots": 2,
+    "lots": 15,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 13603,
-    "cap": 435190
+    "pnl": 102640,
+    "cap": 2785477
    },
    {
     "date": "2025-12-30",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25950,
     "credit": 97.7,
-    "lots": 2,
+    "lots": 19,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 12188,
-    "cap": 447378
+    "pnl": 116591,
+    "cap": 2902068
    },
    {
     "date": "2026-01-06",
     "strat": "EXPIRY_STRADDLE",
     "strike": 26200,
     "credit": 98,
-    "lots": 3,
+    "lots": 19,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 16358,
-    "cap": 463736
+    "pnl": 104104,
+    "cap": 3006172
    },
    {
     "date": "2026-01-13",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25750,
     "credit": 179,
-    "lots": 1,
+    "lots": 11,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 8807,
-    "cap": 472543
+    "pnl": 97821,
+    "cap": 3103993
    },
    {
     "date": "2026-01-20",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25250,
     "credit": 328.5,
-    "lots": 1,
+    "lots": 6,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 23428,
-    "cap": 495971
+    "pnl": 141041,
+    "cap": 3245034
    },
    {
     "date": "2026-01-27",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25200,
     "credit": 210.7,
-    "lots": 1,
+    "lots": 10,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 12817,
-    "cap": 508788
+    "pnl": 129020,
+    "cap": 3374054
    },
    {
     "date": "2026-02-03",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25750,
     "credit": 608.9,
-    "lots": 1,
+    "lots": 3,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 23862,
-    "cap": 532650
+    "pnl": 71775,
+    "cap": 3445829
    },
    {
     "date": "2026-02-10",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25950,
     "credit": 161.1,
-    "lots": 2,
+    "lots": 14,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 22167,
-    "cap": 554817
+    "pnl": 155737,
+    "cap": 3601566
    },
    {
     "date": "2026-02-17",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25750,
     "credit": 167.8,
-    "lots": 2,
+    "lots": 14,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 21377,
-    "cap": 576194
+    "pnl": 150203,
+    "cap": 3751769
    },
    {
     "date": "2026-02-24",
     "strat": "EXPIRY_STRADDLE",
     "strike": 25400,
     "credit": 286.2,
-    "lots": 1,
+    "lots": 8,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 17133,
-    "cap": 593327
+    "pnl": 137721,
+    "cap": 3889490
    },
    {
     "date": "2026-03-02",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24850,
     "credit": 237.9,
-    "lots": 1,
+    "lots": 10,
     "exit": "SL/SL",
-    "pnl": -17992,
-    "cap": 575335
+    "pnl": -179066,
+    "cap": 3710424
    },
    {
     "date": "2026-03-10",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24250,
     "credit": 230,
-    "lots": 1,
+    "lots": 10,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 15819,
-    "cap": 591154
+    "pnl": 159035,
+    "cap": 3869459
    },
    {
     "date": "2026-03-17",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23600,
     "credit": 264.4,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 18266,
-    "cap": 609420
+    "pnl": 165149,
+    "cap": 4034608
    },
    {
     "date": "2026-03-24",
     "strat": "EXPIRY_STRADDLE",
     "strike": 22900,
     "credit": 295,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 20571,
-    "cap": 629991
+    "pnl": 185896,
+    "cap": 4220504
    },
    {
     "date": "2026-03-30",
     "strat": "EXPIRY_STRADDLE",
     "strike": 22350,
     "credit": 316.7,
-    "lots": 1,
+    "lots": 8,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 18920,
-    "cap": 648911
+    "pnl": 152018,
+    "cap": 4372522
    },
    {
     "date": "2026-04-07",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23100,
     "credit": 312.1,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 21493,
-    "cap": 670404
+    "pnl": 194189,
+    "cap": 4566711
    },
    {
     "date": "2026-04-13",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23850,
     "credit": 236.3,
-    "lots": 1,
+    "lots": 12,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 16328,
-    "cap": 686732
+    "pnl": 196979,
+    "cap": 4763690
    },
    {
     "date": "2026-04-21",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24600,
     "credit": 271.6,
-    "lots": 1,
+    "lots": 11,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 16958,
-    "cap": 703690
+    "pnl": 187483,
+    "cap": 4951173
    },
    {
     "date": "2026-04-28",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24000,
     "credit": 140.1,
-    "lots": 3,
+    "lots": 23,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": -11318,
-    "cap": 692372
+    "pnl": -86138,
+    "cap": 4865035
    },
    {
     "date": "2026-05-05",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24050,
     "credit": 167.7,
-    "lots": 2,
+    "lots": 19,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 3952,
-    "cap": 696324
+    "pnl": 38348,
+    "cap": 4903383
    },
    {
     "date": "2026-05-12",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23400,
     "credit": 334.9,
-    "lots": 1,
+    "lots": 9,
     "exit": "EXPIRY/CLOSE/SL",
-    "pnl": 24197,
-    "cap": 720521
+    "pnl": 218529,
+    "cap": 5121912
    },
    {
     "date": "2026-05-19",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23600,
     "credit": 177.1,
-    "lots": 2,
+    "lots": 19,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 22320,
-    "cap": 742841
+    "pnl": 212847,
+    "cap": 5334759
    },
    {
     "date": "2026-05-26",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23900,
     "credit": 178.8,
-    "lots": 2,
+    "lots": 19,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 24130,
-    "cap": 766971
+    "pnl": 230038,
+    "cap": 5564797
    },
    {
     "date": "2026-06-02",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23500,
     "credit": 233.4,
-    "lots": 2,
+    "lots": 15,
     "exit": "SL/EXPIRY/CLOSE",
-    "pnl": 28058,
-    "cap": 795029
+    "pnl": 211048,
+    "cap": 5775845
    },
    {
     "date": "2026-06-09",
     "strat": "EXPIRY_STRADDLE",
     "strike": 23250,
     "credit": 165.1,
-    "lots": 3,
+    "lots": 23,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 34750,
-    "cap": 829779
+    "pnl": 267043,
+    "cap": 6042888
    },
    {
     "date": "2026-06-16",
     "strat": "EXPIRY_STRADDLE",
     "strike": 24000,
     "credit": 173.7,
-    "lots": 3,
+    "lots": 23,
     "exit": "EXPIRY/CLOSE/EXPIRY/CLOSE",
-    "pnl": 35230,
-    "cap": 865009
+    "pnl": 270729,
+    "cap": 6313617
    }
   ],
   "GAP_BUY": [
+   {
+    "date": "2024-01-10",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 21650,
+    "entry": 35,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -183,
+    "cap": 99817
+   },
+   {
+    "date": "2024-01-12",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22050,
+    "entry": 29.2,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -274,
+    "cap": 99543
+   },
+   {
+    "date": "2024-01-15",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22300,
+    "entry": 30.2,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -282,
+    "cap": 99261
+   },
+   {
+    "date": "2024-01-16",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21900,
+    "entry": 30,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -56,
+    "cap": 99205
+   },
+   {
+    "date": "2024-01-17",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21500,
+    "entry": 28.8,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -271,
+    "cap": 98934
+   },
+   {
+    "date": "2024-01-18",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21300,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 98654
+   },
+   {
+    "date": "2024-01-19",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22050,
+    "entry": 34,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -179,
+    "cap": 98475
+   },
+   {
+    "date": "2024-01-23",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21200,
+    "entry": 15.4,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -287,
+    "cap": 98188
+   },
+   {
+    "date": "2024-01-24",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 21500,
+    "entry": 24,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -234,
+    "cap": 97954
+   },
+   {
+    "date": "2024-01-25",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21300,
+    "entry": 17.8,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -255,
+    "cap": 97699
+   },
+   {
+    "date": "2024-01-29",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 21950,
+    "entry": 32,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -56,
+    "cap": 97643
+   },
+   {
+    "date": "2024-01-30",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21350,
+    "entry": 37.8,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -194,
+    "cap": 97449
+   },
+   {
+    "date": "2024-01-31",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 21850,
+    "entry": 38,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -195,
+    "cap": 97254
+   },
+   {
+    "date": "2024-02-02",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22200,
+    "entry": 35,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -183,
+    "cap": 97071
+   },
+   {
+    "date": "2024-02-05",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21500,
+    "entry": 38,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -195,
+    "cap": 96876
+   },
+   {
+    "date": "2024-02-06",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22150,
+    "entry": 27.4,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -260,
+    "cap": 96616
+   },
+   {
+    "date": "2024-02-08",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21650,
+    "entry": 4.9,
+    "lots": 13,
+    "exit": "SL",
+    "pnl": -295,
+    "cap": 96321
+   },
+   {
+    "date": "2024-02-09",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22250,
+    "entry": 32,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -296,
+    "cap": 96025
+   },
+   {
+    "date": "2024-02-12",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21450,
+    "entry": 32,
+    "lots": 1,
+    "exit": "EOD",
+    "pnl": -52,
+    "cap": 95973
+   },
+   {
+    "date": "2024-02-13",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 21950,
+    "entry": 34.1,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -180,
+    "cap": 95793
+   },
+   {
+    "date": "2024-02-14",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 21900,
+    "entry": 23.1,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -226,
+    "cap": 95567
+   },
+   {
+    "date": "2024-02-15",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22000,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 95287
+   },
+   {
+    "date": "2024-02-16",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22400,
+    "entry": 36.4,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -188,
+    "cap": 95099
+   },
+   {
+    "date": "2024-02-19",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22450,
+    "entry": 24.4,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -237,
+    "cap": 94862
+   },
+   {
+    "date": "2024-02-20",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22350,
+    "entry": 31,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -288,
+    "cap": 94574
+   },
+   {
+    "date": "2024-02-21",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21950,
+    "entry": 32.2,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -172,
+    "cap": 94402
+   },
+   {
+    "date": "2024-02-22",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22250,
+    "entry": 8,
+    "lots": 7,
+    "exit": "SL",
+    "pnl": -265,
+    "cap": 94137
+   },
+   {
+    "date": "2024-02-26",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21850,
+    "entry": 35,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -183,
+    "cap": 93954
+   },
+   {
+    "date": "2024-02-27",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22450,
+    "entry": 27.7,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -262,
+    "cap": 93692
+   },
+   {
+    "date": "2024-02-28",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21900,
+    "entry": 17.1,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -246,
+    "cap": 93446
+   },
+   {
+    "date": "2024-03-01",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22500,
+    "entry": 36,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -187,
+    "cap": 93259
+   },
+   {
+    "date": "2024-03-04",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22700,
+    "entry": 35,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -183,
+    "cap": 93076
+   },
+   {
+    "date": "2024-03-05",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22050,
+    "entry": 33,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -176,
+    "cap": 92900
+   },
+   {
+    "date": "2024-03-06",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22500,
+    "entry": 29,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -272,
+    "cap": 92628
+   },
+   {
+    "date": "2024-03-11",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22200,
+    "entry": 32,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -171,
+    "cap": 92457
+   },
+   {
+    "date": "2024-03-13",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21950,
+    "entry": 5.6,
+    "lots": 11,
+    "exit": "SL",
+    "pnl": -286,
+    "cap": 92171
+   },
+   {
+    "date": "2024-03-14",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22200,
+    "entry": 14.4,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -272,
+    "cap": 91899
+   },
+   {
+    "date": "2024-03-15",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21750,
+    "entry": 29.8,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -55,
+    "cap": 91844
+   },
+   {
+    "date": "2024-03-19",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21750,
+    "entry": 36,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -187,
+    "cap": 91657
+   },
+   {
+    "date": "2024-03-21",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22050,
+    "entry": 31.7,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -170,
+    "cap": 91487
+   },
+   {
+    "date": "2024-03-22",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22300,
+    "entry": 35,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -183,
+    "cap": 91304
+   },
+   {
+    "date": "2024-03-26",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21750,
+    "entry": 31,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -168,
+    "cap": 91136
+   },
+   {
+    "date": "2024-03-27",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22250,
+    "entry": 32.5,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -173,
+    "cap": 90963
+   },
+   {
+    "date": "2024-03-28",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22400,
+    "entry": 4,
+    "lots": 15,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 90683
+   },
+   {
+    "date": "2024-04-01",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22700,
+    "entry": 35.4,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -185,
+    "cap": 90498
+   },
+   {
+    "date": "2024-04-04",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22600,
+    "entry": 38,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -195,
+    "cap": 90303
+   },
+   {
+    "date": "2024-04-08",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22750,
+    "entry": 36.6,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -190,
+    "cap": 90113
+   },
+   {
+    "date": "2024-04-10",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22800,
+    "entry": 15.6,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -229,
+    "cap": 89884
+   },
+   {
+    "date": "2024-04-12",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22350,
+    "entry": 33,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -175,
+    "cap": 89709
+   },
+   {
+    "date": "2024-04-15",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22150,
+    "entry": 30.3,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -165,
+    "cap": 89544
+   },
+   {
+    "date": "2024-04-16",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21950,
+    "entry": 30,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -164,
+    "cap": 89380
+   },
+   {
+    "date": "2024-04-18",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21950,
+    "entry": 10.3,
+    "lots": 5,
+    "exit": "SL",
+    "pnl": -247,
+    "cap": 89133
+   },
+   {
+    "date": "2024-04-19",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22300,
+    "entry": 32,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -171,
+    "cap": 88962
+   },
+   {
+    "date": "2024-04-22",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22500,
+    "entry": 35.3,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -184,
+    "cap": 88778
+   },
+   {
+    "date": "2024-04-24",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22550,
+    "entry": 19.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -202,
+    "cap": 88576
+   },
+   {
+    "date": "2024-04-25",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22600,
+    "entry": 3.2,
+    "lots": 18,
+    "exit": "SL",
+    "pnl": -271,
+    "cap": 88305
+   },
+   {
+    "date": "2024-04-26",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22200,
+    "entry": 28.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -272,
+    "cap": 88033
+   },
+   {
+    "date": "2024-04-29",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22800,
+    "entry": 34.9,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -183,
+    "cap": 87850
+   },
+   {
+    "date": "2024-04-30",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22500,
+    "entry": 34,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -179,
+    "cap": 87671
+   },
+   {
+    "date": "2024-05-02",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22750,
+    "entry": 30.5,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -166,
+    "cap": 87505
+   },
+   {
+    "date": "2024-05-03",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22400,
+    "entry": 31.5,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -170,
+    "cap": 87335
+   },
+   {
+    "date": "2024-05-07",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22200,
+    "entry": 24.6,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -54,
+    "cap": 87281
+   },
+   {
+    "date": "2024-05-09",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21900,
+    "entry": 2,
+    "lots": 25,
+    "exit": "SL",
+    "pnl": -241,
+    "cap": 87040
+   },
+   {
+    "date": "2024-05-10",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22450,
+    "entry": 34.4,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -181,
+    "cap": 86859
+   },
+   {
+    "date": "2024-05-13",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22400,
+    "entry": 30.2,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -165,
+    "cap": 86694
+   },
+   {
+    "date": "2024-05-14",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22400,
+    "entry": 26,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -249,
+    "cap": 86445
+   },
+   {
+    "date": "2024-05-16",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22450,
+    "entry": 12,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -234,
+    "cap": 86211
+   },
+   {
+    "date": "2024-05-17",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22800,
+    "entry": 30.1,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -164,
+    "cap": 86047
+   },
+   {
+    "date": "2024-05-21",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22700,
+    "entry": 30.9,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -167,
+    "cap": 85880
+   },
+   {
+    "date": "2024-05-22",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22750,
+    "entry": 22.2,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -220,
+    "cap": 85660
+   },
+   {
+    "date": "2024-05-23",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23000,
+    "entry": 0.9,
+    "lots": 25,
+    "exit": "SL",
+    "pnl": -135,
+    "cap": 85525
+   },
+   {
+    "date": "2024-05-28",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22650,
+    "entry": 35.9,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -186,
+    "cap": 85339
+   },
+   {
+    "date": "2024-05-29",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22600,
+    "entry": 34.5,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -181,
+    "cap": 85158
+   },
+   {
+    "date": "2024-05-30",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22450,
+    "entry": 15,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -222,
+    "cap": 84936
+   },
+   {
+    "date": "2024-05-31",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24200,
+    "entry": 6.3,
+    "lots": 9,
+    "exit": "TARGET",
+    "pnl": 16796,
+    "cap": 101732
+   },
+   {
+    "date": "2024-06-03",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24600,
+    "entry": 34.8,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -182,
+    "cap": 101550
+   },
+   {
+    "date": "2024-06-04",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21850,
+    "entry": 34.6,
+    "lots": 1,
+    "exit": "TARGET",
+    "pnl": 10313,
+    "cap": 111863
+   },
+   {
+    "date": "2024-06-05",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23800,
+    "entry": 36,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -327,
+    "cap": 111536
+   },
+   {
+    "date": "2024-06-06",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23050,
+    "entry": 33,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -303,
+    "cap": 111233
+   },
+   {
+    "date": "2024-06-07",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23400,
+    "entry": 35,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -57,
+    "cap": 111176
+   },
+   {
+    "date": "2024-06-12",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23550,
+    "entry": 24.8,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -239,
+    "cap": 110937
+   },
+   {
+    "date": "2024-06-13",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23550,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 110657
+   },
+   {
+    "date": "2024-06-14",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23700,
+    "entry": 35.2,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -321,
+    "cap": 110336
+   },
+   {
+    "date": "2024-06-18",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23700,
+    "entry": 31.6,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -293,
+    "cap": 110043
+   },
+   {
+    "date": "2024-06-19",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23450,
+    "entry": 32.1,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -297,
+    "cap": 109746
+   },
+   {
+    "date": "2024-06-20",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23650,
+    "entry": 29,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -272,
+    "cap": 109474
+   },
+   {
+    "date": "2024-06-21",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23300,
+    "entry": 38,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -195,
+    "cap": 109279
+   },
+   {
+    "date": "2024-06-24",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23650,
+    "entry": 30.3,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -282,
+    "cap": 108997
+   },
+   {
+    "date": "2024-06-25",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23750,
+    "entry": 35,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -57,
+    "cap": 108940
+   },
+   {
+    "date": "2024-06-26",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23900,
+    "entry": 31.1,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -289,
+    "cap": 108651
+   },
+   {
+    "date": "2024-06-27",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24100,
+    "entry": 5,
+    "lots": 14,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 108332
+   },
+   {
+    "date": "2024-07-01",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24400,
+    "entry": 29.3,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -275,
+    "cap": 108057
+   },
+   {
+    "date": "2024-07-03",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24450,
+    "entry": 25,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -241,
+    "cap": 107816
+   },
+   {
+    "date": "2024-07-09",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24550,
+    "entry": 29.3,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -274,
+    "cap": 107542
+   },
+   {
+    "date": "2024-07-10",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24250,
+    "entry": 18.4,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -261,
+    "cap": 107281
+   },
+   {
+    "date": "2024-07-12",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24650,
+    "entry": 37.9,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -194,
+    "cap": 107087
+   },
+   {
+    "date": "2024-07-15",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24750,
+    "entry": 35.7,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -186,
+    "cap": 106901
+   },
+   {
+    "date": "2024-07-18",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24850,
+    "entry": 2.5,
+    "lots": 25,
+    "exit": "SL",
+    "pnl": -290,
+    "cap": 106611
+   },
+   {
+    "date": "2024-07-19",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24150,
+    "entry": 25.5,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -54,
+    "cap": 106557
+   },
+   {
+    "date": "2024-07-24",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24150,
+    "entry": 29.6,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -278,
+    "cap": 106279
+   },
+   {
+    "date": "2024-07-26",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24900,
+    "entry": 15.9,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -294,
+    "cap": 105985
+   },
+   {
+    "date": "2024-07-31",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25050,
+    "entry": 33.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -307,
+    "cap": 105678
+   },
+   {
+    "date": "2024-08-01",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25100,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 105359
+   },
+   {
+    "date": "2024-08-02",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24400,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 105040
+   },
+   {
+    "date": "2024-08-05",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23800,
+    "entry": 27.9,
+    "lots": 2,
+    "exit": "TARGET",
+    "pnl": 16661,
+    "cap": 121701
+   },
+   {
+    "date": "2024-08-06",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23500,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 121382
+   },
+   {
+    "date": "2024-08-07",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24500,
+    "entry": 34.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -318,
+    "cap": 121064
+   },
+   {
+    "date": "2024-08-08",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24050,
+    "entry": 20,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -358,
+    "cap": 120706
+   },
+   {
+    "date": "2024-08-09",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24750,
+    "entry": 34.8,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -318,
+    "cap": 120388
+   },
+   {
+    "date": "2024-08-13",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24050,
+    "entry": 35.7,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -325,
+    "cap": 120063
+   },
+   {
+    "date": "2024-08-16",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24700,
+    "entry": 35.4,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -322,
+    "cap": 119741
+   },
+   {
+    "date": "2024-08-20",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24800,
+    "entry": 27.8,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -263,
+    "cap": 119478
+   },
+   {
+    "date": "2024-08-21",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24800,
+    "entry": 36,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -327,
+    "cap": 119151
+   },
+   {
+    "date": "2024-08-22",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24900,
+    "entry": 24,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -327,
+    "cap": 118824
+   },
+   {
+    "date": "2024-08-26",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25150,
+    "entry": 35.1,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -320,
+    "cap": 118504
+   },
+   {
+    "date": "2024-08-29",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25200,
+    "entry": 8.7,
+    "lots": 9,
+    "exit": "SL",
+    "pnl": -350,
+    "cap": 118154
+   },
+   {
+    "date": "2024-08-30",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25500,
+    "entry": 37.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -339,
+    "cap": 117815
+   },
+   {
+    "date": "2024-09-02",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25550,
+    "entry": 32.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -300,
+    "cap": 117515
+   },
+   {
+    "date": "2024-09-04",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24950,
+    "entry": 30.4,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -283,
+    "cap": 117232
+   },
+   {
+    "date": "2024-09-05",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 25100,
+    "entry": 19.9,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 116952
+   },
+   {
+    "date": "2024-09-06",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24750,
+    "entry": 34.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -318,
+    "cap": 116634
+   },
+   {
+    "date": "2024-09-09",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25200,
+    "entry": 34.8,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -318,
+    "cap": 116316
+   },
+   {
+    "date": "2024-09-10",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25200,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 116036
+   },
+   {
+    "date": "2024-09-11",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24850,
+    "entry": 25.1,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -339,
+    "cap": 115697
+   },
+   {
+    "date": "2024-09-12",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25450,
+    "entry": 0.9,
+    "lots": 25,
+    "exit": "SL",
+    "pnl": -135,
+    "cap": 115562
+   },
+   {
+    "date": "2024-09-18",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 25200,
+    "entry": 35.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -323,
+    "cap": 115239
+   },
+   {
+    "date": "2024-09-19",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25650,
+    "entry": 31.6,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -293,
+    "cap": 114946
+   },
+   {
+    "date": "2024-09-20",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25850,
+    "entry": 32.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -299,
+    "cap": 114647
+   },
+   {
+    "date": "2024-09-23",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 26100,
+    "entry": 23.4,
+    "lots": 3,
+    "exit": "EOD",
+    "pnl": -57,
+    "cap": 114590
+   },
+   {
+    "date": "2024-09-25",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 26100,
+    "entry": 21.6,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -299,
+    "cap": 114291
+   },
+   {
+    "date": "2024-09-26",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 26250,
+    "entry": 7,
+    "lots": 10,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 113972
+   },
+   {
+    "date": "2024-09-30",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 25750,
+    "entry": 28.3,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -267,
+    "cap": 113705
+   },
+   {
+    "date": "2024-10-03",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 25200,
+    "entry": 4,
+    "lots": 18,
+    "exit": "SL",
+    "pnl": -327,
+    "cap": 113378
+   },
+   {
+    "date": "2024-10-04",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24550,
+    "entry": 33.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -307,
+    "cap": 113071
+   },
+   {
+    "date": "2024-10-07",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24550,
+    "entry": 25,
+    "lots": 3,
+    "exit": "TARGET",
+    "pnl": 22411,
+    "cap": 135482
+   },
+   {
+    "date": "2024-10-08",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25300,
+    "entry": 34.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -318,
+    "cap": 135164
+   },
+   {
+    "date": "2024-10-14",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25300,
+    "entry": 31.2,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -56,
+    "cap": 135108
+   },
+   {
+    "date": "2024-10-15",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24950,
+    "entry": 36.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -334,
+    "cap": 134774
+   },
+   {
+    "date": "2024-10-16",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24850,
+    "entry": 35.4,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -322,
+    "cap": 134452
+   },
+   {
+    "date": "2024-10-17",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24700,
+    "entry": 4,
+    "lots": 22,
+    "exit": "SL",
+    "pnl": -385,
+    "cap": 134067
+   },
+   {
+    "date": "2024-10-18",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25100,
+    "entry": 38,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -342,
+    "cap": 133725
+   },
+   {
+    "date": "2024-10-21",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24600,
+    "entry": 24,
+    "lots": 3,
+    "exit": "EOD",
+    "pnl": -57,
+    "cap": 133668
+   },
+   {
+    "date": "2024-10-22",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24400,
+    "entry": 24.8,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -336,
+    "cap": 133332
+   },
+   {
+    "date": "2024-10-25",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24000,
+    "entry": 34.8,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -318,
+    "cap": 133014
+   },
+   {
+    "date": "2024-10-28",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24600,
+    "entry": 26.5,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -356,
+    "cap": 132658
+   },
+   {
+    "date": "2024-10-29",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24600,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 132378
+   },
+   {
+    "date": "2024-10-30",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24250,
+    "entry": 32,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -296,
+    "cap": 132082
+   },
+   {
+    "date": "2024-10-31",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24150,
+    "entry": 17,
+    "lots": 5,
+    "exit": "SL",
+    "pnl": -377,
+    "cap": 131705
+   },
+   {
+    "date": "2024-11-01",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24850,
+    "entry": 30.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -287,
+    "cap": 131418
+   },
+   {
+    "date": "2024-11-04",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23650,
+    "entry": 37.7,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -340,
+    "cap": 131078
+   },
+   {
+    "date": "2024-11-05",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24450,
+    "entry": 37.2,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -336,
+    "cap": 130742
+   },
+   {
+    "date": "2024-11-06",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24550,
+    "entry": 33,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -303,
+    "cap": 130439
+   },
+   {
+    "date": "2024-11-07",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24150,
+    "entry": 6.8,
+    "lots": 12,
+    "exit": "SL",
+    "pnl": -364,
+    "cap": 130075
+   },
+   {
+    "date": "2024-11-08",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23650,
+    "entry": 33,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -304,
+    "cap": 129771
+   },
+   {
+    "date": "2024-11-12",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23850,
+    "entry": 14.8,
+    "lots": 5,
+    "exit": "SL",
+    "pnl": -334,
+    "cap": 129437
+   },
+   {
+    "date": "2024-11-13",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23500,
+    "entry": 14.9,
+    "lots": 5,
+    "exit": "SL",
+    "pnl": -338,
+    "cap": 129099
+   },
+   {
+    "date": "2024-11-18",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23200,
+    "entry": 29.8,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -278,
+    "cap": 128821
+   },
+   {
+    "date": "2024-11-19",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23700,
+    "entry": 30.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -288,
+    "cap": 128533
+   },
+   {
+    "date": "2024-11-21",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23300,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 128253
+   },
+   {
+    "date": "2024-11-22",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23950,
+    "entry": 21.2,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -377,
+    "cap": 127876
+   },
+   {
+    "date": "2024-11-25",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24650,
+    "entry": 32.3,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -298,
+    "cap": 127578
+   },
+   {
+    "date": "2024-11-27",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24400,
+    "entry": 37.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -339,
+    "cap": 127239
+   },
+   {
+    "date": "2024-11-28",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23850,
+    "entry": 3.7,
+    "lots": 22,
+    "exit": "SL",
+    "pnl": -363,
+    "cap": 126876
+   },
+   {
+    "date": "2024-11-29",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24500,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 126557
+   },
+   {
+    "date": "2024-12-02",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24550,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 126238
+   },
+   {
+    "date": "2024-12-03",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24650,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 125919
+   },
+   {
+    "date": "2024-12-05",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24750,
+    "entry": 21.7,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -300,
+    "cap": 125619
+   },
+   {
+    "date": "2024-12-09",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24150,
+    "entry": 33,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -304,
+    "cap": 125315
+   },
+   {
+    "date": "2024-12-12",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24500,
+    "entry": 22,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -304,
+    "cap": 125011
+   },
+   {
+    "date": "2024-12-13",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 25000,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 124692
+   },
+   {
+    "date": "2024-12-16",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24400,
+    "entry": 36,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -326,
+    "cap": 124366
+   },
+   {
+    "date": "2024-12-17",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24200,
+    "entry": 29.2,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -274,
+    "cap": 124092
+   },
+   {
+    "date": "2024-12-18",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 24100,
+    "entry": 34.1,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -312,
+    "cap": 123780
+   },
+   {
+    "date": "2024-12-19",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23750,
+    "entry": 14.8,
+    "lots": 5,
+    "exit": "SL",
+    "pnl": -335,
+    "cap": 123445
+   },
+   {
+    "date": "2024-12-20",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23350,
+    "entry": 32.4,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -299,
+    "cap": 123146
+   },
+   {
+    "date": "2024-12-23",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24250,
+    "entry": 37.7,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -340,
+    "cap": 122806
+   },
+   {
+    "date": "2024-12-27",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24250,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 122487
+   },
+   {
+    "date": "2024-12-30",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23500,
+    "entry": 32,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -296,
+    "cap": 122191
+   },
+   {
+    "date": "2025-01-01",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23950,
+    "entry": 31.6,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -293,
+    "cap": 121898
+   },
+   {
+    "date": "2025-01-02",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24250,
+    "entry": 2.5,
+    "lots": 25,
+    "exit": "SL",
+    "pnl": -290,
+    "cap": 121608
+   },
+   {
+    "date": "2025-01-03",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23600,
+    "entry": 36,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -327,
+    "cap": 121281
+   },
+   {
+    "date": "2025-01-06",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23550,
+    "entry": 26.6,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -357,
+    "cap": 120924
+   },
+   {
+    "date": "2025-01-07",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24150,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 120605
+   },
+   {
+    "date": "2025-01-09",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23500,
+    "entry": 20.6,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -287,
+    "cap": 120318
+   },
+   {
+    "date": "2025-01-10",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23050,
+    "entry": 33.4,
+    "lots": 2,
+    "exit": "EOD",
+    "pnl": -57,
+    "cap": 120261
+   },
+   {
+    "date": "2025-01-13",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22800,
+    "entry": 34.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -318,
+    "cap": 119943
+   },
+   {
+    "date": "2025-01-14",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23500,
+    "entry": 32.2,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -297,
+    "cap": 119646
+   },
+   {
+    "date": "2025-01-15",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23400,
+    "entry": 33,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -304,
+    "cap": 119342
+   },
+   {
+    "date": "2025-01-16",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23400,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 119062
+   },
+   {
+    "date": "2025-01-17",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22750,
+    "entry": 36.8,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -333,
+    "cap": 118729
+   },
+   {
+    "date": "2025-01-20",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23700,
+    "entry": 26,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -350,
+    "cap": 118379
+   },
+   {
+    "date": "2025-01-21",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22950,
+    "entry": 19.9,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 118099
+   },
+   {
+    "date": "2025-01-22",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23350,
+    "entry": 34.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -315,
+    "cap": 117784
+   },
+   {
+    "date": "2025-01-23",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23250,
+    "entry": 22,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -304,
+    "cap": 117480
+   },
+   {
+    "date": "2025-01-24",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22650,
+    "entry": 21.6,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -299,
+    "cap": 117181
+   },
+   {
+    "date": "2025-01-27",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22500,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 116862
+   },
+   {
+    "date": "2025-01-28",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23300,
+    "entry": 33.3,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -306,
+    "cap": 116556
+   },
+   {
+    "date": "2025-01-29",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23300,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 116237
+   },
+   {
+    "date": "2025-01-30",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23400,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 115957
+   },
+   {
+    "date": "2025-01-31",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 24300,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 115638
+   },
+   {
+    "date": "2025-02-03",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22950,
+    "entry": 31.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -292,
+    "cap": 115346
+   },
+   {
+    "date": "2025-02-04",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23800,
+    "entry": 16.7,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -307,
+    "cap": 115039
+   },
+   {
+    "date": "2025-02-05",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23600,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 114720
+   },
+   {
+    "date": "2025-02-06",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23550,
+    "entry": 15,
+    "lots": 5,
+    "exit": "SL",
+    "pnl": -339,
+    "cap": 114381
+   },
+   {
+    "date": "2025-02-07",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23100,
+    "entry": 32,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -296,
+    "cap": 114085
+   },
+   {
+    "date": "2025-02-10",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23200,
+    "entry": 36.6,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -332,
+    "cap": 113753
+   },
+   {
+    "date": "2025-02-11",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23000,
+    "entry": 22.9,
+    "lots": 3,
+    "exit": "SL",
+    "pnl": -313,
+    "cap": 113440
+   },
+   {
+    "date": "2025-02-14",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22550,
+    "entry": 28.9,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -272,
+    "cap": 113168
+   },
+   {
+    "date": "2025-02-21",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22450,
+    "entry": 33,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -304,
+    "cap": 112864
+   },
+   {
+    "date": "2025-02-24",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22350,
+    "entry": 37,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -335,
+    "cap": 112529
+   },
+   {
+    "date": "2025-02-28",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22050,
+    "entry": 30.6,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -285,
+    "cap": 112244
+   },
+   {
+    "date": "2025-03-04",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 21800,
+    "entry": 32,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -296,
+    "cap": 111948
+   },
+   {
+    "date": "2025-03-05",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22400,
+    "entry": 11,
+    "lots": 6,
+    "exit": "SL",
+    "pnl": -304,
+    "cap": 111644
+   },
+   {
+    "date": "2025-03-06",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22600,
+    "entry": 10.6,
+    "lots": 7,
+    "exit": "SL",
+    "pnl": -334,
+    "cap": 111310
+   },
+   {
+    "date": "2025-03-10",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22250,
+    "entry": 35.5,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -323,
+    "cap": 110987
+   },
+   {
+    "date": "2025-03-11",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22600,
+    "entry": 36.6,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -332,
+    "cap": 110655
+   },
+   {
+    "date": "2025-03-13",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 22350,
+    "entry": 15,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 110375
+   },
+   {
+    "date": "2025-03-17",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22700,
+    "entry": 35,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 110056
+   },
+   {
+    "date": "2025-03-18",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 22900,
+    "entry": 15.9,
+    "lots": 4,
+    "exit": "SL",
+    "pnl": -294,
+    "cap": 109762
+   },
+   {
+    "date": "2025-03-19",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23000,
+    "entry": 33,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -304,
+    "cap": 109458
+   },
+   {
+    "date": "2025-03-20",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23250,
+    "entry": 7,
+    "lots": 10,
+    "exit": "SL",
+    "pnl": -321,
+    "cap": 109137
+   },
+   {
+    "date": "2025-03-21",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23500,
+    "entry": 30,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -280,
+    "cap": 108857
+   },
+   {
+    "date": "2025-03-24",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23700,
+    "entry": 37.5,
+    "lots": 1,
+    "exit": "SL",
+    "pnl": -193,
+    "cap": 108664
+   },
+   {
+    "date": "2025-03-26",
+    "strat": "GAP_BUY",
+    "side": "PE",
+    "strike": 23450,
+    "entry": 32.3,
+    "lots": 2,
+    "exit": "SL",
+    "pnl": -298,
+    "cap": 108366
+   },
+   {
+    "date": "2025-03-27",
+    "strat": "GAP_BUY",
+    "side": "CE",
+    "strike": 23650,
+    "entry": 10,
+    "lots": 7,
+    "exit": "SL",
+    "pnl": -319,
+    "cap": 108047
+   },
    {
     "date": "2025-03-28",
     "strat": "GAP_BUY",
@@ -2842,7 +7953,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -303,
-    "cap": 99697
+    "cap": 107744
    },
    {
     "date": "2025-04-01",
@@ -2853,7 +7964,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -296,
-    "cap": 99401
+    "cap": 107448
    },
    {
     "date": "2025-04-02",
@@ -2864,7 +7975,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -296,
-    "cap": 99105
+    "cap": 107152
    },
    {
     "date": "2025-04-03",
@@ -2875,7 +7986,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -267,
-    "cap": 98838
+    "cap": 106885
    },
    {
     "date": "2025-04-04",
@@ -2883,10 +7994,10 @@
     "side": "PE",
     "strike": 22750,
     "entry": 34.5,
-    "lots": 1,
+    "lots": 2,
     "exit": "EOD",
-    "pnl": -52,
-    "cap": 98786
+    "pnl": -57,
+    "cap": 106828
    },
    {
     "date": "2025-04-07",
@@ -2897,7 +8008,7 @@
     "lots": 2,
     "exit": "TARGET",
     "pnl": 17919,
-    "cap": 116705
+    "cap": 124747
    },
    {
     "date": "2025-04-08",
@@ -2908,7 +8019,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -342,
-    "cap": 116363
+    "cap": 124405
    },
    {
     "date": "2025-04-09",
@@ -2919,7 +8030,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -310,
-    "cap": 116053
+    "cap": 124095
    },
    {
     "date": "2025-04-11",
@@ -2930,7 +8041,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -338,
-    "cap": 115715
+    "cap": 123757
    },
    {
     "date": "2025-04-15",
@@ -2941,7 +8052,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -342,
-    "cap": 115373
+    "cap": 123415
    },
    {
     "date": "2025-04-16",
@@ -2952,7 +8063,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -337,
-    "cap": 115036
+    "cap": 123078
    },
    {
     "date": "2025-04-17",
@@ -2963,7 +8074,7 @@
     "lots": 25,
     "exit": "SL",
     "pnl": -285,
-    "cap": 114751
+    "cap": 122793
    },
    {
     "date": "2025-04-21",
@@ -2974,7 +8085,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -298,
-    "cap": 114453
+    "cap": 122495
    },
    {
     "date": "2025-04-22",
@@ -2985,7 +8096,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -342,
-    "cap": 114111
+    "cap": 122153
    },
    {
     "date": "2025-04-23",
@@ -2996,7 +8107,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -296,
-    "cap": 113815
+    "cap": 121857
    },
    {
     "date": "2025-04-24",
@@ -3007,7 +8118,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -292,
-    "cap": 113523
+    "cap": 121565
    },
    {
     "date": "2025-04-25",
@@ -3018,7 +8129,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 113204
+    "cap": 121246
    },
    {
     "date": "2025-04-28",
@@ -3026,10 +8137,10 @@
     "side": "CE",
     "strike": 24500,
     "entry": 38,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -195,
-    "cap": 113009
+    "pnl": -342,
+    "cap": 120904
    },
    {
     "date": "2025-05-05",
@@ -3040,7 +8151,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -281,
-    "cap": 112728
+    "cap": 120623
    },
    {
     "date": "2025-05-06",
@@ -3051,7 +8162,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -327,
-    "cap": 112401
+    "cap": 120296
    },
    {
     "date": "2025-05-08",
@@ -3062,7 +8173,7 @@
     "lots": 6,
     "exit": "SL",
     "pnl": -323,
-    "cap": 112078
+    "cap": 119973
    },
    {
     "date": "2025-05-09",
@@ -3073,7 +8184,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 111759
+    "cap": 119654
    },
    {
     "date": "2025-05-12",
@@ -3084,7 +8195,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -327,
-    "cap": 111432
+    "cap": 119327
    },
    {
     "date": "2025-05-13",
@@ -3095,7 +8206,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -335,
-    "cap": 111097
+    "cap": 118992
    },
    {
     "date": "2025-05-14",
@@ -3106,7 +8217,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 110778
+    "cap": 118673
    },
    {
     "date": "2025-05-15",
@@ -3117,7 +8228,7 @@
     "lots": 25,
     "exit": "SL",
     "pnl": -329,
-    "cap": 110449
+    "cap": 118344
    },
    {
     "date": "2025-05-16",
@@ -3128,7 +8239,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -279,
-    "cap": 110170
+    "cap": 118065
    },
    {
     "date": "2025-05-19",
@@ -3136,10 +8247,10 @@
     "side": "PE",
     "strike": 24450,
     "entry": 37,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -191,
-    "cap": 109979
+    "pnl": -335,
+    "cap": 117730
    },
    {
     "date": "2025-05-20",
@@ -3150,7 +8261,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 109660
+    "cap": 117411
    },
    {
     "date": "2025-05-21",
@@ -3161,7 +8272,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -311,
-    "cap": 109349
+    "cap": 117100
    },
    {
     "date": "2025-05-22",
@@ -3172,7 +8283,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -298,
-    "cap": 109051
+    "cap": 116802
    },
    {
     "date": "2025-05-23",
@@ -3183,7 +8294,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -298,
-    "cap": 108753
+    "cap": 116504
    },
    {
     "date": "2025-05-26",
@@ -3194,7 +8305,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -57,
-    "cap": 108696
+    "cap": 116447
    },
    {
     "date": "2025-05-27",
@@ -3205,7 +8316,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -327,
-    "cap": 108369
+    "cap": 116120
    },
    {
     "date": "2025-05-28",
@@ -3216,7 +8327,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -311,
-    "cap": 108058
+    "cap": 115809
    },
    {
     "date": "2025-05-29",
@@ -3227,7 +8338,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -322,
-    "cap": 107736
+    "cap": 115487
    },
    {
     "date": "2025-05-30",
@@ -3235,10 +8346,10 @@
     "side": "PE",
     "strike": 24300,
     "entry": 36.3,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -188,
-    "cap": 107548
+    "pnl": -329,
+    "cap": 115158
    },
    {
     "date": "2025-06-03",
@@ -3246,10 +8357,10 @@
     "side": "PE",
     "strike": 24150,
     "entry": 36.4,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -188,
-    "cap": 107360
+    "pnl": -330,
+    "cap": 114828
    },
    {
     "date": "2025-06-04",
@@ -3257,10 +8368,10 @@
     "side": "CE",
     "strike": 24950,
     "entry": 37,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -191,
-    "cap": 107169
+    "pnl": -335,
+    "cap": 114493
    },
    {
     "date": "2025-06-05",
@@ -3271,7 +8382,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -294,
-    "cap": 106875
+    "cap": 114199
    },
    {
     "date": "2025-06-06",
@@ -3282,7 +8393,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -315,
-    "cap": 106560
+    "cap": 113884
    },
    {
     "date": "2025-06-09",
@@ -3293,7 +8404,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 106241
+    "cap": 113565
    },
    {
     "date": "2025-06-12",
@@ -3301,10 +8412,10 @@
     "side": "PE",
     "strike": 24850,
     "entry": 8,
-    "lots": 8,
+    "lots": 9,
     "exit": "SL",
-    "pnl": -296,
-    "cap": 105945
+    "pnl": -327,
+    "cap": 113238
    },
    {
     "date": "2025-06-13",
@@ -3315,7 +8426,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -311,
-    "cap": 105634
+    "cap": 112927
    },
    {
     "date": "2025-06-16",
@@ -3326,7 +8437,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -273,
-    "cap": 105361
+    "cap": 112654
    },
    {
     "date": "2025-06-17",
@@ -3337,7 +8448,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -194,
-    "cap": 105167
+    "cap": 112460
    },
    {
     "date": "2025-06-18",
@@ -3345,10 +8456,10 @@
     "side": "PE",
     "strike": 24550,
     "entry": 35.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -186,
-    "cap": 104981
+    "pnl": -325,
+    "cap": 112135
    },
    {
     "date": "2025-06-20",
@@ -3359,7 +8470,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -306,
-    "cap": 104675
+    "cap": 111829
    },
    {
     "date": "2025-06-23",
@@ -3367,10 +8478,10 @@
     "side": "PE",
     "strike": 24350,
     "entry": 35,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -183,
-    "cap": 104492
+    "pnl": -319,
+    "cap": 111510
    },
    {
     "date": "2025-06-24",
@@ -3378,10 +8489,10 @@
     "side": "CE",
     "strike": 25400,
     "entry": 35,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -183,
-    "cap": 104309
+    "pnl": -319,
+    "cap": 111191
    },
    {
     "date": "2025-06-25",
@@ -3392,7 +8503,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -280,
-    "cap": 104029
+    "cap": 110911
    },
    {
     "date": "2025-06-26",
@@ -3400,10 +8511,10 @@
     "side": "CE",
     "strike": 25600,
     "entry": 3.4,
-    "lots": 20,
+    "lots": 21,
     "exit": "SL",
-    "pnl": -311,
-    "cap": 103718
+    "pnl": -325,
+    "cap": 110586
    },
    {
     "date": "2025-06-27",
@@ -3414,7 +8525,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -293,
-    "cap": 103425
+    "cap": 110293
    },
    {
     "date": "2025-06-30",
@@ -3425,7 +8536,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -272,
-    "cap": 103153
+    "cap": 110021
    },
    {
     "date": "2025-07-02",
@@ -3433,10 +8544,10 @@
     "side": "PE",
     "strike": 25400,
     "entry": 23.9,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -232,
-    "cap": 102921
+    "pnl": -325,
+    "cap": 109696
    },
    {
     "date": "2025-07-03",
@@ -3444,10 +8555,10 @@
     "side": "PE",
     "strike": 25350,
     "entry": 14,
-    "lots": 4,
+    "lots": 5,
     "exit": "SL",
-    "pnl": -265,
-    "cap": 102656
+    "pnl": -319,
+    "cap": 109377
    },
    {
     "date": "2025-07-04",
@@ -3458,7 +8569,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -282,
-    "cap": 102374
+    "cap": 109095
    },
    {
     "date": "2025-07-08",
@@ -3469,7 +8580,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -311,
-    "cap": 102063
+    "cap": 108784
    },
    {
     "date": "2025-07-09",
@@ -3480,7 +8591,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -304,
-    "cap": 101759
+    "cap": 108480
    },
    {
     "date": "2025-07-10",
@@ -3488,10 +8599,10 @@
     "side": "PE",
     "strike": 25300,
     "entry": 9,
-    "lots": 7,
+    "lots": 8,
     "exit": "SL",
-    "pnl": -292,
-    "cap": 101467
+    "pnl": -327,
+    "cap": 108153
    },
    {
     "date": "2025-07-11",
@@ -3502,7 +8613,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -257,
-    "cap": 101210
+    "cap": 107896
    },
    {
     "date": "2025-07-14",
@@ -3513,7 +8624,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -272,
-    "cap": 100938
+    "cap": 107624
    },
    {
     "date": "2025-07-15",
@@ -3521,10 +8632,10 @@
     "side": "CE",
     "strike": 25300,
     "entry": 34.8,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -182,
-    "cap": 100756
+    "pnl": -317,
+    "cap": 107307
    },
    {
     "date": "2025-07-17",
@@ -3532,10 +8643,10 @@
     "side": "PE",
     "strike": 25050,
     "entry": 6.5,
-    "lots": 10,
+    "lots": 11,
     "exit": "SL",
-    "pnl": -300,
-    "cap": 100456
+    "pnl": -325,
+    "cap": 106982
    },
    {
     "date": "2025-07-18",
@@ -3546,7 +8657,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -280,
-    "cap": 100176
+    "cap": 106702
    },
    {
     "date": "2025-07-21",
@@ -3557,7 +8668,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -187,
-    "cap": 99989
+    "cap": 106515
    },
    {
     "date": "2025-07-23",
@@ -3568,7 +8679,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -266,
-    "cap": 99723
+    "cap": 106249
    },
    {
     "date": "2025-07-24",
@@ -3576,10 +8687,10 @@
     "side": "PE",
     "strike": 25000,
     "entry": 5,
-    "lots": 13,
+    "lots": 14,
     "exit": "SL",
-    "pnl": -300,
-    "cap": 99423
+    "pnl": -319,
+    "cap": 105930
    },
    {
     "date": "2025-07-25",
@@ -3590,7 +8701,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -187,
-    "cap": 99236
+    "cap": 105743
    },
    {
     "date": "2025-07-28",
@@ -3601,7 +8712,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -293,
-    "cap": 98943
+    "cap": 105450
    },
    {
     "date": "2025-07-29",
@@ -3612,7 +8723,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -184,
-    "cap": 98759
+    "cap": 105266
    },
    {
     "date": "2025-07-31",
@@ -3620,10 +8731,10 @@
     "side": "PE",
     "strike": 24550,
     "entry": 22.6,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -222,
-    "cap": 98537
+    "pnl": -310,
+    "cap": 104956
    },
    {
     "date": "2025-08-01",
@@ -3634,7 +8745,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -185,
-    "cap": 98352
+    "cap": 104771
    },
    {
     "date": "2025-08-04",
@@ -3642,10 +8753,10 @@
     "side": "CE",
     "strike": 24950,
     "entry": 33,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -175,
-    "cap": 98177
+    "pnl": -304,
+    "cap": 104467
    },
    {
     "date": "2025-08-05",
@@ -3656,7 +8767,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -283,
-    "cap": 97894
+    "cap": 104184
    },
    {
     "date": "2025-08-06",
@@ -3667,7 +8778,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -191,
-    "cap": 97703
+    "cap": 103993
    },
    {
     "date": "2025-08-08",
@@ -3678,7 +8789,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -280,
-    "cap": 97423
+    "cap": 103713
    },
    {
     "date": "2025-08-11",
@@ -3689,7 +8800,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -293,
-    "cap": 97130
+    "cap": 103420
    },
    {
     "date": "2025-08-12",
@@ -3700,7 +8811,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -184,
-    "cap": 96946
+    "cap": 103236
    },
    {
     "date": "2025-08-13",
@@ -3711,7 +8822,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -292,
-    "cap": 96654
+    "cap": 102944
    },
    {
     "date": "2025-08-18",
@@ -3719,10 +8830,10 @@
     "side": "CE",
     "strike": 25250,
     "entry": 33.4,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -177,
-    "cap": 96477
+    "pnl": -306,
+    "cap": 102638
    },
    {
     "date": "2025-08-19",
@@ -3733,7 +8844,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -288,
-    "cap": 96189
+    "cap": 102350
    },
    {
     "date": "2025-08-20",
@@ -3741,10 +8852,10 @@
     "side": "CE",
     "strike": 25100,
     "entry": 33.9,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -179,
-    "cap": 96010
+    "pnl": -311,
+    "cap": 102039
    },
    {
     "date": "2025-08-22",
@@ -3755,7 +8866,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -183,
-    "cap": 95827
+    "cap": 101856
    },
    {
     "date": "2025-08-25",
@@ -3766,7 +8877,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -187,
-    "cap": 95640
+    "cap": 101669
    },
    {
     "date": "2025-08-26",
@@ -3774,10 +8885,10 @@
     "side": "PE",
     "strike": 24650,
     "entry": 9.4,
-    "lots": 6,
+    "lots": 7,
     "exit": "SL",
-    "pnl": -267,
-    "cap": 95373
+    "pnl": -304,
+    "cap": 101365
    },
    {
     "date": "2025-08-28",
@@ -3788,7 +8899,7 @@
     "lots": 6,
     "exit": "SL",
     "pnl": -273,
-    "cap": 95100
+    "cap": 101092
    },
    {
     "date": "2025-08-29",
@@ -3799,7 +8910,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -288,
-    "cap": 94812
+    "cap": 100804
    },
    {
     "date": "2025-09-01",
@@ -3810,7 +8921,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -279,
-    "cap": 94533
+    "cap": 100525
    },
    {
     "date": "2025-09-02",
@@ -3821,7 +8932,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -245,
-    "cap": 94288
+    "cap": 100280
    },
    {
     "date": "2025-09-03",
@@ -3832,7 +8943,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -191,
-    "cap": 94097
+    "cap": 100089
    },
    {
     "date": "2025-09-09",
@@ -3843,7 +8954,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -288,
-    "cap": 93809
+    "cap": 99801
    },
    {
     "date": "2025-09-10",
@@ -3854,7 +8965,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -193,
-    "cap": 93616
+    "cap": 99608
    },
    {
     "date": "2025-09-12",
@@ -3865,7 +8976,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -183,
-    "cap": 93433
+    "cap": 99425
    },
    {
     "date": "2025-09-15",
@@ -3876,7 +8987,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -241,
-    "cap": 93192
+    "cap": 99184
    },
    {
     "date": "2025-09-16",
@@ -3884,10 +8995,10 @@
     "side": "CE",
     "strike": 25300,
     "entry": 2.6,
-    "lots": 23,
+    "lots": 25,
     "exit": "SL",
-    "pnl": -279,
-    "cap": 92913
+    "pnl": -300,
+    "cap": 98884
    },
    {
     "date": "2025-09-17",
@@ -3898,7 +9009,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -280,
-    "cap": 92633
+    "cap": 98604
    },
    {
     "date": "2025-09-18",
@@ -3909,7 +9020,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -258,
-    "cap": 92375
+    "cap": 98346
    },
    {
     "date": "2025-09-19",
@@ -3920,7 +9031,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -55,
-    "cap": 92320
+    "cap": 98291
    },
    {
     "date": "2025-09-22",
@@ -3928,10 +9039,10 @@
     "side": "PE",
     "strike": 25150,
     "entry": 21.1,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -211,
-    "cap": 92109
+    "pnl": -293,
+    "cap": 97998
    },
    {
     "date": "2025-09-24",
@@ -3942,7 +9053,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -194,
-    "cap": 91915
+    "cap": 97804
    },
    {
     "date": "2025-09-25",
@@ -3953,7 +9064,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -281,
-    "cap": 91634
+    "cap": 97523
    },
    {
     "date": "2025-09-26",
@@ -3961,10 +9072,10 @@
     "side": "PE",
     "strike": 24600,
     "entry": 15.6,
-    "lots": 3,
+    "lots": 4,
     "exit": "EOD",
-    "pnl": -54,
-    "cap": 91580
+    "pnl": -56,
+    "cap": 97467
    },
    {
     "date": "2025-10-01",
@@ -3975,7 +9086,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -178,
-    "cap": 91402
+    "cap": 97289
    },
    {
     "date": "2025-10-03",
@@ -3986,7 +9097,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -195,
-    "cap": 91207
+    "cap": 97094
    },
    {
     "date": "2025-10-06",
@@ -3997,7 +9108,7 @@
     "lots": 10,
     "exit": "SL",
     "pnl": -278,
-    "cap": 90929
+    "cap": 96816
    },
    {
     "date": "2025-10-08",
@@ -4008,7 +9119,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -175,
-    "cap": 90754
+    "cap": 96641
    },
    {
     "date": "2025-10-09",
@@ -4019,7 +9130,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -184,
-    "cap": 90570
+    "cap": 96457
    },
    {
     "date": "2025-10-10",
@@ -4030,7 +9141,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -178,
-    "cap": 90392
+    "cap": 96279
    },
    {
     "date": "2025-10-13",
@@ -4041,7 +9152,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -216,
-    "cap": 90176
+    "cap": 96063
    },
    {
     "date": "2025-10-14",
@@ -4052,7 +9163,7 @@
     "lots": 5,
     "exit": "SL",
     "pnl": -271,
-    "cap": 89905
+    "cap": 95792
    },
    {
     "date": "2025-10-15",
@@ -4060,10 +9171,10 @@
     "side": "CE",
     "strike": 25500,
     "entry": 30.6,
-    "lots": 1,
+    "lots": 2,
     "exit": "EOD",
-    "pnl": -51,
-    "cap": 89854
+    "pnl": -56,
+    "cap": 95736
    },
    {
     "date": "2025-10-16",
@@ -4074,7 +9185,7 @@
     "lots": 3,
     "exit": "EOD",
     "pnl": -55,
-    "cap": 89799
+    "cap": 95681
    },
    {
     "date": "2025-10-17",
@@ -4085,7 +9196,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -279,
-    "cap": 89520
+    "cap": 95402
    },
    {
     "date": "2025-10-20",
@@ -4093,10 +9204,10 @@
     "side": "CE",
     "strike": 25900,
     "entry": 30.1,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -164,
-    "cap": 89356
+    "pnl": -281,
+    "cap": 95121
    },
    {
     "date": "2025-10-24",
@@ -4107,7 +9218,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -278,
-    "cap": 89078
+    "cap": 94843
    },
    {
     "date": "2025-10-27",
@@ -4118,7 +9229,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -54,
-    "cap": 89024
+    "cap": 94789
    },
    {
     "date": "2025-10-29",
@@ -4129,7 +9240,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -183,
-    "cap": 88841
+    "cap": 94606
    },
    {
     "date": "2025-10-30",
@@ -4140,7 +9251,7 @@
     "lots": 1,
     "exit": "EOD",
     "pnl": -52,
-    "cap": 88789
+    "cap": 94554
    },
    {
     "date": "2025-10-31",
@@ -4148,10 +9259,10 @@
     "side": "PE",
     "strike": 25650,
     "entry": 31.2,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -168,
-    "cap": 88621
+    "pnl": -290,
+    "cap": 94264
    },
    {
     "date": "2025-11-03",
@@ -4159,10 +9270,10 @@
     "side": "CE",
     "strike": 26000,
     "entry": 29.9,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -163,
-    "cap": 88458
+    "pnl": -279,
+    "cap": 93985
    },
    {
     "date": "2025-11-04",
@@ -4170,10 +9281,10 @@
     "side": "PE",
     "strike": 25550,
     "entry": 10,
-    "lots": 5,
+    "lots": 6,
     "exit": "SL",
-    "pnl": -241,
-    "cap": 88217
+    "pnl": -280,
+    "cap": 93705
    },
    {
     "date": "2025-11-06",
@@ -4184,7 +9295,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -173,
-    "cap": 88044
+    "cap": 93532
    },
    {
     "date": "2025-11-10",
@@ -4195,7 +9306,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -248,
-    "cap": 87796
+    "cap": 93284
    },
    {
     "date": "2025-11-11",
@@ -4206,7 +9317,7 @@
     "lots": 4,
     "exit": "SL",
     "pnl": -273,
-    "cap": 87523
+    "cap": 93011
    },
    {
     "date": "2025-11-12",
@@ -4217,7 +9328,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -187,
-    "cap": 87336
+    "cap": 92824
    },
    {
     "date": "2025-11-17",
@@ -4228,7 +9339,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -174,
-    "cap": 87162
+    "cap": 92650
    },
    {
     "date": "2025-11-18",
@@ -4239,7 +9350,7 @@
     "lots": 5,
     "exit": "SL",
     "pnl": -261,
-    "cap": 86901
+    "cap": 92389
    },
    {
     "date": "2025-11-19",
@@ -4250,7 +9361,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -191,
-    "cap": 86710
+    "cap": 92198
    },
    {
     "date": "2025-11-20",
@@ -4261,7 +9372,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -194,
-    "cap": 86516
+    "cap": 92004
    },
    {
     "date": "2025-11-21",
@@ -4272,7 +9383,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -182,
-    "cap": 86334
+    "cap": 91822
    },
    {
     "date": "2025-11-24",
@@ -4283,7 +9394,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -262,
-    "cap": 86072
+    "cap": 91560
    },
    {
     "date": "2025-11-25",
@@ -4294,7 +9405,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -267,
-    "cap": 85805
+    "cap": 91293
    },
    {
     "date": "2025-11-26",
@@ -4305,7 +9416,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -168,
-    "cap": 85637
+    "cap": 91125
    },
    {
     "date": "2025-12-02",
@@ -4313,10 +9424,10 @@
     "side": "PE",
     "strike": 26000,
     "entry": 20,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -203,
-    "cap": 85434
+    "pnl": -280,
+    "cap": 90845
    },
    {
     "date": "2025-12-03",
@@ -4327,7 +9438,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -179,
-    "cap": 85255
+    "cap": 90666
    },
    {
     "date": "2025-12-04",
@@ -4338,7 +9449,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -167,
-    "cap": 85088
+    "cap": 90499
    },
    {
     "date": "2025-12-05",
@@ -4349,7 +9460,7 @@
     "lots": 1,
     "exit": "SL",
     "pnl": -189,
-    "cap": 84899
+    "cap": 90310
    },
    {
     "date": "2025-12-08",
@@ -4360,7 +9471,7 @@
     "lots": 8,
     "exit": "TARGET",
     "pnl": 16482,
-    "cap": 101381
+    "cap": 106792
    },
    {
     "date": "2025-12-09",
@@ -4371,7 +9482,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -303,
-    "cap": 101078
+    "cap": 106489
    },
    {
     "date": "2025-12-10",
@@ -4382,7 +9493,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -304,
-    "cap": 100774
+    "cap": 106185
    },
    {
     "date": "2025-12-11",
@@ -4390,10 +9501,10 @@
     "side": "CE",
     "strike": 26100,
     "entry": 33.9,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -179,
-    "cap": 100595
+    "pnl": -311,
+    "cap": 105874
    },
    {
     "date": "2025-12-12",
@@ -4404,7 +9515,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -54,
-    "cap": 100541
+    "cap": 105820
    },
    {
     "date": "2025-12-16",
@@ -4415,7 +9526,7 @@
     "lots": 5,
     "exit": "SL",
     "pnl": -280,
-    "cap": 100261
+    "cap": 105540
    },
    {
     "date": "2025-12-17",
@@ -4423,10 +9534,10 @@
     "side": "PE",
     "strike": 25600,
     "entry": 35,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -183,
-    "cap": 100078
+    "pnl": -319,
+    "cap": 105221
    },
    {
     "date": "2025-12-19",
@@ -4434,10 +9545,10 @@
     "side": "CE",
     "strike": 26050,
     "entry": 34,
-    "lots": 1,
+    "lots": 2,
     "exit": "SL",
-    "pnl": -179,
-    "cap": 99899
+    "pnl": -311,
+    "cap": 104910
    },
    {
     "date": "2025-12-22",
@@ -4448,7 +9559,7 @@
     "lots": 4,
     "exit": "EOD",
     "pnl": -55,
-    "cap": 99844
+    "cap": 104855
    },
    {
     "date": "2025-12-26",
@@ -4459,7 +9570,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -265,
-    "cap": 99579
+    "cap": 104590
    },
    {
     "date": "2025-12-29",
@@ -4467,10 +9578,10 @@
     "side": "PE",
     "strike": 25900,
     "entry": 13.9,
-    "lots": 4,
+    "lots": 5,
     "exit": "SL",
-    "pnl": -263,
-    "cap": 99316
+    "pnl": -317,
+    "cap": 104273
    },
    {
     "date": "2025-12-31",
@@ -4481,7 +9592,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -279,
-    "cap": 99037
+    "cap": 103994
    },
    {
     "date": "2026-01-02",
@@ -4489,10 +9600,10 @@
     "side": "CE",
     "strike": 26400,
     "entry": 9.9,
-    "lots": 6,
+    "lots": 7,
     "exit": "SL",
-    "pnl": -278,
-    "cap": 98759
+    "pnl": -316,
+    "cap": 103678
    },
    {
     "date": "2026-01-05",
@@ -4503,7 +9614,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -252,
-    "cap": 98507
+    "cap": 103426
    },
    {
     "date": "2026-01-06",
@@ -4511,10 +9622,10 @@
     "side": "PE",
     "strike": 26150,
     "entry": 22.8,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -224,
-    "cap": 98283
+    "pnl": -313,
+    "cap": 103113
    },
    {
     "date": "2026-01-08",
@@ -4525,7 +9636,7 @@
     "lots": 4,
     "exit": "TARGET",
     "pnl": 18638,
-    "cap": 116921
+    "cap": 121751
    },
    {
     "date": "2026-01-09",
@@ -4536,7 +9647,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -343,
-    "cap": 116578
+    "cap": 121408
    },
    {
     "date": "2026-01-12",
@@ -4547,7 +9658,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -339,
-    "cap": 116239
+    "cap": 121069
    },
    {
     "date": "2026-01-13",
@@ -4555,10 +9666,10 @@
     "side": "PE",
     "strike": 25700,
     "entry": 11.4,
-    "lots": 6,
+    "lots": 7,
     "exit": "SL",
-    "pnl": -314,
-    "cap": 115925
+    "pnl": -359,
+    "cap": 120710
    },
    {
     "date": "2026-01-14",
@@ -4569,7 +9680,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 115606
+    "cap": 120391
    },
    {
     "date": "2026-01-19",
@@ -4580,7 +9691,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 115287
+    "cap": 120072
    },
    {
     "date": "2026-01-20",
@@ -4591,7 +9702,7 @@
     "lots": 25,
     "exit": "SL",
     "pnl": -295,
-    "cap": 114992
+    "cap": 119777
    },
    {
     "date": "2026-01-21",
@@ -4602,7 +9713,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -342,
-    "cap": 114650
+    "cap": 119435
    },
    {
     "date": "2026-01-22",
@@ -4613,7 +9724,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -269,
-    "cap": 114381
+    "cap": 119166
    },
    {
     "date": "2026-01-23",
@@ -4624,7 +9735,7 @@
     "lots": 4,
     "exit": "TARGET",
     "pnl": 20314,
-    "cap": 134695
+    "cap": 139480
    },
    {
     "date": "2026-01-27",
@@ -4635,7 +9746,7 @@
     "lots": 4,
     "exit": "SL",
     "pnl": -373,
-    "cap": 134322
+    "cap": 139107
    },
    {
     "date": "2026-01-28",
@@ -4646,7 +9757,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -314,
-    "cap": 134008
+    "cap": 138793
    },
    {
     "date": "2026-01-29",
@@ -4657,7 +9768,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -334,
-    "cap": 133674
+    "cap": 138459
    },
    {
     "date": "2026-01-30",
@@ -4668,7 +9779,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -342,
-    "cap": 133332
+    "cap": 138117
    },
    {
     "date": "2026-02-02",
@@ -4679,7 +9790,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -378,
-    "cap": 132954
+    "cap": 137739
    },
    {
     "date": "2026-02-03",
@@ -4690,7 +9801,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -299,
-    "cap": 132655
+    "cap": 137440
    },
    {
     "date": "2026-02-04",
@@ -4698,10 +9809,10 @@
     "side": "CE",
     "strike": 26300,
     "entry": 30.1,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -281,
-    "cap": 132374
+    "pnl": -399,
+    "cap": 137041
    },
    {
     "date": "2026-02-05",
@@ -4709,10 +9820,10 @@
     "side": "PE",
     "strike": 25300,
     "entry": 30.1,
-    "lots": 2,
+    "lots": 3,
     "exit": "EOD",
-    "pnl": -56,
-    "cap": 132318
+    "pnl": -60,
+    "cap": 136981
    },
    {
     "date": "2026-02-06",
@@ -4723,7 +9834,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -368,
-    "cap": 131950
+    "cap": 136613
    },
    {
     "date": "2026-02-09",
@@ -4731,10 +9842,10 @@
     "side": "CE",
     "strike": 26100,
     "entry": 29.9,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -280,
-    "cap": 131670
+    "pnl": -396,
+    "cap": 136217
    },
    {
     "date": "2026-02-10",
@@ -4745,7 +9856,7 @@
     "lots": 4,
     "exit": "SL",
     "pnl": -360,
-    "cap": 131310
+    "cap": 135857
    },
    {
     "date": "2026-02-12",
@@ -4756,7 +9867,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -316,
-    "cap": 130994
+    "cap": 135541
    },
    {
     "date": "2026-02-13",
@@ -4767,7 +9878,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -309,
-    "cap": 130685
+    "cap": 135232
    },
    {
     "date": "2026-02-16",
@@ -4775,10 +9886,10 @@
     "side": "CE",
     "strike": 25750,
     "entry": 29.6,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -277,
-    "cap": 130408
+    "pnl": -392,
+    "cap": 134840
    },
    {
     "date": "2026-02-17",
@@ -4789,7 +9900,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -334,
-    "cap": 130074
+    "cap": 134506
    },
    {
     "date": "2026-02-18",
@@ -4800,7 +9911,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -308,
-    "cap": 129766
+    "cap": 134198
    },
    {
     "date": "2026-02-19",
@@ -4811,7 +9922,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -380,
-    "cap": 129386
+    "cap": 133818
    },
    {
     "date": "2026-02-20",
@@ -4822,7 +9933,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -309,
-    "cap": 129077
+    "cap": 133509
    },
    {
     "date": "2026-02-23",
@@ -4833,7 +9944,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -315,
-    "cap": 128762
+    "cap": 133194
    },
    {
     "date": "2026-02-24",
@@ -4844,7 +9955,7 @@
     "lots": 5,
     "exit": "SL",
     "pnl": -378,
-    "cap": 128384
+    "cap": 132816
    },
    {
     "date": "2026-02-25",
@@ -4855,7 +9966,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -320,
-    "cap": 128064
+    "cap": 132496
    },
    {
     "date": "2026-02-27",
@@ -4866,7 +9977,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -282,
-    "cap": 127782
+    "cap": 132214
    },
    {
     "date": "2026-03-02",
@@ -4874,10 +9985,10 @@
     "side": "PE",
     "strike": 24600,
     "entry": 29,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -272,
-    "cap": 127510
+    "pnl": -385,
+    "cap": 131829
    },
    {
     "date": "2026-03-04",
@@ -4888,7 +9999,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -56,
-    "cap": 127454
+    "cap": 131773
    },
    {
     "date": "2026-03-05",
@@ -4899,7 +10010,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -329,
-    "cap": 127125
+    "cap": 131444
    },
    {
     "date": "2026-03-06",
@@ -4910,7 +10021,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -342,
-    "cap": 126783
+    "cap": 131102
    },
    {
     "date": "2026-03-09",
@@ -4921,7 +10032,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -302,
-    "cap": 126481
+    "cap": 130800
    },
    {
     "date": "2026-03-10",
@@ -4932,7 +10043,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -373,
-    "cap": 126108
+    "cap": 130427
    },
    {
     "date": "2026-03-11",
@@ -4943,7 +10054,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -327,
-    "cap": 125781
+    "cap": 130100
    },
    {
     "date": "2026-03-12",
@@ -4954,7 +10065,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 125462
+    "cap": 129781
    },
    {
     "date": "2026-03-13",
@@ -4965,7 +10076,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -57,
-    "cap": 125405
+    "cap": 129724
    },
    {
     "date": "2026-03-16",
@@ -4976,7 +10087,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -320,
-    "cap": 125085
+    "cap": 129404
    },
    {
     "date": "2026-03-17",
@@ -4987,7 +10098,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -324,
-    "cap": 124761
+    "cap": 129080
    },
    {
     "date": "2026-03-18",
@@ -4998,7 +10109,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -312,
-    "cap": 124449
+    "cap": 128768
    },
    {
     "date": "2026-03-19",
@@ -5009,7 +10120,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -320,
-    "cap": 124129
+    "cap": 128448
    },
    {
     "date": "2026-03-20",
@@ -5020,7 +10131,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -280,
-    "cap": 123849
+    "cap": 128168
    },
    {
     "date": "2026-03-23",
@@ -5031,7 +10142,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -307,
-    "cap": 123542
+    "cap": 127861
    },
    {
     "date": "2026-03-24",
@@ -5042,7 +10153,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -333,
-    "cap": 123209
+    "cap": 127528
    },
    {
     "date": "2026-03-25",
@@ -5053,7 +10164,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -56,
-    "cap": 123153
+    "cap": 127472
    },
    {
     "date": "2026-03-27",
@@ -5064,7 +10175,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -335,
-    "cap": 122818
+    "cap": 127137
    },
    {
     "date": "2026-03-30",
@@ -5075,7 +10186,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -344,
-    "cap": 122474
+    "cap": 126793
    },
    {
     "date": "2026-04-01",
@@ -5086,7 +10197,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -294,
-    "cap": 122180
+    "cap": 126499
    },
    {
     "date": "2026-04-06",
@@ -5097,7 +10208,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -279,
-    "cap": 121901
+    "cap": 126220
    },
    {
     "date": "2026-04-07",
@@ -5108,7 +10219,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -309,
-    "cap": 121592
+    "cap": 125911
    },
    {
     "date": "2026-04-08",
@@ -5119,7 +10230,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -56,
-    "cap": 121536
+    "cap": 125855
    },
    {
     "date": "2026-04-09",
@@ -5130,7 +10241,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 121217
+    "cap": 125536
    },
    {
     "date": "2026-04-10",
@@ -5141,7 +10252,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -296,
-    "cap": 120921
+    "cap": 125240
    },
    {
     "date": "2026-04-13",
@@ -5152,7 +10263,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -327,
-    "cap": 120594
+    "cap": 124913
    },
    {
     "date": "2026-04-15",
@@ -5163,7 +10274,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -318,
-    "cap": 120276
+    "cap": 124595
    },
    {
     "date": "2026-04-17",
@@ -5174,7 +10285,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -339,
-    "cap": 119937
+    "cap": 124256
    },
    {
     "date": "2026-04-21",
@@ -5185,7 +10296,7 @@
     "lots": 7,
     "exit": "SL",
     "pnl": -330,
-    "cap": 119607
+    "cap": 123926
    },
    {
     "date": "2026-04-22",
@@ -5196,7 +10307,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -309,
-    "cap": 119298
+    "cap": 123617
    },
    {
     "date": "2026-04-23",
@@ -5207,7 +10318,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -342,
-    "cap": 118956
+    "cap": 123275
    },
    {
     "date": "2026-04-24",
@@ -5218,7 +10329,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -337,
-    "cap": 118619
+    "cap": 122938
    },
    {
     "date": "2026-04-27",
@@ -5229,7 +10340,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -325,
-    "cap": 118294
+    "cap": 122613
    },
    {
     "date": "2026-04-28",
@@ -5240,7 +10351,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -268,
-    "cap": 118026
+    "cap": 122345
    },
    {
     "date": "2026-04-29",
@@ -5251,7 +10362,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -296,
-    "cap": 117730
+    "cap": 122049
    },
    {
     "date": "2026-04-30",
@@ -5262,7 +10373,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -265,
-    "cap": 117465
+    "cap": 121784
    },
    {
     "date": "2026-05-04",
@@ -5273,7 +10384,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -327,
-    "cap": 117138
+    "cap": 121457
    },
    {
     "date": "2026-05-05",
@@ -5284,7 +10395,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -279,
-    "cap": 116859
+    "cap": 121178
    },
    {
     "date": "2026-05-06",
@@ -5295,7 +10406,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -295,
-    "cap": 116564
+    "cap": 120883
    },
    {
     "date": "2026-05-08",
@@ -5306,7 +10417,7 @@
     "lots": 2,
     "exit": "EOD",
     "pnl": -55,
-    "cap": 116509
+    "cap": 120828
    },
    {
     "date": "2026-05-11",
@@ -5317,7 +10428,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -333,
-    "cap": 116176
+    "cap": 120495
    },
    {
     "date": "2026-05-12",
@@ -5325,10 +10436,10 @@
     "side": "PE",
     "strike": 23350,
     "entry": 3.2,
-    "lots": 24,
+    "lots": 25,
     "exit": "SL",
-    "pnl": -346,
-    "cap": 115830
+    "pnl": -358,
+    "cap": 120137
    },
    {
     "date": "2026-05-14",
@@ -5339,7 +10450,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -332,
-    "cap": 115498
+    "cap": 119805
    },
    {
     "date": "2026-05-15",
@@ -5350,7 +10461,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -340,
-    "cap": 115158
+    "cap": 119465
    },
    {
     "date": "2026-05-20",
@@ -5358,10 +10469,10 @@
     "side": "CE",
     "strike": 24050,
     "entry": 19.3,
-    "lots": 3,
+    "lots": 4,
     "exit": "EOD",
-    "pnl": -55,
-    "cap": 115103
+    "pnl": -58,
+    "cap": 119407
    },
    {
     "date": "2026-05-22",
@@ -5372,7 +10483,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -326,
-    "cap": 114777
+    "cap": 119081
    },
    {
     "date": "2026-05-25",
@@ -5383,7 +10494,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -296,
-    "cap": 114481
+    "cap": 118785
    },
    {
     "date": "2026-05-26",
@@ -5394,7 +10505,7 @@
     "lots": 6,
     "exit": "SL",
     "pnl": -327,
-    "cap": 114154
+    "cap": 118458
    },
    {
     "date": "2026-05-29",
@@ -5405,7 +10516,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -303,
-    "cap": 113851
+    "cap": 118155
    },
    {
     "date": "2026-06-01",
@@ -5416,7 +10527,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -338,
-    "cap": 113513
+    "cap": 117817
    },
    {
     "date": "2026-06-02",
@@ -5424,10 +10535,10 @@
     "side": "CE",
     "strike": 23550,
     "entry": 15.2,
-    "lots": 4,
+    "lots": 5,
     "exit": "SL",
-    "pnl": -283,
-    "cap": 113230
+    "pnl": -341,
+    "cap": 117476
    },
    {
     "date": "2026-06-03",
@@ -5435,10 +10546,10 @@
     "side": "PE",
     "strike": 23050,
     "entry": 37.9,
-    "lots": 1,
+    "lots": 2,
     "exit": "EOD",
-    "pnl": -52,
-    "cap": 113178
+    "pnl": -58,
+    "cap": 117418
    },
    {
     "date": "2026-06-05",
@@ -5449,7 +10560,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -280,
-    "cap": 112898
+    "cap": 117138
    },
    {
     "date": "2026-06-08",
@@ -5460,7 +10571,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -296,
-    "cap": 112602
+    "cap": 116842
    },
    {
     "date": "2026-06-09",
@@ -5471,7 +10582,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -319,
-    "cap": 112283
+    "cap": 116523
    },
    {
     "date": "2026-06-11",
@@ -5482,7 +10593,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -272,
-    "cap": 112011
+    "cap": 116251
    },
    {
     "date": "2026-06-12",
@@ -5490,10 +10601,10 @@
     "side": "CE",
     "strike": 23750,
     "entry": 25,
-    "lots": 2,
+    "lots": 3,
     "exit": "SL",
-    "pnl": -241,
-    "cap": 111770
+    "pnl": -339,
+    "cap": 115912
    },
    {
     "date": "2026-06-15",
@@ -5504,7 +10615,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -334,
-    "cap": 111436
+    "cap": 115578
    },
    {
     "date": "2026-06-16",
@@ -5515,7 +10626,7 @@
     "lots": 3,
     "exit": "SL",
     "pnl": -279,
-    "cap": 111157
+    "cap": 115299
    },
    {
     "date": "2026-06-17",
@@ -5526,7 +10637,7 @@
     "lots": 2,
     "exit": "SL",
     "pnl": -292,
-    "cap": 110865
+    "cap": 115007
    }
   ]
  }

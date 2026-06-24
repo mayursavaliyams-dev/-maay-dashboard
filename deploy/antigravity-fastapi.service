@@ -1,0 +1,22 @@
+[Unit]
+Description=Antigravity FastAPI options trading backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=antigravity
+Group=antigravity
+WorkingDirectory=/opt/antigravity-bot
+EnvironmentFile=/etc/antigravity-bot/antigravity.env
+ExecStart=/opt/antigravity-bot/venv/bin/python -m uvicorn options_algo_api:app --host 127.0.0.1 --port 8091 --workers 1
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGINT
+LogsDirectory=antigravity-bot
+StandardOutput=append:/var/log/antigravity-bot/app.log
+StandardError=append:/var/log/antigravity-bot/error.log
+
+[Install]
+WantedBy=multi-user.target

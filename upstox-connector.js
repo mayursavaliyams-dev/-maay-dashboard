@@ -14,8 +14,10 @@
 const fetch = require('node-fetch');
 
 const BASE = 'https://api.upstox.com/v2';
-const CHAIN_CACHE_MS = 4500;
-const PRICE_CACHE_MS = 4000;
+// Latency knobs (env-tunable). Lower = fresher data / less lag, more API calls.
+// Upstox Plus comfortably handles these; raise if you ever hit rate limits.
+const CHAIN_CACHE_MS = Number(process.env.UPSTOX_CHAIN_CACHE_MS) || 2500;  // was 4500
+const PRICE_CACHE_MS = Number(process.env.UPSTOX_PRICE_CACHE_MS) || 1500;  // was 4000
 
 // Upstox instrument keys
 const IKEY = {
@@ -47,7 +49,7 @@ class UpstoxConnector {
     this._stats.calls++; this._stats.lastCallAt = Date.now();
     const r = await fetch(`${BASE}${path}`, {
       headers: { Authorization: `Bearer ${this.accessToken}`, Accept: 'application/json' },
-      timeout: 15000,
+      timeout: Number(process.env.UPSTOX_TIMEOUT_MS) || 6000,  // was 15000 — fail fast, no long hangs
     });
     const txt = await r.text();
     let j; try { j = JSON.parse(txt); } catch { j = { raw: txt }; }

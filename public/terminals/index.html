@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antigravity Pro — 10 Trading Terminals</title>
+<style>
+  :root{--bg:#08101d;--panel:rgba(15,26,44,.6);--line:rgba(255,255,255,.1);--ink:#eef3fb;--dim:#9fb0c8;--green:#38d39f;--amber:#ffbf69;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"IBM Plex Sans","Segoe UI",sans-serif;background:
+    radial-gradient(900px 600px at 80% -10%,rgba(68,138,255,.1),transparent 60%),
+    linear-gradient(180deg,#08101d,#0c1628 50%,#09111f);color:var(--ink);min-height:100vh;padding:32px 20px 60px}
+  .wrap{max-width:1280px;margin:0 auto}
+  h1{font-size:clamp(26px,5vw,40px);font-weight:600;letter-spacing:-1px}
+  h1 em{font-style:normal;color:var(--green)}
+  .sub{color:var(--dim);margin:10px 0 28px;font-size:15px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(12px);transition:transform .2s,border-color .2s,box-shadow .2s;display:flex;flex-direction:column}
+  .card:hover{transform:translateY(-4px);border-color:rgba(56,211,159,.4);box-shadow:0 18px 50px rgba(0,0,0,.5)}
+  .card.win{border-color:var(--green);box-shadow:0 0 0 1px var(--green),0 18px 50px rgba(56,211,159,.18)}
+  .thumb{width:100%;aspect-ratio:16/10;border:0;background:#0c1628;border-bottom:1px solid var(--line);pointer-events:none}
+  .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-weight:600;font-size:15px;text-transform:capitalize}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;font-variant-numeric:tabular-nums;background:rgba(56,211,159,.16);color:var(--green)}
+  .meta{font-size:11px;color:var(--dim);font-family:"IBM Plex Mono",monospace}
+  .tag{font-size:11px;color:var(--amber);font-weight:600;letter-spacing:.5px}
+  .btn{margin-top:auto;text-align:center;text-decoration:none;font-size:13px;font-weight:600;padding:9px;border-radius:8px;border:1px solid var(--line);color:var(--ink);transition:background .2s}
+  .btn:hover{background:rgba(255,255,255,.06)}
+  .btn.primary{background:var(--green);color:#06231a;border-color:var(--green)}
+  .note{margin-top:30px;color:var(--dim);font-size:13px;line-height:1.7;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>10 Trading Terminals — <em>Antigravity Pro</em></h1>
+  <p class="sub">Built &amp; tested autonomously. Each is a full operator terminal (live chain, signal, position, P&amp;L, risk, telemetry). 🥇 = applied winner, live at <code>/terminal.html</code>.</p>
+  <div class="grid" id="grid"></div>
+  <div class="note">
+    <b>Applied winner:</b> command-center (90/100, 9/9 panels) — live at <code>/terminal.html</code>.<br>
+    To switch: <code>cp terminal-candidates/terminal-08-data-dense-dark.html public/terminal.html</code> (or any other).<br>
+    Full write-up: <code>terminal-candidates/REPORT.md</code>.
+  </div>
+</div>
+<script>
+  const T = [
+    {id:'07',name:'command-center',score:90,panels:9,win:true},
+    {id:'08',name:'data-dense-dark',score:90,panels:9},
+    {id:'02',name:'glass-cockpit',score:88,panels:9},
+    {id:'10',name:'split-pro-trader',score:88,panels:9},
+    {id:'06',name:'three-column',score:87,panels:7},
+    {id:'05',name:'minimal-mono',score:86,panels:9},
+    {id:'01',name:'bloomberg-pro',score:84,panels:9},
+    {id:'04',name:'neon-grid',score:84,panels:9},
+    {id:'03',name:'bento-tiles',score:83,panels:9},
+    {id:'09',name:'card-flow-soft',score:83,panels:9},
+  ];
+  document.getElementById('grid').innerHTML = T.map(t=>{
+    const file=`terminal-${t.id}-${t.name}.html`;
+    return `<div class="card ${t.win?'win':''}">
+      <iframe class="thumb" src="${file}" loading="lazy" scrolling="no"></iframe>
+      <div class="body">
+        <div class="row"><span class="name">${t.win?'🥇 ':''}${t.name.replace(/-/g,' ')}</span><span class="badge">${t.score}</span></div>
+        <div class="meta">${t.panels}/9 panels · overflow-safe${t.win?' · <span style="color:var(--amber)">APPLIED — LIVE</span>':''}</div>
+        <a class="btn primary" href="${file}" target="_blank" rel="noopener">Open full ↗</a>
+      </div>
+    </div>`;
+  }).join('');
+</script>
+</body>
+</html>

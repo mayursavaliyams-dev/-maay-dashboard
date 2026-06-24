@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Live Chart — Candles + EMA</title>
+
+<!-- FREE TradingView "Lightweight Charts" v4.1.0 (standalone, no build step) -->
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<style>
+  :root { --bg:#0a0e17; --line:rgba(255,255,255,.08); --dim:#8b95a7; --txt:#d1d4dc; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--txt);
+               font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
+  .wrap { display:flex; flex-direction:column; height:100vh; }
+
+  /* ---- top bar ---- */
+  .bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+         padding:8px 12px; border-bottom:1px solid var(--line); }
+  .grp { display:flex; gap:4px; }
+  .sep { width:1px; height:22px; background:var(--line); margin:0 4px; }
+  button.tab {
+    background:#11161f; color:var(--dim); border:1px solid var(--line);
+    border-radius:7px; padding:5px 10px; font-size:12px; font-weight:600;
+    cursor:pointer; transition:.12s; white-space:nowrap;
+  }
+  button.tab:hover { color:var(--txt); border-color:rgba(255,255,255,.2); }
+  button.tab.active { color:#0a0e17; background:#00f5d4; border-color:#00f5d4; }
+  #refresh { color:#7b61ff; border-color:rgba(123,97,255,.4); }
+
+  .spacer { flex:1 1 auto; }
+  .ltp { font-family:ui-monospace, monospace; font-size:15px; font-weight:700; }
+  .ltp small { color:var(--dim); font-weight:500; font-size:11px; margin-right:5px; }
+  .badge { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+           padding:4px 9px; border-radius:999px; border:1px solid var(--line); }
+  .dot { width:8px; height:8px; border-radius:50%; }
+  .open  .dot { background:#00f5d4; box-shadow:0 0 8px #00f5d4; } .open  { color:#00f5d4; }
+  .closed .dot { background:#f7a825; }                            .closed { color:#f7a825; }
+  .leg { display:flex; gap:10px; font-family:ui-monospace, monospace; font-size:11px; }
+  .e9{color:#00f5d4} .e21{color:#7b61ff} .e50{color:#3b82f6}
+  #status { color:var(--dim); font-size:11px; font-family:ui-monospace, monospace; }
+
+  #chart { flex:1 1 auto; width:100%; min-height:0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <!-- symbol buttons -->
+    <div class="grp" id="symBtns"></div>
+    <div class="sep"></div>
+    <!-- timeframe buttons -->
+    <div class="grp" id="tfBtns"></div>
+    <div class="sep"></div>
+    <button class="tab" id="refresh">↻ Refresh</button>
+
+    <div class="spacer"></div>
+
+    <span class="leg"><span class="e9">EMA9</span><span class="e21">EMA21</span><span class="e50">EMA50</span></span>
+    <span class="ltp"><small id="ltpSym">NIFTY</small><span id="ltp">—</span></span>
+    <span class="badge closed" id="badge"><span class="dot"></span><span id="mkt">—</span></span>
+  </div>
+
+  <div id="status">loading…</div>
+  <div id="chart"></div>
+</div>
+
+<script>
+/* ============================================================================
+ *  CONFIG
+ * ========================================================================== */
+const PROXY = "http://localhost:8765";       // EMA-project local proxy (CORS enabled)
+const LTP_MS   = 2000;                        // poll LTP every 2s (market hours only)
+const FULL_MS  = 30000;                       // re-fetch full candles every 30s (market hours only)
+
+// display label -> API symbol
+const SYMBOLS = [
+  { label: "NIFTY",      sym: "NIFTY" },
+  { label: "SENSEX",     sym: "SENSEX" },
+  { label: "BANK NIFTY", sym: "BANKNIFTY" },
+  { label: "RELIANCE",   sym: "RELIANCE" },
+  { label: "TATA STEEL", sym: "TATASTEEL" },
+];
+const TIMEFRAMES = [
+  { label: "1m", v: "1" }, { label: "3m", v: "3" }, { label: "5m", v: "5" },
+  { label: "15m", v: "15" }, { label: "30m", v: "30" },
+];
+
+let currentSym = "NIFTY";
+let currentTf  = "5";
+let candles    = [];                          // live working copy {time,open,high,low,close,volume}
+let emaData    = { 9: [], 21: [], 50: [] };   // stored EMA arrays for cheap last-point updates
+
+/* ============================================================================
+ *  CHART — dark, responsive
+ * ========================================================================== */
+const chartEl = document.getElementById('chart');
+const chart = LightweightCharts.createChart(chartEl, {
+  layout:    { background: { type: 'solid', color: '#0a0e17' }, textColor: '#d1d4dc' },
+  grid:      { vertLines: { color: 'rgba(255,255,255,0.06)' }, horzLines: { color: 'rgba(255,255,255,0.06)' } },
+  rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)' },
+  timeScale: { borderColor: 'rgba(255,255,255,0.10)', timeVisible: true, secondsVisible: false },
+  crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+});
+const candleSeries = chart.addCandlestickSeries({
+  upColor:'#00f5d4', downColor:'#f72585', borderUpColor:'#00f5d4',
+  borderDownColor:'#f72585', wickUpColor:'#00f5d4', wickDownColor:'#f72585',
+});
+const emaSeries = {
+  9:  chart.addLineSeries({ color:'#00f5d4', lineWidth:1, priceLineVisible:false, lastValueVisible:false }),
+  21: chart.addLineSeries({ color:'#7b61ff', lineWidth:1, priceLineVisible:false, lastValueVisible:false }),
+  50: chart.addLineSeries({ color:'#3b82f6', lineWidth:1, priceLineVisible:false, lastValueVisible:false }),
+};
+
+// Responsive — resize chart to container on any window/layout change.
+new ResizeObserver(es => {
+  for (const e of es) { const { width, height } = e.contentRect; if (width && height) chart.resize(width, height); }
+}).observe(chartEl);
+
+/* ============================================================================
+ *  EMA — SMA seed for the first value, then k = 2/(period+1).
+ * ========================================================================== */
+function computeEMA(rows, period) {
+  const out = [];
+  if (rows.length < period) return out;
+  let sum = 0;
+  for (let i = 0; i < period; i++) sum += rows[i].close;
+  let prev = sum / period;                                   // SMA seed
+  out.push({ time: rows[period - 1].time, value: prev });
+  const k = 2 / (period + 1);
+  for (let i = period; i < rows.length; i++) {
+    prev = rows[i].close * k + prev * (1 - k);
+    out.push({ time: rows[i].time, value: prev });
+  }
+  return out;
+}
+
+/* Draw everything from the `candles` array. */
+function drawAll(fit) {
+  candleSeries.setData(candles);
+  for (const p of [9, 21, 50]) { emaData[p] = computeEMA(candles, p); emaSeries[p].setData(emaData[p]); }
+  if (fit) chart.timeScale().fitContent();
+}
+
+/* Cheaply refresh just the LAST candle + last EMA points (used on every LTP tick). */
+function refreshLast() {
+  if (!candles.length) return;
+  const last = candles[candles.length - 1];
+  candleSeries.update(last);
+  for (const p of [9, 21, 50]) {
+    const arr = emaData[p];
+    if (arr.length >= 2) {
+      const k = 2 / (p + 1);
+      const v = last.close * k + arr[arr.length - 2].value * (1 - k);
+      arr[arr.length - 1] = { time: last.time, value: v };
+      emaSeries[p].update(arr[arr.length - 1]);
+    } else if (arr.length === 1) {
+      emaSeries[p].update(arr[0]);
+    }
+  }
+}
+
+/* ============================================================================
+ *  DATA
+ * ========================================================================== */
+const statusEl = document.getElementById('status');
+const ltpEl    = document.getElementById('ltp');
+const ltpSymEl = document.getElementById('ltpSym');
+const badgeEl  = document.getElementById('badge');
+const mktEl    = document.getElementById('mkt');
+
+function isMarketOpenIST() {                                  // timezone-independent (via UTC shift)
+  const ist  = new Date(Date.now() + 5.5 * 3600 * 1000);
+  const day  = ist.getUTCDay();                              // 0 Sun … 6 Sat
+  const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  return day >= 1 && day <= 5 && mins >= (9 * 60 + 15) && mins <= (15 * 60 + 30);
+}
+function setBadge(open) {
+  badgeEl.className = 'badge ' + (open ? 'open' : 'closed');
+  mktEl.textContent = open ? 'MARKET OPEN' : 'MARKET CLOSED';
+}
+
+// Full candle fetch — used on load, symbol/timeframe change, Refresh, and the 30s timer.
+async function fetchCandles() {
+  try {
+    const url = `${PROXY}/api/intraday?symbol=${currentSym}&unit=minutes&interval=${currentTf}`;
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    if (j.status !== 'ok' || !Array.isArray(j.candles)) throw new Error('bad payload');
+    candles = j.candles
+      .map(c => ({ time:Number(c.time), open:Number(c.open), high:Number(c.high), low:Number(c.low), close:Number(c.close), volume:Number(c.volume)||0 }))
+      .filter(c => Number.isFinite(c.time) && Number.isFinite(c.close))
+      .sort((a, b) => a.time - b.time);
+    drawAll(true);
+    statusEl.textContent = `${currentSym} · ${currentTf}m · ${candles.length} bars · updated ${new Date().toLocaleTimeString('en-GB')}`;
+  } catch (e) {
+    statusEl.textContent = 'candles error: ' + e.message + ' (is the proxy on :8765 up?)';
+  }
+}
+
+// LTP tick — fold the live price into the current last candle (no new bar; bars come from the 30s refetch).
+async function fetchLTP() {
+  try {
+    const r = await fetch(`${PROXY}/api/ltp?symbols=${currentSym}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const j = await r.json();
+    const px = j && j.prices ? Number(j.prices[currentSym]) : NaN;
+    if (!Number.isFinite(px)) return;
+    ltpEl.textContent = px.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (candles.length) {
+      const last = candles[candles.length - 1];
+      last.close = px;
+      if (px > last.high) last.high = px;
+      if (px < last.low)  last.low  = px;
+      refreshLast();
+    }
+  } catch (_) { /* keep last data on transient errors */ }
+}
+
+/* ============================================================================
+ *  UI — build buttons
+ * ========================================================================== */
+const symWrap = document.getElementById('symBtns');
+SYMBOLS.forEach(s => {
+  const b = document.createElement('button');
+  b.className = 'tab' + (s.sym === currentSym ? ' active' : '');
+  b.textContent = s.label; b.dataset.sym = s.sym;
+  b.onclick = () => {
+    currentSym = s.sym;
+    document.querySelectorAll('#symBtns .tab').forEach(x => x.classList.toggle('active', x.dataset.sym === currentSym));
+    ltpSymEl.textContent = currentSym; ltpEl.textContent = '—';
+    fetchCandles(); fetchLTP();
+  };
+  symWrap.appendChild(b);
+});
+const tfWrap = document.getElementById('tfBtns');
+TIMEFRAMES.forEach(t => {
+  const b = document.createElement('button');
+  b.className = 'tab' + (t.v === currentTf ? ' active' : '');
+  b.textContent = t.label; b.dataset.tf = t.v;
+  b.onclick = () => {
+    currentTf = t.v;
+    document.querySelectorAll('#tfBtns .tab').forEach(x => x.classList.toggle('active', x.dataset.tf === currentTf));
+    fetchCandles();
+  };
+  tfWrap.appendChild(b);
+});
+document.getElementById('refresh').onclick = () => { fetchCandles(); fetchLTP(); };
+
+/* ============================================================================
+ *  BOOT + timers
+ * ========================================================================== */
+setBadge(isMarketOpenIST());
+fetchCandles();      // always load once (shows last session data when closed)
+fetchLTP();
+
+// LTP every 2s — only while market is open.
+setInterval(() => {
+  const open = isMarketOpenIST(); setBadge(open);
+  if (open) fetchLTP();
+}, LTP_MS);
+
+// Full candle refetch every 30s — only while market is open (closed → show last session, no updates).
+setInterval(() => { if (isMarketOpenIST()) fetchCandles(); }, FULL_MS);
+</script>
+</body>
+</html>

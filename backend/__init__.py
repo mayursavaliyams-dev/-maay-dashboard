@@ -1,2 +1,1 @@
-"""Antigravity backtesting backend package."""
-
+"""Antigravity analytics API package."""

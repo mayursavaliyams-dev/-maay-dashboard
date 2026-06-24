@@ -1,0 +1,98 @@
+// ============================================================
+// Antigravity - AmiBroker Signal Push Template
+// Sends AmiBroker-generated CALL/PUT/EXIT signals to:
+//   http://localhost:3000/api/amibroker/push-signal
+//
+// Replace MyCallSignal / MyPutSignal with your final AFL conditions.
+// Keep AMIBROKER_AUTO_TRADE=false until paper validation is complete.
+// ============================================================
+
+#pragma maxthreads 1
+
+ServerURL = ParamStr("Server URL", "http://localhost:3000");
+APIKey    = ParamStr("API Key", "antigravity");
+Inst      = ParamList("Instrument", "NIFTY|SENSEX|BANKNIFTY", 0);
+AutoPush  = ParamToggle("Push Signals", "OFF|ON", 1);
+ConfInput = Param("Confidence", 75, 1, 100, 1);
+SignalStrike = Param("Signal Strike (0=Auto ATM)", 0, 0, 100000, 50);
+OptionPremium = Param("Option Premium (0=Spot Replay)", 0, 0, 100000, 0.05);
+
+// --- Example signal logic. Replace this block with your own setup. ---
+FastEMA = EMA(Close, 9);
+SlowEMA = EMA(Close, 21);
+
+MyCallSignal = Cross(FastEMA, SlowEMA);
+MyPutSignal  = Cross(SlowEMA, FastEMA);
+MyExitSignal = 0;
+
+Plot(Close, "Price", colorDefault, styleCandle);
+Plot(FastEMA, "EMA 9", colorGreen, styleLine);
+Plot(SlowEMA, "EMA 21", colorRed, styleLine);
+
+sig = "WAIT";
+conf = 0;
+step = 100;
+if (Inst == "NIFTY") step = 50;
+pushStrike = SignalStrike;
+if (pushStrike <= 0) pushStrike = round(LastValue(Close) / step) * step;
+
+if (LastValue(MyCallSignal))
+{
+    sig = "CALL";
+    conf = ConfInput;
+}
+else
+if (LastValue(MyPutSignal))
+{
+    sig = "PUT";
+    conf = ConfInput;
+}
+else
+if (LastValue(MyExitSignal))
+{
+    sig = "EXIT";
+    conf = 100;
+}
+
+barId = NumToStr(LastValue(BarIndex()), 1.0, False);
+staticKey = "AG_PUSH_PREV_" + Inst;
+sigKey = Inst + "|" + sig + "|" + barId;
+prevKey = StaticVarGetText(staticKey);
+
+if (AutoPush AND sig != "WAIT" AND sigKey != prevKey)
+{
+    url = ServerURL + "/api/amibroker/push-signal"
+        + "?key=" + APIKey
+        + "&inst=" + Inst
+        + "&sig=" + sig
+        + "&strike=" + NumToStr(pushStrike, 1.0, False)
+        + "&conf=" + NumToStr(conf, 1.0, False)
+        + "&price=" + NumToStr(LastValue(Close), 1.2, False)
+        + "&premium=" + NumToStr(OptionPremium, 1.2, False)
+        + "&target=0"
+        + "&barId=" + barId
+        + "&strategy=ami_template";
+
+    ih = InternetOpenURL(url);
+    response = "";
+    if (ih)
+    {
+        while ((line = InternetReadString(ih)) != "")
+            response = response + line;
+        InternetClose(ih);
+    }
+
+    StaticVarSetText(staticKey, sigKey);
+    _TRACE("[AG PUSH] " + sig + " " + Inst + " conf=" + NumToStr(conf, 1.0, False) + " -> " + response);
+}
+
+PlotShapes(IIf(MyCallSignal, shapeUpArrow, shapeNone), colorBrightGreen, 0, Low, -20);
+PlotShapes(IIf(MyPutSignal, shapeDownArrow, shapeNone), colorRed, 0, High, 20);
+
+Title = "Antigravity AmiBroker Push"
+    + " | " + Inst
+    + " | Signal: " + sig
+    + " | Strike: " + NumToStr(pushStrike, 1.0, False)
+    + " | Conf: " + NumToStr(conf, 1.0, False)
+    + " | Premium: " + NumToStr(OptionPremium, 1.2, False)
+    + " | Server: " + ServerURL;

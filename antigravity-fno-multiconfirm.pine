@@ -1,0 +1,200 @@
+//@version=5
+// ============================================================================
+//  ANTIGRAVITY PRO - F&O Multi-Confirm Strategy  (the bot live signal, in Pine)
+// ----------------------------------------------------------------------------
+//  Faithful Pine v5 reconstruction of the strategy the Antigravity options bot
+//  runs (server-side multiconfirm.js). The JS port runs over price snapshots
+//  and approximates EMA/RSI/ATR/ADX/Supertrend; on TradingView we have real
+//  per-bar OHLC, so this uses the genuine indicators the JS was emulating.
+//
+//  ENTRY (every layer must agree):
+//    CORE 5 : EMA-stack(9/21/50)+slope . VWAP side . RSI zone . vol spike . candle body
+//    FILTER : not sideways (range% floor + EMA-cross chop cap)
+//    SHIELDS: ADX>=min . Supertrend side . higher-TF EMA side . MACD not-against
+//  CALL = buy a call (bullish);  PUT = buy a put (bearish);  else WAIT.
+//
+//  ALERTS feed the bot:  POST {webhook}/api/webhook/tradingview
+//    {"action":"BUY","signal":"CALL","key":"antigravity","reason":"MULTICONFIRM"}
+// ============================================================================
+indicator("Antigravity F&O Multi-Confirm", overlay=true, max_labels_count=500)
+
+// ---- INPUTS (defaults == multiconfirm.js DEFAULTS) -------------------------
+gC = "Core"
+emaFast = input.int(9,  "EMA fast", group=gC)
+emaMid  = input.int(21, "EMA mid",  group=gC)
+emaSlow = input.int(50, "EMA slow", group=gC)
+rsiLen     = input.int(14, "RSI length", group=gC)
+rsiOb      = input.int(70, "RSI overbought", group=gC)
+rsiOs      = input.int(30, "RSI oversold", group=gC)
+rsiBullMin = input.int(45, "RSI bull min", group=gC)
+rsiBearMax = input.int(55, "RSI bear max", group=gC)
+volMaLen     = input.int(20,  "Vol MA length", group=gC)
+volSpikeMult = input.float(1.2, "Vol spike x", step=0.1, group=gC)
+minBodyPct   = input.float(40, "Min candle body %", group=gC)
+
+gF = "Sideways filter"
+swLookback  = input.int(20,  "Range lookback", group=gF)
+swThreshold = input.float(0.8, "Min range % (else chop)", step=0.1, group=gF)
+swCrossMax  = input.int(3,   "Max EMA crosses", group=gF)
+swCrossLook = input.int(10,  "Cross lookback", group=gF)
+
+gS = "Shields"
+useAdx        = input.bool(true, "ADX shield", group=gS)
+adxMin        = input.int(20, "ADX min", group=gS)
+useSupertrend = input.bool(true, "Supertrend shield", group=gS)
+stFactor      = input.float(3.0, "Supertrend factor", step=0.1, group=gS)
+stAtrLen      = input.int(10, "Supertrend ATR len", group=gS)
+useHtf        = input.bool(true, "Higher-TF EMA shield", group=gS)
+htfTf         = input.timeframe("60", "Higher timeframe", group=gS)
+
+gR = "Risk (ATR)"
+atrLen    = input.int(14, "ATR length", group=gR)
+atrSlMult = input.float(1.5, "SL x ATR", step=0.1, group=gR)
+rrTarget2 = input.float(2.0, "TP2 (R)", step=0.5, group=gR)
+
+gX = "Extra confirmations"
+bbLen      = input.int(20, "Bollinger length", group=gX)
+bbMult     = input.float(2.0, "Bollinger mult", step=0.1, group=gX)
+macdFast   = input.int(12, "MACD fast", group=gX)
+macdSlow   = input.int(26, "MACD slow", group=gX)
+macdSignal = input.int(9,  "MACD signal", group=gX)
+
+gA = "Alerts"
+webhookKey = input.string("antigravity", "Webhook key", group=gA)
+showTable  = input.bool(true, "Show score table", group=gA)
+
+// ---- INDICATORS (real OHLC versions of the JS proxies) ---------------------
+eF = ta.ema(close, emaFast)
+eM = ta.ema(close, emaMid)
+eS = ta.ema(close, emaSlow)
+vwapV = ta.vwap
+r     = ta.rsi(close, rsiLen)
+volMa = ta.sma(volume, volMaLen)
+atrV  = ta.atr(atrLen)
+macdLine = ta.ema(close, macdFast) - ta.ema(close, macdSlow)
+sigLine  = ta.ema(macdLine, macdSignal)
+histLine = macdLine - sigLine
+bbBasis = ta.sma(close, bbLen)
+bbDev   = bbMult * ta.stdev(close, bbLen)
+bbUpper = bbBasis + bbDev
+bbLower = bbBasis - bbDev
+bbPctB  = bbUpper != bbLower ? (close - bbLower) / (bbUpper - bbLower) : 0.5
+[adxDiPlus, adxDiMinus, adxV] = ta.dmi(atrLen, atrLen)
+[stSupert, stDir] = ta.supertrend(stFactor, stAtrLen)   // stDir: -1 up-trend, +1 down-trend
+obvV = ta.obv
+htfEma = request.security(syminfo.tickerid, htfTf, ta.ema(close, emaSlow), lookahead=barmerge.lookahead_off)
+
+// ---- CORE 1 - EMA stacking + slope momentum (vs 2 bars back) ---------------
+bullStack    = eF > eM and eM > eS and close > eS
+bearStack    = eF < eM and eM < eS and close < eS
+bullMomentum = bullStack and eF > eF[2] and eM > eM[2]
+bearMomentum = bearStack and eF < eF[2] and eM < eM[2]
+
+// ---- CORE 2 - VWAP side ----
+vwapBull = close > vwapV
+vwapBear = close < vwapV
+
+// ---- CORE 3 - RSI zone ----
+rsiBullOk = r > rsiBullMin and r < rsiOb
+rsiBearOk = r < rsiBearMax and r > rsiOs
+
+// ---- CORE 4 - volume spike ----
+volSpike = volMa > 0 and volume > volMa * volSpikeMult
+
+// ---- CORE 5 - candle body strength ----
+rng     = high - low
+bodyPct = rng > 0 ? math.abs(close - open) / rng * 100 : 0
+strongBody = bodyPct >= minBodyPct
+bullCandle = close > open and strongBody
+bearCandle = close < open and strongBody
+
+// ---- FILTER - sideways / chop ----
+rngHi    = ta.highest(close, swLookback)
+rngLo    = ta.lowest(close, swLookback)
+rangePct = rngLo > 0 ? (rngHi - rngLo) / rngLo * 100 : 0
+crossUp   = ta.crossover(eF, eM)
+crossDn   = ta.crossunder(eF, eM)
+crosses   = math.sum((crossUp or crossDn) ? 1 : 0, swCrossLook)
+isSideways = rangePct <= swThreshold or crosses >= swCrossMax
+notSideways = not isSideways
+
+// ---- SHIELDS ----
+adxOk = not useAdx or adxV >= adxMin
+stBull = not useSupertrend or stDir < 0
+stBear = not useSupertrend or stDir > 0
+htfBull = not useHtf or close > htfEma
+htfBear = not useHtf or close < htfEma
+macdCallOk = histLine >= 0 or histLine > histLine[1]
+macdPutOk  = histLine <= 0 or histLine < histLine[1]
+
+// ---- EXTRA confirmations (for the 8-point score) ----
+macdBull = histLine > 0 and histLine > histLine[1]
+macdBear = histLine < 0 and histLine < histLine[1]
+bbBull   = bbPctB <= 0.2
+bbBear   = bbPctB >= 0.8
+obvBull  = obvV > obvV[10]
+obvBear  = obvV < obvV[10]
+
+// ---- SCORES (0..8) ----
+callScore = (bullStack?1:0)+(vwapBull?1:0)+(rsiBullOk?1:0)+(volSpike?1:0)+(bullCandle?1:0)+(macdBull?1:0)+(obvBull?1:0)+(bbBull?1:0)
+putScore  = (bearStack?1:0)+(vwapBear?1:0)+(rsiBearOk?1:0)+(volSpike?1:0)+(bearCandle?1:0)+(macdBear?1:0)+(obvBear?1:0)+(bbBear?1:0)
+
+// ---- DECISION ----
+coreBuy  = bullMomentum and vwapBull and rsiBullOk and volSpike and bullCandle and notSideways
+coreSell = bearMomentum and vwapBear and rsiBearOk and volSpike and bearCandle and notSideways
+isCall = coreBuy  and stBull and htfBull and adxOk and macdCallOk
+isPut  = coreSell and stBear and htfBear and adxOk and macdPutOk
+newCall = isCall and not isCall[1]
+newPut  = isPut  and not isPut[1]
+
+// ---- ATR SL / TP ----
+slDist  = atrV * atrSlMult
+callSL  = close - slDist
+callTP2 = close + slDist * rrTarget2
+putSL   = close + slDist
+putTP2  = close - slDist * rrTarget2
+
+// ---- PLOTS (global outputs) ----
+plot(eF, "EMA fast", color.aqua, 1)
+plot(eM, "EMA mid",  color.orange, 1)
+plot(eS, "EMA slow", color.gray, 1)
+plot(vwapV, "VWAP", color.fuchsia, 2)
+plotshape(newCall, "BUY CALL", shape.triangleup,   location.belowbar, color.green, size=size.small, text="CALL")
+plotshape(newPut,  "BUY PUT",  shape.triangledown, location.abovebar, color.red,   size=size.small, text="PUT")
+bgcolor(isCall ? color.new(color.green, 88) : isPut ? color.new(color.red, 88) : na, title="Signal tint")
+
+// ---- SCORE TABLE (inline, no helper function) ----
+var table t = table.new(position.top_right, 2, 10, border_width=1)
+if showTable and barstate.islast
+    sigTxt = isCall ? "CALL" : isPut ? "PUT" : "WAIT"
+    sigCol = isCall ? color.green : isPut ? color.red : color.gray
+    table.cell(t, 0, 0, "SIGNAL", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 0, sigTxt + " " + str.tostring(math.max(callScore, putScore)) + "/8", text_color=sigCol, text_size=size.small)
+    table.cell(t, 0, 1, "EMA stack", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 1, bullStack ? "BULL" : bearStack ? "BEAR" : "-", text_color=bullStack ? color.green : bearStack ? color.red : color.gray, text_size=size.tiny)
+    table.cell(t, 0, 2, "VWAP", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 2, vwapBull ? "ABOVE" : "BELOW", text_color=vwapBull ? color.green : color.red, text_size=size.tiny)
+    table.cell(t, 0, 3, "RSI", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 3, str.tostring(r, "#.0"), text_color=rsiBullOk ? color.green : rsiBearOk ? color.red : color.gray, text_size=size.tiny)
+    table.cell(t, 0, 4, "Volume", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 4, str.tostring(volMa > 0 ? volume / volMa : 0, "#.0") + "x", text_color=volSpike ? color.green : color.gray, text_size=size.tiny)
+    table.cell(t, 0, 5, "Candle", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 5, str.tostring(bodyPct, "#") + "%", text_color=bullCandle ? color.green : bearCandle ? color.red : color.gray, text_size=size.tiny)
+    table.cell(t, 0, 6, "ADX", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 6, str.tostring(adxV, "#.0"), text_color=adxOk ? color.green : color.gray, text_size=size.tiny)
+    table.cell(t, 0, 7, "Supertrend", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 7, stDir < 0 ? "UP" : "DOWN", text_color=stDir < 0 ? color.green : color.red, text_size=size.tiny)
+    table.cell(t, 0, 8, "MACD hist", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 8, str.tostring(histLine, "#.0"), text_color=macdBull ? color.green : macdBear ? color.red : color.gray, text_size=size.tiny)
+    table.cell(t, 0, 9, "Not chop", text_color=color.gray, text_size=size.tiny)
+    table.cell(t, 1, 9, isSideways ? "CHOP" : "OK", text_color=notSideways ? color.green : color.red, text_size=size.tiny)
+
+// ---- ALERTS -> bot webhook (/api/webhook/tradingview) ----
+callMsg = '{"action":"BUY","signal":"CALL","key":"' + webhookKey + '","reason":"MULTICONFIRM","conf":"HIGH"}'
+putMsg  = '{"action":"BUY","signal":"PUT","key":"'  + webhookKey + '","reason":"MULTICONFIRM","conf":"HIGH"}'
+alertcondition(newCall, "BUY CALL", "Antigravity Multi-Confirm: BUY CALL")
+alertcondition(newPut,  "BUY PUT",  "Antigravity Multi-Confirm: BUY PUT")
+if newCall
+    alert(callMsg, alert.freq_once_per_bar_close)
+if newPut
+    alert(putMsg, alert.freq_once_per_bar_close)

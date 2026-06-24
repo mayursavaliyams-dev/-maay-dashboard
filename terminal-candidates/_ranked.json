@@ -1,0 +1,202 @@
+[
+ {
+  "id": 7,
+  "label": "command-center",
+  "score": 90,
+  "critique": {
+   "scores": {
+    "visualPolish": 18,
+    "layoutResponsive": 23,
+    "dataDensity": 18,
+    "dataIntegration": 18,
+    "codeQuality": 13
+   },
+   "total": 90,
+   "verdict": "Strong, genuinely production-shaped terminal. All 9 panels present, robust fetch layer with AbortController timeout + try/catch + per-panel demo fallback, and the option chain correctly scrolls inside its panel rather than breaking the page. Loses points only on minor state-management sloppiness, not on any of the three adversarial failure modes.",
+   "topStrength": "Overflow is correctly contained: .col{min-width:0} lets the grid track shrink below the 560px min-width table, and .chainwrap{overflow:auto} scrolls the chain inside its panel — so the wide table never forces page-level horizontal scroll at 375px. The fetch layer is also textbook: 3.5s AbortController abort, clearTimeout on both success/error paths, null return on failure, and every renderer falls back to a demo*() generator so no panel ever hangs or blanks.",
+   "worstFlaw": "Mode-chip demo state is one-directional: tick() sets demoMode=false then markDemo() flips it true during render, but the chip is only ever written when demoMode is true — it sets 'PAPER·DEMO' and never restores the live 'PAPER' label or amber LED once real endpoints recover, so a single transient failure leaves a permanently stale DEMO badge. renderTrend() also omits markDemo(), so a trend-only outage silently shows fake data without flagging demo mode.",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ },
+ {
+  "id": 8,
+  "label": "data-dense-dark",
+  "score": 90,
+  "critique": {
+   "scores": {
+    "visualPolish": 18,
+    "layoutResponsive": 23,
+    "dataDensity": 19,
+    "dataIntegration": 18,
+    "codeQuality": 12
+   },
+   "total": 90,
+   "verdict": "Strong, genuinely terminal-grade build. All 9 required panels present (plus a bonus trend panel). The single biggest adversarial trap — option-chain horizontal overflow on 375px — is handled correctly: the 11-column nowrap table lives in .chain-wrap{overflow:auto} inside a panel set to overflow:hidden, so the chain scrolls INSIDE its panel rather than breaking the page. Fetches hit plausible instrument-parameterized REST endpoints with a proper AbortController + 2500ms timeout + try/catch + demo fallback, so no panel is ever left blank and nothing hangs. Loses points only on code-hygiene sloppiness, not on the load-bearing requirements.",
+   "topStrength": "Correct overflow containment: the dense 11-col chain table scrolls inside its panel (overflow:auto wrap + overflow:hidden panel + no forced min-width), so 375px never breaks the page — combined with a clean AbortController/timeout/try-catch/demo-fallback fetch layer that guarantees no blank or hung panels.",
+   "worstFlaw": "Code-quality sloppiness that signals weak review discipline: an invalid Intl option key (maxFractionDigits alongside the correct maximumFractionDigits) and a corrupted CSS custom property (--mut2:#4d6party, not a valid color). Both are silently ignored so nothing visibly breaks, but they are dead/broken code shipped to prod. Also minor: changeOI is computed in demo data but never rendered, and the position fallback branch logic is needlessly convoluted.",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ },
+ {
+  "id": 2,
+  "label": "glass-cockpit",
+  "score": 88,
+  "critique": {
+   "scores": {
+    "visualPolish": 18,
+    "layoutResponsive": 23,
+    "dataDensity": 18,
+    "dataIntegration": 16,
+    "codeQuality": 13
+   },
+   "total": 88,
+   "verdict": "Strong, production-grade glass-cockpit terminal. All 9 panels present, the option chain scrolls inside its panel via .chainwrap{overflow:auto} + table{min-width:560px}, and every fetch is wrapped with AbortController timeout + try/catch + per-call demo fallback so no panel ever hangs or goes blank. Loses points on endpoint-binding rigor and a few real data-integration gaps, but no fatal flaws.",
+   "topStrength": "Overflow is genuinely contained: html,body{max-width:100%;overflow-x:hidden} plus .panel{overflow:hidden;min-width:0} plus a dedicated .chainwrap{overflow:auto} wrapper around a min-width:560px table means the wide CE/STRIKE/PE table scrolls horizontally INSIDE its own panel at 375px instead of breaking the page. min-width:0 on the grid panel correctly defeats the classic grid blowout. Every jget() call has a hard 2800ms abort timeout, try/catch returning null, and a `|| demo*()` fallback at the call site, so a dead/slow backend degrades to demo data rather than leaving blank panels or hanging the loop.",
+   "worstFlaw": "Endpoint correctness is unverified/assumed, not confirmed against the real backend. It hits invented paths like /api/option-chain-full, /api/signal, /api/trend, /api/position, /api/pnl, /api/bot/status and /api/${nifty|sensex|banknifty} — for a repo whose actual FastAPI routes (backend/main.py) may differ, every one of these will silently 404 and fall through to demo forever, so it can LOOK live while being 100% synthetic with no visible distinction between real and demo state (no \"DEMO\" badge when fallback triggers). Risk-guard consec/drawdown values are partly Math.random()-derived rather than real, which is misleading on a risk panel.",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ },
+ {
+  "id": 10,
+  "label": "split-pro-trader",
+  "score": 88,
+  "critique": {
+   "scores": {
+    "visualPolish": 18,
+    "layoutResponsive": 24,
+    "dataDensity": 18,
+    "dataIntegration": 15,
+    "codeQuality": 13
+   },
+   "total": 88,
+   "verdict": "Strong, genuinely shippable pro-trader terminal. The option-chain centerpiece scrolls correctly inside its own panel on 375px with no page-level horizontal overflow, all 9 panels are present, and every fetch is wrapped in an AbortController timeout + try/catch + demo fallback so no panel hangs or goes blank. Headline endpoints (/api/{inst}, option-chain-full, bot/status, pnl, signal, trend, position) all map to real, correctly-shaped server routes. Held back from the top tier by fabricated Risk Guard and log data and a fake spot-change baseline despite real endpoints existing.",
+   "topStrength": "Robust, uniform data layer: a single api() helper enforces AbortController(3500ms)+try/catch returning null, and every render call uses `real || demo()`, so the UI never blanks or hangs; all primary endpoints verified against server.js as real with matching query params and JSON field names (ce/pe.ltp, chngPct, oi, volume, spot, atm, rows, isATM).",
+   "worstFlaw": "Dishonest/synthetic data on panels that have real backends: Risk Guard invents consecutive-losses via Math.random() and derives drawdown locally instead of calling the existing /api/risk (server.js:3601); the activity log is 100% canned templates while /api/logs (3562) is ignored; and spot change % is computed against a hardcoded BASE constant rather than real prevClose, so the headline change number is fictional even when live data flows.",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ },
+ {
+  "id": 6,
+  "label": "three-column",
+  "score": 87,
+  "critique": {
+   "scores": {
+    "visualPolish": 18,
+    "layoutResponsive": 23,
+    "dataDensity": 18,
+    "dataIntegration": 16,
+    "codeQuality": 12
+   },
+   "total": 87,
+   "verdict": "Strong, genuinely shippable terminal. The option chain scrolls correctly inside its panel on 375px (no page overflow), every fetch has AbortController+timeout+try/catch+demo fallback, and the real endpoint shapes actually match. Held back from elite by only 7 standalone panels (Bot/Trend folded into the status bar, not panels), a brittle multi-instrument data story, and a latent null-leg crash in the chain renderer.",
+   "topStrength": "Robust data layer: getJSON wraps every call in AbortController + 2500ms timeout + try/catch + per-endpoint demo fallback, and the route names (/api/nifty, /api/signal, /api/trend, /api/pnl, /api/position, /api/bot/status, /api/option-chain-full) plus the chain JSON shape ({spot,atm,interval,rows[].ce/pe.{ltp,oi,volume,chngPct}}) match the real server.js exactly — so panels bind live data, never hang, never blank.",
+   "worstFlaw": "Multi-instrument is half-real and the chain renderer is unsafe: SENSEX/BANKNIFTY index data is faked via '/api/nifty'.replace('nifty',ep), hitting non-existent /api/sensex and /api/banknifty routes that 404 to demo. Worse, /api/option-chain-full can return rows with ce:null or pe:null for illiquid strikes, and refreshChain does r.ce.oi / fmt(r.ce.ltp) with no null guard, throwing a TypeError mid-render that getJSON cannot catch (it's outside the fetch).",
+   "overflowRisk": false,
+   "panelsPresent": 7
+  }
+ },
+ {
+  "id": 5,
+  "label": "minimal-mono",
+  "score": 86,
+  "critique": {
+   "scores": {
+    "visualPolish": 17,
+    "layoutResponsive": 24,
+    "dataDensity": 18,
+    "dataIntegration": 16,
+    "codeQuality": 11
+   },
+   "total": 86,
+   "verdict": "Strong, genuinely terminal-grade single-page build. All 9 panels present, the option-chain table correctly scrolls inside its panel (no page overflow at 375px), and every fetch has AbortController+timeout+try/catch+demo fallback so no panel hangs or goes blank. Marked down for serial-await polling that can stack on backend failure and a sloppy invalid CSS var left in.",
+   "topStrength": "Correct overflow handling: .chainwrap{overflow-x:auto} + table white-space:nowrap + .panel{min-width:0} means the wide chain scrolls inside its own panel instead of breaking the mobile layout; page-level overflow-x:hidden is a clean backstop. Every endpoint also has a real demo fallback so failure never yields a blank panel.",
+   "worstFlaw": "pollMain() awaits 7 endpoints sequentially, each with a 2800ms abort timeout. With a down/slow backend the worst-case cycle is ~19.6s against a 4000ms setInterval, so failing cycles overlap and stack — fetches should run via Promise.all. Secondary: invalid CSS token `--txt3:#5d footnote;` left in the stylesheet (unused, but a clear error/sloppiness signal).",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ },
+ {
+  "id": 1,
+  "label": "bloomberg-pro",
+  "score": 84,
+  "critique": {
+   "scores": {
+    "visualPolish": 18,
+    "layoutResponsive": 23,
+    "dataDensity": 18,
+    "dataIntegration": 15,
+    "codeQuality": 10
+   },
+   "total": 84,
+   "verdict": "Strong, genuinely terminal-grade Bloomberg-style build. Endpoints are real and correct, mobile overflow is properly contained, and demo fallback is wired on every fetch. Held back by a real live-data crash in the option-chain renderer (no null-leg guard) plus two correctness mismatches against the actual API contract.",
+   "topStrength": "Disciplined data layer: getJSON has AbortController + 2800ms timeout + try/catch, every panel has a demo fallback (no blank panels, no hang), and all polled paths (/api/nifty|sensex|banknifty, /api/bot/status, /api/option-chain-full, /api/signal, /api/trend, /api/pnl, /api/position) actually exist in server.js. API LIVE/DEMO chip reflects fetch state.",
+   "worstFlaw": "renderChain() accesses r.ce.oi / r.pe.volume unconditionally, but the real /api/option-chain-full returns rows with ce:null / pe:null for missing strikes (server.js:3938-3940). On sparse live chains this throws, the tick() promise rejects, and the chain panel stays stuck on 'loading chain…' (no fallback inside the render path). Secondary: /api/trend returns HIGH_TREND/LOW_TREND/RANGE and no 'structure' field, so the BULLISH/BEARISH color map and structure/consec cells render as uncolored/undefined with live data; and /api/signal ignores the inst query (always SENSEX) so NIFTY/BANKNIFTY show SENSEX signals when live.",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ },
+ {
+  "id": 4,
+  "label": "neon-grid",
+  "score": 84,
+  "critique": {
+   "scores": {
+    "visualPolish": 18,
+    "layoutResponsive": 23,
+    "dataDensity": 18,
+    "dataIntegration": 13,
+    "codeQuality": 12
+   },
+   "total": 84,
+   "verdict": "Strong, genuinely production-looking neon terminal that survives the 375px overflow test and ships all 9 panels with real abort/timeout/fallback plumbing — but data integration is the weak link: two polled endpoints ignore the instrument param on the real server and day-change is anchored to a hardcoded literal, so 'live' NIFTY/BANKNIFTY silently shows Sensex/fake numbers without ever tripping the demo fallback.",
+   "topStrength": "Mobile overflow is correctly solved: the 660px option-chain table lives in a .chain-scroll{overflow:auto} wrapper inside .panel{overflow:hidden;min-width:0}, and at <=1180/720px every panel collapses to span-12, so the table scrolls INSIDE its panel rather than breaking the page. AbortController + 3s timeout + try/catch + per-call demo generator means no panel ever hangs or goes blank.",
+   "worstFlaw": "Wrong real-endpoint binding masquerading as 'live'. Verified against server.js: /api/signal is hardcoded to publicSignalFor('SENSEX',...) and /api/position returns a single global openPosition — both ignore the ?inst= param the dashboard sends. So for NIFTY/BANKNIFTY these return HTTP 200 with Sensex data, the live tag shows green, and the demo fallback never fires — you see confidently-wrong cross-instrument data. Compounding this, day-change %% is computed as newP - BASE[INST] against a hardcoded literal (24850/81500/54200) instead of a real prevClose, so the headline change is fabricated even in true live mode.",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ },
+ {
+  "id": 3,
+  "label": "bento-tiles",
+  "score": 83,
+  "critique": {
+   "scores": {
+    "visualPolish": 18,
+    "layoutResponsive": 23,
+    "dataDensity": 18,
+    "dataIntegration": 14,
+    "codeQuality": 10
+   },
+   "total": 83,
+   "verdict": "Strong bento terminal: the option-chain table correctly scrolls inside its panel (no mobile page overflow), all 9 panels present and wired, and every fetch has AbortController + timeout + try/catch + demo fallback so nothing hangs or blanks in demo mode. Loses points for a real-data crash path: renderChain dereferences ce.oi/pe.ltp without null-guarding, but /api/option-chain-full returns ce:null/pe:null for missing strikes — that TypeError aborts the render and freezes the chain on 'loading…' against a sparse live book. Polished but not bulletproof on real data.",
+   "topStrength": "Genuinely overflow-safe responsive layout: the 9-col chain lives in an overflow:auto scroller inside an overflow:hidden tile, so at 375px the table scrolls horizontally within its panel instead of breaking the page; grid track min-width collapses correctly because the scroll container resolves min-content to 0.",
+   "worstFlaw": "renderChain assumes every row has non-null ce/pe (r.ce.oi, r.pe.ltp) but the bound endpoint /api/option-chain-full returns ce:null/pe:null for strikes absent from the live book — a TypeError that aborts the render and leaves the chain stuck on 'loading…' with real sparse data; the demo path never produces null legs so the bug is invisible until live. Secondary: a 503 DHAN_AUTH response carries rows:[] (truthy) and blanks the tbody, and there is a malformed '#5e7governance' CSS token in :root.",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ },
+ {
+  "id": 9,
+  "label": "card-flow-soft",
+  "score": 83,
+  "critique": {
+   "scores": {
+    "visualPolish": 17,
+    "layoutResponsive": 23,
+    "dataDensity": 17,
+    "dataIntegration": 15,
+    "codeQuality": 11
+   },
+   "total": 83,
+   "verdict": "Strong, ship-quality terminal. All 9 panels present, chain scrolls correctly inside its panel with no mobile page-break, and fetches hit the real backend endpoints with proper AbortController timeout + try/catch + demo fallback so no panel ever blanks or hangs. Held back from a top score by a latent null-leg crash on real sparse chain data and signal/trend ignoring the inst param server-side.",
+   "topStrength": "Robust, correct data layer: getJSON wraps fetch in AbortController(2500ms)+clearTimeout+try/catch returning null, and every panel uses `await getJSON(realEndpoint) || demoX()`. Endpoints (/api/{inst}, /api/option-chain-full?inst=&depth=, /api/position, /api/pnl, /api/signal, /api/trend, /api/bot/status) all exist in server.js and the chain response shape (atm/interval/rows[].ce/pe.oi/ltp/volume/chngPct) matches renderChain exactly.",
+   "worstFlaw": "renderChain dereferences r.ce.oi / r.pe.ltp with no null guard, but /api/option-chain-full returns ce:null / pe:null for strikes with no data (server.js line 3938). Real sparse chains throw a TypeError mid-render, leaving the chain body broken — the demo data never reproduces this because demoChain always populates both legs, so it passes casual testing and only breaks live.",
+   "overflowRisk": false,
+   "panelsPresent": 9
+  }
+ }
+]

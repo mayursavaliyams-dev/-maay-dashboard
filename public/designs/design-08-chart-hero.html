@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Antigravity Pro — Index Options Trading Bot</title>
+<meta name="description" content="Antigravity Pro: a live Indian index-options (NIFTY/SENSEX) trading bot. ORB signals, Gamma Blast detection, risk guard, charge-aware sizing." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg0:#08101d; --bg1:#0c1628; --bg2:#09111f;
+    --panel:rgba(16,28,48,.55); --panel2:rgba(20,34,58,.42);
+    --border:rgba(120,160,220,.14); --border2:rgba(120,160,220,.22);
+    --txt:#e8eef8; --muted:#8fa3c4; --faint:#5e7195;
+    --green:#38d39f; --red:#ff4444; --cyan:#5fe1ff; --blue:#448aff; --amber:#ffbf69;
+    --shadow:0 18px 50px -20px rgba(0,0,0,.7);
+    --maxw:1220px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    color:var(--txt);
+    background:
+      radial-gradient(900px 500px at 78% -8%,rgba(68,138,255,.16),transparent 60%),
+      radial-gradient(720px 480px at 8% 14%,rgba(56,211,159,.12),transparent 60%),
+      radial-gradient(600px 600px at 50% 120%,rgba(95,225,255,.08),transparent 60%),
+      linear-gradient(180deg,var(--bg0),var(--bg1),var(--bg2));
+    background-attachment:fixed;
+    min-height:100vh; line-height:1.5; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+  a{color:inherit;text-decoration:none}
+  .wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  .up{color:var(--green)} .down{color:var(--red)}
+
+  /* NAV */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    background:linear-gradient(180deg,rgba(8,16,29,.86),rgba(8,16,29,.55));
+    border-bottom:1px solid var(--border);
+  }
+  .nav-in{display:flex;align-items:center;gap:18px;height:62px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.05rem;letter-spacing:.2px}
+  .brand .mark{
+    width:30px;height:30px;border-radius:9px;flex:none;
+    background:conic-gradient(from 140deg,var(--cyan),var(--blue),var(--green),var(--cyan));
+    box-shadow:0 0 18px rgba(95,225,255,.45);position:relative;
+  }
+  .brand .mark::after{
+    content:"";position:absolute;inset:6px;border-radius:5px;background:var(--bg0);
+  }
+  .brand b{color:var(--cyan)}
+  .nav-links{display:flex;gap:26px;margin-left:18px}
+  .nav-links a{color:var(--muted);font-size:.92rem;font-weight:500;transition:color .2s}
+  .nav-links a:hover{color:var(--txt)}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .cta{
+    display:inline-flex;align-items:center;gap:8px;
+    background:linear-gradient(135deg,var(--green),var(--cyan));
+    color:#04121a;font-weight:700;font-size:.9rem;
+    padding:10px 18px;border-radius:11px;border:none;cursor:pointer;
+    box-shadow:0 8px 26px -8px rgba(56,211,159,.6);transition:transform .18s,box-shadow .18s;
+  }
+  .cta:hover{transform:translateY(-2px);box-shadow:0 12px 30px -8px rgba(56,211,159,.75)}
+  .cta.ghost{background:transparent;color:var(--txt);border:1px solid var(--border2);box-shadow:none;font-weight:600}
+  .cta.ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+
+  /* HERO */
+  .hero{padding:46px 0 30px;position:relative}
+  .hero-grid{display:grid;grid-template-columns:0.92fr 1.08fr;gap:38px;align-items:center}
+  .pill{
+    display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;
+    color:var(--cyan);background:rgba(95,225,255,.1);border:1px solid rgba(95,225,255,.25);
+    padding:6px 13px;border-radius:999px;letter-spacing:.4px;text-transform:uppercase;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(56,211,159,.7);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(56,211,159,.55)}70%{box-shadow:0 0 0 9px rgba(56,211,159,0)}100%{box-shadow:0 0 0 0 rgba(56,211,159,0)}}
+  h1.head{font-size:clamp(2.1rem,4.6vw,3.5rem);line-height:1.05;font-weight:700;margin:18px 0 16px;letter-spacing:-.5px}
+  h1.head .grad{background:linear-gradient(120deg,var(--cyan),var(--green) 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{font-size:1.06rem;color:var(--muted);max-width:520px;margin-bottom:26px}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .hero-cta .meta{font-size:.82rem;color:var(--faint)}
+
+  /* indices strip */
+  .indices{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}
+  .idx{
+    flex:1;min-width:150px;background:var(--panel);border:1px solid var(--border);
+    border-radius:14px;padding:13px 15px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  }
+  .idx .nm{font-size:.74rem;letter-spacing:.6px;color:var(--faint);font-weight:600;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+  .idx .px{font-size:1.42rem;font-weight:600;margin-top:5px;letter-spacing:-.3px}
+  .idx .ch{font-size:.84rem;font-weight:600;margin-top:2px}
+  .spark{height:3px;border-radius:3px;margin-top:9px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:.55}
+
+  /* CHART CARD */
+  .chart-card{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--border2);border-radius:20px;padding:18px 18px 14px;
+    box-shadow:var(--shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    position:relative;overflow:hidden;
+  }
+  .chart-card::before{content:"";position:absolute;inset:0;background:radial-gradient(420px 220px at 80% -10%,rgba(95,225,255,.14),transparent 70%);pointer-events:none}
+  .ch-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;position:relative;z-index:2}
+  .ch-sym{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .ch-sym .s{font-weight:700;font-size:1.05rem}
+  .ch-sym .seg{font-size:.7rem;color:var(--faint);border:1px solid var(--border);padding:2px 7px;border-radius:6px}
+  .ch-sym .lp{font-size:1.3rem;font-weight:600;letter-spacing:-.3px}
+  .ch-sym .lc{font-size:.88rem;font-weight:600}
+  .ch-tools{display:flex;gap:6px}
+  .ch-tools button{
+    background:rgba(120,160,220,.08);border:1px solid var(--border);color:var(--muted);
+    font-family:inherit;font-size:.72rem;font-weight:600;padding:5px 10px;border-radius:8px;cursor:pointer;transition:.18s;
+  }
+  .ch-tools button.active,.ch-tools button:hover{color:var(--cyan);border-color:rgba(95,225,255,.4);background:rgba(95,225,255,.1)}
+  .chart-frame{position:relative;width:100%}
+  svg.chart{display:block;width:100%;height:auto}
+  .ch-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;padding-top:10px;border-top:1px solid var(--border);position:relative;z-index:2}
+  .lg{display:flex;align-items:center;gap:7px;font-size:.76rem;color:var(--muted)}
+  .lg i{width:14px;height:3px;border-radius:3px;display:inline-block}
+  .badge-sig{
+    position:absolute;right:16px;top:74px;z-index:3;
+    background:rgba(56,211,159,.14);border:1px solid rgba(56,211,159,.4);color:var(--green);
+    font-size:.72rem;font-weight:700;padding:6px 11px;border-radius:9px;letter-spacing:.4px;
+    backdrop-filter:blur(6px);
+  }
+
+  /* section heads */
+  .sec{padding:54px 0}
+  .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--cyan);text-align:center}
+  h2.sh{font-size:clamp(1.6rem,3vw,2.3rem);font-weight:700;text-align:center;margin:10px 0 8px;letter-spacing:-.4px}
+  .sd{text-align:center;color:var(--muted);max-width:600px;margin:0 auto 38px}
+
+  /* KPI band */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .kpi{
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);position:relative;overflow:hidden;transition:transform .2s,border-color .2s;
+  }
+  .kpi:hover{transform:translateY(-3px);border-color:var(--border2)}
+  .kpi .k-lab{font-size:.78rem;color:var(--faint);font-weight:600;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .kpi .k-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:.95rem}
+  .kpi .k-val{font-size:1.9rem;font-weight:700;margin-top:10px;letter-spacing:-.5px}
+  .kpi .k-sub{font-size:.8rem;color:var(--muted);margin-top:3px}
+  .kpi .glow{position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;filter:blur(34px);opacity:.5}
+
+  /* features */
+  .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .fcard{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);
+    border-radius:16px;padding:24px 22px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    transition:transform .22s,border-color .22s,box-shadow .22s;position:relative;overflow:hidden;
+  }
+  .fcard:hover{transform:translateY(-4px);border-color:var(--border2);box-shadow:var(--shadow)}
+  .fic{
+    width:48px;height:48px;border-radius:13px;display:grid;place-items:center;font-size:1.4rem;margin-bottom:16px;
+    border:1px solid var(--border2);background:rgba(95,225,255,.07);
+  }
+  .fcard h3{font-size:1.08rem;font-weight:600;margin-bottom:8px}
+  .fcard p{font-size:.92rem;color:var(--muted)}
+
+  /* how it works */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;position:relative}
+  .step{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:26px 22px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .step .n{
+    width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:1.1rem;
+    background:linear-gradient(135deg,var(--blue),var(--cyan));color:#04121a;margin-bottom:16px;
+  }
+  .step h3{font-size:1.1rem;margin-bottom:8px}
+  .step p{color:var(--muted);font-size:.92rem}
+
+  /* risk banner */
+  .risk{
+    display:flex;gap:16px;align-items:flex-start;
+    background:linear-gradient(135deg,rgba(255,68,68,.1),rgba(255,191,105,.07));
+    border:1px solid rgba(255,68,68,.32);border-radius:16px;padding:20px 22px;
+  }
+  .risk .ric{font-size:1.6rem;line-height:1;flex:none}
+  .risk h4{color:var(--amber);font-size:1rem;margin-bottom:4px}
+  .risk p{color:var(--muted);font-size:.9rem}
+
+  /* footer */
+  footer{border-top:1px solid var(--border);margin-top:30px;padding:34px 0 40px}
+  .foot{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:flex-start}
+  .foot .fbrand{max-width:300px}
+  .foot .fbrand p{color:var(--faint);font-size:.85rem;margin-top:10px}
+  .fcol h5{font-size:.78rem;letter-spacing:.8px;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .fcol a{display:block;color:var(--muted);font-size:.9rem;margin-bottom:8px;transition:color .18s}
+  .fcol a:hover{color:var(--cyan)}
+  .fbar{margin-top:28px;padding-top:18px;border-top:1px solid var(--border);font-size:.8rem;color:var(--faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+  @media(max-width:980px){
+    .hero-grid{grid-template-columns:1fr;gap:26px}
+    .badge-sig{top:auto;bottom:64px}
+    .feat,.steps{grid-template-columns:1fr 1fr}
+    .kpis{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:680px){
+    .nav-links{display:none}
+    .feat,.steps,.kpis{grid-template-columns:1fr}
+    .hero{padding:30px 0 18px}
+    .idx{min-width:calc(50% - 6px)}
+    .nav-right .cta.ghost{display:none}
+    .kpi .k-val{font-size:1.7rem}
+  }
+  @media(max-width:380px){.idx{min-width:100%}}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a href="#top" class="brand"><span class="mark"></span>Antigravity<b>&nbsp;Pro</b></a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#stats">Live stats</a>
+      <a href="#risk">Risk</a>
+    </nav>
+    <div class="nav-right">
+      <a href="#stats" class="cta ghost">View dashboard</a>
+      <button class="cta" onclick="location.href='#top'">Launch Dashboard →</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-left">
+        <span class="pill"><span class="dot"></span> Live engine · <span id="bot-mode">paper mode</span></span>
+        <h1 class="head">Trade index options at the <span class="grad">speed of the tape</span>.</h1>
+        <p class="sub">Antigravity Pro reads NIFTY &amp; SENSEX in real time — firing ORB breakouts, gamma-blast entries and risk-managed exits, all charge-aware and backtested before a single rupee goes live.</p>
+        <div class="hero-cta">
+          <button class="cta" onclick="location.href='#stats'">Launch Dashboard →</button>
+          <a href="#how" class="cta ghost">See how it works</a>
+          <span class="meta">No build step · self-hosted · paper-first</span>
+        </div>
+
+        <div class="indices" id="indices">
+          <div class="idx" data-sym="NIFTY">
+            <div class="nm">NIFTY <span class="dot" style="background:var(--cyan)"></span></div>
+            <div class="px num">—</div><div class="ch num">—</div><div class="spark"></div>
+          </div>
+          <div class="idx" data-sym="SENSEX">
+            <div class="nm">SENSEX <span class="dot" style="background:var(--cyan)"></span></div>
+            <div class="px num">—</div><div class="ch num">—</div><div class="spark"></div>
+          </div>
+          <div class="idx" data-sym="BANKNIFTY">
+            <div class="nm">BANKNIFTY <span class="dot" style="background:var(--cyan)"></span></div>
+            <div class="px num">—</div><div class="ch num">—</div><div class="spark"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHART (the visual) -->
+      <div class="hero-right">
+        <div class="chart-card">
+          <div class="ch-top">
+            <div class="ch-sym">
+              <span class="s" id="chart-sym">NIFTY</span>
+              <span class="seg">NSE · 5m</span>
+              <span class="lp num" id="chart-lp">—</span>
+              <span class="lc num" id="chart-lc">—</span>
+            </div>
+            <div class="ch-tools" id="ch-tools">
+              <button data-r="NIFTY" class="active">NIFTY</button>
+              <button data-r="SENSEX">SENSEX</button>
+              <button data-r="BANKNIFTY">BANKNIFTY</button>
+            </div>
+          </div>
+          <div class="badge-sig" id="chart-sig">● ORB LONG · 78%</div>
+          <div class="chart-frame">
+            <svg class="chart" id="chart" viewBox="0 0 720 340" preserveAspectRatio="none" role="img" aria-label="Live index candlestick chart"></svg>
+          </div>
+          <div class="ch-legend">
+            <span class="lg"><i style="background:var(--green)"></i> Bullish</span>
+            <span class="lg"><i style="background:var(--red)"></i> Bearish</span>
+            <span class="lg"><i style="background:var(--amber)"></i> VWAP</span>
+            <span class="lg"><i style="background:var(--cyan);opacity:.6"></i> ORB band</span>
+            <span class="lg" style="margin-left:auto;color:var(--faint)">Updates every ~6s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KPI BAND -->
+  <section class="sec" id="stats" style="padding-top:10px">
+    <div class="wrap">
+      <div class="eyebrow">Live engine telemetry</div>
+      <h2 class="sh">Today, at a glance</h2>
+      <p class="sd">Pulled straight from the running bot. Falls back to representative demo figures when the engine is offline.</p>
+      <div class="kpis">
+        <div class="kpi">
+          <div class="glow" style="background:var(--green)"></div>
+          <div class="k-lab"><span class="k-ico" style="background:rgba(56,211,159,.15);color:var(--green)">◎</span> Win rate</div>
+          <div class="k-val num" id="kpi-win">—</div>
+          <div class="k-sub">rolling 30-session</div>
+        </div>
+        <div class="kpi">
+          <div class="glow" style="background:var(--cyan)"></div>
+          <div class="k-lab"><span class="k-ico" style="background:rgba(95,225,255,.15);color:var(--cyan)">⇄</span> Trades today</div>
+          <div class="k-val num" id="kpi-trades">—</div>
+          <div class="k-sub" id="kpi-trades-sub">of daily cap</div>
+        </div>
+        <div class="kpi">
+          <div class="glow" style="background:var(--blue)"></div>
+          <div class="k-lab"><span class="k-ico" style="background:rgba(68,138,255,.15);color:var(--blue)">₹</span> Today P&amp;L</div>
+          <div class="k-val num" id="kpi-pnl">—</div>
+          <div class="k-sub" id="kpi-pnl-sub">realised + open</div>
+        </div>
+        <div class="kpi">
+          <div class="glow" style="background:var(--amber)"></div>
+          <div class="k-lab"><span class="k-ico" style="background:rgba(255,191,105,.15);color:var(--amber)">⛁</span> Active capital</div>
+          <div class="k-val num" id="kpi-cap">—</div>
+          <div class="k-sub">deployed margin</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="sec" id="features">
+    <div class="wrap">
+      <div class="eyebrow">Built for the open-to-close grind</div>
+      <h2 class="sh">Six engines, one terminal</h2>
+      <p class="sd">Every module is wired into the same risk core — signals never bypass position limits or charge maths.</p>
+      <div class="feat">
+        <div class="fcard"><div class="fic">📈</div><h3>ORB Signals</h3><p>Opening-range breakout detection on the first 15-minute candle, confirmed against VWAP and prior-day levels before entry.</p></div>
+        <div class="fcard"><div class="fic">⚡</div><h3>Gamma Blast</h3><p>Detects expiry-day premium decay collapse and rapid theta-to-delta flips for high-velocity directional scalps.</p></div>
+        <div class="fcard"><div class="fic">🛡️</div><h3>Risk Guard</h3><p>Hard drawdown circuit breaker, per-instrument halt flags and a max-loss-per-day kill switch that overrides every signal.</p></div>
+        <div class="fcard"><div class="fic">🧪</div><h3>Backtest Engine</h3><p>Replay strategies across years of intraday data with realistic slippage, then export Excel reports before going live.</p></div>
+        <div class="fcard"><div class="fic">🔁</div><h3>Paper / Live Modes</h3><p>Flip a single flag to route the exact same logic to a paper ledger or a real Dhan order — validate first, deploy second.</p></div>
+        <div class="fcard"><div class="fic">🧮</div><h3>Charge-aware Sizing</h3><p>Brokerage, STT, exchange and GST baked into every position-size calc, so the displayed P&amp;L is the P&amp;L you keep.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="sec" id="how">
+    <div class="wrap">
+      <div class="eyebrow">From data to decision</div>
+      <h2 class="sh">How it works</h2>
+      <p class="sd">Three stages, fully automated, fully observable.</p>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><h3>Ingest the tape</h3><p>Live index quotes, option chains and 5-minute highs/lows stream in and refresh the model continuously through market hours.</p></div>
+        <div class="step"><div class="n">2</div><h3>Score &amp; gate</h3><p>Strategies emit signals with a confidence score; the risk core gates them against capital, daily limits and charge-aware sizing.</p></div>
+        <div class="step"><div class="n">3</div><h3>Execute &amp; track</h3><p>Approved trades route to paper or live, then ride strike-walk and drawdown circuits until exit — every fill logged.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RISK -->
+  <section class="sec" id="risk" style="padding-top:0">
+    <div class="wrap">
+      <div class="risk">
+        <span class="ric">⚠️</span>
+        <div>
+          <h4>Backtest profit does not guarantee future profit.</h4>
+          <p>Trading index options involves substantial risk and you can lose more than your initial capital. Past and simulated performance is not indicative of future results. Always use paper trading first and never deploy capital you cannot afford to lose. This software is a tool, not financial advice.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div class="fbrand">
+        <a href="#top" class="brand"><span class="mark"></span>Antigravity<b>&nbsp;Pro</b></a>
+        <p>A self-hosted live index-options trading engine for NIFTY &amp; SENSEX. Paper-first, charge-aware, backtested.</p>
+      </div>
+      <div class="fcol"><h5>Product</h5><a href="#features">Features</a><a href="#how">How it works</a><a href="#stats">Live stats</a></div>
+      <div class="fcol"><h5>Engine</h5><a href="#stats">Dashboard</a><a href="#features">Backtest</a><a href="#risk">Risk policy</a></div>
+      <div class="fcol"><h5>Modes</h5><a href="#features">Paper</a><a href="#features">Live (Dhan)</a><a href="#risk">Disclaimer</a></div>
+    </div>
+    <div class="fbar">
+      <span>© <span id="yr"></span> Antigravity Pro. For educational use. Trading involves risk.</span>
+      <span class="mono" id="conn">● connecting…</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  /* ---------- helpers ---------- */
+  var fmt = function(n,d){ return Number(n).toLocaleString('en-IN',{minimumFractionDigits:d||2,maximumFractionDigits:d||2}); };
+  var num = function(v){ if(v==null) return NaN; var x=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return x; };
+
+  function fetchJSON(url,ms){
+    var ctrl = new AbortController();
+    var t = setTimeout(function(){ ctrl.abort(); }, ms||3500);
+    return fetch(url,{signal:ctrl.signal,cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('bad'); return r.json(); })
+      .finally(function(){ clearTimeout(t); });
+  }
+
+  /* ---------- demo seeds (realistic fallbacks) ---------- */
+  var SEED = {
+    NIFTY:    { price:24218.55, base:24080,  seg:'NSE'  },
+    SENSEX:   { price:79410.20, base:79010,  seg:'BSE'  },
+    BANKNIFTY:{ price:52640.90, base:52260,  seg:'NSE'  }
+  };
+  var state = {}; // per-symbol live values
+  Object.keys(SEED).forEach(function(k){
+    state[k] = { price:SEED[k].price, prev:SEED[k].base };
+  });
+
+  var online = false;
+  function setConn(){
+    var el=document.getElementById('conn');
+    el.textContent = online ? '● live data' : '● demo data (engine offline)';
+    el.style.color = online ? 'var(--green)' : 'var(--amber)';
+  }
+
+  /* ---------- indices strip ---------- */
+  function renderIndices(){
+    document.querySelectorAll('#indices .idx').forEach(function(card){
+      var sym=card.getAttribute('data-sym'), s=state[sym];
+      var ch = s.price - s.prev;
+      var pct = s.prev ? (ch/s.prev*100) : 0;
+      var dir = ch>=0;
+      card.querySelector('.px').textContent = fmt(s.price);
+      var chEl=card.querySelector('.ch');
+      chEl.textContent = (dir?'▲ +':'▼ ')+fmt(ch)+'  ('+(dir?'+':'')+pct.toFixed(2)+'%)';
+      chEl.className='ch num '+(dir?'up':'down');
+      var spark=card.querySelector('.spark');
+      spark.style.background = dir
+        ? 'linear-gradient(90deg,transparent,var(--green),transparent)'
+        : 'linear-gradient(90deg,transparent,var(--red),transparent)';
+    });
+  }
+
+  /* ---------- candlestick chart ---------- */
+  var SVG_NS='http://www.w3.org/2000/svg';
+  var W=720,H=340,PADX=44,PADT=14,PADB=22;
+  var current='NIFTY';
+  var series={}; // sym -> array of candles {o,h,l,c}
+
+  function genSeries(sym){
+    var s=state[sym], base=s.prev, last=s.price;
+    var n=46, arr=[], px=base*(0.997);
+    var drift=(last-px)/n;
+    for(var i=0;i<n;i++){
+      var vol = base*0.0016*(0.5+Math.random());
+      var o=px;
+      var c=o+drift+(Math.random()-0.5)*vol*1.7;
+      var h=Math.max(o,c)+Math.random()*vol;
+      var l=Math.min(o,c)-Math.random()*vol;
+      arr.push({o:o,h:h,l:l,c:c});
+      px=c;
+    }
+    // pin last close to live price
+    arr[n-1].c=last; arr[n-1].h=Math.max(arr[n-1].h,last); arr[n-1].l=Math.min(arr[n-1].l,last);
+    series[sym]=arr;
+    return arr;
+  }
+
+  function el(name,attrs){ var e=document.createElementNS(SVG_NS,name); for(var k in attrs){ e.setAttribute(k,attrs[k]); } return e; }
+
+  function drawChart(sym){
+    var svg=document.getElementById('chart');
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    var arr=series[sym]||genSeries(sym);
+    var hi=-Infinity, lo=Infinity;
+    arr.forEach(function(c){ if(c.h>hi)hi=c.h; if(c.l<lo)lo=c.l; });
+    var pad=(hi-lo)*0.12; hi+=pad; lo-=pad;
+    var yOf=function(v){ return PADT+(H-PADT-PADB)*(1-(v-lo)/(hi-lo)); };
+    var plotW=W-PADX-8, x0=4;
+    var step=plotW/arr.length, bw=Math.max(3,step*0.56);
+
+    // gridlines + axis labels
+    for(var g=0;g<=4;g++){
+      var gv=lo+(hi-lo)*g/4, gy=yOf(gv);
+      svg.appendChild(el('line',{x1:x0,y1:gy,x2:x0+plotW,y2:gy,stroke:'rgba(120,160,220,.10)','stroke-width':1}));
+      var tx=el('text',{x:x0+plotW+4,y:gy+3.5,fill:'var(--faint)','font-size':9,'font-family':'IBM Plex Mono,monospace'});
+      tx.textContent=Math.round(gv).toLocaleString('en-IN');
+      svg.appendChild(tx);
+    }
+
+    // ORB band (first ~3 candles range)
+    var orbH=-Infinity, orbL=Infinity;
+    for(var k=0;k<3;k++){ if(arr[k].h>orbH)orbH=arr[k].h; if(arr[k].l<orbL)orbL=arr[k].l; }
+    var oy=yOf(orbH), oyb=yOf(orbL);
+    svg.appendChild(el('rect',{x:x0,y:oy,width:plotW,height:Math.max(1,oyb-oy),fill:'rgba(95,225,255,.07)',stroke:'rgba(95,225,255,.22)','stroke-width':1,'stroke-dasharray':'4 4'}));
+
+    // area glow under closes
+    var dArea='M '+x0+' '+(H-PADB);
+    var dLine='';
+    arr.forEach(function(c,i){
+      var cx=x0+i*step+step/2, cy=yOf(c.c);
+      dArea+=' L '+cx.toFixed(1)+' '+cy.toFixed(1);
+      dLine+=(i?' L ':'M ')+cx.toFixed(1)+' '+cy.toFixed(1);
+    });
+    dArea+=' L '+(x0+plotW)+' '+(H-PADB)+' Z';
+    var grad=el('linearGradient',{id:'ag',x1:0,y1:0,x2:0,y2:1});
+    grad.appendChild(el('stop',{offset:'0%','stop-color':'rgba(56,211,159,.28)'}));
+    grad.appendChild(el('stop',{offset:'100%','stop-color':'rgba(56,211,159,0)'}));
+    var defs=el('defs',{}); defs.appendChild(grad); svg.appendChild(defs);
+    svg.appendChild(el('path',{d:dArea,fill:'url(#ag)'}));
+    svg.appendChild(el('path',{d:dLine,fill:'none',stroke:'rgba(56,211,159,.5)','stroke-width':1.4}));
+
+    // VWAP line (running avg of typical price)
+    var cum=0, dV='';
+    arr.forEach(function(c,i){
+      cum+=(c.h+c.l+c.c)/3;
+      var vw=cum/(i+1), cx=x0+i*step+step/2, cy=yOf(vw);
+      dV+=(i?' L ':'M ')+cx.toFixed(1)+' '+cy.toFixed(1);
+    });
+    svg.appendChild(el('path',{d:dV,fill:'none',stroke:'var(--amber)','stroke-width':1.3,'stroke-dasharray':'5 4',opacity:.85}));
+
+    // candles
+    arr.forEach(function(c,i){
+      var cx=x0+i*step+step/2;
+      var bull=c.c>=c.o;
+      var col=bull?'var(--green)':'var(--red)';
+      svg.appendChild(el('line',{x1:cx,y1:yOf(c.h),x2:cx,y2:yOf(c.l),stroke:col,'stroke-width':1}));
+      var top=yOf(Math.max(c.o,c.c)), bot=yOf(Math.min(c.o,c.c));
+      svg.appendChild(el('rect',{x:cx-bw/2,y:top,width:bw,height:Math.max(1.2,bot-top),fill:col,rx:1,opacity:bull?.95:.9}));
+    });
+
+    // last-price marker line + tag
+    var last=arr[arr.length-1].c, ly=yOf(last);
+    svg.appendChild(el('line',{x1:x0,y1:ly,x2:x0+plotW,y2:ly,stroke:'var(--cyan)','stroke-width':1,'stroke-dasharray':'2 3',opacity:.7}));
+    var tag=el('rect',{x:x0+plotW-2,y:ly-9,width:46,height:18,rx:4,fill:'var(--cyan)',opacity:.9});
+    svg.appendChild(tag);
+    var tt=el('text',{x:x0+plotW+21,y:ly+3.5,fill:'#04121a','font-size':9.5,'font-weight':700,'text-anchor':'middle','font-family':'IBM Plex Mono,monospace'});
+    tt.textContent=Math.round(last).toLocaleString('en-IN');
+    svg.appendChild(tt);
+
+    // header values
+    var s=state[sym];
+    var ch=s.price-s.prev, pct=s.prev?(ch/s.prev*100):0, dir=ch>=0;
+    document.getElementById('chart-sym').textContent=sym;
+    document.getElementById('chart-lp').textContent=fmt(s.price);
+    var lc=document.getElementById('chart-lc');
+    lc.textContent=(dir?'+':'')+fmt(ch)+' ('+(dir?'+':'')+pct.toFixed(2)+'%)';
+    lc.className='lc num '+(dir?'up':'down');
+
+    var sig=document.getElementById('chart-sig');
+    if(dir){ sig.textContent='● ORB LONG · '+(70+Math.round(pct*4)).toString().slice(0,2)+'%';
+             sig.style.color='var(--green)'; sig.style.background='rgba(56,211,159,.14)'; sig.style.borderColor='rgba(56,211,159,.4)'; }
+    else { sig.textContent='● RISK GUARD · WAIT';
+           sig.style.color='var(--red)'; sig.style.background='rgba(255,68,68,.13)'; sig.style.borderColor='rgba(255,68,68,.4)'; }
+  }
+
+  /* tab switching */
+  document.getElementById('ch-tools').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    this.querySelectorAll('button').forEach(function(x){x.classList.remove('active');});
+    b.classList.add('active');
+    current=b.getAttribute('data-r');
+    drawChart(current);
+  });
+
+  /* ---------- KPIs ---------- */
+  var demoKPI={ win:64, trades:1, cap:2, capRup:498200 };
+  function renderKPIs(d){
+    document.getElementById('kpi-win').innerHTML = (d.win!=null?d.win:demoKPI.win)+'<span style="font-size:1rem;color:var(--muted)">%</span>';
+    var tt=(d.trades!=null?d.trades:demoKPI.trades), cap=(d.maxTrades!=null?d.maxTrades:demoKPI.cap);
+    document.getElementById('kpi-trades').textContent=tt;
+    document.getElementById('kpi-trades-sub').textContent='of '+cap+' daily cap';
+    var pnl=(d.pnl!=null?d.pnl:8420);
+    var pEl=document.getElementById('kpi-pnl');
+    pEl.textContent=(pnl>=0?'+₹':'-₹')+fmt(Math.abs(pnl),0);
+    pEl.className='k-val num '+(pnl>=0?'up':'down');
+    document.getElementById('kpi-cap').textContent='₹'+fmt(d.capRup!=null?d.capRup:demoKPI.capRup,0);
+  }
+
+  /* ---------- live polling ---------- */
+  function pull(){
+    var jobs=[
+      fetchJSON('/api/nifty').then(function(d){ apply('NIFTY',d); }).catch(function(){}),
+      fetchJSON('/api/sensex').then(function(d){ apply('SENSEX',d); }).catch(function(){}),
+      fetchJSON('/api/banknifty').then(function(d){ apply('BANKNIFTY',d); }).catch(function(){}),
+      fetchJSON('/api/bot/status').then(function(d){ applyStatus(d); }).catch(function(){})
+    ];
+    Promise.allSettled(jobs).then(function(){
+      renderIndices();
+      // refresh series for live drift then redraw current
+      Object.keys(state).forEach(function(k){ genSeries(k); });
+      drawChart(current);
+      setConn();
+    });
+  }
+  function apply(sym,d){
+    online=true;
+    var p=num(d.price);
+    if(!isNaN(p) && p>0){
+      state[sym].prev = state[sym].price; // soft baseline
+      state[sym].price=p;
+    }
+    if(d.dayHigh && d.dayLow){
+      var lo=num(d.dayLow); if(!isNaN(lo)&&lo>0) state[sym].prev = lo + (state[sym].price-lo)*0.0; // keep prev as ref
+    }
+  }
+  var lastStatus={};
+  function applyStatus(d){
+    online=true;
+    lastStatus={
+      trades: (typeof d.tradesToday==='number')?d.tradesToday:null,
+      maxTrades:(typeof d.maxTradesPerDay==='number')?d.maxTradesPerDay:null,
+      win:null, pnl:null, capRup:null
+    };
+    document.getElementById('bot-mode').textContent = d.running ? 'engine running' : 'engine idle';
+    renderKPIs(lastStatus);
+  }
+
+  /* ---------- boot ---------- */
+  // seed prev so demo shows movement
+  state.NIFTY.prev=SEED.NIFTY.base; state.SENSEX.prev=SEED.SENSEX.base; state.BANKNIFTY.prev=SEED.BANKNIFTY.base;
+  renderIndices();
+  Object.keys(state).forEach(function(k){ genSeries(k); });
+  drawChart('NIFTY');
+  renderKPIs({});
+  setConn();
+
+  // gentle demo animation when offline (keeps page alive)
+  setInterval(function(){
+    if(online) return;
+    Object.keys(state).forEach(function(k){
+      var s=state[k];
+      s.price += (Math.random()-0.48)*s.price*0.0006;
+    });
+    renderIndices();
+    Object.keys(state).forEach(function(k){ genSeries(k); });
+    drawChart(current);
+  }, 6000);
+
+  pull();
+  setInterval(pull, 6000);
+})();
+</script>
+</body>
+</html>

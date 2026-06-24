@@ -1,0 +1,349 @@
+//@version=5
+strategy(
+    "Liquidity Sweep Reversal PRO MAX - 200 Days Backtest",
+    overlay=true,
+    initial_capital=200000,
+    default_qty_type=strategy.percent_of_equity,
+    default_qty_value=10,
+    pyramiding=0,
+    process_orders_on_close=true
+)
+
+// =====================================================
+// 1. INPUTS
+// =====================================================
+groupRSI = "RSI Filter"
+groupRisk = "Risk Management"
+groupPartial = "Partial Booking"
+groupFilters = "Filters"
+groupTradeControl = "Trade Control"
+groupTrend = "EMA Trend"
+groupSideways = "Sideways Filter"
+
+rsiLength = input.int(14, "RSI Length", minval=1, group=groupRSI)
+rsiOB = input.int(60, "RSI Overbought", minval=1, maxval=100, group=groupRSI)
+rsiOS = input.int(40, "RSI Oversold", minval=1, maxval=100, group=groupRSI)
+
+atrLen = input.int(14, "ATR Length", minval=1, group=groupRisk)
+atrBuffer = input.float(0.25, "ATR SL Buffer", minval=0.0, step=0.05, group=groupRisk)
+
+useBreakEven = input.bool(true, "Move SL To Breakeven", group=groupRisk)
+breakEvenRR = input.float(1.0, "Breakeven After RR", minval=0.1, step=0.25, group=groupRisk)
+
+useTrailing = input.bool(true, "Use Trailing SL", group=groupRisk)
+trailATR = input.float(1.0, "Trailing ATR Multiplier", minval=0.1, step=0.25, group=groupRisk)
+
+usePartialBooking = input.bool(true, "Use Partial Profit Booking", group=groupPartial)
+target1RR = input.float(1.0, "Target 1 RR", minval=0.1, step=0.25, group=groupPartial)
+target2RR = input.float(2.0, "Target 2 RR", minval=0.1, step=0.25, group=groupPartial)
+target1Qty = input.float(50, "Target 1 Exit Qty %", minval=0, maxval=100, step=5, group=groupPartial)
+target2Qty = input.float(50, "Target 2 Exit Qty %", minval=0, maxval=100, step=5, group=groupPartial)
+
+useVolumeFilter = input.bool(true, "Use Volume Filter", group=groupFilters)
+volMultiplier = input.float(1.2, "Volume Multiplier", minval=0.1, step=0.1, group=groupFilters)
+
+useSessionFilter = input.bool(true, "Use Session Filter", group=groupFilters)
+tradeSession = input.session("0920-1450", "Trading Session", group=groupFilters)
+
+oneTradePerDay = input.bool(true, "One Trade Per Day", group=groupTradeControl)
+
+useTrendFilter = input.bool(true, "Use Multi EMA Trend Filter", group=groupTrend)
+strongTrendOnly = input.bool(false, "Use Strong Trend Only", group=groupTrend)
+
+ema9Len = input.int(9, "EMA 9", minval=1, group=groupTrend)
+ema21Len = input.int(21, "EMA 21", minval=1, group=groupTrend)
+ema50Len = input.int(50, "EMA 50", minval=1, group=groupTrend)
+ema80Len = input.int(80, "EMA 80", minval=1, group=groupTrend)
+ema200Len = input.int(200, "EMA 200", minval=1, group=groupTrend)
+
+useNoTradeZone = input.bool(true, "Use No Trade Zone", group=groupSideways)
+noTradePercent = input.float(25.0, "Middle Zone % Avoid", minval=0.0, maxval=100.0, step=5.0, group=groupSideways)
+
+useADXFilter = input.bool(true, "Use ADX Trend Strength Filter", group=groupSideways)
+adxLength = input.int(14, "ADX Length", minval=1, group=groupSideways)
+adxMin = input.float(18.0, "Minimum ADX", minval=0.0, step=1.0, group=groupSideways)
+
+backtestDays = 574
+
+// =====================================================
+// 2. BACKTEST DATE RANGE
+// =====================================================
+msInDay = 24 * 60 * 60 * 1000
+backtestStartTime = timenow - backtestDays * msInDay
+inBacktestRange = time >= backtestStartTime
+
+// =====================================================
+// 3. PREVIOUS DAY HIGH / LOW
+// =====================================================
+[pdh, pdl] = request.security(
+    syminfo.tickerid,
+    "D",
+    [high[1], low[1]],
+    gaps=barmerge.gaps_off,
+    lookahead=barmerge.lookahead_on
+)
+
+plot(pdh, "Previous Day High", color=color.new(color.red, 20), linewidth=2, style=plot.style_linebr)
+plot(pdl, "Previous Day Low", color=color.new(color.green, 20), linewidth=2, style=plot.style_linebr)
+
+// =====================================================
+// 4. INDICATORS
+// =====================================================
+rsi = ta.rsi(close, rsiLength)
+atr = ta.atr(atrLen)
+avgVol = ta.sma(volume, 20)
+
+ema9 = ta.ema(close, ema9Len)
+ema21 = ta.ema(close, ema21Len)
+ema50 = ta.ema(close, ema50Len)
+ema80 = ta.ema(close, ema80Len)
+ema200 = ta.ema(close, ema200Len)
+
+plot(ema9, "EMA 9", color=color.yellow, linewidth=1)
+plot(ema21, "EMA 21", color=color.orange, linewidth=1)
+plot(ema50, "EMA 50", color=color.blue, linewidth=2)
+plot(ema80, "EMA 80", color=color.purple, linewidth=2)
+plot(ema200, "EMA 200", color=color.white, linewidth=3)
+
+// =====================================================
+// 5. MULTI EMA TREND LOGIC
+// =====================================================
+strongBullTrend = ema9 > ema21 and ema21 > ema50 and ema50 > ema80 and ema80 > ema200
+strongBearTrend = ema9 < ema21 and ema21 < ema50 and ema50 < ema80 and ema80 < ema200
+
+normalBullTrend = ema21 > ema50 and close > ema200
+normalBearTrend = ema21 < ema50 and close < ema200
+
+bullTrend = not useTrendFilter ? true : strongTrendOnly ? strongBullTrend : normalBullTrend
+bearTrend = not useTrendFilter ? true : strongTrendOnly ? strongBearTrend : normalBearTrend
+
+trendText = strongBullTrend ? "STRONG UP TREND" :
+     strongBearTrend ? "STRONG DOWN TREND" :
+     normalBullTrend ? "UP TREND" :
+     normalBearTrend ? "DOWN TREND" :
+     "SIDEWAYS"
+
+trendColor = strongBullTrend ? color.green :
+     strongBearTrend ? color.red :
+     normalBullTrend ? color.new(color.green, 20) :
+     normalBearTrend ? color.new(color.red, 20) :
+     color.gray
+
+// =====================================================
+// 6. TREND CHANGE SIGNAL
+// =====================================================
+trendUpChange = ta.crossover(ema9, ema21) and close > ema50
+trendDownChange = ta.crossunder(ema9, ema21) and close < ema50
+
+plotshape(trendUpChange, title="Trend Change Up", location=location.belowbar, color=color.lime, style=shape.labelup, text="UP\nTREND", textcolor=color.black, size=size.small)
+plotshape(trendDownChange, title="Trend Change Down", location=location.abovebar, color=color.red, style=shape.labeldown, text="DOWN\nTREND", textcolor=color.white, size=size.small)
+
+bgcolor(normalBullTrend ? color.new(color.green, 94) : normalBearTrend ? color.new(color.red, 94) : na)
+
+// =====================================================
+// 7. FILTERS
+// =====================================================
+volumeConfirm = not useVolumeFilter or volume > avgVol * volMultiplier
+sessionConfirm = not useSessionFilter or not na(time(timeframe.period, tradeSession))
+confirmedBar = barstate.isconfirmed
+
+[diPlus, diMinus, adx] = ta.dmi(adxLength, adxLength)
+trendStrengthOK = not useADXFilter or adx >= adxMin
+
+// =====================================================
+// 8. NO TRADE ZONE
+// =====================================================
+hasLevels = not na(pdh) and not na(pdl)
+dayRange = hasLevels ? pdh - pdl : na
+middlePrice = hasLevels ? (pdh + pdl) / 2.0 : na
+
+zoneSize = hasLevels ? dayRange * noTradePercent / 100.0 : na
+upperNoTrade = hasLevels ? middlePrice + zoneSize / 2.0 : na
+lowerNoTrade = hasLevels ? middlePrice - zoneSize / 2.0 : na
+
+priceInNoTradeZone = hasLevels and close <= upperNoTrade and close >= lowerNoTrade
+noTradeZoneOK = not useNoTradeZone or not priceInNoTradeZone
+
+plot(useNoTradeZone ? upperNoTrade : na, "No Trade Zone High", color=color.new(color.gray, 40), style=plot.style_linebr)
+plot(useNoTradeZone ? lowerNoTrade : na, "No Trade Zone Low", color=color.new(color.gray, 40), style=plot.style_linebr)
+bgcolor(useNoTradeZone and priceInNoTradeZone ? color.new(color.gray, 88) : na)
+
+// =====================================================
+// 9. ONE TRADE PER DAY
+// =====================================================
+var int lastTradeDateKey = na
+tradeDateKey = year(time) * 1000 + dayofyear(time)
+canTradeToday = not oneTradePerDay or na(lastTradeDateKey) or tradeDateKey != lastTradeDateKey
+
+// =====================================================
+// 10. LIQUIDITY SWEEP LOGIC
+// =====================================================
+bullSweep = hasLevels and low < pdl and close > pdl
+bearSweep = hasLevels and high > pdh and close < pdh
+
+bullSignal = confirmedBar and bullSweep and rsi < rsiOS and bullTrend and volumeConfirm and sessionConfirm and noTradeZoneOK and trendStrengthOK and inBacktestRange
+bearSignal = confirmedBar and bearSweep and rsi > rsiOB and bearTrend and volumeConfirm and sessionConfirm and noTradeZoneOK and trendStrengthOK and inBacktestRange
+
+// =====================================================
+// 11. TRADE VARIABLES
+// =====================================================
+var float longSL = na
+var float longEntry = na
+var float longTP1 = na
+var float longTP2 = na
+
+var float shortSL = na
+var float shortEntry = na
+var float shortTP1 = na
+var float shortTP2 = na
+
+partialQty1 = math.min(target1Qty, 100)
+partialQty2 = math.min(target2Qty, 100 - partialQty1)
+
+// =====================================================
+// 12. BUY ENTRY
+// =====================================================
+if bullSignal and strategy.position_size == 0 and canTradeToday
+    longEntry := close
+    longSL := low - atr * atrBuffer
+    longRisk = longEntry - longSL
+
+    if longRisk > 0
+        longTP1 := longEntry + longRisk * target1RR
+        longTP2 := longEntry + longRisk * target2RR
+
+        strategy.entry("BUY Trap", strategy.long)
+
+        if usePartialBooking
+            strategy.exit("BUY T1", "BUY Trap", qty_percent=partialQty1, stop=longSL, limit=longTP1)
+            strategy.exit("BUY T2", "BUY Trap", qty_percent=partialQty2, stop=longSL, limit=longTP2)
+        else
+            strategy.exit("BUY Exit", "BUY Trap", stop=longSL, limit=longTP2)
+
+        lastTradeDateKey := tradeDateKey
+
+// =====================================================
+// 13. SELL ENTRY
+// =====================================================
+if bearSignal and strategy.position_size == 0 and canTradeToday
+    shortEntry := close
+    shortSL := high + atr * atrBuffer
+    shortRisk = shortSL - shortEntry
+
+    if shortRisk > 0
+        shortTP1 := shortEntry - shortRisk * target1RR
+        shortTP2 := shortEntry - shortRisk * target2RR
+
+        strategy.entry("SELL Trap", strategy.short)
+
+        if usePartialBooking
+            strategy.exit("SELL T1", "SELL Trap", qty_percent=partialQty1, stop=shortSL, limit=shortTP1)
+            strategy.exit("SELL T2", "SELL Trap", qty_percent=partialQty2, stop=shortSL, limit=shortTP2)
+        else
+            strategy.exit("SELL Exit", "SELL Trap", stop=shortSL, limit=shortTP2)
+
+        lastTradeDateKey := tradeDateKey
+
+// =====================================================
+// 14. BREAKEVEN + TRAILING SL
+// =====================================================
+if strategy.position_size > 0 and not na(longEntry) and not na(longSL)
+    longRisk = longEntry - longSL
+    breakevenPrice = longEntry + longRisk * breakEvenRR
+
+    if useBreakEven and high >= breakevenPrice
+        longSL := math.max(longSL, longEntry)
+
+    if useTrailing
+        longSL := math.max(longSL, close - atr * trailATR)
+
+    if usePartialBooking
+        strategy.exit("BUY T1", "BUY Trap", qty_percent=partialQty1, stop=longSL, limit=longTP1)
+        strategy.exit("BUY T2", "BUY Trap", qty_percent=partialQty2, stop=longSL, limit=longTP2)
+    else
+        strategy.exit("BUY Exit", "BUY Trap", stop=longSL, limit=longTP2)
+
+if strategy.position_size < 0 and not na(shortEntry) and not na(shortSL)
+    shortRisk = shortSL - shortEntry
+    breakevenPrice = shortEntry - shortRisk * breakEvenRR
+
+    if useBreakEven and low <= breakevenPrice
+        shortSL := math.min(shortSL, shortEntry)
+
+    if useTrailing
+        shortSL := math.min(shortSL, close + atr * trailATR)
+
+    if usePartialBooking
+        strategy.exit("SELL T1", "SELL Trap", qty_percent=partialQty1, stop=shortSL, limit=shortTP1)
+        strategy.exit("SELL T2", "SELL Trap", qty_percent=partialQty2, stop=shortSL, limit=shortTP2)
+    else
+        strategy.exit("SELL Exit", "SELL Trap", stop=shortSL, limit=shortTP2)
+
+if strategy.position_size == 0
+    longSL := na
+    longEntry := na
+    longTP1 := na
+    longTP2 := na
+    shortSL := na
+    shortEntry := na
+    shortTP1 := na
+    shortTP2 := na
+
+// =====================================================
+// 15. CHART SIGNALS
+// =====================================================
+plotshape(bullSignal, title="BUY Signal", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.normal, text="TRAP\nBUY", textcolor=color.white)
+plotshape(bearSignal, title="SELL Signal", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.normal, text="TRAP\nSELL", textcolor=color.white)
+
+plot(strategy.position_size > 0 ? longSL : na, "Long SL", color=color.red, linewidth=2, style=plot.style_linebr)
+plot(strategy.position_size > 0 ? longTP1 : na, "Long TP1", color=color.new(color.green, 40), linewidth=1, style=plot.style_linebr)
+plot(strategy.position_size > 0 ? longTP2 : na, "Long TP2", color=color.green, linewidth=2, style=plot.style_linebr)
+
+plot(strategy.position_size < 0 ? shortSL : na, "Short SL", color=color.red, linewidth=2, style=plot.style_linebr)
+plot(strategy.position_size < 0 ? shortTP1 : na, "Short TP1", color=color.new(color.green, 40), linewidth=1, style=plot.style_linebr)
+plot(strategy.position_size < 0 ? shortTP2 : na, "Short TP2", color=color.green, linewidth=2, style=plot.style_linebr)
+
+// =====================================================
+// 16. DASHBOARD TABLE
+// =====================================================
+var table dash = table.new(position.top_right, 2, 10, border_width=1)
+
+if barstate.islast
+    table.cell(dash, 0, 0, "Trend", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 0, trendText, text_color=color.white, bgcolor=trendColor)
+
+    table.cell(dash, 0, 1, "RSI", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 1, str.tostring(rsi, "#.##"), text_color=color.white, bgcolor=color.gray)
+
+    table.cell(dash, 0, 2, "PDH", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 2, str.tostring(pdh, "#.##"), text_color=color.white, bgcolor=color.red)
+
+    table.cell(dash, 0, 3, "PDL", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 3, str.tostring(pdl, "#.##"), text_color=color.white, bgcolor=color.green)
+
+    table.cell(dash, 0, 4, "Volume", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 4, volumeConfirm ? "OK" : "LOW", text_color=color.white, bgcolor=volumeConfirm ? color.green : color.red)
+
+    table.cell(dash, 0, 5, "Session", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 5, sessionConfirm ? "ACTIVE" : "OFF", text_color=color.white, bgcolor=sessionConfirm ? color.green : color.red)
+
+    table.cell(dash, 0, 6, "ADX", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 6, str.tostring(adx, "#.##"), text_color=color.white, bgcolor=trendStrengthOK ? color.green : color.red)
+
+    table.cell(dash, 0, 7, "No Trade Zone", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 7, priceInNoTradeZone ? "AVOID" : "OK", text_color=color.white, bgcolor=priceInNoTradeZone ? color.red : color.green)
+
+    table.cell(dash, 0, 8, "Trade Status", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 8, strategy.position_size > 0 ? "BUY ACTIVE" : strategy.position_size < 0 ? "SELL ACTIVE" : "NO TRADE", text_color=color.white, bgcolor=strategy.position_size > 0 ? color.green : strategy.position_size < 0 ? color.red : color.gray)
+
+    table.cell(dash, 0, 9, "Backtest", text_color=color.white, bgcolor=color.black)
+    table.cell(dash, 1, 9, str.tostring(backtestDays) + " Days", text_color=color.white, bgcolor=color.blue)
+
+// =====================================================
+// 17. ALERTS
+// =====================================================
+alertcondition(bullSignal, title="BUY Trap Alert", message="Liquidity Sweep BUY Signal")
+alertcondition(bearSignal, title="SELL Trap Alert", message="Liquidity Sweep SELL Signal")
+
+alertcondition(trendUpChange, title="Trend Change UP Alert", message="Trend changed to UP: EMA 9 crossed above EMA 21")
+alertcondition(trendDownChange, title="Trend Change DOWN Alert", message="Trend changed to DOWN: EMA 9 crossed below EMA 21")

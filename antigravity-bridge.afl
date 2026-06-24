@@ -1,0 +1,99 @@
+// ============================================================
+// ANTIGRAVITY PRO - AmiBroker AFL Bridge  (YOUR-STRATEGY mode)
+// ============================================================
+// SETUP:
+//   1. Start server: npm start  (http://localhost:3000)
+//   2. Copy this AFL into AmiBroker\Formulas\Custom\
+//   3. Open a NIFTY / BANKNIFTY / SENSEX chart and apply it
+//   4. Open http://localhost:3000/ami-heatmap.html
+//
+// This pushes YOUR strategy's CALL/PUT signal to the server so
+// the heatmap highlights your target strike in real time.
+// Edit the two conditions in the "YOUR STRATEGY" block below.
+// ============================================================
+
+#pragma maxthreads 1
+
+// CONFIG
+ServerURL = "http://localhost:3000";
+APIKey    = "antigravity";
+
+// Refresh every 5 seconds
+RequestTimedRefresh( 5 );
+
+// Auto-detect instrument from chart name (strip exchange prefix)
+instName = Name();
+if( StrFind( instName, "BANKNIFTY" ) >= 0 )     instName = "BANKNIFTY";
+else if( StrFind( instName, "NIFTY" ) >= 0 )    instName = "NIFTY";
+else if( StrFind( instName, "SENSEX" ) >= 0 )   instName = "SENSEX";
+else instName = "NIFTY"; // default
+
+// ============================================================
+// YOUR AMIBROKER STRATEGY  ->  heatmap
+// ------------------------------------------------------------
+// Put YOUR system's entry rules here.
+//   myCall = TRUE on a bullish (CALL) signal bar
+//   myPut  = TRUE on a bearish (PUT)  signal bar
+// The lines below are PLACEHOLDERS (20-MA cross) — replace them
+// with your own indicators / system rules.
+// ============================================================
+myCall = Cross( Close, MA( Close, 20 ) );        // <-- REPLACE with your buy rule
+myPut  = Cross( MA( Close, 20 ), Close );         // <-- REPLACE with your sell rule
+myConf = 80;                                      // confidence 0-100 (optional, your own score)
+
+// ATM strike from live price (strike step per instrument)
+step     = IIf( instName == "NIFTY", 50, 100 );   // NIFTY=50, BANKNIFTY/SENSEX=100
+mySpot   = LastValue( Close );
+myStrike = round( mySpot / step ) * step;
+
+// Current-bar signal
+mySig = "WAIT";
+if( LastValue( myCall ) ) mySig = "CALL";
+else if( LastValue( myPut ) ) mySig = "PUT";
+
+// Push to server only when the signal CHANGES (heatmap auto-updates).
+// Uses GET + query params — AFL's GetRawData cannot send a real POST body.
+prevMySig = StaticVarGetText( "ag_prevMySig_" + instName );
+if( ( mySig == "CALL" OR mySig == "PUT" ) AND mySig != prevMySig )
+{
+    pushURL = ServerURL + "/api/amibroker/push-signal"
+            + "?key="    + APIKey
+            + "&inst="   + instName
+            + "&sig="    + mySig
+            + "&strike=" + NumToStr( myStrike, 1.0 )
+            + "&conf="   + NumToStr( myConf, 1.0 )
+            + "&price="  + NumToStr( mySpot, 1.2 );
+    GetRawData( pushURL ); // fire-and-forget GET
+    StaticVarSetText( "ag_prevMySig_" + instName, mySig );
+}
+if( mySig == "WAIT" ) StaticVarSetText( "ag_prevMySig_" + instName, "" );
+
+// SIGNAL FLAGS (from YOUR strategy)
+isCall = mySig == "CALL";
+isPut  = mySig == "PUT";
+
+// BUY/SELL (drive AmiBroker backtest/scan from the same rules)
+Buy   = myCall;
+Sell  = myPut;
+Short = myPut;
+Cover = myCall;
+
+// PRICE BARS
+Plot( Close, "Price", colorDefault, styleCandle );
+
+// BUY/SELL ARROWS
+PlotShapes( IIf( Buy,  shapeUpArrow,   shapeNone ), colorGreen, 0, Low,  -20 );
+PlotShapes( IIf( Sell, shapeDownArrow, shapeNone ), colorRed,   0, High, -20 );
+
+// TITLE - SIGNAL
+_SECTION_BEGIN("Antigravity Signal");
+
+sigColor = IIf( isCall, colorGreen, IIf( isPut, colorRed, colorGrey50 ) );
+
+Title = EncodeColor( colorWhite )  + "ANTIGRAVITY PRO  " +
+        EncodeColor( sigColor )    + "* " + mySig + "  " +
+        EncodeColor( colorYellow ) + "Conf: " + NumToStr( myConf, 1.0 ) + "%  " +
+        EncodeColor( colorWhite )  + "Strike: " + NumToStr( myStrike, 1.0 ) + "  " +
+        EncodeColor( colorGrey50 ) + "Spot: " + NumToStr( mySpot, 1.2 );
+
+_SECTION_END();

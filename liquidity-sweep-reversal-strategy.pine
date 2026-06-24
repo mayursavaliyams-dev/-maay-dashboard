@@ -1,0 +1,92 @@
+//@version=5
+strategy(
+    "Liquidity Sweep Reversal Strategy",
+    overlay=true,
+    initial_capital=200000,
+    default_qty_type=strategy.percent_of_equity,
+    default_qty_value=10,
+    pyramiding=0,
+    process_orders_on_close=true
+)
+
+// ==========================================
+// 1. INPUTS & PARAMETERS
+// ==========================================
+groupFilters = "Filters"
+groupRisk = "Trade Management"
+groupSession = "Session"
+
+rsiLength = input.int(14, title="RSI Length", minval=1, group=groupFilters)
+rsiOverbought = input.int(60, title="RSI Overbought (Bearish Filter)", minval=1, maxval=100, group=groupFilters)
+rsiOversold = input.int(40, title="RSI Oversold (Bullish Filter)", minval=1, maxval=100, group=groupFilters)
+rrRatio = input.float(2.0, title="Risk/Reward Ratio", minval=0.1, step=0.5, group=groupRisk)
+stopBufferTicks = input.int(5, title="Stop Buffer (Ticks)", minval=0, group=groupRisk)
+useSessionFilter = input.bool(false, title="Use Session Filter", group=groupSession)
+tradeSession = input.session("0915-1530", title="Trade Session", group=groupSession)
+
+// ==========================================
+// 2. KEY LEVELS (Previous Day High/Low)
+// ==========================================
+[pdh, pdl] = request.security(
+    syminfo.tickerid,
+    "D",
+    [high[1], low[1]],
+    gaps=barmerge.gaps_off,
+    lookahead=barmerge.lookahead_on
+)
+
+plot(pdh, color=color.new(color.red, 30), style=plot.style_linebr, linewidth=2, title="Prev Day High")
+plot(pdl, color=color.new(color.green, 30), style=plot.style_linebr, linewidth=2, title="Prev Day Low")
+
+// ==========================================
+// 3. INDICATOR FILTERS
+// ==========================================
+rsiValue = ta.rsi(close, rsiLength)
+inSession = not useSessionFilter or not na(time(timeframe.period, tradeSession))
+
+// ==========================================
+// 4. TRAP & REJECTION LOGIC
+// ==========================================
+hasLevels = not na(pdh) and not na(pdl)
+confirmedBar = barstate.isconfirmed
+
+sweptLow = hasLevels and low < pdl
+closedAbove = hasLevels and close > pdl
+bullishRejection = confirmedBar and inSession and sweptLow and closedAbove and (rsiValue < rsiOversold)
+
+sweptHigh = hasLevels and high > pdh
+closedBelow = hasLevels and close < pdh
+bearishRejection = confirmedBar and inSession and sweptHigh and closedBelow and (rsiValue > rsiOverbought)
+
+// ==========================================
+// 5. TRADE EXECUTION & RISK MANAGEMENT
+// ==========================================
+var float longSL = na
+var float longTP = na
+var float shortSL = na
+var float shortTP = na
+
+if bullishRejection and strategy.position_size == 0
+    longSL := low - (syminfo.mintick * stopBufferTicks)
+    longRisk = close - longSL
+    if longRisk > 0
+        longTP := close + (longRisk * rrRatio)
+        strategy.entry("Buy Trap", strategy.long)
+        strategy.exit("Exit Buy", "Buy Trap", stop=longSL, limit=longTP)
+
+if bearishRejection and strategy.position_size == 0
+    shortSL := high + (syminfo.mintick * stopBufferTicks)
+    shortRisk = shortSL - close
+    if shortRisk > 0
+        shortTP := close - (shortRisk * rrRatio)
+        strategy.entry("Sell Trap", strategy.short)
+        strategy.exit("Exit Sell", "Sell Trap", stop=shortSL, limit=shortTP)
+
+// ==========================================
+// 6. CHART SIGNALS
+// ==========================================
+plotshape(series=bullishRejection, title="Bullish Trap Signal", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.normal, text="TRAP BUY")
+plotshape(series=bearishRejection, title="Bearish Trap Signal", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.normal, text="TRAP SELL")
+
+alertcondition(bullishRejection, title="Bullish Trap Alert", message="Bullish liquidity sweep rejection detected.")
+alertcondition(bearishRejection, title="Bearish Trap Alert", message="Bearish liquidity sweep rejection detected.")

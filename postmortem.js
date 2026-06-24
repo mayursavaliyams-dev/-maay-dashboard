@@ -1,11 +1,10 @@
 /**
- * Post-mortem — analyze today's bot activity vs what backtest would have predicted.
+ * Post-mortem — analyze today's bot activity and operational health.
  *
  * Run anytime after market close (~3:30 PM IST) to get a clear summary of:
  *   - Whether a signal fired today
  *   - Entry / exit prices + P&L (paper or live)
  *   - Server-side errors during the day
- *   - Comparison to backtest expectation
  *
  * Usage:
  *   node postmortem.js               # today
@@ -100,16 +99,6 @@ async function main() {
     }
   } else {
     console.log(`\n  ${dim('No server.log found (server runs in foreground / not via Task Scheduler).')}`);
-  }
-
-  // ── Backtest expectation ──
-  console.log(`\n${bold('  BACKTEST EXPECTATION (NIFTY Thursday strategy)')}`);
-  if (fs.existsSync('./backtest-real-results.json')) {
-    const r = JSON.parse(fs.readFileSync('./backtest-real-results.json', 'utf8'));
-    const s = r.stats || {};
-    console.log(`  Historical avg win rate: ${s.winRate}%`);
-    console.log(`  Historical avg P&L per trade: ${s.avgPnlPct >= 0 ? '+' : ''}${s.avgPnlPct}%`);
-    console.log(`  ${dim('A losing day is normal — strategy expects a ~30% loss rate.')}`);
   }
 
   console.log(`\n${'─'.repeat(64)}\n`);

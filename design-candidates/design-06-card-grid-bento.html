@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antigravity Pro — Index-Options Trading Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg0:#08101d; --bg1:#0c1628; --bg2:#09111f;
+  --panel:rgba(16,28,48,.62); --panel2:rgba(20,34,58,.55);
+  --border:rgba(120,160,220,.14); --border2:rgba(120,160,220,.22);
+  --txt:#e7eef9; --muted:#8ea2c0; --faint:#5d7characterized;
+  --faint:#5d708f;
+  --green:#38d39f; --red:#ff4444; --cyan:#5fe1ff; --blue:#448aff; --amber:#ffbf69;
+  --shadow:0 18px 50px -20px rgba(0,0,0,.7);
+  --r:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  color:var(--txt);
+  background:
+    radial-gradient(900px 600px at 12% -8%, rgba(68,138,255,.16), transparent 60%),
+    radial-gradient(800px 700px at 92% 4%, rgba(56,211,159,.12), transparent 55%),
+    radial-gradient(700px 700px at 60% 100%, rgba(95,225,255,.07), transparent 60%),
+    linear-gradient(180deg,var(--bg0),var(--bg1),var(--bg2));
+  background-attachment:fixed;
+  min-height:100vh;
+  line-height:1.5;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+.num{font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace}
+a{color:inherit;text-decoration:none}
+.wrap{width:100%;max-width:1240px;margin:0 auto;padding:0 22px}
+.up{color:var(--green)} .down{color:var(--red)}
+
+/* ===== NAV ===== */
+nav{
+  position:sticky;top:0;z-index:50;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  background:rgba(8,16,29,.72);
+  border-bottom:1px solid var(--border);
+}
+.nav-in{display:flex;align-items:center;gap:24px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.06rem;letter-spacing:.2px}
+.logo{
+  width:30px;height:30px;border-radius:9px;flex:none;
+  background:linear-gradient(135deg,var(--green),var(--cyan));
+  position:relative;box-shadow:0 0 18px rgba(56,211,159,.45);
+}
+.logo:after{content:"";position:absolute;inset:7px;border-radius:5px;
+  background:var(--bg0);clip-path:polygon(50% 0,100% 100%,50% 72%,0 100%)}
+.brand b{color:var(--cyan)}
+.nav-links{display:flex;gap:26px;margin-left:auto;font-size:.92rem;color:var(--muted)}
+.nav-links a{transition:color .2s}
+.nav-links a:hover{color:var(--txt)}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:.92rem;
+  padding:10px 18px;border-radius:12px;cursor:pointer;border:1px solid transparent;
+  transition:transform .18s ease, box-shadow .25s ease, background .2s;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--green),#2fb8d8);color:#04121a;
+  box-shadow:0 8px 24px -8px rgba(56,211,159,.6);
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 30px -8px rgba(56,211,159,.75)}
+.btn-ghost{border-color:var(--border2);background:rgba(255,255,255,.03);color:var(--txt)}
+.btn-ghost:hover{border-color:var(--cyan);transform:translateY(-2px)}
+.nav .btn{margin-left:auto}
+.nav-links + .btn{margin-left:0}
+
+/* ===== HERO ===== */
+header{padding:72px 0 26px}
+.hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:34px;align-items:center}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;
+  letter-spacing:1.4px;text-transform:uppercase;color:var(--cyan);
+  padding:6px 13px;border:1px solid var(--border2);border-radius:99px;
+  background:rgba(95,225,255,.06);margin-bottom:20px;
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+h1{font-size:clamp(2.2rem,5vw,3.5rem);line-height:1.06;font-weight:700;letter-spacing:-1px}
+h1 .grad{background:linear-gradient(120deg,var(--green),var(--cyan),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted);font-size:1.08rem;margin:20px 0 28px;max-width:34ch}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap}
+.micro{margin-top:18px;font-size:.82rem;color:var(--faint);display:flex;gap:18px;flex-wrap:wrap}
+.micro span{display:flex;align-items:center;gap:6px}
+.tick{color:var(--green)}
+
+/* indices strip — bento mini tiles */
+.idx-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.idx-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:18px;
+  padding:18px 18px;backdrop-filter:blur(10px);box-shadow:var(--shadow);
+  position:relative;overflow:hidden;transition:border-color .25s,transform .25s;
+}
+.idx-card:hover{border-color:var(--border2);transform:translateY(-3px)}
+.idx-card:before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.5}
+.idx-name{font-size:.74rem;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;font-weight:600}
+.idx-price{font-size:1.5rem;font-weight:600;margin-top:8px}
+.idx-chg{font-size:.86rem;margin-top:3px;font-weight:600}
+.spark{height:30px;margin-top:10px;display:block;width:100%}
+
+/* ===== BENTO BANDS / GRIDS ===== */
+section{padding:46px 0}
+.sec-head{margin-bottom:26px}
+.sec-tag{font-size:.76rem;letter-spacing:2px;text-transform:uppercase;color:var(--cyan);font-weight:600}
+.sec-head h2{font-size:clamp(1.6rem,3.4vw,2.3rem);font-weight:700;margin-top:8px;letter-spacing:-.5px}
+.sec-head p{color:var(--muted);margin-top:10px;max-width:56ch}
+
+/* The master bento grid */
+.bento{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  grid-auto-rows:minmax(120px,auto);
+  gap:16px;
+}
+.tile{
+  position:relative;border-radius:var(--r);
+  border:1px solid var(--border);background:var(--panel);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  padding:22px;box-shadow:var(--shadow);
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),border-color .28s,box-shadow .28s;
+  overflow:hidden;
+}
+.tile:hover{transform:translateY(-5px);border-color:var(--border2);box-shadow:0 26px 60px -22px rgba(0,0,0,.8)}
+.tile-glow:after{content:"";position:absolute;width:200px;height:200px;border-radius:50%;
+  filter:blur(50px);opacity:.18;right:-50px;top:-50px;pointer-events:none}
+.g-green:after{background:var(--green)} .g-cyan:after{background:var(--cyan)}
+.g-blue:after{background:var(--blue)} .g-amber:after{background:var(--amber)}
+.g-red:after{background:var(--red)}
+
+/* KPI tiles */
+.kpi-label{font-size:.8rem;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:8px}
+.kpi-ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
+  background:rgba(255,255,255,.05);border:1px solid var(--border)}
+.kpi-val{font-size:clamp(1.8rem,3.6vw,2.5rem);font-weight:700;margin-top:14px;letter-spacing:-1px}
+.kpi-meta{font-size:.82rem;color:var(--faint);margin-top:6px;font-weight:500}
+.kpi-bar{height:5px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:14px;overflow:hidden}
+.kpi-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--green),var(--cyan))}
+
+/* span helpers */
+.c2{grid-column:span 2} .c3{grid-column:span 3} .c4{grid-column:span 4}
+.r2{grid-row:span 2}
+
+/* feature tile content */
+.feat-ic{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;margin-bottom:16px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border)}
+.feat-ic svg{width:24px;height:24px}
+.tile h3{font-size:1.12rem;font-weight:600;margin-bottom:8px}
+.tile p.desc{color:var(--muted);font-size:.92rem}
+.feat-tag{position:absolute;top:18px;right:18px;font-size:.66rem;letter-spacing:1px;text-transform:uppercase;
+  color:var(--cyan);border:1px solid var(--border2);padding:3px 9px;border-radius:99px;background:rgba(95,225,255,.06)}
+
+/* big highlight tile */
+.hl-tile{display:flex;flex-direction:column;justify-content:space-between;min-height:260px}
+.hl-tile .big{font-size:clamp(2.4rem,5vw,3.4rem);font-weight:700;letter-spacing:-1.5px;line-height:1}
+.live-rows{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+.live-row{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;
+  padding:9px 0;border-bottom:1px dashed var(--border)}
+.live-row:last-child{border-bottom:none}
+.live-row span:first-child{color:var(--muted)}
+.pill{font-size:.7rem;font-weight:600;padding:3px 10px;border-radius:99px}
+.pill-on{background:rgba(56,211,159,.14);color:var(--green);border:1px solid rgba(56,211,159,.3)}
+
+/* ===== HOW IT WORKS ===== */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:step}
+.step{position:relative;padding:26px 22px;border-radius:var(--r);border:1px solid var(--border);
+  background:var(--panel2);backdrop-filter:blur(10px);overflow:hidden;transition:transform .25s,border-color .25s}
+.step:hover{transform:translateY(-4px);border-color:var(--border2)}
+.step .n{counter-increment:step;font-family:"IBM Plex Mono";font-size:2.6rem;font-weight:600;
+  color:transparent;-webkit-text-stroke:1.5px var(--cyan);opacity:.7;line-height:1}
+.step .n:before{content:"0" counter(step)}
+.step h4{margin:14px 0 8px;font-size:1.1rem}
+.step p{color:var(--muted);font-size:.92rem}
+.step .arrow{position:absolute;right:-12px;top:50%;color:var(--faint);font-size:1.4rem;transform:translateY(-50%);z-index:2}
+.step:last-child .arrow{display:none}
+
+/* ===== RISK BANNER ===== */
+.risk{
+  border-radius:var(--r);border:1px solid rgba(255,191,105,.32);
+  background:linear-gradient(120deg,rgba(255,191,105,.08),rgba(255,68,68,.06));
+  padding:24px 26px;display:flex;gap:18px;align-items:flex-start;backdrop-filter:blur(8px);
+}
+.risk .ic{width:42px;height:42px;border-radius:12px;flex:none;display:grid;place-items:center;
+  background:rgba(255,191,105,.12);border:1px solid rgba(255,191,105,.3);color:var(--amber)}
+.risk h4{color:var(--amber);font-size:1.04rem;margin-bottom:6px}
+.risk p{color:var(--muted);font-size:.92rem;max-width:80ch}
+
+/* ===== FOOTER ===== */
+footer{border-top:1px solid var(--border);margin-top:30px;padding:40px 0 50px}
+.foot-grid{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;align-items:flex-start}
+.foot-grid .brand{margin-bottom:12px}
+.foot-cols{display:flex;gap:60px;flex-wrap:wrap}
+.foot-col h5{font-size:.78rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+.foot-col a{display:block;color:var(--muted);font-size:.9rem;margin-bottom:8px;transition:color .2s}
+.foot-col a:hover{color:var(--cyan)}
+.foot-bottom{margin-top:34px;padding-top:20px;border-top:1px solid var(--border);
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;color:var(--faint);font-size:.82rem}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width:980px){
+  .hero-grid{grid-template-columns:1fr;gap:30px}
+  .sub{max-width:none}
+  .bento{grid-template-columns:repeat(2,1fr)}
+  .c3,.c4{grid-column:span 2}
+  .steps{grid-template-columns:1fr;gap:30px}
+  .step .arrow{display:none}
+}
+@media (max-width:620px){
+  header{padding:48px 0 18px}
+  .nav-links{display:none}
+  .idx-strip{grid-template-columns:1fr;gap:12px}
+  .bento{grid-template-columns:1fr;gap:14px}
+  .c2,.c3,.c4{grid-column:span 1}
+  .r2{grid-row:auto}
+  .hl-tile{min-height:auto}
+  .risk{flex-direction:column;gap:12px}
+  .wrap{padding:0 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="wrap nav-in">
+    <div class="brand"><span class="logo"></span>Antigravity<b>&nbsp;Pro</b></div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#live">Live Desk</a>
+      <a href="#risk">Risk</a>
+    </div>
+    <a class="btn btn-primary" href="#live">Launch Dashboard →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header>
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow"><span class="dot"></span>Live · NIFTY · SENSEX · BANKNIFTY</span>
+      <h1>Trade index options at <span class="grad">terminal velocity.</span></h1>
+      <p class="sub">An automated options desk that fires ORB &amp; Gamma-Blast signals, sizes for real charges, and guards risk in real time — paper or live.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#live">Launch Dashboard →</a>
+        <a class="btn btn-ghost" href="#features">Explore features</a>
+      </div>
+      <div class="micro">
+        <span><span class="tick">✓</span> No build step</span>
+        <span><span class="tick">✓</span> Charge-aware sizing</span>
+        <span><span class="tick">✓</span> Paper-first by default</span>
+      </div>
+    </div>
+    <div class="idx-strip" id="idxStrip">
+      <div class="idx-card" data-idx="NIFTY">
+        <div class="idx-name">NIFTY 50</div>
+        <div class="idx-price num" data-f="price">—</div>
+        <div class="idx-chg num" data-f="chg">—</div>
+        <svg class="spark" viewBox="0 0 120 30" preserveAspectRatio="none" data-f="spark"></svg>
+      </div>
+      <div class="idx-card" data-idx="SENSEX">
+        <div class="idx-name">SENSEX</div>
+        <div class="idx-price num" data-f="price">—</div>
+        <div class="idx-chg num" data-f="chg">—</div>
+        <svg class="spark" viewBox="0 0 120 30" preserveAspectRatio="none" data-f="spark"></svg>
+      </div>
+      <div class="idx-card" data-idx="BANKNIFTY">
+        <div class="idx-name">BANKNIFTY</div>
+        <div class="idx-price num" data-f="price">—</div>
+        <div class="idx-chg num" data-f="chg">—</div>
+        <svg class="spark" viewBox="0 0 120 30" preserveAspectRatio="none" data-f="spark"></svg>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- LIVE STATS / KPI BENTO -->
+<section id="live">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Live Desk</div>
+      <h2>Today on the desk</h2>
+      <p>Real-time KPIs polled from the bot. Falls back to representative demo numbers when the desk is offline.</p>
+    </div>
+    <div class="bento">
+      <!-- big highlight tile spanning 2 -->
+      <div class="tile tile-glow g-green c2 r2 hl-tile">
+        <div>
+          <div class="kpi-label"><span class="kpi-ic">📈</span>Bot status &amp; engine</div>
+          <div class="big num" id="kBig" style="margin-top:14px;">—</div>
+          <div class="kpi-meta" id="kBigMeta">Active capital deployed today</div>
+        </div>
+        <div class="live-rows">
+          <div class="live-row"><span>Engine mode</span><span class="pill pill-on" id="kMode">PAPER</span></div>
+          <div class="live-row"><span>Strategy</span><span id="kStrat">ORB + Gamma Blast</span></div>
+          <div class="live-row"><span>Open positions</span><span class="num" id="kOpen">—</span></div>
+          <div class="live-row"><span>Last signal</span><span class="num" id="kLast">—</span></div>
+        </div>
+      </div>
+
+      <div class="tile tile-glow g-cyan">
+        <div class="kpi-label"><span class="kpi-ic">🎯</span>Win Rate</div>
+        <div class="kpi-val num" id="kWin">—</div>
+        <div class="kpi-bar"><i id="kWinBar" style="width:0%"></i></div>
+      </div>
+      <div class="tile tile-glow g-blue">
+        <div class="kpi-label"><span class="kpi-ic">⚡</span>Trades Today</div>
+        <div class="kpi-val num" id="kTrades">—</div>
+        <div class="kpi-meta" id="kTradesMeta">across all instruments</div>
+      </div>
+      <div class="tile tile-glow g-green">
+        <div class="kpi-label"><span class="kpi-ic">💰</span>Today P&amp;L</div>
+        <div class="kpi-val num" id="kPnl">—</div>
+        <div class="kpi-meta" id="kPnlMeta">net of charges</div>
+      </div>
+      <div class="tile tile-glow g-amber">
+        <div class="kpi-label"><span class="kpi-ic">🏦</span>Active Capital</div>
+        <div class="kpi-val num" id="kCap">—</div>
+        <div class="kpi-meta">deployable margin</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES BENTO -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Capabilities</div>
+      <h2>One bento of firepower</h2>
+      <p>Every edge in its own tile — signal generation, risk control, and execution discipline working as a single system.</p>
+    </div>
+    <div class="bento">
+      <div class="tile tile-glow g-cyan c2">
+        <span class="feat-tag">Signal</span>
+        <div class="feat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5fe1ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+        </div>
+        <h3>ORB Signals</h3>
+        <p class="desc">Opening-range breakout detection on the index 5-min candle, with strike-walk to the right premium band the moment a level breaks.</p>
+      </div>
+      <div class="tile tile-glow g-amber">
+        <span class="feat-tag">Signal</span>
+        <div class="feat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffbf69" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>
+        </div>
+        <h3>Gamma Blast</h3>
+        <p class="desc">Expiry-day premium-jump capture that rides accelerating gamma into the close.</p>
+      </div>
+      <div class="tile tile-glow g-red">
+        <span class="feat-tag">Safety</span>
+        <div class="feat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ff4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/></svg>
+        </div>
+        <h3>Risk Guard</h3>
+        <p class="desc">Per-trade stops, daily drawdown circuit-breaker and a hard halt that auto-flattens on breach.</p>
+      </div>
+      <div class="tile tile-glow g-blue c2">
+        <span class="feat-tag">Research</span>
+        <div class="feat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#448aff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <h3>Backtest Engine</h3>
+        <p class="desc">Replay strategies over years of options data, including ₹5L-capital reinvestment scenarios, then rank by AI-scored expectancy before risking a rupee.</p>
+      </div>
+      <div class="tile tile-glow g-green">
+        <span class="feat-tag">Modes</span>
+        <div class="feat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#38d39f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2.5"/></svg>
+        </div>
+        <h3>Paper / Live Modes</h3>
+        <p class="desc">Flip between paper and live with one switch. Paper-first is the default for every new strategy.</p>
+      </div>
+      <div class="tile tile-glow g-cyan">
+        <span class="feat-tag">Sizing</span>
+        <div class="feat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5fe1ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a2 2 0 0 1 0 4H9"/></svg>
+        </div>
+        <h3>Charge-Aware Sizing</h3>
+        <p class="desc">Brokerage, STT, slippage and GST baked into every position so the P&amp;L you see is the P&amp;L you keep.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Workflow</div>
+      <h2>Three steps to a disciplined desk</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="n"></div>
+        <h4>Backtest &amp; rank</h4>
+        <p>Run strategies over historical options data and let the AI ranker surface the highest-expectancy setups.</p>
+        <span class="arrow">→</span>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <h4>Paper validate</h4>
+        <p>Deploy the chosen strategy in paper mode against live ticks until the live numbers match the backtest.</p>
+        <span class="arrow">→</span>
+      </div>
+      <div class="step">
+        <div class="n"></div>
+        <h4>Go live, guarded</h4>
+        <p>Switch to live with charge-aware sizing and Risk Guard watching every trade and the daily drawdown.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RISK BANNER -->
+<section id="risk" style="padding-top:10px">
+  <div class="wrap">
+    <div class="risk">
+      <div class="ic">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      </div>
+      <div>
+        <h4>Risk warning</h4>
+        <p>Backtest profit does not guarantee future profit. Trading in index options involves substantial risk and can result in loss of capital. Use paper trading first, never deploy money you cannot afford to lose, and treat all figures as illustrative.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div style="max-width:280px">
+        <div class="brand"><span class="logo"></span>Antigravity<b>&nbsp;Pro</b></div>
+        <p style="color:var(--muted);font-size:.9rem">An automated index-options trading desk for NIFTY, SENSEX &amp; BANKNIFTY. Built for discipline, not hype.</p>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="#features">Features</a>
+          <a href="#live">Live Desk</a>
+          <a href="#how">How it works</a>
+        </div>
+        <div class="foot-col">
+          <h5>Strategies</h5>
+          <a href="#features">ORB Signals</a>
+          <a href="#features">Gamma Blast</a>
+          <a href="#features">Backtest Engine</a>
+        </div>
+        <div class="foot-col">
+          <h5>Account</h5>
+          <a href="#live">Launch Dashboard</a>
+          <a href="#risk">Risk policy</a>
+          <a href="#">Status</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="yr"></span> Antigravity Pro. For educational use. Not investment advice.</span>
+      <span id="connState">● Desk: demo data</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  // ---------- DEMO fallbacks (realistic) ----------
+  var DEMO = {
+    NIFTY:    { price:24218.35, prev:24108.10 },
+    SENSEX:   { price:79412.70, prev:79090.55 },
+    BANKNIFTY:{ price:52084.20, prev:52310.65 },
+    status:   { mode:'PAPER', strategy:'ORB + Gamma Blast', winRate:0.642,
+                tradesToday:14, pnl:8420, capital:500000, openPositions:2,
+                lastSignal:'CE 24200 @ ORB', deployed:312500 }
+  };
+
+  function fmtPrice(n){ return Number(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function fmtINR(n){
+    var v=Number(n);
+    if(Math.abs(v)>=10000000) return '₹'+(v/10000000).toFixed(2)+' Cr';
+    if(Math.abs(v)>=100000)   return '₹'+(v/100000).toFixed(2)+' L';
+    return '₹'+v.toLocaleString('en-IN');
+  }
+  function signed(n){ return (n>=0?'+':'')+Number(n).toLocaleString('en-IN'); }
+
+  // ---------- fetch helper with timeout ----------
+  function getJSON(url){
+    var ctrl = new AbortController();
+    var t = setTimeout(function(){ ctrl.abort(); }, 2500);
+    return fetch(url, { cache:'no-store', signal:ctrl.signal })
+      .then(function(r){ clearTimeout(t); return r.ok ? r.json() : null; })
+      .catch(function(){ clearTimeout(t); return null; });
+  }
+
+  // ---------- spark line generator ----------
+  function spark(el, up){
+    if(!el) return;
+    var pts=[], n=14, base=15;
+    for(var i=0;i<n;i++){
+      var drift = up ? (i/n)*-9 : (i/n)*9;
+      pts.push(base + drift + (Math.sin(i*1.3)*3) + (Math.random()*3-1.5));
+    }
+    var d = pts.map(function(y,i){ return (i?'L':'M')+( (i/(n-1))*120 ).toFixed(1)+' '+Math.max(2,Math.min(28,y)).toFixed(1); }).join(' ');
+    var color = up ? '#38d39f' : '#ff4444';
+    el.innerHTML = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>';
+  }
+
+  // ---------- render indices ----------
+  function renderIdx(name, data){
+    var card = document.querySelector('.idx-card[data-idx="'+name+'"]');
+    if(!card || !data || data.price==null) return;
+    var price = Number(data.price);
+    var prev  = Number(data.prev != null ? data.prev : (data.prevClose != null ? data.prevClose : price));
+    var chg = price - prev;
+    var pct = prev ? (chg/prev*100) : 0;
+    var up = chg >= 0;
+    card.querySelector('[data-f="price"]').textContent = fmtPrice(price);
+    var c = card.querySelector('[data-f="chg"]');
+    c.textContent = (up?'▲ +':'▼ ') + Math.abs(chg).toFixed(2) + ' (' + (up?'+':'') + pct.toFixed(2) + '%)';
+    c.className = 'idx-chg num ' + (up?'up':'down');
+    spark(card.querySelector('[data-f="spark"]'), up);
+  }
+
+  // ---------- render KPIs ----------
+  function setText(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
+  function renderStatus(s){
+    if(!s) return;
+    var win = (s.winRate!=null? s.winRate : (s.win_rate!=null? s.win_rate : 0));
+    if(win>1) win=win/100;
+    setText('kWin', (win*100).toFixed(1)+'%');
+    var wb=document.getElementById('kWinBar'); if(wb) wb.style.width=Math.max(0,Math.min(100,win*100))+'%';
+
+    setText('kTrades', (s.tradesToday!=null?s.tradesToday:(s.trades_today!=null?s.trades_today:'—')));
+
+    var pnl = (s.pnl!=null?s.pnl:(s.dayPnl!=null?s.dayPnl:0));
+    var pe=document.getElementById('kPnl');
+    if(pe){ pe.textContent=(pnl>=0?'+':'-')+fmtINR(Math.abs(pnl)).replace('₹','₹'); pe.className='kpi-val num '+(pnl>=0?'up':'down'); }
+
+    setText('kCap', fmtINR(s.capital!=null?s.capital:0));
+    setText('kMode', (s.mode||'PAPER').toUpperCase());
+    setText('kStrat', s.strategy||'ORB + Gamma Blast');
+    setText('kOpen', (s.openPositions!=null?s.openPositions:'—'));
+    setText('kLast', s.lastSignal||'—');
+
+    var dep = s.deployed!=null?s.deployed:(s.capital!=null?s.capital:0);
+    setText('kBig', fmtINR(dep));
+  }
+
+  // ---------- boot ----------
+  function applyDemo(){
+    renderIdx('NIFTY', DEMO.NIFTY);
+    renderIdx('SENSEX', DEMO.SENSEX);
+    renderIdx('BANKNIFTY', DEMO.BANKNIFTY);
+    renderStatus(DEMO.status);
+  }
+
+  function load(){
+    applyDemo(); // paint immediately so page always looks complete
+    var conn = document.getElementById('connState');
+    Promise.all([
+      getJSON('/api/nifty'),
+      getJSON('/api/sensex'),
+      getJSON('/api/banknifty'),
+      getJSON('/api/bot/status')
+    ]).then(function(res){
+      var any=false;
+      if(res[0]){ renderIdx('NIFTY', res[0]); any=true; }
+      if(res[1]){ renderIdx('SENSEX', res[1]); any=true; }
+      if(res[2]){ renderIdx('BANKNIFTY', res[2]); any=true; }
+      if(res[3]){ renderStatus(res[3]); any=true; }
+      if(conn) conn.innerHTML = any ? '● Desk: live data' : '● Desk: demo data';
+      if(conn) conn.style.color = any ? 'var(--green)' : 'var(--faint)';
+    }).catch(function(){ /* demo already painted */ });
+  }
+
+  load();
+  setInterval(load, 10000);
+})();
+</script>
+</body>
+</html>

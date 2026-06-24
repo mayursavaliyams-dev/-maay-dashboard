@@ -17,22 +17,23 @@ class OptionAnalyzer {
   /**
    * Initialize with spot price and strikes
    */
-  initialize(spotPrice, strikes = 20) {
+  initialize(spotPrice, strikes = 20, pitch = 100) {
     this.spotPrice = spotPrice;
-    this.optionChain = this.generateOptionChain(spotPrice, strikes);
+    this.strikePitch = pitch;
+    this.optionChain = this.generateOptionChain(spotPrice, strikes, pitch);
     return this.optionChain;
   }
 
   /**
    * Generate complete option chain with Sensibull-style metrics
    */
-  generateOptionChain(spotPrice, totalStrikes = 20) {
-    const atmStrike = Math.round(spotPrice / 100) * 100;
+  generateOptionChain(spotPrice, totalStrikes = 20, pitch = 100) {
+    const atmStrike = Math.round(spotPrice / pitch) * pitch;
     const halfStrikes = Math.floor(totalStrikes / 2);
     const chain = [];
 
     for (let i = -halfStrikes; i <= halfStrikes; i++) {
-      const strike = atmStrike + (i * 100);
+      const strike = atmStrike + (i * pitch);
       
       // Calculate option prices
       const cePrice = this.calculateOptionPrice(strike, 'CE', spotPrice);
@@ -338,8 +339,21 @@ class OptionAnalyzer {
    */
   calculateMaxPain(chain = null) {
     const data = chain || this.optionChain;
-    const strikes = data.map(s => s.strike);
-    const spotPrice = this.spotPrice;
+    const strikes = data
+      .map(s => Number(s.strike))
+      .filter(Number.isFinite);
+    const spotPrice = Number(this.spotPrice || 0);
+
+    if (!strikes.length) {
+      return {
+        maxPain: 0,
+        currentSpot: spotPrice,
+        distanceFromMaxPain: '0.00',
+        distancePercent: '0.00',
+        totalPain: 0,
+        interpretation: 'Max pain unavailable'
+      };
+    }
     
     let maxPain = 0;
     let minTotalPain = Infinity;
@@ -348,8 +362,10 @@ class OptionAnalyzer {
       let totalPain = 0;
       
       data.forEach(strike => {
-        const cePain = Math.max(0, testStrike - strike.strike) * strike.ce.oi;
-        const pePain = Math.max(0, strike.strike - testStrike) * strike.pe.oi;
+        const rowStrike = Number(strike.strike);
+        if (!Number.isFinite(rowStrike)) return;
+        const cePain = Math.max(0, testStrike - rowStrike) * Number(strike.ce?.oi || 0);
+        const pePain = Math.max(0, rowStrike - testStrike) * Number(strike.pe?.oi || 0);
         totalPain += cePain + pePain;
       });
       
@@ -363,7 +379,7 @@ class OptionAnalyzer {
       maxPain,
       currentSpot: spotPrice,
       distanceFromMaxPain: (spotPrice - maxPain).toFixed(2),
-      distancePercent: ((spotPrice - maxPain) / maxPain * 100).toFixed(2),
+      distancePercent: maxPain ? ((spotPrice - maxPain) / maxPain * 100).toFixed(2) : '0.00',
       totalPain: minTotalPain,
       interpretation: spotPrice > maxPain ? 'Price above max pain (bullish)' : 'Price below max pain (bearish)'
     };
@@ -514,7 +530,8 @@ class OptionAnalyzer {
    * Get ATM strike
    */
   getATMStrike() {
-    return Math.round(this.spotPrice / 100) * 100;
+    const pitch = this.strikePitch || 100;
+    return Math.round(this.spotPrice / pitch) * pitch;
   }
 
   /**

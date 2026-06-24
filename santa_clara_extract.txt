@@ -1,0 +1,1530 @@
+Anderson Graduate School of Management
+Finance
+(University of California, Los Angeles)
+
+Year 2004
+
+Paper 7 05
+
+Option Strategies: Good Deals and Margin Calls
+
+Pedro Santa-Clara
+
+Alessio Saretto
+
+Anderson School of Management at UCLA Anderson School of Management at UCLA This paper is posted at the eScholarship Repository, University of California. http://repositories.cdlib.org/anderson/fin/7-05 Copyright c 2004 by the authors.
+
+Option Strategies: Good Deals and
+Margin Calls
+Abstract
+We investigate the risk and return of a wide variety of trading strategies involving options on the S&P 500. We consider naked and covered positions, straddles, strangles, and calendar spreads, with different maturities and levels of moneyness. Overall, we &#64257;nd that strategies involving short positions in options generally compensate the investor with very high Sharpe ratios, which are statistically signi&#64257;cant even after taking into account the non-normal distribution of returns. Furthermore, we &#64257;nd that the strategies' returns are substantially higher than warranted by asset pricing models. We also &#64257;nd that the returns of the strategies could only be justi&#64257;ed by jump risk if the probability of market crashes were implausibly higher than it has been historically. We conclude that the returns of option strategies constitute a very good deal. However, exploiting this good deal is extremely diffcult. We &#64257;nd that trading costs and margin requirements severely condition the implementation of option strategies. Margin calls force investors out of a trade precisely when it is losing money. Taking margin calls into account turns the Sharpe ratio of some of the best strategies negative.
+
+Option Strategies: Good Deals and Margin Calls
+
+Pedro Santa-Clara
+The Anderson School UCLA
+and NBER
+
+Alessio Saretto
+The Anderson School UCLA
+
+November 2004 §
+
+Abstract
+We investigate the risk and return of a wide variety of trading strategies involving options on the S&P 500. We consider naked and covered positions, straddles, strangles, and calendar spreads, with different maturities and levels of moneyness. Overall, we find that strategies involving short positions in options generally compensate the investor with very high Sharpe ratios, which are statistically significant even after taking into account the non-normal distribution of returns. Furthermore, we find that the strategies' returns are substantially higher than warranted by asset pricing models. We also find that the returns of the strategies could only be justified by jump risk if the probability of market crashes were implausibly higher than it has been historically. We conclude that the returns of option strategies constitute a very good deal. However, exploiting this good deal is extremely difficult. We find that trading costs and margin requirements severely condition the implementation of option strategies. Margin calls force investors out of a trade precisely when it is losing money. Taking margin calls into account turns the Sharpe ratio of some of the best strategies negative.
+We thank Francis Longstaff and seminar partecipants at Purdue University for helpful comments. Los Angeles, CA 90095-1481, phone: (310) 206-6077, e-mail: pedro.santa-clara@anderson.ucla.edu. Los Angeles, CA 90095-1481, phone: (310) 825-8160, e-mail: alessio.saretto@anderson.ucla.edu. §The latest draft is available at: http://www.personal.anderson.ucla.edu/pedro.santa-clara/.
+
+Dear Customers:
+As you no doubt are aware, the New York stock market dropped precipitously on Monday, October 27, 1997. That drop followed large declines on two previous days. This precipitous decline caused substantial losses in the fund's positions, particularly the positions in puts on the Standard & Poor's 500 Index. [...] The cumulation of these adverse developments led to the situation where, at the close of business on Monday, the funds were unable to meet minimum capital requirements for the maintenance of their margin accounts. [...] We have been working with our broker-dealers since Monday evening to try to meet the funds' obligations in an orderly fashion. However, right now the indications are that the entire equity positions in the funds has been wiped out.
+Sadly, it would appear that if it had been possible to delay liquidating most of the funds' accounts for one more day, a liquidation could have been avoided. Nevertheless, we cannot deal with "would have been." We took risks. We were successful for a long time. This time we did not succeed, and I regret to say that all of us have suffered some very large losses.
+-- Letter from Victor Niederhoffer to investors in his hedge funds
+Bakshi and Kapadia (2003) and Coval and Shumway (2001) show that selling puts and selling straddles on the S&P 500 offer unusually high returns for their level of risk.1 For instance, Coval and Shumway show that shorting an at-the-money, near-maturity straddle with zero beta offered a return of 3.15 percent per week in their sample. Even though the volatility of the strategy was as high as 19 percent per week, the strategy still provided an annualized Sharpe ratio of 1.19, which is more than double the historic Sharpe ratio on the stock market. It is especially puzzling that Sharpe ratios are so high even for delta-neutral (and even crash-neutral) strategies that by construction are not directionally exposed to the stock market. These strategies are mostly exposed to volatility risk which is a risk that does not exist in meaningful net supply in the economy and would therefore not seem to warrant a large premium.
+Our paper conducts a systematic analysis of the risks and returns of option strategies. We consider naked and covered positions, straddles, strangles, and calendar spreads, with different maturities and levels of moneyness. We use data on S&P 500 options from January
+1Similar results can be found in Buraschi and Jackwerth (2001) and Jackwerth (2000). Other studies, for example Bakshi, Cao, and Chen (1997), Bates (2000), Benzoni (2001), Bondarenko (2003), Chernov and Ghysels (2000), Driessen and Maenhout (2003a), Eraker (2004), Jones (2004), Liu, Pan, and Wang (2005), and Pan (2002), find large volatility and jump risk premia. Evidence of misspricings is also captured by the observation that implied volatility is an upper-biased estimate of the option's realized volatility, see for example Day and Lewis (1992), Christensen and Prabhala (1998). Goetzmann, Ingersoll, and Welch (2002) and Liu and Pan (2003) discuss the possible utility gains from trading options.
+1
+
+of 1985 to December of 2002 which is a much longer data set than used in previous studies and encompasses a variety of market conditions. Overall, we find that strategies involving short positions in options generally compensate the investor with very high Sharpe ratios, that can be as high as 1.69 on an annualized basis for a near-maturity strangle. These Sharpe ratios are statistically significant even after taking into account the non-normal distribution of option returns. Furthermore, we find that a power-utility investor with risk aversion coefficient of 5 would want to take a sizable position in option strategies.
+We find that the strategies' returns are substantially higher than warranted by common asset pricing models. We first study the strategies from the point of view of the CAPM and the Fama and French model and find that neither model can account for their profitability. We extend the analysis to take into account the skewness and higherorder moments of the distribution of option returns by using the approach of Leland (1999). However, this adjustment is insufficient to account for the high return of the strategies. We also find that the return cannot be justified as an ICAPM-type premium for intertemporal risks required by a long-horizon investor.
+One possible explanation, of course, is that the sample of realized stock market returns is not representative of the distribution that investors anticipated ex ante. For instance, investors might have expected that events such as the crash of 1987 were more probable than the frequency observed in our sample (1 crash in 17 years). However, we find that the crash frequency would have to be two or three times the empirical frequency to make an investor not want to invest in the option strategies. This seems implausible since we know that the crash of 1987 was an exceptional event not only in our sample but in the history of the stock market since the 1800's.
+Finally, we study the practical implementation of the option strategies. In particular, we look at the bid-ask spreads on options and how they would impact the strategies' returns. We find that the Sharpe ratios decrease substantially, and sometimes even turn negative! We also examine the margin requirements for shorting options that are imposed by the exchanges.2 We find that margin requirements severely limit the maximum amount that an
+2There have been only a few studies of margin requirements in option markets. Heath and Jarrow (1987) show that the Black-Scholes model would still hold in the presence of margins. Mayhew, Sarin, and Shastri (1995) find that a decrease in the initial margin requirement is associated with an increase in the bid-ask spread and a decrease in the quote depth in the underlying market and a decrease in the option's bidask spread. John, Koticha, Narayanan, and Subrahmanyam (2003) show in a theoretical framework that margin requirements may increase market efficiency only when they are relatively large or small. There is a much wider literature that focuses on margins for stock trades. Day and Lewis (1997), Hardouvelis (1990),
+2
+
+investor can apply to the strategies. This limit is much lower than the amount the investor would select to maximize utility given the distribution of returns. This greatly reduces the interest of the strategies. More importantly, we find that margin calls would frequently force the investor to close the positions and that this happens precisely when the trade is losing a lot of money. Taking into account the impact of margin calls, the profitability of the option strategies decreases substantially and, in many cases, the strategies become unattractive to the investor. For instance, the Sharpe ratio of the near-maturity strangle actually turns negative once margin calls are taken into account.
+We conclude that the high returns of option strategies cannot be explained as compensation for their risk. However, we find that transaction costs and margin requirements greatly reduce the profitability of option strategies. Consistent with the arguments of Shleifer and Vishny (1997) and Liu and Longstaff (2004) about the limits to arbitrage, our findings explain why the good deals in options prices have not been arbitraged away. Finally, we find evidence that margin requirements may have been set too high by the options exchanges relative to the actual risk of the option positions. This suggests that there is scope for the exchanges to improve the efficiency of option markets by changing the way margin requirements are calculated.
+The rest of the paper is organized as follows. In Section 1 we describe the data. In Section 2 we explain the option strategies studied in the paper. In Section 3 we discuss the risk and return profile of the strategies. Section 4 analyzes the impact of transaction costs and margin requirements on the profitability. Section 5 concludes the paper.
+1 Data
+We analyze two datasets of option prices. Our main tests are conducted using data provided by the Institute for Financial Markets for American options on S&P 500 futures traded at the Chicago Mercantile Exchange. This dataset includes daily closing prices for options and futures in the period between January 1985 and May 2001. We also use data from
+Hardouvelis and Peristiani (1992), Hardouvelis and Theodossiou (2002), Hsieh and Miller (1990), Largay and West (1973) study the impact of changes in margin requirements on volatility. A second branch of this literature, including Figlewski and Webb (1993), Danielsen and Sorescu (2001), Jones and Lamont (2002), Lamont and Stein (2004), and Ofek, Richardson, and Whitelaw (2004), focuses explicitely on short-sale constraints and their relation to mispricing. In particular, Ofek, Richardson, and Whitelaw (2004) show how put-call parity violations are related to the cost and difficulty of short-selling the underlying.
+3
+
+OptionMetrics for European options on the S&P500 index traded at the Chicago Board Options Exchange. This dataset includes daily closing bid and ask quotes for the period between January 1996 and December 2002.
+To minimize the impact of recording errors and to guarantee homogeneity in the data we apply a series of filters. First we eliminate prices that violate arbitrage bounds. For calls, for example, we require that the option price does not fall outside the interval (Se-d - Ke-r, Se-d), where S is the value of the underlying asset, K is the option's strike price, d is the dividend yield (set to zero for futures options), r is the risk free rate, and  is the time to expiration. Second we eliminate all observations for which the ask is lower than the bid, or for which the bid is equal to zero, or for which the spread is lower than the minimum ticksize (equal to $0.05 for option trading below $3 and $0.1 in any other cases). Finally we exclude all observations for which the implied Black and Scholes volatility is bigger than 100% or lower than 1%.
+We construct monthly return time series from closing of the first trading day of each month to the next. The return to expiration is computed using as settlement value the opening price of the underlying on the expiration day, usually the third Friday of the month. The next section provides details on the construction of the return series.
+2 Strategies
+We analyze several option strategies standardized at different maturities and moneyness levels. We focus on two different maturities termed near and far from maturity, corresponding to maturities of approximately 45 and 180 days respectively, and three different levels of moneyness, at the money, 5%, and 10% out of the money. In the rest of the paper, `N' indicates that the option is near maturity, about 45 days to expiration, and `F' that it is far from maturity, with about 180 days to expiration.
+We consider naked and covered positions in single options, combinations of calls and puts such as straddles and strangles, and time-value strategies including calendar spreads and long-short maturity combinations. Table 1 shows the composition of each strategy. A naked position is formed simply by the option contract. Covered positions are portfolios composed by the option and the underlying: a covered call is formed by a long position in the underlying and a short position in a call contract. In this way, if the option ends
+4
+
+in the money, the position can be covered by delivering the underlying. A protective put combines a long position in the underlying and a long position in a put contract. The option insures the underlying position from large negative movements. We also study strategies that involve two contracts of different types, such as straddles and strangles. A straddle involves buying a call and a put option with the same strike and expiration date. A strangle differs from a straddle in that the strike prices must be different: buy a put with a low strike and a call with a high strike. Finally we consider time-value trades, which involve the sale and purchase of options with different maturities. In particular, we study far-near (FN) straddles and strangles. The FN straddle, for example, is formed by a long position in the far-maturity straddle and a short position in the near-maturity straddle of equal moneyness. We also analyze calendar spreads, which involve selling an option and buying another at the same strike but longer maturity.
+All the strategies we analyze have an initial investment of $0. The returns shown correspond to strategies that take a long position of $1 and a short position of $1 and are presented as a percentage of the $1 notional size of the trade. If the strategy involves selling options, thus generating cash at the entering date, we reinvest this cash at the risk-free rate. Conversely, if the strategy requires an initial investment, we finance it by borrowing at the risk-free rate. At the end of the month, or at the option-expiration day if it comes first, we liquidate the positions and reconstruct the strategy using the contract that at that date has the desired approximate moneyness and maturity.
+For example, let us compute the return of the near-maturity ATM straddle for February 1989. On the first trading day of February the call option with moneyness closest to ATM and maturity closest to 45 days, has a price of $5.80. The corresponding put option has a price of $7.00. A long position in the straddle requires buying both options. In order to do so we borrow $12.80 at the risk-free rate, which, for February 1989, is 0.92%. During the month the underlying futures contract, with expiration on March 17, goes from $298.90 to $288.00. On the first trading day of March, the prices of the two options are $0.30 and $12.35 respectively. The return on the zero-cost straddle is therefore (12.65 - 12.80)/12.800.92%= -1.17%-0.92%=-2.09%.
+Some of the strategies documented in this paper have never been studied before. Coval and Shumway (2001) study naked calls and puts, and various straddle returns. Returns of covered positions have been studied by Merton, Scholes, and Gladstein (1978) and Merton, Scholes, and Gladstein (1982), while Bakshi and Kapadia (2003) study delta-hedged gains.
+5
+
+International evidence on index and futures options, limited to US, UK and Japan markets, can be found in Gemmill and Kamiyama (2000), Driessen and Maenhout (2003a), and Driessen and Maenhout (2003b).
+3 Risk and Return
+3.1 Summary Statistics
+We start by discussing summary statistics for the option returns. In Table 2, for any combination of moneyness level and maturity, we tabulate the average Black and Scholes implied volatility and the average price as a percentage of the average value of the underlying. This last information is essential to understand the magnitude of the strategy portfolio weights that we will analyze in the following sections and gives us an idea of how expensive the options are. For example, the average ATM implied volatility is around 17%, while the protection contained in a far-maturity 5% OTM put is worth 3% of the underlying value. In general, downside protection is more expensive than upside leverage.
+Table 3 reports the average, standard deviation, minimum, maximum, skewness, kurtosis, and Sharpe ratios (SR) of the strategy returns constructed using the futures option dataset.3 The table is divided into four panels which group strategies with similar characteristics.
+The first panel of Table 3 tabulates statistics of the zero-cost naked option positions. A long position in the far-maturity ATM call rewards the investor with an average return of 13.9% per month, with a SR of 0.178. As expected, the strategy has positive skewness (1.486) and considerable kurtosis (6.377). Other strategies based on call contracts have higher standard deviations and lower SRs: an example is a long position in the far-maturity 10% OTM call which has an average return of 19.5% but a standard deviation of 156% and a SR of 0.125. Near-maturity call options offer less attractive risk-return trade-offs. On the put side, average returns are negative across all maturity and moneyness combinations. Although, negative returns are to be expected given the positive returns in the S&P 500 in our sample, the magnitude of the returns is striking. Selling 10% OTM near-maturity put
+3Summary statistics for the index option data are qualitatively similar and can be obtained from the authors upon request.
+6
+
+contracts earns 59.1% per month on average, with a SR of 0.358. However, this reward is accompanied by considerable risk: the strategy has a negative skewness of -11.062, caused by a maximum possible loss of 20 times the notional capital of the strategy. Other put strategies have lower average returns ranging from 15.9% to 50.4%, and SR ranging from 0.160 to 0.368.
+The second panel of Table 3 tabulates statistics of covered calls and protective puts. In our sample the futures contract has a mean return of 0.8%, a standard deviation of 4.3%, skewness of -0.804, and a SR of 0.189. Covered call strategies have roughly the same returns as the underlying but have lower volatility, which ranges between 2.7% and 3.5% at monthly frequency. SRs are conversely higher. On the other hand protective put strategies have lower returns, but have also positive skewness and lower kurtosis.
+The third panel of Table 3 tabulates statistics of combinations of calls and puts. Straddles and strangles with short maturity offer high average returns and Sharpe ratios which are increasing with the level of moneyness (OTM): a short position in the nearmaturity ATM straddle returns on average 14% per month with a SR of 0.273, while a short position in the near-maturity 10% strangle earns an average 52.7% per month with a SR of 0.548.
+The fourth panel of Table 3 tabulates statistics of the time-value strategies. Combining the far and near-maturity strategies that we discussed produces surprising results: time-value combinations of straddles and strangles have average returns that are not as high as those previously discussed but are still considerable. For example, the 10% OTM farnear (FN) strangle has a 6.5% average return with a SR of 0.175, which, interestingly, is accompanied by a positive skewness of 3.095, and a minimum possible return of only -58%. Calendar spreads, with the exceptions of the 10% OTM call calendar spread which on average returns 20% per month with a SR of 0.169, produce less impressive numbers, especially if we consider the higher moments of the return distributions.
+3.2 Statistical Significance
+The investigation of the statistical significance of the statistics reported in Table 3 is particularly difficult since the distribution of option returns is far from normal. For this reason, the usual asymptotic standard errors are not suitable for inference in small samples.
+7
+
+Instead, we base our inference on the empirical distribution of returns obtained from 1,000 bootstrap repetitions of our sample.
+We present 95% confidence intervals for mean, standard deviation, and SR in Table 4. We note that 24 out of 35 strategies have mean returns and SR statistically different from zero at the 5% level. Only two SRs are statistically higher than the market's SR at the 95% confidence level: the near-maturity 5% and 10% OTM strangles. However, these are very high Sharpe ratios, especially for strategies that, we will see, are not much correlated with the market.
+3.3 The Risk-Return Tradeoff in Equilibrium
+The final verdict on the matter of how much compensation options offer relative to their risks can only be given by an equilibrium asset pricing model. Unfortunately, it is quite difficult to derive a closed-form solution for the equilibrium expected returns of option strategies under realistic assumptions about the distribution of stock returns. An example can be found in Santa-Clara and Yan (2004) but it would require a complicated estimation procedure, which is outside the scope of this paper. As an alternative we investigate how the strategies behave in the context of more standard pricing models.
+As a first approximation we compute alphas for the option strategies under the CAPM and the Fama-French three-factor models. We report the results as well as the corresponding bootstrapped p-values in Table 5. Qualitatively, the two sets of alphas give the same indications: 21 out of 35 strategies have statistically significant alphas. Put strategy returns are not explained very well by neither the CAPM nor the FF model: with the exception of the F 10% OTM put, alphas are statistically different from zero. That is not true for call strategies, for which only the two near-maturity OTM call returns cannot be explained by a linear model. In general, near-maturity strategies are more difficult to price, as indicated by their much lower R2s. The risks of longer-maturity strategies seem to be better measured by their covariance with the market. The CAPM and the Fama-French models have no success in explaining the returns of mixed strategies since the alphas are very close in magnitude to the sample average returns. Only one strategy, the far-maturity 10% OTM strangle has an insignificant alpha. These results are not surprising since these strategies have negligible directional exposure to market movements as they are driven almost exclusively by volatility. Finally, time-value strategies, as evidenced in the last section of the table, have quite sizeable
+8
+
+alphas, as big as 125 basis points per month, which however are not typically significantly different from zero.
+These results are evidence that the returns of the option strategies are not in line with their risk according to simple asset pricing models. However, there are two drawbacks with applying linear models to option strategies. First, the betas of the strategies are likely not constant throughout the sample, due to changes in volatility. We can partially address this problem by computing betas each month according to the Black-Scholes formula and comparing the option returns to the time series of betas times the market returns. This approach gives very similar results and is therefore not shown to save space. Second, the returns of the strategies are not normally distributed and display significant skewness and kurtosis which matter to investors but are not captured by linear factor models.
+Leland (1999) provides a simple correction of the CAPM's alpha and beta which allows the computation of a robust risk measure for assets with arbitrary return distributions. This measure is based on the model proposed by Rubinstein (1976) in which a CRRA investor holds the market in equilibrium. The discount factor for this economy is the marginal utility of the investor, and expected returns have a linear representation in the beta derived by Leland. Subtracting Leland's beta times the market excess return from the strategies' returns gives an estimate of the strategies' alpha that is robust to the return distribution characteristics.
+The last three columns of Table 5 tabulate Leland's alpha, bootstrapped p-values, and pseudo-R2 for the various option strategies. From the first two columns of the table we notice that the Leland's alpha is just slightly smaller than the simple CAPM alpha, with approximately the same significance levels. This suggests that even adjusting for the non-normal distribution of returns, a CAPM is not enough to explain options returns.
+3.4 An Investment Perspective
+Tables 3, 4, and 5 suggest that large returns and SRs, which can not be explained by a linear equilibrium model, can be achieved using option strategies. We now study how an investor with constant relative risk aversion (CRRA) of 5 would like to invest in these strategies. We found that the strategies produce return distributions that forbid an analysis based on the first two moments alone. High Sharpe ratios are accompanied by high skewness and kurtosis.
+9
+
+The traditional mean-variance approach to portfolio choice cannot therefore be used to study this problem. We find instead the portfolio of options that would have maximized the utility of the investor in the sample.
+We consider an investor that faces a investment opportunity set composed of three assets: the risk-free asset, the S&P 500 index (which is the underlying of the options and is also a reasonable proxy for the stock market), and each option strategy in turn. We also assume that the three assets can be bought and sold without frictions. Hence this investor cannot be interpreted as the representative agent of the economy who would have to invest the entire wealth in the stock market and cannot allocate any investment to strategies involving options since these exist in zero net supply in the economy.
+For given portfolio weights on the basis assets, we can construct a time series of returns of the resulting portfolio. We then estimate the portfolio holdings by maximizing the average utility of these monthly returns. This corresponds to solving for the optimal investment policy of a myopic investor with a horizon of one month. We use a power utility function with coefficient of risk-aversion equal to 5 and optimize it using numeric methods. In this way, we compute a metric of the strategy desirability that takes into account all the moments of the return distribution. Finally, we measure the difference ( CE) between the certainty equivalent of the optimal portfolio of the market, risk-free asset, and option strategy and the certainty equivalent of a reference portfolio that is uniquely composed by the market. The CE of the market is equal to 0.7% per month in our sample period. Results are presented in Table 6.
+We report weight estimates on each of the basis assets as well as the gains in certainty equivalent and Sharpe ratio for the investor. Bootstrapped p-values, under the null hypothesis that wm0 kt = 1, ws0tr = 0, CE0 = 0, and SR0 = 0, are also shown in brackets. In general, the investor prefers to buy far-maturity and sell near-maturity calls, and only holds short positions in put contracts. The amount invested in the market varies according to the strategy. Only when shorting ATM and far-maturity 5% OTM puts does the investor choose to short the market. The investor chooses to optimally short-sell combinations of calls and puts, while maintaining a smaller fraction of wealth in the market. Finally, with the exception of the FN strangles and 10% OTM call calendar spread, the investor does not like time-value strategies.
+In terms of utility gains some of these portfolios achieve quite remarkable results. For
+10
+
+example, investing 92.6% of the wealth in the market and -1.3% in near-maturity 10% OTM calls, which corresponds to selling 4.1 contracts per unit of the market index,4 our investor would achieve a utility level that corresponds to a monthly certainty equivalent 0.3% higher than the market, and a monthly SR increase of 0.063 relative to investing in the market alone.
+Other strategies produce even more impressive results. For example, investing 3% in the market while shorting 2.3% of near-maturity 5% OTM puts (approximately 2.3 contracts) would achieve an increase in the CE of 0.5% and an increase in the SR of 0.184 per month. A short position in the near-maturity ATM straddle worth 7.5% of the wealth (equivalent to 1.7 straddles), paired with a 34.5% long position in the market delivers a CE that is 0.5% higher than the market. The highest CE can be achieved by trading out of the money options. Combining 1.2% in the market and shorting 4.2% of the near-maturity 10% OTM strangle, our investor would enjoy a monthly CE that is 1.2% higher than the market. The corresponding increase in the monthly SR would be 0.369.
+In summary, some of the option strategies are extremely appealing to our investor, who would like to allocate a significant exposure to them. This indicates that the returns of the strategies are not commensurate with their risks at least for a CRRA investor with risk aversion coefficient of 5. Of course, we cannot rule out that there may exist preferences for which the returns of options are just compensation for their level of risk. However, the magnitude of the certainty equivalent gains is such that it is likely that the search for utility functions that prices all options will not be easy. We do not pursue that exercise in this paper.
+Since the horizon of the investment may play an important role when trading options, we also analyze the investor allocation problem in an intertemporal context. It is well known that volatility is time varying and displays mean reversion. Furthermore, volatility changes are negatively correlated with the market. These features are likely to induce hedging demands for an investor with a multiperiod horizon.
+We study how the optimal allocation to the option strategies changes when the investor is concerned with maximizing his wealth over increasing horizons. We consider
+4The number of contracts corresponding to an option portfolio weight can be approximately obtained by dividing the weight by the ratio of the corresponding option price to the value of the underlying. Such weights are reported in Table 2. If the strategy involve more than one typology of contracts we divide the weight by the net sum of the ratios.
+11
+
+the same CRRA investor as before that now maximizes utility with an horizon of 1 (same as before), 6, and 12 months. The half life of deviations of volatility from its mean is less than six months so the horizons considered should suffice to study any potential intertemporal risks that would warrant the option strategy returns we have documented.
+In Table 7 we report the portfolio weights and CE for each option strategy and each horizon considered. Bootstrapped p-values, under the null hypothesis that wm0 kt = 1, ws0tr = 0, CE0 = 0, and SR0 = 0, are also shown in brackets. The most striking result is that the allocation to option strategies tends to increase (in absolute value) with the investor's horizon. This is exactly the opposite of what we would expect if the option returns were just compensation for intertemporal risks. Furthermore, we find that the gain in certainty equivalent also tends to increase with the horizon. If trading options does not provide intertemporal wealth-smoothing gains, we expect CEs to scale linearly with the horizon: the CE at annual frequency should equal 12 times the CE at monthly frequency. Whenever there is an intertemporal benefit, we should observe more-than-proportionally rising CEs.
+All combination strategies seem to be very good deals in an intertemporal sense. The weights are all increasing, sometimes doubling, leading to a substantial increase in the portfolio CE. For example, considering the near-maturity straddle, we observe that our investor wants to increase the strategy's portfolio weight from -7.5% to -10.5% as the horizon increases from one month to one year. The CE increases as well from 0.5% with a monthly horizon to 0.8% per month with a yearly horizon. We find similar patterns for the nearmaturity strangles, while the evidence from the other sections of the table is less definitive. We conclude that intertemporal risks are unlikely to explain option returns.
+3.5 A Peso Problem in Option Returns
+One serious caveat in the investigation of option returns is represented by the "peso problem". How much of the return of a particular strategy is due to the structure of risk premia and how much is instead due to the fact that we have observed only one particular realization (one time series) of the underlying return distribution? Alternatively stated, if the monthly return of the S&P 500 had never been worse than -10% in the sample, writing near-maturity 10% OTM puts would seem to be a perfect strategy; it would make a large return and never lose money. Of course, the reason that near-maturity 10% OTM puts have a positive
+12
+
+premium is that investors think that a large negative return is possible. This is a difficult problem to study since, by its very nature, it deals with rare events. We need to ascertain whether the large excess returns we have measured for some strategies are very sensitive to small changes in the frequency of jumps in the S&P 500.
+The worst return in our sample was October of 1987, when the S&P 500 fell by 21.7%. This was clearly an outlier in our sample, 5.1 standard deviations from the monthly mean, and with the next worst month producing a return of -14.5%. We conduct a simple experiment to assess how sensitive the option returns are to having events like this happen more frequently. We explore the peso problem by studying how many "October 1987" crashes would be necessary to make a CRRA investor allocate none of his wealth to the option strategies. In other words, we repeat the allocation exercise of section 3.4 with a modified sample that includes extra data points represented by the returns of the market and the strategies in October 1987. In this way, we create samples where October of 1987 happened one, two, or three times. This corresponds to a doubling or tripling of the crash frequency relative to what was observed in sample. Note that this is clearly a conservative exercise since the crash of 1987 is an outlier even in the much larger history of stock market returns since the early 1800's.5 October of 1987 was the fourth worst month since 1802, corresponding to the percentile 0.16 of that data. In our data set, that month is in the percentile 0.51. Therefore the frequency with which an event of this magnitude occurs is already three times bigger in our sample than in the last two centuries of stock market history.
+Intuitively we should observe a change in the portfolio holdings of only these strategies which involve put strategies since these are the options that will have extreme returns in the presence of a market crash. But these are the very strategies that we found to have abnormal returns. We report results in Table 8. Consistent with our expectation, we find that the weight shorted in put options generally decreases as the number of crashes in the sample increases. However, even with three crashes, the investor still wants to short sell all puts and the weights on the near-maturity ATM and 5% OTM puts are still statistically significant. Similarly, the weight shorted of the near-maturity straddles and strangles remain significantly negative despite the increase in crash frequency.6 We conclude that it would
+5See Schwert (1990) for a study of early stock market returns. 6Despite strategy weights tend to decrease when extra crashes are added to the sample, the difference in certainty equivalent between the optimal portfolio and the market appears to be increasing. This is due to the fact that the market weights in the optimal portfolios also tend to decrease: in this way portfolios
+13
+
+take more than a tripling of the frequency with which crashes occur (which is already higher in our sample than in the entire history of the stock market) to deter our investor from wanting to short options.
+A possible interpretation of these results is that the put premia correspond to an ex ante likelihood of about five crashes occuring in the stock market in almost seventeen years, or a jump probability of 2.5% per month. Unsurprisingly, this probability is in line with the evidence presented by Pan (2002) and Santa-Clara and Yan (2004) and other studies that calibrate jump-diffusion models to option prices. However, it far exceeds the frequency observed since the 1800's (0.3% per month). On the basis of this evidence, we find that the peso explanation is unlikely to justify the large premia of strategies that involve selling options.
+4 Limits to Arbitrage
+Thus far, we have established that several strategies involving selling options have produced large returns after adjusting for risk in a variety of ways. In this section, we investigate the feasibility of the strategies. In particular, we examine how trading costs and margin requirements impact the returns of the strategies.
+4.1 Transaction Costs
+One important aspect that ought to be considered when studying option strategy returns is given by transaction costs. Trading options can be quite expensive, not only for the high commissions charged by brokers, but, most importantly, for the large bid-ask spreads at which options are quoted. In this section we focus on this second aspect. We investigate the magnitude of bid-ask spreads as well as their impact on strategy returns by analyzing the index option data contained in the OptionMetrics database which provides the best bid and ask prices at the closing of every trading day, as well as trading volume for each option. Unfortunately, this database covers a shorter period of data than the IFM database that we have used so far in this paper. However, given that the database covers the last years
+that include the option strategies are less exposed to market crashes. This results in larger  CE which are always statistically different from zero.
+14
+
+of the sample, the trading costs we measure are likely to be, if anything, lower than those prevailing in the first years of the IFM database.
+Table 9 tabulates the median bid-ask spread as a percentage of the mid-point price for the index options, and the daily median volume, expressed in number of contracts, for different maturities and moneyness levels. Overall, the volume-weighted average bid-ask spread is 10.28% for calls and 10.69% for puts. This is the roundtrip cost for an investor submitting market orders.7 This cost will clearly have a very substantial impact on the returns of option strategies, especially the ones that involve high turnover. As reported by George and Longstaff (1993), the bid-ask spreads are higher for OTM options, both because the price of an OTM contract is relatively low and because the dollar difference between the bid and the ask prices does not change much across maturity and moneyness levels.8 Similarly, near-maturity options tend to have higher bid-ask spreads than long-maturity contracts. For example, we find that the round-trip cost for both near-maturity ATM calls and puts is around 7%. Longer maturity calls and puts with similar moneyness are quoted at a 2.2% and 3.7% spread, respectively. The spread increases steeply if we move toward OTM strikes: a 5% OTM call bears a round-trip cost equal to 17.4% when close to maturity and equal to 2.7% when far from expiration. Similarly, a 5% OTM put is quoted at 13.9% and 3.7% when close and far from maturity, respectively. Further away from ATM the spreads increases even more.
+Besides the large spreads, we also find that the options market can be quite thin. This raises further concerns of potential price impact of trades. In particular, the volume for in-the-money and far-maturity deep OTM options is very low. This lack of liquidity is likely to impact the execution of some of the most profitable strategies. The bottom panel of Table 9 tabulates the daily median number of contracts traded in different moneyness level and maturity classes. We can see that the bulk of liquidity is concentrated in the near-maturity ATM strikes. Approximately half the total volume is in very short maturity contracts (less than 45 days) and another half of this is in ATM contracts. In general there appears to be more activity in puts than calls.
+7If the investor holds the options to maturity, only half of the cost is incurred. 8This last finding is not quite in line with what has been previously reported. George and Longstaff (1993) find a much wider variation of bid-ask spreads. In particular they find that very near maturity, deep OTM contracts can be quoted at spreads as low as 5 to 10 cents. In contrast, we find that the spreads for the shortest maturity OTM calls and puts are around 35 cents. The difference could be explained by the fact that they consider prices in the middle of the day while we measure the spread at the closing of the market, and by the fact that the maturity categories do not exactly match.
+15
+
+In Table 10 we investigate the impact of transaction costs on the returns of shortselling put options, straddles and strangles. We report mean returns, standard deviations, and Sharpe ratios. In particular, we compute the strategy returns from mid price to mid price (left part of the table) as well as from bid to ask price (right part of the table) which is the relevant return for an investor selling options. We note that in the present sample the mid-point returns are slightly more higher than those reported in Table 3. Mean returns of short-selling positions in puts are 4% to 6.9% lower when transaction costs are considered. For example, in shorting near-maturity 10% OTM puts the difference in average return amounts to 6.9%, which corresponds to a decrease of 0.153 in the Sharpe ratio. The trading costs impact similarly the return of straddles and strangles. For example, the bid-ask spread accounts for a loss of 4.9% in the near-maturity staddle, which corresponds to a decrease in Sharpe ratio of 0.182. In fact, the Sharpe ratio of the far-maturity straddles and strangles actually becomes negative.
+Although transaction costs do not eliminate the abnormal profitability of some option strategies, they severely reduce it.
+4.2 Margin Requirements
+The most rewarding strategies all involve a short position in one or more contracts. When an investor writes an option, the broker requests a deposit of cash in a margin account. At the end of the day, the investor positions are marked-to-market and the net change is credited to the margin account. When the account goes below a predetermined minimum, the investor faces a margin call and is required to make a deposit that meets the minimum necessary. Otherwise, the option position is closed by the broker and the account is liquidated. The margin requirements depend on the type of option strategy and on whether the short positions are covered by a matching position in the underlying asset. The margin for a naked position is determined on the basis of the option sale proceeds, plus a percentage of the value of the underlying asset, less the dollar amount by which the contract is OTM, if any.9 Specifically, for a naked position in a call or put option, the margin requirement at
+9A complete description of how to determine margin requirements for various strategies can be found in the CBOE Margin Manual, which can be downloaded from the web site: www.cboe.com/LearnCenter/pdf/margin2-00.pdf. In what follows, we use the margin requirement as of the current date. We note that there were few changes of the margin requirements through the years. The CME uses a software called SPAN that calculates the margin as the maximum loss that the investor's portfolio of options and futures might sustain in a variety of scenarios. Unfortunately, the algorithm used is
+16
+
+time t can be found by applying the following simple rule:
+
+· CALL: Mt = max (Ct + St - (K - St|K > St), Ct + St) · PUT: Mt = max (Pt + St - (St - K|St > K), Pt + K)
+
+where Ct and Pt are the settlement prices announced by the exchange for that day,  and  are parameters between 0 and 1, St is the underlying price at the end of the day, and K is the strike price of the option.
+
+The quantification of the parameters  and  depends on the type of underlying asset and on the investor trading in the options. These parameters are usually lower for broad based indexes and for institutional investors. For a broad index like the S&P 500, the CBOE Margin Manual specifies  = 15% and  = 10%, with similar figures reported by Hull (2003). These parameters determine the margin requirements imposed by the exchange to all investors, including the brokers themselves. In this way, they represent the minimum margin requirements faced by any investor. On top of these margins, the brokers may charge additional margins to specific investor types. For example, E-Trade imposes margin requirements to individual investors according to the same formula but with  and  equal to 40% and 35%, respectively.
+
+To explore the impact of margins on the ability of investors to execute short sales,
+
+we simulate the behavior of margin requirements in the time series of data for calls and puts
+
+of different maturities and moneyness levels. Specifically, at the beginning of each month
+
+we calculate a "haircut" ratio, which represents the amount by which the required margin
+
+exceeds the price at which the option was written. That is, the haircut corresponds to the
+
+investor's
+
+equity
+
+in
+
+the
+
+option
+
+position.
+
+We
+
+compute
+
+the
+
+haircut
+
+ratio
+
+as
+
+, Mt-V0 V0
+
+where
+
+Mt
+
+is
+
+the margin at the end of each day t, and V0 is the value of the option sold at the beginning
+
+of the month, either C0 or P0. In this way, the haircut is expressed as a percentage of the
+
+notional amount that is sold short. We compute the haircut ratio for every trading day in
+
+the month until the position is closed. The ratio changes within the month reflecting the
+
+change in the option moneyness and maturity. If the underlying asset moves against the
+
+option position, the margin requirement increases and the investor receives a margin call.
+
+For example if the investor is shorting an OTM put, a drop in the price of the underlying
+
+causes an increase in the price of the option. At the beginning of the next month a new
+
+not published by the exchange and we cannot use it in our historic margin simulations.
+
+17
+
+position is opened and the coverage ratio is hence recalculated, obtaining in this way a continuous daily time-series for the entire length of the sample.
+In Table 11 we report the mean, median, standard deviation, minimum, and maximum of the haircut ratio for two sets of parameters: the parameters reported by the CBOE ( = 15% and  = 10%) and the set that a private investor would face when using a webbased broker like E-Trade ( = 40% and  = 35%). The following discussion is focused on the CBOE margin requirements. On average an investor must deposit $3.9 as margin (in addition to the option sale proceeds) for every dollar received from shorting far-maturity ATM calls. In our sample, the maximum historical haircut ratio for those options, equals 27.8. To put this into perspective, we can interpret the inverse of the haircut ratio as the maximum percentage of the investor's wealth that could be allocated to the option trade if all the wealth was committed to the margin account. For example, to maintain an open position in the far-maturity ATM call and hence to be able to post the maximum margin call in the sample, the investor would only be able to short the option for an amount equal to 3.6% of the wealth.
+Similarly, if the investor wanted to short a near-maturity ATM put, the haircut ratio would be 7.0 on average and the allocation to the option strategy could not be bigger than 4.4% of the wealth in the worst-case scenario. For OTM options the margin requirements are more stringent still. To write a near-maturity 10% OTM call with $1 of premium, it is necessary to post $43.1 as margin on average. In the worst month of the sample, the margin requirement was $370 per dollar sold of the option. Although these haircut ratios appear very large, bear in mind that they were calculated with the margin coefficients imposed by the exchange to large institutional investors. The margin requirements are much higher for individual investors. In those cases, it becomes almost impossible to consistently keep open a short position in OTM puts.
+Of course this analysis is not enough to conclude that margin requirements completely preclude investors from selling options. Even if margins constrain the maximum amount invested, it may still be profitable to allocate a small percentage of the portfolio to the option strategies. However, margins may also impact the profitability of the trading strategies to the extent that they may force the investor to close out the positions when facing margin calls. We therefore study the performance of a realistic strategy that takes into account margin calls. We assume that at the beginning of every month the investor has $1 to invest and allocates that amount according to the optimal weights found in Table 6. During the
+18
+
+month, we assume, for the sake of realism, that the investor cannot borrow money to face margin calls. Therefore, any margin calls are met by liquidating the investment in the riskfree asset or the stock market. Specifically, we assume that the investor will choose to first liquidate the investment in the risk-free asset and then in the stock market. When these investments are not sufficient to meet the margin call, the option position is liquidated and any remaining money in the account is carried in the risk-free asset until the end of the month. In the case in which the investor's optimal strategy involves a short position in the market, to simplify matters, we do not take into account any margin requirements for that short position.10
+In Table 12 we report the mean, standard deviation, Sharpe ratio, and certainty equivalent of the strategy returns with and without taking into account margin calls. We concentrate on the strategies that involve shorting puts or shorting straddles and strangles since they are the ones found to be most profitable. We find that the presence of margin requirements greatly impacts the profitability of the strategies. For all the portfolios, the mean return diminishes by substantial amounts. In three cases, the average return actually becomes negative and, in nine instances, it is lower than the risk free rate, resulting in negative Sharpe ratios. The impact on Sharpe ratios and certainty equivalents is staggering. Even in the cases where the Sharpe ratio does not turn negative, it decreases by more than 50%. In seven cases the certainty equivalent turns negative, and in all other instances it is more than halved. For example, the portfolio that involves a short position in the nearmaturity 5% strangle offers, without margin calls, one of the best risk-return trade-offs with a mean return of 2.7% per month, a Sharpe ratio of 0.474, and a certainty equivalent of 1.8% per month. After adjusting for the margin calls, the portfolio averaged a negative return of -1.0% and a negative CE of -1.6% per month. We conclude that margin calls tend to force the investor to close out the positions at the worst possible times.
+If we subtract transaction costs of the order of 4% per month (discussed in the previous section) from the margin-adjusted returns, the option strategies become even less appealing to the investor. For example, the strategy that has the highest average return
+10Initial margin requirements for shorting S&P 500 futures are set at 20% of the contract value. Maintenance margins are affected by the marking to market of the contract. Covered positions should be perfectly hedged and not require any margin. That is indeed the case for covered call strategies. However, shorting a put and shorting the futures contract is still subject to the future margin requirement of 20% plus the amount by which the put is in the money. This turns out to be very similar to the margin requirement for selling a naked put, and, for the sake of simplicity, we ignore the difference in margins between selling naked and covered puts.
+19
+
+after considering margins is composed of a long position in the market and a short position in the near-maturity ATM straddle. This portfolio has an average monthly return of 0.9% and a Sharpe ratio of 0.128. If we were to subtract the transaction costs of 4.9% for straddles reported in Table 10, the return of the total strategy would decrease by 0.368% per month (the weight allocated to the straddle of 7.5% times the cost). This would bring the average monthly return to 0.532%. Assuming that the volatility of the strategy does not change, these figures would deliver an approximate Sharpe ratio of 0.032, which is almost six times smaller than the market's. Together, transaction costs and margin calls pose a formidable barrier to shorting options, preventing investors to arbitrage the good deals that seemingly exist in option prices.
+
+The dramatic impact of margin calls on the profitability of the trading strategies suggests that margins may be set too high by the exchange. To study this possibility, we compare the value of the option strategies each day with the margins determined by the CBOE for the previous day. Only when the option strategies are worth less than the margin posted in the previous day is there any risk that the investor may default and that the exchange's equity capital may have to cover the losses. Note that insufficient margins do not mean that there will be default, only that the investor's position isn't fully collateralized. The investor may still meet the margin call with new funds.
+
+Specifically, we compute the excess balance of the margin account as a percentage of
+
+the
+
+option
+
+price,
+
+, Mt-Vt+1 Vt
+
+which
+
+we
+
+call
+
+the
+
+margin
+
+protection.
+
+Summary
+
+statistics
+
+for
+
+this
+
+ratio are reported in Table 13. Interestingly, we find that there is a single day (October 19,
+
+1987) out of 4,164 days in the sample for which the margin requirements were insufficient
+
+to cover the losses of any of the strategies. Furthermore, even on this one day, the margin
+
+shortfall was in all cases less than two times the value of the options in the previous day.
+
+The amount that the exchange asks as collateral for short positions in options, on average,
+
+exceeds by several times the investor's liability and guarantees a protection against the risk
+
+of counterparty default that has been historically comparable to a 0.02 percentile "margin
+
+at risk" with an expected shortfall of $0.0011 per dollar of options sold short.
+
+We also construct a time series of the aggregate margin protection for put options. Each day, we define this aggregate margin protection measure as the average of the protection ratios for each put option that exists in the sample on that day. The time series of this aggregate margin protection measure is plotted in Figure 1. Again, in our sample, the aggregate protection measure is negative in only one instance. Despite the variability, it is
+
+20
+
+clear that margins are set greatly in excess of any likely move in option prices. Overall the evidence presented in this section suggests that the margin requirements
+adopted by the exchanges impedes the ability of investors to short sell options. Barriers to selling options allow mispricings to persist, diminishing the potential benefits that option markets might bring in risk sharing among investors.
+5 Conclusion
+This paper documents the performance of a variety of option strategies on the S&P 500 from 1985 to 2002. Consistent with previous research, we find that a number of strategies that involve shorting options have offered extremely high returns. These returns are hard to justify as compensation for risk, even after taking into account the nonlinear nature of option risks and their exposure to infrequent jump risks.
+Transaction costs can be very substantial in option markets, especially for shortmaturity out-of-the-money options which are thinly traded. These transaction costs severely reduce the profitability of option strategies and, in some cases, turn their returns negative. Most importantly, the margin requirements imposed by option exchanges can have a substantial impact on the strategies. We find that margin calls frequently force investors to close out short option positions and that this happens when those positions are suffering large losses. Taking into account the effect of margin calls turns negative even the returns of the strategies that appeared to be most profitable.
+Our results support the existence of large misspricings in option markets which cannot be arbitraged away due to a combination of high transaction costs and heavy margin requirements. These misspricings may seriously blunt the effectiveness of option markets as a conduit for risk sharing among investors. The large disparities between the profitability of option strategies before and after taking margin requirements into account lead us to question the formulas used by the exchanges to calculate margin requirements. Although margins may be effective in limiting counterparty default risk, they also impose a friction that may help perpetuate large misspricings.
+21
+
+References
+Bakshi, Gurdip, Charles Cao, and Zhiwu Chen, 1997, Empirical performance of alternative option pricing models, Journal of Finance 52, 2003­2049.
+Bakshi, Gurdip, and Nikunj Kapadia, 2003, Delta-hedged gains and the negative market volatility risk premium, Review of Financial Studies 16, 527­566.
+Bates, David S., 2000, Post-'87 crash fear in the S&P 500 futures option market, Journal of Econometrics 94, 181­238.
+Benzoni, Luca, 2001, Pricing options under stochastic volatility: an empirical investigation, Working paper.
+Bondarenko, Oleg, 2003, Why are put options so expensive?, Working paper.
+Buraschi, Andrea, and Jens Jackwerth, 2001, The price of a smile: hedging and spanning in option markets, Review of Financial Studies 14, 492­527.
+Chernov, Mikhail, and Eric Ghysels, 2000, A study towards a unified approach to the joint estimation of objective and risk neutral measures, Journal of Financial Economics 56, 407­458.
+Christensen, Bent J., and Nagpurnanand R. Prabhala, 1998, The relation between implied and realized volatility, Journal of Financial Economics 50, 125­150.
+Coval, Joshua D., and Tyler Shumway, 2001, Expected option returns, Journal of Finance 56, 983­1009.
+Danielsen, Bartley R., and Sorin M. Sorescu, 2001, Why do option introductions depress stock prices? A study of diminishing short sale constraints, Journal of Financial and Quantitative Analysis 36, 451­484.
+Day, Theodore E., and Craig M. Lewis, 1992, Stock market volatility and the information content of stock index options, Journal of Econometrics 52, 267­287.
+Day, Theodore E., and Craig M. Lewis, 1997, Intial margin policy stochastic volatility in the crude oil futures market, Review of Financial Studies 10, 303­332.
+22
+
+Driessen, Joost, and Pascal Maenhout, 2003a, A portfolio perspective on option pricing anomalies, Working paper.
+Driessen, Joost, and Pascal Maenhout, 2003b, The world price of jump and volatility risk, Working paper.
+Eraker, Bjørn, 2004, Do stock prices and volatility jumps? reconciling evidence from spot and option prices, Journal of Finance 59, 1367­1403.
+Figlewski, Stephen, and Gwendolyn P. Webb, 1993, Options, short sales, and market completeness, Journal of Finance 1993, 761­777.
+Gemmill, Gordon, and Naoki Kamiyama, 2000, International transmission of option volatility and skewness: when you're smiling, does the whole world smile?, Working Paper.
+George, Thomas J., and Francis A. Longstaff, 1993, Bid-ask spreads and trading activity in the S&P 100 index option market, Journal of Financial and Quantitative Analysis 28, 381­397.
+Goetzmann, William, Jonathan Ingersoll, and Ivo Welch, 2002, Sharpening Sharpe ratios, Working Paper.
+Hardouvelis, Gikas A., 1990, Margin requirements, volatility, and the transitory component of stock prices, American Economic Review 80, 736­762.
+Hardouvelis, Gikas A., and Stavros Peristiani, 1992, Margin requirements, speculative trading, and stock price fluctuations: the case of Japan, Quarterly Journal of Economics 107, 1333­1370.
+Hardouvelis, Gikas A., and Panayiotis Theodossiou, 2002, The asymmetric relation between initial margin requirements and stock market volatility across bull and bear markets, Review of Financial Studies 15, 1525­1559.
+Heath, David C., and Robert A. Jarrow, 1987, Arbitrage, continuous trading, and margin requirements, Journal of Finance 42, 1129­1142.
+Hsieh, David A., and Merton H. Miller, 1990, Margin regulation and stock market volatility, Journal of Finance 45, 3­29.
+23
+
+Hull, John, 2003, Options Futures and Other Derivatives. (Prentice Hall Upper Saddle River, New Jersey).
+Jackwerth, Jens Carsten, 2000, Recovering risk aversion from option prices and realized returns, Review of Financial Studies 13, 433­451.
+John, kose, Apoorva Koticha, Ranga Narayanan, and Marti Subrahmanyam, 2003, Margin rules, informed trading in derivatives, and price dynamics, Working paper.
+Jones, Charles M., and Owen A. Lamont, 2002, Short-sale constraints and stock returns, Journal of Financial Economics 66, 207­239.
+Jones, Christopher S., 2004, A nonlinear factor analysis of S&P 500 index options returns, Working paper.
+Lamont, Owen A., and Jeremy C. Stein, 2004, Aggregate short interest and market valuations, American Economic Review 94, 29­32.
+Largay III, James A., and Richard R. West, 1973, Margin changes and stock price behavior, Journal of Political Economy pp. 328­339.
+Leland, Hayne E., 1999, Beyond mean-variance: performance measurement in a nonsymmetrical world, Financial Analysts Journal 55, 27­36.
+Liu, Jun, and Francis Longstaff, 2004, Losing money on arbitrage: optimal dynamic portfolio choice in markets with arbitrage opportunities, Review of Financial Studies 17, 611­641.
+Liu, Jun, and Jun Pan, 2003, Dynamic derivative strategies, Journal of Financial Economics 69, 401­430.
+Liu, Jun, Jun Pan, and Tan Wang, 2005, An equilibrium model of rare event premia, Review of Financial Studies 18, 131­164.
+Mayhew, Stewart, Atulya Sarin, and Kuldeep Shastri, 1995, The allocation of informed trading across related markets: an analysis of the impact of changes in equity-option margin requirements, Journal of Finance pp. 1635­1653.
+Merton, Robert C., Myron S. Scholes, and Mathew L. Gladstein, 1978, The returns and risk of alternative call option portfolio investment strategies, Journal of Business 51, 183­242.
+24
+
+Merton, Robert C., Myron S. Scholes, and Mathew L. Gladstein, 1982, The returns and risk of alternative put option portfolio investment strategies, Journal of Business 55, 1­55.
+Ofek, Eli, Matthew Richardson, and Robert F. Whitelaw, 2004, Limited arbitrage and short sales restrictions: evidence from the options market, Journal of Financial Economics 74, 305­342.
+Pan, Jun, 2002, The jump-risk premia implicit in options: evidence from an integrated time-series study, Journal of Financial Economics 63, 3­50.
+Rubinstein, Mark, 1976, The valuation of uncertain income streams and the pricing of options, Bell Journal of Economics 7, 407­425.
+Santa-Clara, Pedro, and Shu Yan, 2004, Jump and volatility risk and risk premia: a new model and lessons from the S&P 500 options, UCLA working paper.
+Schwert, William G., 1990, Indexes of U.S. stock prices from 1802 to 1987, Journal of Business 63, 399­442.
+Shleifer, Andrei, and Robert W. Vishny, 1997, The limits of arbitrage, Journal of Finance 52, 35­55.
+25
+
+Figure 1: Time Series of Aggregate Margin Protection
+
+In this figure we plot the time series of the aggregate margin protection for put options. For any day in the sample
+
+we compute
+
+the
+
+margin protection
+
+ratio as
+
+Mi,t -Pi,t+1 Pi,t
+
+for any
+
+option contract in our dataset
+
+in that day,
+
+where
+
+Mt
+
+=
+
+max (Pt + St - (St - K|St > K), Pt + K), and  and  are the coefficients reported by the CBOE. For day t the aggregate
+
+protection is given by the average of the protection ratios for each put in our sample on that day. The historical mean is 34.42,
+
+with a standard deviation of 19.27, minimum of -5.52, and a maximum of 163.28.
+
+Options closing prices were sampled daily between January 1985 and May 2001. The data is provided by the Chicago Mercantile
+
+Exchange through the Institute for Financial Markets. All options are American.
+
+160
+
+140
+
+120
+
+100
+
+80
+
+60
+
+40
+
+20
+
+0 -10
+Jan85
+
+Dec86
+
+Dec88
+
+Dec90
+
+Nov92
+
+Nov94
+
+Nov96
+
+Nov98
+
+Nov00
+
+26
+
+Table 1: Construction of Option Strategies
+This table details the composition of the option strategies. We focus on two different maturities, near and far (approximately 45 and 180 days, respectively), and three different levels of moneyness (ATM, 5%, and 10% OTM). All strategies have zero initial investment. If the option position generates cash at the entering date, that cash is reinvested at the risk-free rate. Conversely, if the strategy requires an initial cash outlay, it is financed by borrowing at the risk-free rate. At the end of the month, or at the option liquidation day if it comes first, the position is liquidated and rolled over into the contracts that have the desired moneyness and maturity at the time. Prices are described as a function of moneyness and maturities: price = f (mon, mat), with moneyness for in-the-money options denoted with a negative sign. For example, the price of the far-maturity, 5% OTM call is c(5, F ) and the price of a near-maturity. The level of the S&P 500 index is denoted s.
+
+S&P
+
+near
+
+call
+
+put
+
+far
+
+call
+
+put
+
+risk-free
+
+Cov Call F ATM s
+
+Cov Call N ATM s
+
+Cov Call F 5%
+
+s
+
+Cov Call N 5%
+
+s
+
+Prot Put F ATM s
+
+Prot Put N ATM s
+
+Prot Put F 5%
+
+s
+
+Prot Put N 5%
+
+s
+
+-c(0,N) -c(5,N)
+
+p(0,N) p(5,N)
+
+-c(0,F) -c(5,F)
+p(0,F) p(5,F)
+
+-s+c(0,F) -s+c(0,N) -s+c(5,F) -s+c(5,N) -s-p(0,N) -s-p(0,F) -s-p(5,N) -s-p(5,F)
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+c(0,N) c(5,N) c(10,N)
+
+p(0,N) p(5,N) p(10,N)
+
+c(0,F) p(0,F) c(5,F) p(5,F) c(10,F) p(10,F)
+
+-c(0,F)-p(0,F) -c(0,N)-p(0,N) -c(5,F)-p(5,F) -c(5,N)-p(5,N) -c(10,F)-p(10,F) -c(10,N)-p(10,N)
+
+LS straddle ATM LS strangle 5% LS strangle 10% CS Call ATM CS Put ATM CS Call 5% CS Put 5% CS Call 10% CS Put 10%
+
+-c(0,N) -c(5,N) -c(10,N) -c(0,N)
+-c(5,N)
+-c(10,N)
+
+-p(0,N) -p(5,N) -p(10,N)
+-p(0,N)
+-p(5,N)
+-p(10,N)
+
+c(0,F) c(5,F) c(10,F) c(0,F)
+c(5,F)
+c(10,F)
+
+p(0,F) p(5,F) p(10,F)
+p(0,F)
+p(5,F)
+p(10,F)
+
+c(0,N)+p(0,N)-c(0,F)-p(0,F) c(5,N)+p(5,N)-c(5,F)-p(5,F) c(10,N)+p(10,N)-c(10,F)-p(10,F)
+c(0,N)-c(0,F) p(0,N)-p(0,F) c(5,N)-c(5,F) p(5,N)-p(5,F) c(10,N)-c(10,F) p(10,N)-p(10,F)
+
+27
+
+Table 2: Descriptive Statistics of Option Data
+In this table we report the average Black and Scholes implied volatility as well as the average ratio of the option price to the value of the underlying index for calls and puts on the S&P500 futures. We focus on two different maturities, near (N) and far (F), corresponding to approximately 45 and 180 days to maturity, respectively. We report statistics for option at the money (ATM), and out of the money by 5% and 10%. Options and futures closing prices were sampled monthly between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial Markets. All options are American.
+
+PUT 10% 5% ATM
+
+CALL ATM 5% 10%
+
+imp vol
+F 0.197 0.184 0.175 N 0.239 0.203 0.172
+
+imp vol
+0.155 0.150 0.146 0.164 0.154 0.153
+
+ratio
+F 0.019 0.028 0.038 N 0.005 0.010 0.023
+
+ratio
+0.030 0.021 0.016 0.020 0.006 0.003
+
+28
+
+Table 3: Returns of Option Strategies
+This table reports summary statistics of returns of the various option strategies described in Table 1: average, standard deviation, minimum, maximum, skewness, kurtosis, and Sharpe ratio. Options and futures closing prices were sampled monthly between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial Markets. All options are American. For comparison, the near-maturity S&P 500 futures contract has a mean return of 0.8%, a standard deviation of 4.3%, skewness of -0.804, and a Sharpe ratio of 0.189.
+
+mean std min max skew
+
+kurt
+
+SR
+
+Call F ATM Call N ATM Call F 5% Call N 5% Call F 10% Call N 10% Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+0.139 0.248 0.111 -0.059 0.195 -0.153 -0.159 -0.317 -0.178 -0.504 -0.175 -0.591
+
+0.780 1.814 0.847 1.900 1.568 2.152 0.569 0.954 0.667 1.371 1.095 1.652
+
+-0.981 -1.007 -0.989 -1.007 -0.995 -1.007 -0.951 -1.007 -0.956 -1.007 -0.956 -1.007
+
+3.794 17.448
+3.794 17.448 17.295 16.993
+3.880 5.249 5.842 12.162 13.280 20.628
+
+1.486 5.199 1.343 5.079 7.054 5.004 2.955 2.464 4.537 6.721 9.649 11.062
+
+6.377 44.534
+5.312 40.517 73.772 32.608 17.475 10.629 36.719 56.040 117.269 140.065
+
+0.178 0.137 0.131 -0.031 0.125 -0.071 -0.280 -0.332 -0.268 -0.368 -0.160 -0.358
+
+Cov Call F ATM Cov Call N ATM Cov Call F 5% Cov Call N 5% Prot Put F ATM Prot Put N ATM Prot Put F 5% Prot Put N 5%
+
+0.008 0.007 0.008 0.009 0.004 0.003 0.005 0.005
+
+0.031 0.027 0.034 0.035 0.027 0.023 0.031 0.032
+
+-0.191 -0.184 -0.201 -0.207 -0.065 -0.072 -0.100 -0.097
+
+0.125 0.077 0.125 0.077 0.098 0.102 0.102 0.114
+
+-1.550 -2.304 -1.436 -1.700 0.352 0.904 0.030 0.108
+
+12.355 15.950 10.729
+9.946 4.015 5.173 3.740 3.448
+
+0.243 0.265 0.227 0.243 0.147 0.131 0.145 0.154
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+-0.056 -0.140 -0.058 -0.398 -0.047 -0.527
+
+0.273 0.515 0.326 0.850 0.470 0.961
+
+-0.541 -1.008 -0.645 -1.008 -0.761 -1.008
+
+1.605 2.099 2.180 5.072 3.157 8.328
+
+2.722 1.320 2.454 3.480 2.990 5.861
+
+15.523 6.061
+14.594 19.188 17.666 47.284
+
+-0.205 -0.273 -0.178 -0.468 -0.101 -0.548
+
+FN straddle ATM FN strangle 5% FN strangle 10% CS Call ATM CS Put ATM CS Call 5% CS Put 5% CS Call 10% CS Put 10%
+
+0.023 0.035 0.065 -0.017 0.023 0.076 -0.009 0.204 0.007
+
+0.239 0.232 0.373 0.766 0.425 0.601 0.321 1.208 0.566
+
+-0.938 -0.875 -0.589 -4.928 -2.226 -3.623 -1.288 -2.167 -1.065
+
+1.057 1.264 2.701 3.311 1.619 2.741 1.784 14.146 4.574
+
+-0.522 0.887 3.095 -1.752 -1.346 -0.400 1.127 8.033 4.099
+
+6.329 8.278 19.597 17.198 11.957 11.796 8.845 91.674 28.996
+
+0.097 0.151 0.175 -0.022 0.053 0.126 -0.030 0.169 0.013
+
+29
+
+Table 4: Bootstrapped Confidence Intervals
+This table reports 95% bootstrap confidence intervals three of the summary statistics of returns of the various option strategies reported in Table 3: the average return, the standard deviation of returns, and the Sharpe ratio. Options and futures closing prices were sampled monthly between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial Markets. All options are American.
+
+mean [ 95% ]
+
+std [ 95% ]
+
+SR [ 95% ]
+
+Call F ATM Call N ATM Call F 5% Call N 5% Call F 10% Call N 10% Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+0.032 0.032 -0.007 -0.298 0.014 -0.430 -0.234 -0.442 -0.264 -0.660 -0.300 -0.770
+
+0.250 0.521 0.236 0.234 0.441 0.185 -0.082 -0.184 -0.080 -0.281 -0.008 -0.340
+
+0.654 1.122 0.722 1.176 0.839 1.234 0.416 0.746 0.432 0.619 0.448 0.473
+
+0.904 2.611 0.966 2.691 2.360 2.956 0.725 1.156 0.917 2.038 1.748 2.713
+
+0.046 0.024 -0.009 -0.237 0.015 -0.345 -0.540 -0.573 -0.605 -1.049 -0.654 -1.632
+
+0.300 0.235 0.255 0.095 0.215 0.064 -0.118 -0.163 -0.091 -0.139 -0.005 -0.125
+
+Cov Call F ATM Cov Call N ATM Cov Call F 5% Cov Call N 5% Prot Put F ATM Prot Put N ATM Prot Put F 5% Prot Put N 5%
+
+0.003 0.004 0.003 0.004 0.000 -0.000 0.000 0.001
+
+0.012 0.011 0.012 0.014 0.008 0.007 0.009 0.010
+
+0.024 0.021 0.027 0.029 0.023 0.020 0.027 0.028
+
+0.038 0.035 0.041 0.043 0.030 0.026 0.034 0.036
+
+0.097 0.111 0.085 0.096 0.014 -0.007 0.014 0.018
+
+0.445 0.499 0.414 0.451 0.290 0.273 0.292 0.311
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+-0.093 -0.211 -0.103 -0.514 -0.112 -0.652
+
+-0.019 -0.067 -0.016 -0.264 0.014 -0.378
+
+0.200 0.433 0.248 0.586 0.337 0.497
+
+0.342 0.588 0.404 1.107 0.591 1.363
+
+-0.445 -0.461 -0.398 -0.854 -0.302 -1.278
+
+-0.054 -0.121 -0.041 -0.244 0.026 -0.288
+
+FN straddle ATM FN strangle 5% FN strangle 10% CS Call ATM CS Put ATM CS Call 5% CS Put 5% CS Call 10% CS Put 10%
+
+-0.008 0.003 0.016 -0.129 -0.036 -0.007 -0.056 0.072 -0.070
+
+0.055 0.067 0.117 0.092 0.077 0.156 0.037 0.391 0.095
+
+0.197 0.188 0.263 0.534 0.323 0.475 0.259 0.590 0.358
+
+0.277 0.276 0.483 0.998 0.522 0.741 0.390 1.869 0.780
+
+-0.031 0.012 0.050 -0.154 -0.076 -0.011 -0.191 0.089 -0.178
+
+0.244 0.290 0.281 0.137 0.205 0.275 0.111 0.278 0.127
+
+30
+
+Table 5: Asset Pricing Model Tests
+This table reports CAPM and Fama-French three-factor model alphas and adjusted R-squared coefficients as well as tests of Rubinstein (1976) nonlinear CAPM model for the option strategies in Table 3. As a test for the Rubinstein's model we measure the risk of each strategy using Leland (1999)'s robust beta and report the corresponding alpha. Bootstrapped p-values are shown in brackets. Options and futures closing prices were sampled monthly between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial Markets. All options are American.
+
+Call F ATM Call N ATM Call F 5% Call N 5% Call F 10% Call N 10% Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+capm
+
+R2
+
+0.034 0.074 -0.001 -0.220 0.060 -0.317 -0.070 -0.181 -0.078 -0.353 -0.039 -0.424
+
+[0.49] [0.49] [0.83] [0.05] [0.61] [0.01] [0.00] [0.00] [0.02] [0.01] [0.51] [0.01]
+
+0.542 0.280 0.522 0.218 0.225 0.175 0.740 0.615 0.684 0.366 0.467 0.310
+
+f f
+
+R2
+
+0.027 0.065 -0.011 -0.231 0.010 -0.326 -0.061 -0.175 -0.063 -0.331 -0.004 -0.378
+
+[0.64] [0.60] [0.58] [0.03] [0.85] [0.01] [0.01] [0.00] [0.07] [0.02] [0.79] [0.03]
+
+0.620 0.320 0.601 0.262 0.371 0.197 0.747 0.617 0.699 0.374 0.507 0.362
+
+lel
+
+R2
+
+0.051 0.108 0.018 -0.185 0.084 -0.277 -0.060 -0.167 -0.059 -0.312 0.010 -0.338
+
+[0.30] [0.34] [0.89] [0.09] [0.45] [0.03] [0.01] [0.00] [0.11] [0.02] [0.89] [0.07]
+
+0.384 0.182 0.364 0.132 0.153 0.101 0.924 0.746 0.965 0.591 0.861 0.708
+
+Cov Call F ATM Cov Call N ATM Cov Call F 5% Cov Call N 5% Prot Put F ATM Prot Put N ATM Prot Put F 5% Prot Put N 5%
+
+0.003 0.005 0.002 0.005 0.000 0.001 -0.000 0.002
+
+[0.02] [0.00] [0.05] [0.00] [0.96] [0.08] [0.69] [0.03]
+
+0.746 0.193 0.780 0.167 0.609 0.132 0.717 0.136
+
+0.003 0.005 0.002 0.005 0.000 0.001 -0.000 0.002
+
+[0.03] [0.00] [0.07] [0.00] [0.92] [0.10] [0.62] [0.04]
+
+0.753 0.194 0.792 0.176 0.681 0.164 0.777 0.164
+
+0.002 0.004 0.002 0.005 0.001 0.001 0.000 0.003
+
+[0.06] [0.00] [0.10] [0.00] [0.82] [0.08] [0.89] [0.03]
+
+0.855 0.301 0.868 0.245 0.470 0.092 0.594 0.111
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+-0.041 -0.121 -0.047 -0.365 -0.037 -0.495
+
+[0.05] [0.00] [0.05] [0.00] [0.29] [0.00]
+
+0.090 0.042 0.035 0.045 0.014 0.033
+
+-0.039 -0.123 -0.044 -0.361 -0.027 -0.486
+
+[0.06] [0.00] [0.06] [0.00] [0.41] [0.00]
+
+0.148 0.098 0.101 0.074 0.086 0.081
+
+-0.030 -0.106 -0.033 -0.330 -0.015 -0.445
+
+[0.13] [0.01] [0.17] [0.00] [0.56] [0.00]
+
+0.265 0.131 0.175 0.191 0.140 0.220
+
+FN straddle ATM FN strangle 5% FN strangle 10% CS Call ATM CS Put ATM CS Call 5% CS Put 5% CS Call 10% CS Put 10%
+
+0.020 0.030 0.058 -0.004 0.008 0.033 0.011 0.125 0.042
+
+[0.24] [0.08] [0.03] [0.96] [0.81] [0.41] [0.62] [0.04] [0.26]
+
+0.006 0.017 0.011 0.008 0.035 0.150 0.120 0.130 0.116
+
+0.023 0.028 0.062 -0.011 0.017 0.025 0.010 0.089 0.045
+
+[0.15] [0.09] [0.02] [0.85] [0.50] [0.55] [0.65] [0.11] [0.26]
+
+0.012 0.022 0.026 0.012 0.046 0.185 0.139 0.273 0.117
+
+0.019 0.027 0.059 -0.005 0.007 0.038 0.003 0.137 0.036
+
+[0.28] [0.10] [0.03] [0.96] [0.86] [0.39] [0.80] [0.03] [0.34]
+
+0.010 0.036 0.008 0.007 0.043 0.120 0.049 0.092 0.078
+
+31
+
+Table 6: Optimal Investment in Option Strategies
+
+This table summarizes the optimal portfolio of the market, the risk-free asset, and each of the option strategies in Table 3. The
+
+portfolio is found by numerically maximizing the average in-sample utility of a power-utility investor with CRRA equal to 5.
+
+The table reports the weights on the market and on each of the option strategies, the optimal number of option contracts per
+
+unit of the S&P 500 index, the increase in certainty equivalent for the investor relative to investing 100% of the wealth in the
+
+market ws0tr =
+
+alone, 0, C
+
+and the E0 = 0,
+
+corresponding increase in Sharpe ratio. and SR0 = 0, are shown in brackets.
+
+Bootstrapped p-values, under the Options and futures closing prices
+
+null were
+
+hypothesis that wm 0 kt = 1, sampled monthly between
+
+January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial
+
+Markets. All options are American. The market is proxied by the CRSP value-weighted portfolio. For comparison, the market's
+
+certainty equivalent and Sharpe ratio are equal to 0.7% and 0.189 per month, respectively.
+
+Call F ATM Call N ATM Call F 5% Call N 5% Call F 10% Call N 10% Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+wmk
+
+wstr
+
+# str
+
+CE ×100
+
+SR
+
+0.344 0.520 0.640 0.902 0.550 0.926 -0.762 -0.744 -0.177 0.029 0.680 0.098
+
+[0.32] [0.36] [0.60] [0.97] [0.44] [0.99] [0.00] [0.01] [0.02] [0.05] [0.35] [0.02]
+
+0.037 0.013 0.007 -0.012 0.013 -0.013 -0.112 -0.074 -0.053 -0.023 -0.001 -0.014
+
+[0.30] [0.35] [0.94] [0.08] [0.46] [0.02] [0.00] [0.00] [0.07] [0.02] [0.78] [0.04]
+
+1.2 0.141 [0.22] 0.009 [0.35] 0.6 0.118 [0.23] -0.000 [0.42] 0.3 0.065 [0.29] -0.002 [0.40] -1.9 0.195 [0.14] 0.043 [0.19] 0.8 0.106 [0.25] -0.001 [0.43] -4.1 0.274 [0.10] 0.063 [0.14] -2.9 0.430 [0.05] 0.121 [0.06] -3.2 0.738 [0.01] 0.173 [0.01] -1.9 0.247 [0.11] 0.094 [0.13] -2.3 0.498 [0.04] 0.184 [0.04] -0.1 0.061 [0.25] 0.001 [0.32] -2.8 0.334 [0.07] 0.170 [0.07]
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+0.416 0.345 0.487 0.068 0.628 0.012
+
+[0.21] [0.17] [0.28] [0.10] [0.42] [0.36]
+
+-0.078 -0.075 -0.056 -0.056 -0.016 -0.042
+
+[0.10] [0.01] [0.12] [0.00] [0.46] [0.00]
+
+-1.1 0.198 [0.16] -1.7 0.500 [0.03] -1.1 0.173 [0.18] -3.5 1.150 [0.00] -0.5 0.080 [0.25] -5.3 1.204 [0.00]
+
+0.059 0.119 0.053 0.292 0.015 0.369
+
+[0.20] [0.05] [0.21] [0.00] [0.32] [0.00]
+
+FN straddle ATM FN strangle 5% FN strangle 10% CS Call ATM CS Put ATM CS Call 5% CS Put 5% CS Call 10% CS Put 10%
+
+0.673 0.589 0.624 0.709 0.697 0.605 0.725 0.356 0.795
+
+[0.46] [0.35] [0.51] [0.51] [0.49] [0.36] [0.62] [0.17] [0.87]
+
+0.065 0.108 0.116 -0.002 0.007 0.025 0.011 0.055 0.029
+
+[0.27] [0.09] [0.03] [0.97] [0.86] [0.40] [0.75] [0.03] [0.32]
+
+1.0 0.124 [0.24] 2.5 0.211 [0.14] 4.8 0.376 [0.06] -0.1 0.061 [0.29] 0.3 0.063 [0.29] 1.1 0.108 [0.24] 1.2 0.064 [0.28] 3.9 0.351 [0.06] 2.3 0.115 [0.20]
+
+0.018 0.040 0.052 0.000 0.001 0.009 0.003 0.010 0.016
+
+[0.32] [0.24] [0.14] [0.41] [0.39] [0.35] [0.37] [0.29] [0.32]
+
+32
+
+Table 7: Intertemporal Asset Pricing Model Tests
+This table reports results obtained repeating the CRRA utility maximization of Table 6 and allowing the horizon of the investor to be longer than the monthly rebalancing frequency of the portfolio. We consider horizons of 6 and 12 months and reproduce the results for the 1-month horizon for comparison. The table reports the weight on each of the option strategies, and the increase in certainty equivalent for the investor relative to investing 100% of the wealth in the market alone. Bootstrapped p-values, under the null hypothesis that wm 0 kt = 1, ws0tr = 0, and CE0 = 0, are shown in brackets. Options and futures closing prices were sampled monthly between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial Markets. All options are American. For comparison, the market certainty equivalent is equal to 0.7%, 4.5%, and 9.1% at the 1-, 6-, and 12-month horizons, respectively.
+
+33
+
+Call F ATM Call N ATM Call F 5% Call N 5% Call F 10% Call N 10% Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+wmkt
+
+1 month wstr
+
+CE ×100
+
+0.344 0.520 0.640 0.902 0.550 0.926 -0.762 -0.744 -0.177 0.029 0.680 0.098
+
+[0.32] [0.36] [0.60] [0.97] [0.44] [0.99] [0.00] [0.01] [0.02] [0.05] [0.35] [0.02]
+
+0.037 0.013 0.007 -0.012 0.013 -0.013 -0.112 -0.074 -0.053 -0.023 -0.001 -0.014
+
+[0.30] [0.35] [0.94] [0.08] [0.46] [0.02] [0.00] [0.00] [0.07] [0.02] [0.78] [0.04]
+
+0.141 0.118 0.065 0.195 0.106 0.274 0.430 0.738 0.247 0.498 0.061 0.334
+
+[0.22] [0.23] [0.29] [0.14] [0.25] [0.10] [0.05] [0.01] [0.11] [0.04] [0.25] [0.07]
+
+wmkt
+
+6 month wstr
+
+CE ×100
+
+0.566 0.654 0.818 1.020 0.683 1.110 -1.870 -1.348 -0.812 0.152 1.097 0.013
+
+[0.40] [0.46] [0.71] [0.83] [0.53] [0.85] [0.02] [0.02] [0.05] [0.11] [0.43] [0.04]
+
+0.027 0.015 0.002 -0.014 0.014 -0.016 -0.198 -0.105 -0.092 -0.021 0.009 -0.015
+
+[0.35] [0.39] [0.95] [0.09] [0.49] [0.04] [0.01] [0.00] [0.09] [0.02] [0.76] [0.04]
+
+0.068 0.085 0.017 0.190 0.071 0.317 0.574 0.989 0.276 0.406 0.033 0.274
+
+[0.32] [0.33] [0.39] [0.21] [0.35] [0.16] [0.08] [0.02] [0.18] [0.07] [0.33] [0.13]
+
+wmkt
+
+12 month wstr
+
+CE ×100
+
+0.958 0.902 1.303 1.334 0.974 1.444 -1.312 -1.721 -0.352 0.464 1.246 0.386
+
+[0.52] [0.60] [0.87] [0.70] [0.70] [0.71] [0.05] [0.04] [0.10] [0.18] [0.49] [0.09]
+
+0.012 0.014 -0.015 -0.014 0.008 -0.015 -0.180 -0.160 -0.081 -0.023 0.005 -0.013
+
+[0.41] [0.43] [0.95] [0.10] [0.53] [0.05] [0.02] [0.00] [0.10] [0.02] [0.71] [0.06]
+
+0.014 0.064 0.028 0.200 0.022 0.320 0.552 1.650 0.248 0.494 0.013 0.230
+
+[0.43] [0.46] [0.51] [0.32] [0.48] [0.26] [0.15] [0.06] [0.26] [0.11] [0.39] [0.19]
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+0.416 0.345 0.487 0.068 0.628 0.012
+
+[0.21] [0.17] [0.28] [0.10] [0.42] [0.36]
+
+-0.078 -0.075 -0.056 -0.056 -0.016 -0.042
+
+[0.10] [0.01] [0.12] [0.00] [0.46] [0.00]
+
+0.198 0.500 0.173 1.150 0.080 1.204
+
+[0.16] [0.03] [0.18] [0.00] [0.25] [0.00]
+
+0.481 0.353 0.482 0.119 0.725 -0.032
+
+[0.36] [0.30] [0.45] [0.18] [0.57] [0.44]
+
+-0.089 -0.086 -0.080 -0.059 -0.020 -0.047
+
+[0.11] [0.01] [0.14] [0.00] [0.46] [0.00]
+
+0.149 0.514 0.171 1.163 0.042 1.270
+
+[0.22] [0.07] [0.24] [0.01] [0.35] [0.00]
+
+0.781 0.833 0.727 0.612 0.962 -0.166
+
+[0.45] [0.41] [0.57] [0.25] [0.71] [0.53]
+
+-0.092 -0.105 -0.095 -0.054 -0.032 -0.061
+
+[0.12] [0.02] [0.17] [0.00] [0.47] [0.00]
+
+0.174 0.783 0.228 1.178 0.074 1.642
+
+[0.32] [0.12] [0.33] [0.01] [0.45] [0.01]
+
+FN straddle ATM FN strangle 5% FN strangle 10% CS Call ATM CS Put ATM CS Call 5% CS Put 5% CS Call 10% CS Put 10%
+
+0.673 0.589 0.624 0.709 0.697 0.605 0.725 0.356 0.795
+
+[0.46] [0.35] [0.51] [0.51] [0.49] [0.36] [0.62] [0.17] [0.87]
+
+0.065 0.108 0.116 -0.002 0.007 0.025 0.011 0.055 0.029
+
+[0.27] [0.09] [0.03] [0.97] [0.86] [0.40] [0.75] [0.03] [0.32]
+
+0.124 0.211 0.376 0.061 0.063 0.108 0.064 0.351 0.115
+
+[0.24] [0.14] [0.06] [0.29] [0.29] [0.24] [0.28] [0.06] [0.20]
+
+0.772 0.739 0.660 0.837 0.793 0.744 0.830 0.528 0.839
+
+[0.60] [0.50] [0.63] [0.64] [0.64] [0.47] [0.74] [0.25] [0.99]
+
+0.093 0.080 0.093 -0.005 0.019 0.022 -0.019 0.049 -0.002
+
+[0.30] [0.13] [0.04] [0.96] [0.87] [0.44] [0.75] [0.04] [0.32]
+
+0.110 0.109 0.190 0.020 0.031 0.056 0.026 0.292 0.017
+
+[0.33] [0.23] [0.11] [0.39] [0.40] [0.34] [0.37] [0.13] [0.29]
+
+1.019 0.990 0.925 1.095 1.042 1.040 1.147 0.768 1.094
+
+[0.76] [0.69] [0.82] [0.79] [0.80] [0.64] [0.90] [0.40] [0.86]
+
+0.068 0.088 0.050 -0.003 0.017 0.009 0.018 0.029 -0.010
+
+[0.33] [0.16] [0.05] [0.99] [0.86] [0.45] [0.78] [0.05] [0.33]
+
+0.083 0.109 0.050 0.007 0.026 0.012 0.010 0.136 0.012
+
+[0.44] [0.34] [0.18] [0.51] [0.50] [0.46] [0.48] [0.21] [0.41]
+
+Table 8: Optimal Investment in Option Strategies with Higher-Frequency Crashes
+In this table we study the portfolio allocation of a power-utility investor with CRRA of 5 to each of the option strategies when the frequency of market crashes is higher than what was observed in the sample. To do that, we augment the data set with and extra one or two data points corresponding to the return of each strategy on October of 1987. This corresponds to a doubling or tripling of the frequency of such crashes in the sample. We repeat the CRRA utility maximization of Table 6. For each scenario, the table reports the weight on each of the option strategies, and the increase in certainty equivalent for the investor relative to investing 100% of the wealth in the market alone. Bootstrapped p-values, under the null hypothesis that wm 0 kt = 1, ws0tr = 0, and CE0 = 0, are shown in brackets. Options and futures closing prices were sampled monthly between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial Markets. All options are American.
+
+34
+
+Call F ATM Call N ATM Call F 5% Call N 5% Call F 10% Call N 10% Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+wmkt
+
+1 crash wstr
+
+CE ×100
+
+0.344 0.520 0.640 0.902 0.550 0.926 -0.762 -0.744 -0.177 0.029 0.680 0.098
+
+[0.32] [0.36] [0.60] [0.97] [0.44] [0.99] [0.00] [0.01] [0.02] [0.05] [0.35] [0.02]
+
+0.037 0.013 0.007 -0.012 0.013 -0.013 -0.112 -0.074 -0.053 -0.023 -0.001 -0.014
+
+[0.30] [0.35] [0.94] [0.08] [0.46] [0.02] [0.00] [0.00] [0.07] [0.02] [0.78] [0.04]
+
+0.141 0.118 0.065 0.195 0.106 0.274 0.430 0.738 0.247 0.498 0.061 0.334
+
+[0.22] [0.23] [0.29] [0.14] [0.25] [0.10] [0.05] [0.01] [0.11] [0.04] [0.25] [0.07]
+
+wmkt
+
+2 crashes wstr
+
+CE ×100
+
+0.095 0.313 0.377 0.687 0.339 0.712 -0.702 -0.884 0.025 -0.130 0.778 0.009
+
+[0.10] [0.12] [0.22] [0.55] [0.14] [0.50] [0.01] [0.00] [0.07] [0.01] [0.57] [0.03]
+
+0.047 0.016 0.016 -0.010 0.018 -0.012 -0.092 -0.071 -0.030 -0.022 0.009 -0.010
+
+[0.16] [0.26] [0.59] [0.12] [0.30] [0.04] [0.03] [0.00] [0.28] [0.01] [0.65] [0.19]
+
+0.322 0.276 0.208 0.285 0.258 0.357 0.435 0.791 0.254 0.527 0.216 0.283
+
+[0.00] [0.01] [0.01] [0.00] [0.00] [0.00] [0.00] [0.00] [0.01] [0.00] [0.01] [0.01]
+
+wmkt
+
+3 crashes wstr
+
+CE ×100
+
+-0.085 0.159 0.191 0.532 0.181 0.559 -0.656 -0.978 0.087 -0.231 0.841 0.165
+
+[0.05] [0.06] [0.10] [0.28] [0.07] [0.26] [0.01] [0.00] [0.09] [0.01] [0.68] [0.04]
+
+0.054 0.019 0.023 -0.009 0.021 -0.010 -0.078 -0.069 -0.018 -0.020 0.016 -0.005
+
+[0.11] [0.17] [0.43] [0.18] [0.25] [0.04] [0.05] [0.00] [0.49] [0.03] [0.32] [0.37]
+
+0.528 0.461 0.386 0.418 0.440 0.485 0.520 0.895 0.364 0.618 0.433 0.378
+
+[0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00]
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+0.416 0.345 0.487 0.068 0.628 0.012
+
+[0.21] [0.17] [0.28] [0.10] [0.42] [0.36]
+
+-0.078 -0.075 -0.056 -0.056 -0.016 -0.042
+
+[0.10] [0.01] [0.12] [0.00] [0.46] [0.00]
+
+0.198 0.500 0.173 1.150 0.080 1.204
+
+[0.16] [0.03] [0.18] [0.00] [0.25] [0.00]
+
+0.299 0.188 0.386 -0.092 0.529 -0.119
+
+[0.07] [0.05] [0.10] [0.03] [0.20] [0.10]
+
+-0.060 -0.066 -0.034 -0.052 -0.001 -0.035
+
+[0.19] [0.00] [0.37] [0.00] [0.88] [0.00]
+
+0.267 0.531 0.227 1.092 0.186 0.996
+
+[0.00] [0.00] [0.01] [0.00] [0.01] [0.00]
+
+0.218 0.079 0.318 -0.199 0.461 -0.201
+
+[0.04] [0.02] [0.06] [0.01] [0.15] [0.05]
+
+-0.046 -0.060 -0.018 -0.049 0.009 -0.031
+
+[0.29] [0.02] [0.58] [0.00] [0.80] [0.00]
+
+0.390 0.626 0.355 1.125 0.348 0.965
+
+[0.00] [0.00] [0.00] [0.00] [0.00] [0.00]
+
+FN straddle ATM FN strangle 5% FN strangle 10% CS Call ATM CS Put ATM CS Call 5% CS Put 5% CS Call 10% CS Put 10%
+
+0.673 0.589 0.624 0.709 0.697 0.605 0.725 0.356 0.795
+
+[0.46] [0.35] [0.51] [0.51] [0.49] [0.36] [0.62] [0.17] [0.87]
+
+0.065 0.108 0.116 -0.002 0.007 0.025 0.011 0.055 0.029
+
+[0.27] [0.09] [0.03] [0.97] [0.86] [0.40] [0.75] [0.03] [0.32]
+
+0.124 0.211 0.376 0.061 0.063 0.108 0.064 0.351 0.115
+
+[0.24] [0.14] [0.06] [0.29] [0.29] [0.24] [0.28] [0.06] [0.20]
+
+0.498 0.424 0.420 0.533 0.520 0.427 0.540 0.183 0.561
+
+[0.15] [0.11] [0.16] [0.17] [0.17] [0.12] [0.22] [0.04] [0.32]
+
+0.064 0.110 0.105 -0.003 0.008 0.029 0.003 0.059 0.013
+
+[0.27] [0.13] [0.02] [0.86] [0.73] [0.28] [0.94] [0.01] [0.60]
+
+0.246 0.336 0.448 0.187 0.189 0.248 0.186 0.529 0.199
+
+[0.01] [0.00] [0.00] [0.01] [0.01] [0.01] [0.01] [0.00] [0.01]
+
+0.368 0.299 0.279 0.401 0.388 0.295 0.401 0.053 0.411
+
+[0.09] [0.06] [0.08] [0.11] [0.11] [0.06] [0.12] [0.02] [0.15]
+
+0.064 0.110 0.097 -0.004 0.009 0.031 -0.004 0.063 0.004
+
+[0.29] [0.08] [0.04] [0.96] [0.78] [0.22] [0.99] [0.01] [0.89]
+
+0.400 0.491 0.572 0.343 0.346 0.417 0.342 0.726 0.343
+
+[0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00] [0.00]
+
+Table 9: Transaction Costs
+This table shows the median bid-ask spread as a percentage of the mid-point price for the index options and the daily median volume, in number of contracts. The results are presented for options with maturities closest to 45, 90, 120, and 180 days, and moneynesses ATM, 5%, and 10% OTM. The data comes from the OptionMetrics database, covering European options on the S&P500 index traded at the Chicago Board Options Exchange in the period between January, 1996 and December, 2002.
+
+PUT
+
+CALL
+
+percentage spread 10% 5% ATM
+
+N=45 90 120 150
+F=180
+
+0.286 0.123 0.107 0.087 0.073
+
+0.139 0.076 0.056 0.047 0.037
+
+0.072 0.048 0.039 0.034 0.029
+
+percentage spread ATM 5% 10%
+
+0.069 0.045 0.036 0.028 0.022
+
+0.174 0.082 0.053 0.041 0.027
+
+0.500 0.162 0.112 0.108 0.072
+
+volume 10% 5% ATM
+
+N=45 254 633 563.5
+
+90
+
+126 129 191.5
+
+120
+
+80 160 133
+
+150
+
+59 100 150
+
+F=180
+
+20
+
+50 57.5
+
+volume ATM 5% 10%
+
+545 357 162
+
+179 132 100
+
+100
+
+70
+
+69
+
+68
+
+75
+
+61
+
+100
+
+60 100
+
+35
+
+Table 10: Impact of Transaction Costs on Option Strategies' Returns
+In this table we analyze the impact of the bid-ask spread on the strategies' returns. For each strategy, we report the mean return, the standard deviation of the return and the Sharpe ratio assuming that the trades are done at midpoint prices (left part of the table) or using the bid price when options are sold and the ask price when options are bought. The data comes from the OptionMetrics database, covering European options on the S&P500 index traded at the Chicago Board Options Exchange in the period between January, 1996 and December, 2002.
+
+mid-price
+
+bid-to-ask
+
+Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+mean std SR
+
+0.070 0.184 0.062 0.426 0.120 0.571
+
+0.423 1.071 0.472 1.211 0.461 1.028
+
+0.166 0.172 0.131 0.352 0.261 0.555
+
+mean std
+
+0.030 0.140 0.009 0.374 0.052 0.502
+
+0.432 1.114 0.489 1.292 0.485 1.183
+
+SR
+0.070 0.125 0.018 0.289 0.108 0.425
+
+mean std SR
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+0.018 0.152 0.020 0.281 0.025 0.557
+
+0.143 0.286 0.199 0.522 0.288 0.452
+
+0.126 0.533 0.102 0.538 0.087 1.232
+
+mean std
+
+SR
+
+-0.020 0.103 -0.032 0.210 -0.046 0.479
+
+0.147 0.293 0.207 0.555 0.308 0.494
+
+-0.137 0.351 -0.153 0.379 -0.149 0.970
+
+36
+
+Table 11: Margin "Haircut"
+This table shows summary statistics for margin as a percentage of option value. The margin required at each point in time t is Mt = max (Ct + St - (K - St|K > St), Ct + St) for a call, and Mt = max (Pt + St - (St - K|St > K), Pt + K) for a put. Pt is the value of the option and St is the underlying price at the end of day t. K is the strike price,  and  are parameters established by the exchange or the broker. We use two sets of parameters: the margin requirement imposed by the CBOE ( = 15% and  = 10%) and the margin requirements that a private investor would face when using a web-based broker like E-Trade ( = 40% and  = 35%). For each option, the table reports the mean, median, standard deviation, minimum, and maximum of the margin haircut, which is the ratio of the margin to the option's value at the beginning of the month when the trade is implemented, (Mt - V0)/V0. Options and futures closing prices were sampled daily between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial Markets. All options are American.
+
+ = 15%,  = 10% mean median std min
+
+max
+
+ = 40%,  = 35% mean median std min
+
+max
+
+Call F ATM Call N ATM Call F 5% Call N 5% Call F 10% Call N 10%
+
+3.9 7.5 9.4 49.0 20.0 108.0
+
+3.4 2.3 6.4 4.7 5.5 14.9 20.3 72.4 9.3 29.0 56.0 137.6
+
+0.1 27.8 0.5 34.0 0.3 143.9 1.3 511.6 0.4 339.5 2.8 1015.8
+
+11.3 21.0 30.7 155.1 68.9 363.4
+
+9.4 7.3 2.2 97.3 17.4 12.5 3.9 88.5 17.9 50.1 3.1 423.2 65.7 222.0 5.9 1447.7 32.0 100.3 3.7 1137.6 187.8 470.3 10.9 3555.3
+
+Put F ATM
+
+3.6
+
+Put N ATM
+
+7.0
+
+Put F 5%
+
+5.0
+
+Put N 5%
+
+22.0
+
+Put F 10%
+
+8.6
+
+Put N 10%
+
+43.1
+
+3.3 1.7 0.5 12.8 6.0 3.8 1.1 22.4 4.0 3.2 0.6 30.0 11.9 27.2 1.6 219.0 6.2 7.4 1.0 45.1 23.3 56.0 1.6 370.0
+
+10.3 19.6 16.8 74.0 30.2 150.0
+
+9.2 4.9 17.1 10.2 13.7 10.4 39.1 91.3 22.0 25.7 82.2 195.6
+
+2.3 46.0 5.1 60.3 3.0 85.3 6.9 784.0 4.3 157.5 7.5 1295.0
+
+37
+
+Table 12: Impact of Margin Calls on Option Strategies' Returns
+This table analyzes the impact of margin calls on the returns to the optimal portfolio of the market, risk-free asset, and each of the option strategies reported in Table 6. We assume that the optimal strategy is implemented at the beginning of each month. The amount optimally invested in the risk-free asset is posted as margin (possibly in excess of the minimum required), and assumed to return the risk-free rate. During the month, if the investor faces a margin call due to an adverse movement in the S&P 500, it is met by partially liquidating the investment in the market. If and when the investment in the market is exhausted by margin calls, the option position is liquidated and the return of the portfolio is realized. If there are no margin calls during the month, the return on the strategy is the same as in Table 6. In the table we report the mean return, the standard deviation of the return, the Sharpe ratio, and the certainty equivalent of the portfolio return with and without taking into account margin calls. Options and futures closing prices were sampled daily between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange through the Institute for Financial Markets. All options are American.
+
+Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+wmk
+
+wop
+
+-0.762 -0.744 -0.177 0.029 0.680 0.098
+
+-0.112 -0.074 -0.053 -0.023 -0.001 -0.014
+
+mean
+
+no margin std SR
+
+CE ×100
+
+0.016 0.022 0.013 0.016 0.010 0.013
+
+0.038 0.049 0.029 0.032 0.032 0.025
+
+0.303 0.355 0.276 0.366 0.184 0.352
+
+1.128 1.436 0.945 1.195 0.759 1.032
+
+mean
+
+margin
+
+std
+
+SR
+
+CE ×100
+
+0.002 0.003 0.005 0.002 0.004 -0.003
+
+0.072 0.056 0.034 0.027 0.031 0.031
+
+-0.035 -0.027 0.026 -0.098 -0.002 -0.239
+
+-15.889 -0.651 0.049 -0.064 0.180 -0.713
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+0.416 0.345 0.487 0.068 0.628 0.012
+
+-0.078 -0.075 -0.056 -0.056 -0.016 -0.042
+
+0.012 0.018 0.012 0.027 0.010 0.027
+
+0.032 0.044 0.031 0.048 0.030 0.040
+
+0.241 0.301 0.235 0.474 0.197 0.551
+
+0.896 1.198 0.870 1.847 0.778 1.902
+
+0.006 0.009 0.002 -0.010 0.004 -0.009
+
+0.033 0.039 0.035 0.047 0.030 0.044
+
+0.031 0.128 -0.077 -0.311 -0.008 -0.306
+
+0.202 0.475 -0.214 -1.676 0.165 -1.601
+
+38
+
+Table 13: Margin Protection
+
+In this table we confront the margin requirement as determined by the CBOE with the next day option price, for strategies
+
+consisting of short naked positions in calls and puts. # is equal to the number of times that Mt < Vt+1 where Mt is the margin
+
+and Vt+1 is the price of the option at the closing of the next day. We also report summary statistics for the excess balance of
+
+the
+
+margin
+
+account
+
+as
+
+a
+
+percentage
+
+of
+
+the
+
+option
+
+price,
+
+Mt -Vt+1 Vt
+
+,
+
+which
+
+we
+
+call
+
+margin
+
+protection.
+
+Options
+
+and
+
+futures
+
+closing
+
+prices were sampled daily between January 1985 and May 2001. The data is provided by the Chicago Mercantile Exchange
+
+through the Institute for Financial Markets. All options are American.
+
+Call F ATM Call N ATM Call F 5% Call N 5% Call F 10% Call N 10%
+
+# days Mt < Vt+1
+0 0 0 0 0 0
+
+mean median
+
+std min
+
+max
+
+4.95 15.31 11.93 58.49 25.42 108.75
+
+3.72 7.43 5.73 24.67 10.14 56.16
+
+7.82 31.24 26.43 90.42 42.84 137.51
+
+1.25 227.07 1.97 558.42 1.32 311.73 2.09 974.00 1.42 324.15 3.42 1015.80
+
+Put F ATM Put N ATM Put F 5% Put N 5% Put F 10% Put N 10%
+
+1
+
+4.43
+
+3.65 3.23 -1.85 50.00
+
+1
+
+15.07
+
+7.79 27.60 -1.56 430.50
+
+1
+
+6.51
+
+4.67 5.90 -0.56 58.33
+
+1
+
+38.32 16.93 55.39 -0.06 687.75
+
+1
+
+11.93
+
+7.33 14.44 -1.28 162.00
+
+1
+
+66.12 34.29 87.20 -1.14 893.33
+
+Straddle F ATM Straddle N ATM Strangle F 5% Strangle N 5% Strangle F 10% Strangle N 10%
+
+1
+
+2.71
+
+2.29 1.49 -1.52 10.94
+
+1
+
+4.41
+
+3.70 2.62 -1.46 28.72
+
+1
+
+3.61
+
+2.92 2.54 -0.50 21.90
+
+1
+
+18.20
+
+8.53 33.85 -0.05 699.85
+
+1
+
+5.39
+
+3.77 5.78 -1.92 83.64
+
+1
+
+35.93 16.73 55.17 -1.12 832.10
+
+39
+
+

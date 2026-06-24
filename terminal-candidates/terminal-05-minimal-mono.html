@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antigravity Pro — Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg0:#08101d; --bg1:#0c1628; --bg2:#09111f;
+  --panel:rgba(16,26,42,.55); --panel2:rgba(13,22,36,.7);
+  --line:rgba(140,160,190,.12); --line2:rgba(140,160,190,.07);
+  --txt:#d6deea; --txt2:#8b97aa; --txt3:#5d footnote;
+  --mut:#697789; --mut2:#4c5868;
+  --grn:#38d39f; --red:#ff4444; --cyn:#5fe1ff; --blu:#448aff; --amb:#ffbf69;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:hidden}
+body{
+  font-family:var(--sans); color:var(--txt); font-size:13px; line-height:1.4;
+  background:
+    radial-gradient(900px 500px at 12% -8%,rgba(68,138,255,.08),transparent 60%),
+    radial-gradient(800px 500px at 92% 4%,rgba(56,211,159,.05),transparent 60%),
+    linear-gradient(180deg,var(--bg0),var(--bg1),var(--bg2));
+  background-attachment:fixed; min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.up{color:var(--grn)} .dn{color:var(--red)} .neu{color:var(--txt2)}
+.muted{color:var(--mut)}
+
+/* ---------- top status bar ---------- */
+.topbar{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:10px 18px; border-bottom:1px solid var(--line);
+  background:rgba(8,16,29,.8); backdrop-filter:blur(10px);
+  position:sticky;top:0;z-index:50;
+}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.5px;font-size:14px}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 10px var(--grn)}
+.brand small{font-weight:400;color:var(--mut);letter-spacing:2px;font-size:9px;text-transform:uppercase}
+.topbar .sep{width:1px;height:22px;background:var(--line)}
+.statchip{display:flex;flex-direction:column;line-height:1.25}
+.statchip .k{font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut2)}
+.statchip .v{font-family:var(--mono);font-size:13px;font-weight:500}
+.tag{font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:3px 8px;border:1px solid var(--line);border-radius:3px;text-transform:uppercase}
+.tag.open{color:var(--grn);border-color:rgba(56,211,159,.4)}
+.tag.closed{color:var(--red);border-color:rgba(255,68,68,.35)}
+.tag.paper{color:var(--cyn);border-color:rgba(95,225,255,.4)}
+.tag.live{color:var(--amb);border-color:rgba(255,191,105,.45)}
+.run{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--txt2)}
+.run .pulse{width:7px;height:7px;border-radius:50%;background:var(--mut2)}
+.run.on .pulse{background:var(--grn);animation:pulse 1.6s ease-in-out infinite;box-shadow:0 0 8px var(--grn)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.spacer{flex:1}
+.instsw{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.instsw button{
+  background:transparent;border:0;color:var(--mut);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.5px;padding:6px 11px;cursor:pointer;transition:.15s;
+}
+.instsw button + button{border-left:1px solid var(--line)}
+.instsw button:hover{color:var(--txt)}
+.instsw button.active{background:rgba(95,225,255,.1);color:var(--cyn)}
+
+/* ---------- grid ---------- */
+.grid{
+  display:grid; gap:1px; padding:1px;
+  background:transparent;
+  grid-template-columns:repeat(12,1fr);
+  align-items:start;
+}
+.panel{
+  background:var(--panel); backdrop-filter:blur(6px);
+  border:1px solid var(--line); border-radius:6px;
+  padding:13px 15px; min-width:0;
+}
+.grid{padding:14px;gap:14px}
+.span3{grid-column:span 3} .span4{grid-column:span 4}
+.span5{grid-column:span 5} .span6{grid-column:span 6}
+.span7{grid-column:span 7} .span8{grid-column:span 8}
+.span12{grid-column:span 12}
+
+.phead{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.ptitle{font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--mut);font-weight:600}
+.phead .meta{font-family:var(--mono);font-size:10px;color:var(--mut2)}
+
+/* ---------- index header ---------- */
+.idx-spot{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.idx-name{font-size:13px;letter-spacing:1px;color:var(--txt2);font-family:var(--mono)}
+.bigprice{font-family:var(--mono);font-size:46px;font-weight:600;letter-spacing:-1px;line-height:1;transition:color .35s}
+.idx-chg{font-family:var(--mono);font-size:14px}
+.idx-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px 18px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line2)}
+.metric .k{font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut2)}
+.metric .v{font-family:var(--mono);font-size:14px;font-weight:500;margin-top:2px}
+.trendbadge{font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:4px 10px;border:1px solid var(--line);border-radius:3px;text-transform:uppercase}
+
+/* ---------- option chain ---------- */
+.chainwrap{overflow-x:auto;overflow-y:auto;max-height:420px;margin:0 -3px}
+table.chain{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+table.chain th{
+  position:sticky;top:0;z-index:2;background:#0b1525;
+  font-weight:500;font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);
+  padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);
+}
+table.chain th.side{color:var(--txt2);letter-spacing:2px;text-align:center}
+table.chain td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line2);font-variant-numeric:tabular-nums}
+.strikecell{text-align:center !important;color:var(--txt);font-weight:600;background:rgba(140,160,190,.04)}
+tr.atm td{background:rgba(95,225,255,.06)}
+tr.atm .strikecell{color:var(--cyn);background:rgba(95,225,255,.12)}
+.ce-zone{color:var(--txt2)} .pe-zone{color:var(--txt2)}
+td.ltp{color:var(--txt);font-weight:500}
+.oi-bar{display:inline-block;height:2px;background:rgba(95,225,255,.3);vertical-align:middle;margin-right:5px;border-radius:1px}
+
+/* ---------- signal ---------- */
+.sig-main{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.sig-action{font-family:var(--mono);font-size:30px;font-weight:600;letter-spacing:1px}
+.sig-conf{flex:1}
+.confbar{height:5px;background:rgba(140,160,190,.12);border-radius:3px;overflow:hidden;margin-top:5px}
+.confbar > i{display:block;height:100%;background:linear-gradient(90deg,var(--blu),var(--cyn));transition:width .4s}
+.kv{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:11.5px}
+.kv .k{color:var(--mut);letter-spacing:.5px}
+.kv:last-child{border-bottom:0}
+.reason{margin-top:10px;font-size:11px;color:var(--txt2);line-height:1.5;border-left:2px solid var(--line);padding-left:9px}
+
+/* ---------- position ---------- */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:34px 10px;color:var(--mut2);text-align:center;gap:6px}
+.empty .big{font-family:var(--mono);font-size:13px;letter-spacing:1px;color:var(--mut)}
+.empty .sm{font-size:10.5px}
+.pos-pnl{font-family:var(--mono);font-size:32px;font-weight:600;letter-spacing:-.5px}
+.pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-top:12px}
+
+/* ---------- pnl / capital ---------- */
+.pnl-big{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px}
+.pnl-cell .k{font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut2)}
+.pnl-cell .v{font-family:var(--mono);font-size:22px;font-weight:600;margin-top:3px}
+.minirow{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;padding:5px 0;border-top:1px solid var(--line2)}
+.minirow .k{color:var(--mut)}
+.progress{height:6px;background:rgba(140,160,190,.12);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--grn),var(--cyn))}
+
+/* ---------- risk guard ---------- */
+.risk-row{margin:10px 0}
+.risk-row .top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;margin-bottom:4px}
+.risk-row .top .k{color:var(--mut);letter-spacing:.5px}
+.gbar{height:6px;background:rgba(140,160,190,.1);border-radius:3px;overflow:hidden}
+.gbar > i{display:block;height:100%;border-radius:3px;transition:width .4s}
+
+/* ---------- log ---------- */
+.logwrap{max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.logline{display:flex;gap:10px;font-family:var(--mono);font-size:11px;padding:5px 0;border-bottom:1px solid var(--line2)}
+.logline .t{color:var(--mut2);flex-shrink:0}
+.logline .lv{flex-shrink:0;width:42px;letter-spacing:.5px}
+.logline.info .lv{color:var(--blu)} .logline.ok .lv{color:var(--grn)}
+.logline.warn .lv{color:var(--amb)} .logline.err .lv{color:var(--red)}
+.logline .msg{color:var(--txt2)}
+
+/* ---------- warning strip ---------- */
+.warnstrip{
+  margin:0 14px 16px; padding:9px 14px; border:1px solid rgba(255,191,105,.25);
+  border-radius:5px; background:rgba(255,191,105,.05);
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.4px; color:var(--amb);
+  display:flex;align-items:center;gap:9px;
+}
+.warnstrip b{color:#ffd9a0}
+
+/* flash */
+.flash-up{animation:fup .6s ease-out} .flash-dn{animation:fdn .6s ease-out}
+@keyframes fup{0%{background:rgba(56,211,159,.22)}100%{background:transparent}}
+@keyframes fdn{0%{background:rgba(255,68,68,.22)}100%{background:transparent}}
+
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(140,160,190,.18);border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- responsive ---------- */
+@media(max-width:1100px){
+  .span3,.span4,.span5{grid-column:span 6}
+  .span7,.span8{grid-column:span 12}
+}
+@media(max-width:720px){
+  .grid{grid-template-columns:1fr;padding:10px;gap:10px}
+  .span3,.span4,.span5,.span6,.span7,.span8{grid-column:span 1}
+  .bigprice{font-size:38px}
+  .topbar{gap:12px;padding:9px 12px}
+  .topbar .sep{display:none}
+}
+@media(max-width:420px){
+  .bigprice{font-size:32px}
+  .warnstrip{margin:0 10px 12px}
+}
+</style>
+</head>
+<body>
+
+<!-- 1. TOP STATUS BAR -->
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> ANTIGRAVITY<span style="color:var(--cyn)">·PRO</span> <small>terminal</small></div>
+  <div class="sep"></div>
+  <div class="statchip"><span class="k">Market</span><span id="t-market" class="tag closed">CLOSED</span></div>
+  <div class="statchip"><span class="k">Clock IST</span><span id="t-clock" class="v">--:--:--</span></div>
+  <div class="statchip"><span class="k">Mode</span><span id="t-mode" class="tag paper">PAPER</span></div>
+  <div class="run" id="t-run"><span class="pulse"></span><span id="t-runtxt">BOT IDLE</span></div>
+  <div class="spacer"></div>
+  <div class="instsw" id="instsw">
+    <button data-inst="NIFTY" class="active">NIFTY</button>
+    <button data-inst="SENSEX">SENSEX</button>
+    <button data-inst="BANKNIFTY">BANKNIFTY</button>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- 2. INDEX HEADER -->
+  <section class="panel span8">
+    <div class="phead">
+      <span class="ptitle">Index · <span id="ix-inst">NIFTY</span></span>
+      <span class="meta" id="ix-time">--:--:--</span>
+    </div>
+    <div class="idx-spot">
+      <span class="idx-name" id="ix-name">NIFTY 50</span>
+      <span class="bigprice mono" id="ix-price">--.--</span>
+      <span class="idx-chg mono" id="ix-chg">+0.00 (0.00%)</span>
+      <span class="trendbadge mono neu" id="ix-trend" style="margin-left:auto">— TREND</span>
+    </div>
+    <div class="idx-metrics">
+      <div class="metric"><div class="k">Day High</div><div class="v" id="ix-dh">--</div></div>
+      <div class="metric"><div class="k">Day Low</div><div class="v" id="ix-dl">--</div></div>
+      <div class="metric"><div class="k">ORB High</div><div class="v" id="ix-oh">--</div></div>
+      <div class="metric"><div class="k">ORB Low</div><div class="v" id="ix-ol">--</div></div>
+      <div class="metric"><div class="k">VWAP</div><div class="v" id="ix-vwap">--</div></div>
+      <div class="metric"><div class="k">ATM</div><div class="v" id="ix-atm">--</div></div>
+    </div>
+  </section>
+
+  <!-- 4. SIGNAL PANEL -->
+  <section class="panel span4">
+    <div class="phead"><span class="ptitle">Signal Engine</span><span class="meta" id="sg-inst">NIFTY</span></div>
+    <div class="sig-main">
+      <span class="sig-action mono neu" id="sg-action">WAIT</span>
+      <div class="sig-conf">
+        <div class="mono" style="font-size:11px;color:var(--mut)">CONFIDENCE <span id="sg-confv" style="color:var(--txt);float:right">0%</span></div>
+        <div class="confbar"><i id="sg-confbar" style="width:0%"></i></div>
+      </div>
+    </div>
+    <div class="kv"><span class="k">Strike</span><span id="sg-strike">--</span></div>
+    <div class="kv"><span class="k">Entry</span><span id="sg-entry">--</span></div>
+    <div class="kv"><span class="k">Stop Loss</span><span id="sg-sl" class="dn">--</span></div>
+    <div class="kv"><span class="k">Target 1</span><span id="sg-t2" class="up">--</span></div>
+    <div class="kv"><span class="k">Target 2</span><span id="sg-t3" class="up">--</span></div>
+    <div class="reason" id="sg-reason">Awaiting signal data…</div>
+  </section>
+
+  <!-- 3. OPTION CHAIN (centerpiece) -->
+  <section class="panel span8">
+    <div class="phead">
+      <span class="ptitle">Live Option Chain</span>
+      <span class="meta">SPOT <span id="oc-spot" class="mono" style="color:var(--txt)">--</span> · ATM <span id="oc-atm" class="mono" style="color:var(--cyn)">--</span></span>
+    </div>
+    <div class="chainwrap">
+      <table class="chain">
+        <thead>
+          <tr>
+            <th class="side" colspan="4">CALLS</th>
+            <th class="side">STRIKE</th>
+            <th class="side" colspan="4">PUTS</th>
+          </tr>
+          <tr>
+            <th>OI</th><th>Vol</th><th>LTP</th><th>Chg%</th>
+            <th class="strikecell"></th>
+            <th>LTP</th><th>Chg%</th><th>Vol</th><th>OI</th>
+          </tr>
+        </thead>
+        <tbody id="oc-body">
+          <tr><td colspan="9" style="text-align:center;color:var(--mut2);padding:24px">loading chain…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5. OPEN POSITION -->
+  <section class="panel span4">
+    <div class="phead"><span class="ptitle">Open Position</span><span class="meta" id="ps-inst">NIFTY</span></div>
+    <div id="ps-body">
+      <div class="empty">
+        <div class="big">NO OPEN POSITION</div>
+        <div class="sm">Flat. Waiting for signal entry.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. P&L / CAPITAL -->
+  <section class="panel span4">
+    <div class="phead"><span class="ptitle">P&amp;L · Capital</span><span class="meta">INR</span></div>
+    <div class="pnl-big">
+      <div class="pnl-cell"><div class="k">Total P&amp;L</div><div class="v neu" id="pl-total">₹0</div></div>
+      <div class="pnl-cell"><div class="k">Today P&amp;L</div><div class="v neu" id="pl-today">₹0</div></div>
+    </div>
+    <div class="minirow"><span class="k">Win Rate</span><span id="pl-wr">0%</span></div>
+    <div class="minirow"><span class="k">Trades Today</span><span id="pl-tt">0 / 0</span></div>
+    <div class="minirow"><span class="k">Capital</span><span id="pl-cap">₹0</span></div>
+    <div class="minirow" style="border-bottom:0"><span class="k">Target Progress</span><span id="pl-tp">0%</span></div>
+    <div class="progress"><i id="pl-tpbar" style="width:0%"></i></div>
+  </section>
+
+  <!-- 7. RISK GUARD -->
+  <section class="panel span4">
+    <div class="phead"><span class="ptitle">Risk Guard</span><span class="meta" id="rk-state">OK</span></div>
+    <div class="risk-row">
+      <div class="top"><span class="k">Daily Loss</span><span id="rk-dl-v">₹0 / ₹15,000</span></div>
+      <div class="gbar"><i id="rk-dl" style="width:0%;background:var(--grn)"></i></div>
+    </div>
+    <div class="risk-row">
+      <div class="top"><span class="k">Consecutive Losses</span><span id="rk-cl-v">0 / 3</span></div>
+      <div class="gbar"><i id="rk-cl" style="width:0%;background:var(--grn)"></i></div>
+    </div>
+    <div class="risk-row">
+      <div class="top"><span class="k">Drawdown</span><span id="rk-dd-v">0.0% / 8.0%</span></div>
+      <div class="gbar"><i id="rk-dd" style="width:0%;background:var(--grn)"></i></div>
+    </div>
+  </section>
+
+  <!-- 8. ACTIVITY LOG -->
+  <section class="panel span4">
+    <div class="phead"><span class="ptitle">Activity Feed</span><span class="meta" id="lg-cnt">live</span></div>
+    <div class="logwrap" id="logwrap"></div>
+  </section>
+
+</div>
+
+<!-- 9. WARNING STRIP -->
+<div class="warnstrip">
+  <span>⚠</span>
+  <span><b>Backtest profit does not guarantee future profit.</b> Markets carry risk of loss. Paper trade first; size positions conservatively.</span>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let INST = "NIFTY";
+const NAMES = {NIFTY:"NIFTY 50", SENSEX:"SENSEX", BANKNIFTY:"BANK NIFTY"};
+const last = {price:null};
+
+/* ---------- fetch helper with timeout + fallback ---------- */
+async function getJSON(url, ms=2800){
+  const ac = new AbortController();
+  const t = setTimeout(()=>ac.abort(), ms);
+  try{
+    const r = await fetch(url, {signal:ac.signal, cache:"no-store"});
+    clearTimeout(t);
+    if(!r.ok) throw 0;
+    return await r.json();
+  }catch(e){ clearTimeout(t); return null; }
+}
+const fmt = (n,d=2)=> (n==null||isNaN(n)) ? "--" : Number(n).toLocaleString("en-IN",{minimumFractionDigits:d,maximumFractionDigits:d});
+const inr = n => (n==null||isNaN(n)) ? "₹0" : (n<0?"-":"") + "₹" + Math.abs(Math.round(n)).toLocaleString("en-IN");
+const sign = n => (n>0?"+":"") ;
+const kfmt = n => n==null?"--": n>=1e7?(n/1e7).toFixed(2)+"Cr": n>=1e5?(n/1e5).toFixed(1)+"L": n>=1e3?(n/1e3).toFixed(1)+"k": String(n);
+const cls = n => n>0?"up":n<0?"dn":"neu";
+
+/* ---------- DEMO baselines ---------- */
+function demoSpot(){
+  const base = {NIFTY:24180, SENSEX:79420, BANKNIFTY:51260}[INST];
+  const p = base + Math.sin(Date.now()/9000)*base*0.0015 + (Math.random()-0.5)*base*0.0006;
+  const interval = INST==="NIFTY"?50: INST==="BANKNIFTY"?100:100;
+  const atm = Math.round(p/interval)*interval;
+  return {
+    price:p, dayHigh:base*1.006, dayLow:base*0.992, orbHigh:base*1.003, orbLow:base*0.998,
+    vwap:base*1.0008, atm, interval,
+    signal:["CALL","PUT","WAIT"][Math.floor(Math.abs(Math.sin(Date.now()/15000))*3)],
+    confidence: 55+Math.round(Math.abs(Math.sin(Date.now()/11000))*38),
+    marketStatus: (()=>{const h=new Date().getHours(),m=new Date().getMinutes(); const mm=h*60+m; return (mm>=555&&mm<=930)?"MARKET_OPEN":"MARKET_CLOSED";})(),
+    tradesToday:3, botRunning:true,
+    suggestedStrike:atm, target:base*0.004
+  };
+}
+function demoChain(d){
+  const rows=[]; for(let i=-5;i<=5;i++){
+    const strike = d.atm + i*d.interval;
+    const dist = Math.abs(i);
+    const ceLtp = Math.max(2, (d.price-strike) + 120 - dist*14 + Math.random()*8);
+    const peLtp = Math.max(2, (strike-d.price) + 120 - dist*14 + Math.random()*8);
+    rows.push({strike, isATM:i===0,
+      ce:{ltp:ceLtp, chngPct:(Math.random()-0.45)*22, volume:Math.round((6-dist)*42000*Math.random()), oi:Math.round((6-dist)*180000*Math.random())},
+      pe:{ltp:peLtp, chngPct:(Math.random()-0.55)*22, volume:Math.round((6-dist)*40000*Math.random()), oi:Math.round((6-dist)*175000*Math.random())}
+    });
+  }
+  return {spot:d.price, atm:d.atm, interval:d.interval, rows};
+}
+
+/* ---------- renderers ---------- */
+function flash(el, dir){ el.classList.remove("flash-up","flash-dn"); void el.offsetWidth; el.classList.add(dir>0?"flash-up":"flash-dn"); }
+
+function renderIndex(d){
+  $("ix-inst").textContent = INST; $("sg-inst").textContent=INST; $("ps-inst").textContent=INST;
+  $("ix-name").textContent = NAMES[INST];
+  const pe = $("ix-price");
+  pe.textContent = fmt(d.price);
+  if(last.price!=null && d.price!=null && d.price!==last.price){
+    flash(pe, d.price-last.price);
+    pe.style.color = d.price>=last.price ? "var(--grn)":"var(--red)";
+  }
+  last.price = d.price;
+  const ref = d.vwap || d.price;
+  const chg = d.price - ref, chgp = ref? chg/ref*100 : 0;
+  const ce = $("ix-chg");
+  ce.textContent = `${sign(chg)}${fmt(chg)} (${sign(chgp)}${fmt(chgp)}%)`;
+  ce.className = "idx-chg mono " + cls(chg);
+  $("ix-dh").textContent=fmt(d.dayHigh); $("ix-dl").textContent=fmt(d.dayLow);
+  $("ix-oh").textContent=fmt(d.orbHigh); $("ix-ol").textContent=fmt(d.orbLow);
+  $("ix-vwap").textContent=fmt(d.vwap); $("ix-atm").textContent=fmt(d.atm,0);
+  $("ix-time").textContent = d.time || new Date().toLocaleTimeString("en-GB");
+  // market + bot in topbar
+  const mo = (d.marketStatus||"").toUpperCase().includes("OPEN");
+  const mk=$("t-market"); mk.textContent = mo?"MARKET OPEN":"MARKET CLOSED"; mk.className="tag "+(mo?"open":"closed");
+  setRun(d.botRunning);
+}
+function setRun(on){
+  const r=$("t-run"); r.classList.toggle("on",!!on);
+  $("t-runtxt").textContent = on?"BOT RUNNING":"BOT IDLE";
+}
+function renderTrend(t){
+  const el=$("ix-trend"); const tr=(t.trend||t.recommend||"—").toUpperCase();
+  el.textContent = tr+" TREND";
+  el.className = "trendbadge mono " + (/UP|BULL|LONG|CALL/.test(tr)?"up":/DOWN|BEAR|SHORT|PUT/.test(tr)?"dn":"neu");
+}
+function renderChain(c){
+  $("oc-spot").textContent=fmt(c.spot); $("oc-atm").textContent=fmt(c.atm,0);
+  const maxOI = Math.max(1, ...c.rows.flatMap(r=>[r.ce?.oi||0, r.pe?.oi||0]));
+  const body=$("oc-body"); body.innerHTML="";
+  c.rows.forEach(r=>{
+    const ce=r.ce||{}, pe=r.pe||{};
+    const tr=document.createElement("tr");
+    if(r.isATM) tr.className="atm";
+    const oiBar=(v)=>`<span class="oi-bar" style="width:${Math.round((v/maxOI)*26)}px"></span>`;
+    tr.innerHTML =
+      `<td>${oiBar(ce.oi||0)}${kfmt(ce.oi)}</td>`+
+      `<td class="muted">${kfmt(ce.volume)}</td>`+
+      `<td class="ltp">${fmt(ce.ltp)}</td>`+
+      `<td class="${cls(ce.chngPct)}">${sign(ce.chngPct)}${fmt(ce.chngPct,1)}</td>`+
+      `<td class="strikecell">${fmt(r.strike,0)}</td>`+
+      `<td class="ltp">${fmt(pe.ltp)}</td>`+
+      `<td class="${cls(pe.chngPct)}">${sign(pe.chngPct)}${fmt(pe.chngPct,1)}</td>`+
+      `<td class="muted">${kfmt(pe.volume)}</td>`+
+      `<td>${kfmt(pe.oi)}${oiBar(pe.oi||0)}</td>`;
+    body.appendChild(tr);
+  });
+}
+function renderSignal(s){
+  const a=(s.signal||"WAIT").toUpperCase();
+  const el=$("sg-action"); el.textContent=a;
+  el.className="sig-action mono "+(a.includes("CALL")?"up":a.includes("PUT")?"dn":"neu");
+  const c=Math.round(s.confidence||0);
+  $("sg-confv").textContent=c+"%"; $("sg-confbar").style.width=Math.min(100,c)+"%";
+  $("sg-strike").textContent= s.strike!=null?fmt(s.strike,0):"--";
+  $("sg-entry").textContent = s.entry!=null?fmt(s.entry):"--";
+  $("sg-sl").textContent    = s.sl!=null?fmt(s.sl):"--";
+  $("sg-t2").textContent    = s.t2!=null?fmt(s.t2):(s.target!=null?fmt(s.target):"--");
+  $("sg-t3").textContent    = s.t3!=null?fmt(s.t3):"--";
+  $("sg-reason").textContent = s.reason || "Signal computed from ORB + VWAP + OI structure.";
+}
+function renderPosition(p){
+  const body=$("ps-body");
+  if(!p || !p.open){
+    body.innerHTML=`<div class="empty"><div class="big">NO OPEN POSITION</div><div class="sm">Flat. Waiting for signal entry.</div></div>`;
+    return;
+  }
+  const o=p.open===true?p:p; // open may carry fields
+  const pos = (typeof p.open==="object") ? p.open : p;
+  const pnl = pos.pnl ?? pos.pnlAbs ?? 0;
+  const pct = pos.pnlPct ?? 0;
+  body.innerHTML=
+    `<div class="pos-pnl ${cls(pnl)}">${inr(pnl)}</div>`+
+    `<div class="mono ${cls(pnl)}" style="font-size:12px;margin-top:2px">${sign(pct)}${fmt(pct)}%</div>`+
+    `<div class="pos-grid">`+
+      `<div class="kv"><span class="k">Symbol</span><span>${pos.symbol||pos.strike||"--"}</span></div>`+
+      `<div class="kv"><span class="k">Qty</span><span>${pos.qty??"--"}</span></div>`+
+      `<div class="kv"><span class="k">Entry</span><span>${fmt(pos.entry)}</span></div>`+
+      `<div class="kv"><span class="k">LTP</span><span>${fmt(pos.ltp)}</span></div>`+
+      `<div class="kv"><span class="k">SL</span><span class="dn">${fmt(pos.sl)}</span></div>`+
+      `<div class="kv"><span class="k">Target</span><span class="up">${fmt(pos.target)}</span></div>`+
+    `</div>`;
+}
+function renderPnl(d){
+  const setV=(id,val)=>{const e=$(id); e.textContent=inr(val); e.className="v "+cls(val);};
+  setV("pl-total", d.totalPnlAbs); setV("pl-today", d.todayPnlAbs);
+  $("pl-wr").textContent = (d.winRate!=null?fmt(d.winRate,1):"0")+"%";
+  $("pl-tt").textContent = `${d.tradesToday??d.totalTrades??0} / ${d.maxTradesPerDay??5}`;
+  $("pl-cap").textContent = inr(d.currentCapital ?? d.capital);
+  const tp=Math.max(0,Math.min(100, d.targetProgress??0));
+  $("pl-tp").textContent=fmt(tp,1)+"%"; $("pl-tpbar").style.width=tp+"%";
+}
+function setGuard(barId,valId,frac,text){
+  const f=Math.max(0,Math.min(1,frac));
+  const bar=$(barId); bar.style.width=(f*100)+"%";
+  bar.style.background = f<0.5?"var(--grn)": f<0.8?"var(--amb)":"var(--red)";
+  $(valId).textContent=text;
+  return f;
+}
+function renderRisk(d){
+  const dlLim=15000, clLim=3, ddLim=8;
+  const dl=Math.abs(Math.min(0,d.todayPnlAbs??0));
+  const f1=setGuard("rk-dl","rk-dl-v", dl/dlLim, `${inr(dl)} / ₹15,000`);
+  const cl=d.consecLosses ?? 0;
+  const f2=setGuard("rk-cl","rk-cl-v", cl/clLim, `${cl} / ${clLim}`);
+  const dd=d.drawdown ?? (d.currentCapital&&d.capital? Math.max(0,(d.capital-d.currentCapital)/d.capital*100):0);
+  const f3=setGuard("rk-dd","rk-dd-v", dd/ddLim, `${fmt(dd,1)}% / ${ddLim.toFixed(1)}%`);
+  const worst=Math.max(f1,f2,f3);
+  const st=$("rk-state");
+  st.textContent = worst>=0.8?"BREACH": worst>=0.5?"CAUTION":"OK";
+  st.style.color = worst>=0.8?"var(--red)": worst>=0.5?"var(--amb)":"var(--grn)";
+}
+
+/* ---------- log ---------- */
+const LOG=[]; const seedMsgs=[
+  ["ok","ORB high captured, range locked"],["info","VWAP recalculated"],
+  ["info","OI shift detected on PE side"],["warn","Spread widened on ATM CE"],
+  ["ok","Paper order acknowledged"],["info","Polling option chain depth=5"],
+  ["warn","Confidence below entry threshold"],["info","Heartbeat OK"]
+];
+function pushLog(level,msg){
+  LOG.unshift({t:new Date().toLocaleTimeString("en-GB"),level,msg});
+  if(LOG.length>40)LOG.pop();
+  const w=$("logwrap"); w.innerHTML=LOG.map(l=>
+    `<div class="logline ${l.level}"><span class="t">${l.t}</span><span class="lv">${l.level.toUpperCase()}</span><span class="msg">${l.msg}</span></div>`
+  ).join("");
+}
+
+/* ---------- poll loops ---------- */
+async function pollMain(){
+  const base = INST.toLowerCase();
+  let d = await getJSON(`/api/${base}`);
+  if(!d || d.price==null) d = demoSpot();
+  renderIndex(d);
+
+  let bot = await getJSON("/api/bot/status");
+  if(bot){ setRun(bot.running); }
+
+  let c = await getJSON(`/api/option-chain-full?inst=${INST}&depth=5`);
+  if(!c || !c.rows || !c.rows.length) c = demoChain(d);
+  renderChain(c);
+
+  let s = await getJSON(`/api/signal?inst=${INST}`);
+  if(!s || !s.signal) s = {signal:d.signal,confidence:d.confidence,strike:d.suggestedStrike,
+      entry:c.rows.find(r=>r.isATM)?.ce?.ltp, sl:(c.rows.find(r=>r.isATM)?.ce?.ltp||100)*0.7,
+      t2:(c.rows.find(r=>r.isATM)?.ce?.ltp||100)*1.3, t3:(c.rows.find(r=>r.isATM)?.ce?.ltp||100)*1.6,
+      reason:"Demo: ORB breakout + VWAP reclaim with rising CE OI."};
+  renderSignal(s);
+
+  let t = await getJSON(`/api/trend?inst=${INST}`);
+  if(!t) t={trend: d.signal==="CALL"?"BULLISH":d.signal==="PUT"?"BEARISH":"NEUTRAL"};
+  renderTrend(t);
+
+  let p = await getJSON(`/api/position?inst=${INST}`);
+  renderPosition(p);
+
+  let pl = await getJSON("/api/pnl");
+  if(!pl) pl={capital:1000000,currentCapital:1012450,totalTrades:128,wins:79,winRate:61.7,
+      totalPnlAbs:12450,todayPnlAbs:-2100,targetProgress:24.9,tradesToday:d.tradesToday,maxTradesPerDay:5};
+  pl.tradesToday = pl.tradesToday ?? d.tradesToday;
+  renderPnl(pl);
+  renderRisk({...pl, consecLosses: pl.consecLosses ?? 1});
+}
+
+function instChange(inst){
+  INST=inst; last.price=null;
+  document.querySelectorAll("#instsw button").forEach(b=>b.classList.toggle("active",b.dataset.inst===inst));
+  pushLog("info","Switched instrument → "+inst);
+  pollMain();
+}
+document.querySelectorAll("#instsw button").forEach(b=>b.addEventListener("click",()=>instChange(b.dataset.inst)));
+
+function clock(){ $("t-clock").textContent=new Date().toLocaleTimeString("en-GB"); }
+
+/* boot */
+clock(); setInterval(clock,1000);
+pushLog("ok","Terminal initialised — Antigravity Pro");
+pollMain();
+setInterval(pollMain, 4000);
+setInterval(()=>{ const m=seedMsgs[Math.floor(Math.random()*seedMsgs.length)]; pushLog(m[0],m[1]); }, 6500);
+</script>
+</body>
+</html>

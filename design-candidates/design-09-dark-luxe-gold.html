@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Antigravity Pro — Elite Index-Options Trading Terminal</title>
+<meta name="description" content="Antigravity Pro: an elite, charge-aware NIFTY & SENSEX index-options trading bot. ORB signals, Gamma Blast, Risk Guard, and a full backtest engine." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #060504;
+    --bg-1: #0c0a07;
+    --bg-2: #110d08;
+    --panel: rgba(28, 22, 12, 0.55);
+    --panel-2: rgba(20, 16, 9, 0.7);
+    --border: rgba(201, 162, 77, 0.16);
+    --border-strong: rgba(201, 162, 77, 0.34);
+    --gold: #d4af37;
+    --gold-soft: #e8c969;
+    --gold-deep: #b8860b;
+    --champagne: #f3e3b3;
+    --green: #38d39f;
+    --red: #ff5b5b;
+    --cyan: #5fe1ff;
+    --ink: #f6efde;
+    --ink-dim: #b8ad94;
+    --ink-faint: #7c715b;
+    --radius: 16px;
+    --shadow: 0 24px 60px -24px rgba(0,0,0,0.85);
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --sans: "Inter", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 620px at 78% -8%, rgba(212,175,55,0.10), transparent 60%),
+      radial-gradient(900px 700px at 5% 12%, rgba(184,134,11,0.07), transparent 55%),
+      linear-gradient(180deg, #060504, #0c0a07 38%, #08060410 70%, #060504);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+    font-feature-settings: "tnum" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(212,175,55,0.025) 0 1px, transparent 1px 64px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  .wrap { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 22px; position: relative; z-index: 1; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ---- Nav ---- */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    background: linear-gradient(180deg, rgba(8,6,4,0.92), rgba(8,6,4,0.62));
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 70px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; flex: none;
+    border-radius: 9px;
+    background: radial-gradient(circle at 30% 25%, #f3e3b3, #d4af37 45%, #8a6a12 100%);
+    box-shadow: 0 0 16px rgba(212,175,55,0.45), inset 0 0 6px rgba(255,255,255,0.4);
+    display: grid; place-items: center;
+    position: relative;
+  }
+  .brand-mark::after {
+    content: ""; position: absolute; inset: 7px;
+    border: 1.5px solid rgba(8,6,4,0.55); border-radius: 50%;
+    border-top-color: transparent; border-left-color: transparent;
+  }
+  .brand-name { font-family: var(--serif); font-size: 1.42rem; font-weight: 700; letter-spacing: 0.5px; }
+  .brand-name b { color: var(--gold-soft); font-weight: 700; }
+  .brand-tag { font-size: 0.62rem; letter-spacing: 3px; text-transform: uppercase; color: var(--ink-faint); margin-top: -4px; }
+  nav.links { display: flex; align-items: center; gap: 30px; }
+  nav.links a { font-size: 0.86rem; color: var(--ink-dim); letter-spacing: 0.3px; transition: color 0.2s; }
+  nav.links a:hover { color: var(--gold-soft); }
+  .nav-cta { display: flex; align-items: center; gap: 16px; }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 0.86rem; font-weight: 600; letter-spacing: 0.4px;
+    padding: 11px 22px; border-radius: 11px;
+    cursor: pointer; border: 1px solid transparent;
+    transition: transform 0.18s ease, box-shadow 0.25s ease, background 0.25s;
+    display: inline-flex; align-items: center; gap: 9px; white-space: nowrap;
+  }
+  .btn-gold {
+    color: #1a1305;
+    background: linear-gradient(135deg, #f3e3b3, #d4af37 55%, #b8860b);
+    box-shadow: 0 10px 26px -10px rgba(212,175,55,0.7), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+  .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -10px rgba(212,175,55,0.85), inset 0 1px 0 rgba(255,255,255,0.6); }
+  .btn-ghost { color: var(--ink); background: rgba(212,175,55,0.05); border-color: var(--border-strong); }
+  .btn-ghost:hover { background: rgba(212,175,55,0.12); transform: translateY(-2px); }
+
+  .nav-toggle { display: none; background: none; border: 1px solid var(--border-strong); color: var(--gold-soft); border-radius: 9px; width: 42px; height: 40px; cursor: pointer; font-size: 1.1rem; }
+
+  /* ---- Hero ---- */
+  .hero { padding: 78px 0 56px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 0.7rem; letter-spacing: 3.5px; text-transform: uppercase;
+    color: var(--gold-soft);
+    border: 1px solid var(--border-strong); border-radius: 100px;
+    padding: 7px 16px; margin-bottom: 26px;
+    background: rgba(212,175,55,0.05);
+  }
+  .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  h1.hero-title {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: clamp(2.6rem, 6.2vw, 4.6rem);
+    line-height: 1.04;
+    letter-spacing: 0.5px;
+    max-width: 16ch;
+    margin-bottom: 22px;
+  }
+  h1.hero-title .grad {
+    background: linear-gradient(100deg, #f3e3b3 10%, #d4af37 45%, #b8860b 90%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero-sub { font-size: clamp(1rem, 1.7vw, 1.18rem); color: var(--ink-dim); max-width: 56ch; margin-bottom: 34px; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 14px; }
+  .hero-actions .note { font-size: 0.78rem; color: var(--ink-faint); }
+
+  /* indices strip */
+  .indices {
+    margin-top: 46px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  .idx-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 22px;
+    backdrop-filter: blur(10px); box-shadow: var(--shadow);
+    position: relative; overflow: hidden;
+    transition: border-color 0.25s, transform 0.25s;
+  }
+  .idx-card:hover { border-color: var(--border-strong); transform: translateY(-3px); }
+  .idx-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.5;
+  }
+  .idx-name { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-faint); display: flex; align-items: center; gap: 8px; }
+  .idx-price { font-family: var(--serif); font-weight: 600; font-size: 2rem; margin: 6px 0 4px; letter-spacing: 0.5px; }
+  .idx-chg { font-size: 0.88rem; font-weight: 600; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .spark { height: 28px; margin-top: 10px; opacity: 0.7; }
+
+  /* ---- Section frame ---- */
+  section { padding: 66px 0; position: relative; }
+  .sec-head { text-align: center; max-width: 60ch; margin: 0 auto 44px; }
+  .sec-kicker { font-size: 0.7rem; letter-spacing: 3.5px; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 14px; }
+  .sec-title { font-family: var(--serif); font-weight: 600; font-size: clamp(1.9rem, 4vw, 2.9rem); line-height: 1.12; }
+  .sec-desc { color: var(--ink-dim); margin-top: 12px; font-size: 1rem; }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border-strong), transparent); }
+
+  /* ---- KPI band ---- */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpi {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px 22px;
+    backdrop-filter: blur(8px); position: relative; overflow: hidden;
+    transition: transform 0.25s, border-color 0.25s;
+  }
+  .kpi:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+  .kpi .glow { position: absolute; width: 140px; height: 140px; right: -40px; top: -40px; background: radial-gradient(circle, rgba(212,175,55,0.18), transparent 70%); }
+  .kpi-label { font-size: 0.72rem; letter-spacing: 1.6px; text-transform: uppercase; color: var(--ink-faint); }
+  .kpi-val { font-family: var(--serif); font-weight: 700; font-size: 2.3rem; margin-top: 8px; letter-spacing: 0.5px; }
+  .kpi-meta { font-size: 0.78rem; color: var(--ink-dim); margin-top: 4px; }
+
+  /* ---- Features ---- */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .feat {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px 26px;
+    backdrop-filter: blur(8px); position: relative;
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+  }
+  .feat:hover { transform: translateY(-4px); border-color: var(--border-strong); box-shadow: var(--shadow); }
+  .feat-ico {
+    width: 50px; height: 50px; border-radius: 13px;
+    display: grid; place-items: center; margin-bottom: 18px;
+    background: linear-gradient(140deg, rgba(212,175,55,0.18), rgba(184,134,11,0.06));
+    border: 1px solid var(--border-strong);
+    color: var(--gold-soft);
+  }
+  .feat-ico svg { width: 24px; height: 24px; }
+  .feat h3 { font-family: var(--serif); font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.3px; }
+  .feat p { font-size: 0.92rem; color: var(--ink-dim); }
+
+  /* ---- How it works ---- */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; counter-reset: step; }
+  .step {
+    position: relative; padding: 30px 26px 28px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: var(--radius); backdrop-filter: blur(8px);
+  }
+  .step-num {
+    font-family: var(--serif); font-size: 2.6rem; font-weight: 700;
+    color: transparent;
+    background: linear-gradient(135deg, #f3e3b3, #d4af37, #8a6a12);
+    -webkit-background-clip: text; background-clip: text;
+    line-height: 1; margin-bottom: 12px;
+  }
+  .step h4 { font-family: var(--serif); font-size: 1.35rem; font-weight: 600; margin-bottom: 8px; }
+  .step p { font-size: 0.9rem; color: var(--ink-dim); }
+  .step-line { position: absolute; right: -13px; top: 54px; color: var(--gold-deep); font-size: 1.3rem; display: none; }
+
+  /* ---- Risk banner ---- */
+  .risk {
+    background: linear-gradient(120deg, rgba(255,91,91,0.08), rgba(212,175,55,0.06));
+    border: 1px solid rgba(255,91,91,0.3);
+    border-radius: var(--radius); padding: 26px 28px;
+    display: flex; gap: 18px; align-items: flex-start;
+  }
+  .risk .rico { font-size: 1.6rem; flex: none; filter: drop-shadow(0 0 8px rgba(255,91,91,0.4)); }
+  .risk h4 { font-family: var(--serif); font-size: 1.3rem; margin-bottom: 6px; color: #ff8f8f; }
+  .risk p { font-size: 0.92rem; color: var(--ink-dim); }
+  .risk b { color: var(--champagne); }
+
+  /* ---- Footer ---- */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 50px 0 36px; margin-top: 30px;
+    background: linear-gradient(180deg, transparent, rgba(212,175,55,0.03));
+  }
+  .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 36px; }
+  .foot-col h5 { font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 16px; }
+  .foot-col a { display: block; font-size: 0.88rem; color: var(--ink-dim); margin-bottom: 10px; transition: color 0.2s; }
+  .foot-col a:hover { color: var(--gold-soft); }
+  .foot-about p { font-size: 0.88rem; color: var(--ink-dim); margin-top: 14px; max-width: 38ch; }
+  .foot-bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--ink-faint); }
+
+  /* ---- Responsive ---- */
+  @media (min-width: 880px) { .step-line { display: block; } .step:last-child .step-line { display: none; } }
+  @media (max-width: 980px) {
+    .features, .steps { grid-template-columns: repeat(2, 1fr); }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .foot-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 760px) {
+    nav.links, .nav-cta .btn-ghost { display: none; }
+    .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+    .indices { grid-template-columns: 1fr; }
+    .features, .steps, .kpis { grid-template-columns: 1fr; }
+    .foot-grid { grid-template-columns: 1fr; gap: 24px; }
+    .hero { padding: 48px 0 36px; }
+    section { padding: 48px 0; }
+    .mobile-open nav.links {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 14px;
+      position: absolute; top: 70px; left: 0; right: 0;
+      background: rgba(8,6,4,0.97); border-bottom: 1px solid var(--border);
+      padding: 20px 22px; backdrop-filter: blur(14px);
+    }
+  }
+  @media (max-width: 420px) {
+    .kpi-val { font-size: 2rem; }
+    .idx-price { font-size: 1.7rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="Antigravity Pro home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>
+        <div class="brand-name">Antigravity <b>Pro</b></div>
+        <div class="brand-tag">Elite Trading Terminal</div>
+      </span>
+    </a>
+    <nav class="links" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#stats">Performance</a>
+      <a href="#risk">Disclosure</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="#stats">Live Stats</a>
+      <a class="btn btn-gold" href="/app.html">Launch Dashboard</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot"></span> Live engine · NIFTY &amp; SENSEX options</span>
+      <h1 class="hero-title">Trade index options with the precision of a <span class="grad">private desk.</span></h1>
+      <p class="hero-sub">Antigravity Pro fuses opening-range breakouts, gamma-blast detection, and charge-aware position sizing into one disciplined, fully-automated terminal — engineered for the trader who treats capital like an heirloom.</p>
+      <div class="hero-actions">
+        <a class="btn btn-gold" href="/app.html">Launch Dashboard →</a>
+        <a class="btn btn-ghost" href="#features">Explore the engine</a>
+        <span class="note">Paper mode by default · No card required</span>
+      </div>
+
+      <div class="indices" id="indices" aria-label="Live index prices">
+        <!-- NIFTY -->
+        <div class="idx-card" id="card-nifty">
+          <div class="idx-name">NIFTY 50 <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);"></span></div>
+          <div class="idx-price tnum" data-field="price">—</div>
+          <div class="idx-chg tnum" data-field="chg">—</div>
+          <svg class="spark" viewBox="0 0 200 28" preserveAspectRatio="none" aria-hidden="true"><polyline data-spark fill="none" stroke="#d4af37" stroke-width="1.5" points="0,20 25,16 50,22 75,12 100,15 125,8 150,13 175,6 200,9"/></svg>
+        </div>
+        <!-- SENSEX -->
+        <div class="idx-card" id="card-sensex">
+          <div class="idx-name">SENSEX <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);"></span></div>
+          <div class="idx-price tnum" data-field="price">—</div>
+          <div class="idx-chg tnum" data-field="chg">—</div>
+          <svg class="spark" viewBox="0 0 200 28" preserveAspectRatio="none" aria-hidden="true"><polyline data-spark fill="none" stroke="#d4af37" stroke-width="1.5" points="0,18 25,20 50,14 75,16 100,10 125,14 150,7 175,11 200,5"/></svg>
+        </div>
+        <!-- BANKNIFTY -->
+        <div class="idx-card" id="card-banknifty">
+          <div class="idx-name">BANK NIFTY <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);"></span></div>
+          <div class="idx-price tnum" data-field="price">—</div>
+          <div class="idx-chg tnum" data-field="chg">—</div>
+          <svg class="spark" viewBox="0 0 200 28" preserveAspectRatio="none" aria-hidden="true"><polyline data-spark fill="none" stroke="#d4af37" stroke-width="1.5" points="0,22 25,18 50,20 75,14 100,17 125,11 150,9 175,12 200,7"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="divider"></div></div>
+
+  <!-- LIVE STATS / KPI BAND -->
+  <section id="stats">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-kicker">Live Performance</div>
+        <h2 class="sec-title">Today on the desk</h2>
+        <p class="sec-desc">Pulled live from your running engine. Figures fall back to representative demo values when the terminal is offline.</p>
+      </div>
+      <div class="kpis" id="kpis">
+        <div class="kpi"><div class="glow"></div>
+          <div class="kpi-label">Win Rate</div>
+          <div class="kpi-val tnum" data-kpi="winrate">—</div>
+          <div class="kpi-meta">Trailing 30-day basis</div>
+        </div>
+        <div class="kpi"><div class="glow"></div>
+          <div class="kpi-label">Trades Today</div>
+          <div class="kpi-val tnum" data-kpi="trades">—</div>
+          <div class="kpi-meta" data-kpi="trades-meta">of daily cap</div>
+        </div>
+        <div class="kpi"><div class="glow"></div>
+          <div class="kpi-label">Today P&amp;L</div>
+          <div class="kpi-val tnum" data-kpi="pnl">—</div>
+          <div class="kpi-meta">Net of charges &amp; slippage</div>
+        </div>
+        <div class="kpi"><div class="glow"></div>
+          <div class="kpi-label">Active Capital</div>
+          <div class="kpi-val tnum" data-kpi="capital">—</div>
+          <div class="kpi-meta" data-kpi="capital-meta">Deployed in book</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-kicker">The Engine</div>
+        <h2 class="sec-title">Six instruments of a disciplined edge</h2>
+        <p class="sec-desc">Every module is built to protect capital first and compound it second.</p>
+      </div>
+      <div class="features">
+        <div class="feat">
+          <div class="feat-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 17l5-6 4 4 6-9"/><path d="M21 6v4h-4"/></svg></div>
+          <h3>ORB Signals</h3>
+          <p>Opening-range breakout logic with volume confirmation and VWAP alignment to catch the day's first decisive move.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+          <h3>Gamma Blast</h3>
+          <p>Detects expiry-day gamma acceleration and premium dislocations, sizing into asymmetric convex payoffs.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg></div>
+          <h3>Risk Guard</h3>
+          <p>Hard daily drawdown circuit, per-trade stops, and an auto-halt that resets cleanly the next session.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3M20 16v-7"/></svg></div>
+          <h3>Backtest Engine</h3>
+          <p>Replay years of expiry-Friday data with charge-accurate fills to validate any strategy before it touches the market.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h7l-2-3M21 12h-7l2 3"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <h3>Paper &amp; Live Modes</h3>
+          <p>Switch between simulated and real execution with one toggle. Default is paper, so you prove the edge first.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 1v22M5 5h10a3 3 0 010 6H7a3 3 0 000 6h11"/></svg></div>
+          <h3>Charge-aware Sizing</h3>
+          <p>Brokerage, STT, GST, and slippage are baked into every position-size calc — your P&amp;L is net, never gross.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="divider"></div></div>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-kicker">The Method</div>
+        <h2 class="sec-title">From data to disciplined execution</h2>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h4>Connect &amp; Calibrate</h4>
+          <p>Link your broker, set your capital and per-trade risk, and choose paper or live. The engine calibrates strikes and lot sizing to your book.</p>
+          <span class="step-line" aria-hidden="true">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h4>Signal &amp; Validate</h4>
+          <p>ORB and gamma modules generate signals through market hours, each scored on confidence and cross-checked against Risk Guard limits.</p>
+          <span class="step-line" aria-hidden="true">→</span>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h4>Execute &amp; Protect</h4>
+          <p>Confirmed trades fire with charge-aware sizing, live trailing stops, and an auto-halt that caps the day if drawdown limits are hit.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RISK BANNER -->
+  <section id="risk" style="padding-top:24px;">
+    <div class="wrap">
+      <div class="risk" role="note">
+        <span class="rico" aria-hidden="true">⚠️</span>
+        <div>
+          <h4>Risk Disclosure</h4>
+          <p><b>Backtest profit does not guarantee future profit.</b> Trading index options involves substantial risk of loss and is not suitable for every investor. Past performance is not indicative of future results. <b>Always use paper trading first</b> and never deploy capital you cannot afford to lose. Antigravity Pro is a tool, not financial advice.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-col foot-about">
+        <a class="brand" href="#top" aria-label="Antigravity Pro">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span><div class="brand-name">Antigravity <b>Pro</b></div><div class="brand-tag">Elite Trading Terminal</div></span>
+        </a>
+        <p>A charge-aware index-options engine for the disciplined trader. Built for NIFTY, SENSEX &amp; Bank Nifty.</p>
+      </div>
+      <div class="foot-col">
+        <h5>Product</h5>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#stats">Live stats</a>
+        <a href="/app.html">Dashboard</a>
+      </div>
+      <div class="foot-col">
+        <h5>Engine</h5>
+        <a href="#features">ORB Signals</a>
+        <a href="#features">Gamma Blast</a>
+        <a href="#features">Risk Guard</a>
+        <a href="#features">Backtest</a>
+      </div>
+      <div class="foot-col">
+        <h5>Legal</h5>
+        <a href="#risk">Risk disclosure</a>
+        <a href="#risk">Terms</a>
+        <a href="#risk">Privacy</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="year">2026</span> Antigravity Pro. For educational use. Not investment advice.</span>
+      <span>Made for serious traders · Paper-first by design</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  document.getElementById("year").textContent = new Date().getFullYear();
+
+  // Mobile nav toggle
+  var nav = document.getElementById("nav");
+  var toggle = document.getElementById("navToggle");
+  if (toggle) {
+    toggle.addEventListener("click", function () {
+      var open = nav.classList.toggle("mobile-open");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    nav.querySelectorAll("nav.links a").forEach(function (a) {
+      a.addEventListener("click", function () {
+        nav.classList.remove("mobile-open");
+        toggle.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
+
+  // ---- Helpers ----
+  var INR = function (n) {
+    return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n);
+  };
+  var fmtPrice = function (n) {
+    return new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  };
+  var fmtMoney = function (n) {
+    var abs = Math.abs(n);
+    var s;
+    if (abs >= 1e7) s = "₹" + (n / 1e7).toFixed(2) + " Cr";
+    else if (abs >= 1e5) s = "₹" + (n / 1e5).toFixed(2) + " L";
+    else s = "₹" + INR(Math.round(n));
+    return s;
+  };
+
+  async function getJson(url, ms) {
+    var ctrl = new AbortController();
+    var t = setTimeout(function () { ctrl.abort(); }, ms || 3500);
+    try {
+      var r = await fetch(url, { signal: ctrl.signal, headers: { "Accept": "application/json" } });
+      clearTimeout(t);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } catch (e) {
+      clearTimeout(t);
+      return null;
+    }
+  }
+
+  // ---- Demo fallbacks (realistic) ----
+  var DEMO = {
+    nifty:     { base: 24850.45, chg: 0.62 },
+    sensex:    { base: 81560.30, chg: 0.48 },
+    banknifty: { base: 55320.75, chg: -0.21 }
+  };
+
+  function jitter(base, pct) {
+    var d = base * (pct / 100);
+    return base + (Math.random() - 0.5) * d;
+  }
+
+  function paintIndex(cardId, data, demo) {
+    var card = document.getElementById(cardId);
+    if (!card) return;
+    var price, chgPct;
+
+    if (data && (data.price !== undefined && data.price !== null)) {
+      price = parseFloat(data.price);
+      // change may come as changePct/change/pctChange — else derive vs prevClose if present
+      if (data.changePct !== undefined) chgPct = parseFloat(data.changePct);
+      else if (data.pctChange !== undefined) chgPct = parseFloat(data.pctChange);
+      else if (data.change !== undefined) chgPct = parseFloat(data.change);
+      else if (data.prevClose) chgPct = ((price - parseFloat(data.prevClose)) / parseFloat(data.prevClose)) * 100;
+      else chgPct = demo.chg;
+    }
+    if (price === undefined || isNaN(price) || price <= 0) {
+      price = jitter(demo.base, 0.15);
+      chgPct = demo.chg + (Math.random() - 0.5) * 0.25;
+    }
+    if (isNaN(chgPct)) chgPct = demo.chg;
+
+    var pEl = card.querySelector('[data-field="price"]');
+    var cEl = card.querySelector('[data-field="chg"]');
+    var spk = card.querySelector('[data-spark]');
+    pEl.textContent = fmtPrice(price);
+    var pts = price * chgPct / 100;
+    var sign = chgPct >= 0 ? "+" : "";
+    cEl.textContent = sign + fmtPrice(pts) + "  (" + sign + chgPct.toFixed(2) + "%)";
+    cEl.className = "idx-chg tnum " + (chgPct >= 0 ? "up" : "down");
+    if (spk) spk.setAttribute("stroke", chgPct >= 0 ? "#38d39f" : "#ff5b5b");
+  }
+
+  function setKpi(name, val) {
+    var el = document.querySelector('[data-kpi="' + name + '"]');
+    if (el) el.textContent = val;
+  }
+
+  async function refreshIndices() {
+    var results = await Promise.all([
+      getJson("/api/nifty"),
+      getJson("/api/sensex"),
+      getJson("/api/banknifty")
+    ]);
+    paintIndex("card-nifty", results[0], DEMO.nifty);
+    paintIndex("card-sensex", results[1], DEMO.sensex);
+    paintIndex("card-banknifty", results[2], DEMO.banknifty);
+  }
+
+  async function refreshStatus() {
+    var s = await getJson("/api/bot/status");
+
+    // Trades
+    var trades, cap, winrate, pnl;
+    var capitalMeta = "Deployed in book";
+    var tradesMeta = "of daily cap";
+
+    if (s) {
+      trades = (s.tradesToday !== undefined) ? s.tradesToday : 0;
+      var max = (s.maxTradesPerDay !== undefined) ? s.maxTradesPerDay : 2;
+      tradesMeta = "of " + max + " daily cap" + (s.running ? " · engine live" : " · engine idle");
+      // confidence as a proxy when explicit winrate absent
+      winrate = (s.winRate !== undefined) ? s.winRate
+              : (s.confidence !== undefined ? s.confidence : null);
+      pnl = (s.todayPnl !== undefined) ? s.todayPnl
+          : (s.pnl !== undefined ? s.pnl : null);
+      cap = (s.activeCapital !== undefined) ? s.activeCapital
+          : (s.capital !== undefined ? s.capital : null);
+    }
+
+    // Demo fallbacks
+    if (trades === undefined || trades === null) trades = 1;
+    if (winrate === null || winrate === undefined || isNaN(winrate)) winrate = 68.4;
+    if (pnl === null || pnl === undefined || isNaN(pnl)) pnl = 12840;
+    if (cap === null || cap === undefined || isNaN(cap)) cap = 500000;
+
+    setKpi("winrate", Number(winrate).toFixed(1) + "%");
+    setKpi("trades", trades);
+    setKpi("trades-meta", tradesMeta);
+
+    var pnlEl = document.querySelector('[data-kpi="pnl"]');
+    if (pnlEl) {
+      var positive = Number(pnl) >= 0;
+      pnlEl.textContent = (positive ? "+" : "−") + fmtMoney(Math.abs(pnl)).replace("₹", "₹");
+      pnlEl.style.color = positive ? "var(--green)" : "var(--red)";
+    }
+    setKpi("capital", fmtMoney(cap));
+    setKpi("capital-meta", capitalMeta);
+  }
+
+  // Initial paint + polling
+  refreshIndices();
+  refreshStatus();
+  setInterval(refreshIndices, 5000);
+  setInterval(refreshStatus, 8000);
+})();
+</script>
+</body>
+</html>

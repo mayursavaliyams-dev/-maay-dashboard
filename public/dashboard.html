@@ -1075,6 +1075,46 @@
             max-height: none;
         }
         .col { display:flex; flex-direction:column; gap:6px; overflow:hidden; min-height:0; }
+        /* Trend Tactics + Market Quotes lifted to the upper side, full-width rows.
+           col-1 is display:contents so these are grid items of .main-grid:
+           order places them first, grid-column makes them span the full width. */
+        #trendPanel { order:-2; grid-column:1 / -1; }
+        #wlPanelTop { order:-1; grid-column:1 / -1; }
+
+        /* ===== TOP INDICATOR STRIP (compact, dashboard-style) ===== */
+        .topind-strip{ display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+            margin:8px 12px 0; padding:7px 14px;
+            background:linear-gradient(90deg,#0d1322,#0b0e17); border:1px solid #1f2937; border-radius:10px; }
+        .tis-brand{ display:flex; align-items:baseline; gap:7px; flex-shrink:0; }
+        .tis-inst{ font-weight:800; font-size:0.92rem; color:#fbbf24; letter-spacing:.5px; }
+        .tis-tag{ font-size:0.56rem; color:#6b7280; text-transform:uppercase; letter-spacing:1px; }
+        .tis-cells{ display:flex; align-items:stretch; flex-wrap:wrap; flex:1; }
+        .tis-cell{ display:flex; flex-direction:column; gap:1px; padding:2px 14px;
+            border-left:1px solid #1f2937; min-width:70px; }
+        .tis-lab{ font-size:0.54rem; color:#6b7280; text-transform:uppercase; letter-spacing:.8px; font-weight:600; }
+        .tis-val{ font-size:0.9rem; font-weight:700; color:#e5e7eb; font-variant-numeric:tabular-nums; line-height:1.15; }
+        .tis-val.green{ color:#10b981; } .tis-val.red{ color:#ef4444; } .tis-val.white{ color:#e5e7eb; }
+        .tis-sub{ font-size:0.48rem; color:#6b7280; }
+        .tis-badge{ align-self:center; font-size:0.6rem; font-weight:700; padding:2px 9px; border-radius:999px;
+            background:#334155; color:#cbd5e1; }
+        .tis-badge.bull{ background:#064e3b; color:#86efac; } .tis-badge.bear{ background:#7f1d1d; color:#fecaca; }
+        .tis-badge.neut{ background:#334155; color:#cbd5e1; }
+        @media (max-width:700px){ .tis-cell{ padding:2px 9px; min-width:56px; } .tis-tag{ display:none; } }
+
+        /* ===== AI-detected strike — watchlist banner + row highlight ===== */
+        .wl-ai-banner{ margin:7px 0 3px; padding:5px 11px; border-radius:7px; font-size:0.64rem; font-weight:700;
+            background:#0b1220; border:1px solid #1f2937; color:#9ca3af; letter-spacing:.3px; }
+        .wl-ai-banner.call{ background:#052e23; border-color:#10b981; color:#86efac; }
+        .wl-ai-banner.put { background:#3b0d0d; border-color:#ef4444; color:#fecaca; }
+        .wl-ai-badge{ display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px;
+            font-size:0.5rem; font-weight:800; letter-spacing:.5px; vertical-align:middle; }
+        .wl-ai-badge.call{ background:#10b981; color:#04140d; }
+        .wl-ai-badge.put { background:#ef4444; color:#220505; }
+        tr.wl-ai-pick.call{ background:linear-gradient(90deg, rgba(16,185,129,.13), transparent); }
+        tr.wl-ai-pick.put { background:linear-gradient(90deg, rgba(239,68,68,.13), transparent); }
+        tr.wl-ai-pick.call td:first-child{ box-shadow: inset 3px 0 0 #10b981; }
+        tr.wl-ai-pick.put  td:first-child{ box-shadow: inset 3px 0 0 #ef4444; }
+        tr.wl-ai-pick .wl-buy{ outline:2px solid #fbbf24; outline-offset:1px; }
 
         /* Scrollable column internals */
         .col-scroll { overflow-y: auto; overflow-x: hidden; flex:1; min-height:0; }
@@ -1678,6 +1718,19 @@
         <div class="livebox-cards" id="lbCards"></div>
     </div>
 
+    <!-- ===== TOP INDICATOR STRIP (compact, dashboard-style) ===== -->
+    <div class="topind-strip" id="topIndStrip">
+        <div class="tis-brand"><span class="tis-inst" id="tis-inst">SENSEX</span><span class="tis-tag">Indicators</span></div>
+        <div class="tis-cells">
+            <div class="tis-cell"><span class="tis-lab">ATM</span><span class="tis-val" id="tis-atm">--</span></div>
+            <div class="tis-cell"><span class="tis-lab">Max Pain</span><span class="tis-val" id="tis-maxpain">--</span><span class="tis-sub" id="tis-mpdist"></span></div>
+            <div class="tis-cell"><span class="tis-lab">PCR (OI)</span><span class="tis-val" id="tis-pcr">--</span></div>
+            <div class="tis-cell"><span class="tis-lab">IV %ile</span><span class="tis-val" id="tis-ivpct">--</span></div>
+            <div class="tis-cell"><span class="tis-lab">IV</span><span class="tis-val" id="tis-iv">--</span></div>
+            <div class="tis-cell"><span class="tis-lab">Bias</span><span class="tis-badge" id="tis-bias">--</span></div>
+        </div>
+    </div>
+
     <!-- ===== MAIN GRID ===== -->
     <div class="main-grid">
 
@@ -2025,6 +2078,47 @@
                 </div>
             </div>
 
+            <!-- MARKET QUOTES WATCHLIST — moved to upper side -->
+            <div class="wl-panel-top" id="wlPanelTop" style="flex-shrink:0;">
+                <div class="ind-block-lbl" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span class="wl-headline">Market Quotes &nbsp;<span class="wl-subhead" id="wl-inst-label">SENSEX · BSE_FNO</span></span>
+                    <div class="wl-filter-row">
+                        <button class="wl-filter-btn all active" id="wlFilterAll" onclick="setWatchlistFilter('ALL')">ALL</button>
+                        <button class="wl-filter-btn ce" id="wlFilterCE" onclick="setWatchlistFilter('CE')">CALL</button>
+                        <button class="wl-filter-btn pe" id="wlFilterPE" onclick="setWatchlistFilter('PE')">PUT</button>
+                        <button class="ind-refresh" onclick="loadWatchlist()">↻</button>
+                    </div>
+                </div>
+                <div class="wl-ai-banner" id="wl-ai-banner">🎯 <b>AI strike</b> — WAIT · no entry signal right now</div>
+                <div class="wl-wrap">
+                    <table class="wl-table">
+                        <thead><tr>
+                            <th class="wl-th-label" data-sort="label">Contract <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="ltp" class="wl-sort-active wl-sort-desc">LTP <span class="wl-arrow">▼</span></th>
+                            <th data-sort="low">Low <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="high">High <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="chng">Chng <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="chngPct">%Chng <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="bid">Bid <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="ask">Ask <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="volume">Volume <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="oi">OI <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="open">Open <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="prevClose">Previous Close <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="ucl">UCL <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="lcl">LCL <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="wkHigh">52 Wk High <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="wkLow">52 Wk Low <span class="wl-arrow">⇅</span></th>
+                            <th data-sort="avgPrice">Average Price <span class="wl-arrow">⇅</span></th>
+                            <th class="wl-th-trade">Trade</th>
+                        </tr></thead>
+                        <tbody id="wl-body">
+                            <tr><td colspan="18" style="color:#6b7280;padding:20px;text-align:center;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- END-OF-DAY SUMMARY -->
             <div class="hl-panel hl-panel-large" id="eodPanel" style="margin-top:20px; padding:18px 20px;">
                 <div class="hl-hdr" style="margin-bottom:14px;">
@@ -2297,46 +2391,6 @@
                             </tr></thead>
                             <tbody id="sb-chain-body">
                                 <tr><td colspan="9" style="color:#6b7280;padding:10px;">Loading...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- MARKET QUOTES WATCHLIST (landscape) -->
-                <div style="flex-shrink:0;">
-                    <div class="ind-block-lbl" style="display:flex;justify-content:space-between;align-items:center;">
-                        <span class="wl-headline">Market Quotes &nbsp;<span class="wl-subhead" id="wl-inst-label">SENSEX · BSE_FNO</span></span>
-                        <div class="wl-filter-row">
-                            <button class="wl-filter-btn all active" id="wlFilterAll" onclick="setWatchlistFilter('ALL')">ALL</button>
-                            <button class="wl-filter-btn ce" id="wlFilterCE" onclick="setWatchlistFilter('CE')">CALL</button>
-                            <button class="wl-filter-btn pe" id="wlFilterPE" onclick="setWatchlistFilter('PE')">PUT</button>
-                            <button class="ind-refresh" onclick="loadWatchlist()">↻</button>
-                        </div>
-                    </div>
-                    <div class="wl-wrap">
-                        <table class="wl-table">
-                            <thead><tr>
-                                <th class="wl-th-label" data-sort="label">Contract <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="ltp" class="wl-sort-active wl-sort-desc">LTP <span class="wl-arrow">▼</span></th>
-                                <th data-sort="low">Low <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="high">High <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="chng">Chng <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="chngPct">%Chng <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="bid">Bid <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="ask">Ask <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="volume">Volume <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="oi">OI <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="open">Open <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="prevClose">Previous Close <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="ucl">UCL <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="lcl">LCL <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="wkHigh">52 Wk High <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="wkLow">52 Wk Low <span class="wl-arrow">⇅</span></th>
-                                <th data-sort="avgPrice">Average Price <span class="wl-arrow">⇅</span></th>
-                                <th class="wl-th-trade">Trade</th>
-                            </tr></thead>
-                            <tbody id="wl-body">
-                                <tr><td colspan="18" style="color:#6b7280;padding:20px;text-align:center;">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -4947,8 +5001,37 @@
             });
         }
 
+        // AI-detected strike: reads the bot's live signal globals (per-instrument,
+        // set by updateDashboard) — currentSignal CALL/PUT/WAIT + suggestedStrike "76800 CE".
+        // Returns the strike+type the bot wants to place an order on, or null on WAIT.
+        function _aiPick() {
+            const sig = (currentSignal || 'WAIT').toString().toUpperCase();
+            if (sig !== 'CALL' && sig !== 'PUT') return null;
+            const type = sig === 'CALL' ? 'CE' : 'PE';
+            let strike = null;
+            const ss = suggestedStrike;
+            if (typeof ss === 'number') strike = ss;
+            else if (typeof ss === 'string') { const m = ss.match(/(\d{3,6})/); if (m) strike = Number(m[1]); }
+            if (!strike) return null;
+            return { strike, type, side: sig, conf: Number(currentConfidence) || 0 };
+        }
+
+        function _renderAiBanner(ai) {
+            const el = document.getElementById('wl-ai-banner');
+            if (!el) return;
+            if (!ai) {
+                el.className = 'wl-ai-banner';
+                el.innerHTML = '🎯 <b>AI strike</b> — WAIT · no entry signal right now';
+                return;
+            }
+            el.className = 'wl-ai-banner ' + (ai.side === 'CALL' ? 'call' : 'put');
+            el.innerHTML = `🎯 <b>AI says: BUY ${ai.side}</b> → place order on <b>${ai.strike} ${ai.type}</b> · confidence ${ai.conf}%`;
+        }
+
         function renderWatchlist(d) {
             const tbody = document.getElementById('wl-body');
+            const ai = _aiPick();          // AI-detected strike (or null on WAIT)
+            _renderAiBanner(ai);
             const label = document.getElementById('wl-inst-label');
             if (label) label.textContent = `${d.inst || _inst} · ${d.seg || (_inst === 'NIFTY' ? 'NSE_FNO' : 'BSE_FNO')}${d.source === 'dhan' ? '' : ' · ' + (d.source || 'chain')}`;
             if (!d.rows || !d.rows.length) {
@@ -4981,11 +5064,14 @@
 
             tbody.innerHTML = filteredRows.map(r => {
                 const isAtm = r.strike === atm;
+                const isAiPick = ai && r.strike === ai.strike && r.type === ai.type;
+                const aiRowCls = isAiPick ? ' wl-ai-pick ' + (r.type === 'CE' ? 'call' : 'put') : '';
+                const aiBadge  = isAiPick ? `<span class="wl-ai-badge ${r.type === 'CE' ? 'call' : 'put'}">🎯 AI</span>` : '';
                 const chngCls = r.chng > 0 ? 'wl-up' : r.chng < 0 ? 'wl-dn' : 'wl-dim';
                 const chngSign = r.chng > 0 ? '+' : '';
                 const ltpCls = 'wl-ltp ' + r.type.toLowerCase();
-                return `<tr>
-                    <td class="wl-label">${r.label}${isAtm ? '<span class="wl-atm-badge">ATM</span>' : ''}</td>
+                return `<tr class="${aiRowCls}">
+                    <td class="wl-label">${r.label}${isAtm ? '<span class="wl-atm-badge">ATM</span>' : ''}${aiBadge}</td>
                     <td class="${ltpCls}">${fmtNum(r.ltp)}</td>
                     <td>${fmtNum(r.low)}</td>
                     <td>${fmtNum(r.high)}</td>
@@ -5109,6 +5195,24 @@
             badge.textContent = `${interp.signal} → ${interp.bias}`;
             badge.className   = 'sb-badge ' +
                 (interp.bias === 'BULLISH' ? 'bull' : interp.bias === 'BEARISH' ? 'bear' : 'neut');
+
+            // ---- TOP INDICATOR STRIP (compact mirror of the indicators above) ----
+            (function(){
+                const setT = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+                const instName = (d.instrument || '').toString().toUpperCase()
+                    || (((document.getElementById('wl-inst-label') || {}).textContent || '').split('·')[0].trim())
+                    || ((document.getElementById('tis-inst') || {}).textContent || '');
+                setT('tis-inst', instName);
+                setT('tis-atm', atm);
+                setT('tis-maxpain', d.maxPain.maxPain);
+                setT('tis-mpdist', d.maxPain.distancePercent + '% off');
+                const tp = document.getElementById('tis-pcr');
+                if (tp) { tp.textContent = pcrOI.toFixed(2); tp.className = 'tis-val ' + (pcrOI > 1.2 ? 'green' : pcrOI < 0.8 ? 'red' : 'white'); }
+                setT('tis-ivpct', iv.ivPercentile + '%ile');
+                setT('tis-iv', iv.overallIV + '%');
+                const tb = document.getElementById('tis-bias');
+                if (tb) { tb.textContent = interp.bias; tb.className = 'tis-badge ' + (interp.bias === 'BULLISH' ? 'bull' : interp.bias === 'BEARISH' ? 'bear' : 'neut'); }
+            })();
 
             // ---- GREEKS (ATM strike) ----
             const atmRow = d.optionChain.find(s => s.strike === atm);

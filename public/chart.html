@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Live Candlestick + EMA</title>
+
+<!-- FREE TradingView "Lightweight Charts" v4.1.0 (standalone build, no npm needed) -->
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<style>
+  :root { --bg:#0a0e17; }
+  html, body { margin:0; height:100%; background:var(--bg); color:#d1d4dc;
+               font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
+  .wrap { display:flex; flex-direction:column; height:100vh; }
+  .bar  { display:flex; align-items:center; gap:14px; padding:8px 14px;
+          border-bottom:1px solid rgba(255,255,255,.08); font-size:12px; }
+  .bar b { font-size:14px; letter-spacing:.5px; }
+  .dot  { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+  .dot.live  { background:#00f5d4; box-shadow:0 0 8px #00f5d4; }
+  .dot.idle  { background:#f7a825; }
+  .dot.err   { background:#f72585; }
+  .leg  { display:flex; gap:12px; margin-left:auto; font-family:ui-monospace, monospace; }
+  .leg span i { font-style:normal; }
+  .e9{color:#00f5d4} .e21{color:#7b61ff} .e50{color:#3b82f6}
+  /* Chart fills the remaining space and resizes with the window */
+  #chart { flex:1 1 auto; width:100%; min-height:0; }
+  #status { color:#8b95a7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <b>LIVE CHART</b>
+    <span><span class="dot idle" id="dot"></span><span id="mkt">—</span></span>
+    <span id="status">loading…</span>
+    <span class="leg">
+      <span class="e9">EMA9</span><span class="e21">EMA21</span><span class="e50">EMA50</span>
+    </span>
+  </div>
+  <div id="chart"></div>
+</div>
+
+<script>
+/* ============================================================================
+ *  CONFIG — set your endpoint here.
+ *  It must return JSON: { status:"ok", candles:[ {time,open,high,low,close}, ... ] }
+ *  `time` = Unix epoch in SECONDS, array ascending (oldest → newest).
+ * ========================================================================== */
+const API_URL      = "<MY_API_URL>";   // <-- replace with your candles endpoint
+const REFRESH_MS   = 5000;             // poll every 5s (only during market hours)
+
+/* ============================================================================
+ *  1) CHART — dark theme, responsive container.
+ * ========================================================================== */
+const chartEl = document.getElementById('chart');
+
+const chart = LightweightCharts.createChart(chartEl, {
+  layout:      { background: { type: 'solid', color: '#0a0e17' }, textColor: '#d1d4dc' },
+  grid:        { vertLines: { color: 'rgba(255,255,255,0.06)' },
+                 horzLines: { color: 'rgba(255,255,255,0.06)' } },
+  rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)' },
+  timeScale:   { borderColor: 'rgba(255,255,255,0.10)', timeVisible: true, secondsVisible: false },
+  crosshair:   { mode: LightweightCharts.CrosshairMode.Normal },
+  autoSize:    false,   // we size it ourselves via ResizeObserver (more reliable in flex layouts)
+});
+
+/* 2) Candlestick series — green up / pink down */
+const candleSeries = chart.addCandlestickSeries({
+  upColor:       '#00f5d4', downColor:     '#f72585',
+  borderUpColor: '#00f5d4', borderDownColor:'#f72585',
+  wickUpColor:   '#00f5d4', wickDownColor: '#f72585',
+});
+
+/* 3) Three EMA overlays */
+const ema9Series  = chart.addLineSeries({ color: '#00f5d4', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+const ema21Series = chart.addLineSeries({ color: '#7b61ff', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+const ema50Series = chart.addLineSeries({ color: '#3b82f6', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+
+/* Responsive: keep the chart sized to its container as the window changes */
+const ro = new ResizeObserver(entries => {
+  for (const e of entries) {
+    const { width, height } = e.contentRect;
+    if (width > 0 && height > 0) chart.resize(width, height);
+  }
+});
+ro.observe(chartEl);
+
+/* ============================================================================
+ *  EMA — standard formula: SMA seed for the first value, then
+ *  multiplier k = 2/(period+1). Returns [{time, value}] aligned to candle times,
+ *  starting at index (period-1).
+ * ========================================================================== */
+function computeEMA(candles, period) {
+  const out = [];
+  if (!candles || candles.length < period) return out;
+
+  // SMA seed over the first `period` closes
+  let sum = 0;
+  for (let i = 0; i < period; i++) sum += candles[i].close;
+  let prev = sum / period;
+  out.push({ time: candles[period - 1].time, value: prev });
+
+  // EMA for the rest
+  const k = 2 / (period + 1);
+  for (let i = period; i < candles.length; i++) {
+    prev = candles[i].close * k + prev * (1 - k);
+    out.push({ time: candles[i].time, value: prev });
+  }
+  return out;
+}
+
+/* ============================================================================
+ *  4) setCandles(candles) — the single entry point.
+ *     Sets the candles, computes + sets all three EMAs, fits content.
+ * ========================================================================== */
+function setCandles(candles) {
+  if (!Array.isArray(candles) || candles.length === 0) return;
+
+  // Coerce to numbers and sort ascending by time (defensive)
+  const data = candles
+    .map(c => ({
+      time:  Number(c.time),
+      open:  Number(c.open),
+      high:  Number(c.high),
+      low:   Number(c.low),
+      close: Number(c.close),
+    }))
+    .filter(c => Number.isFinite(c.time) && Number.isFinite(c.close))
+    .sort((a, b) => a.time - b.time);
+
+  candleSeries.setData(data);
+  ema9Series.setData(computeEMA(data, 9));
+  ema21Series.setData(computeEMA(data, 21));
+  ema50Series.setData(computeEMA(data, 50));
+
+  chart.timeScale().fitContent();
+}
+
+/* ============================================================================
+ *  5) DATA — fetch from API_URL and refresh every 5s, but only during
+ *     NSE market hours (09:15–15:30 IST, Mon–Fri). Otherwise keep last data.
+ * ========================================================================== */
+const dotEl    = document.getElementById('dot');
+const mktEl    = document.getElementById('mkt');
+const statusEl = document.getElementById('status');
+
+// True between 09:15 and 15:30 IST on a weekday — timezone-independent (computed via UTC).
+function isMarketOpenIST() {
+  const ist  = new Date(Date.now() + 5.5 * 3600 * 1000); // shift UTC → IST
+  const day  = ist.getUTCDay();                          // 0 Sun … 6 Sat
+  const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  return day >= 1 && day <= 5 && mins >= (9 * 60 + 15) && mins <= (15 * 60 + 30);
+}
+
+function setMarketBadge(open) {
+  dotEl.className = 'dot ' + (open ? 'live' : 'idle');
+  mktEl.textContent = open ? 'MARKET OPEN' : 'MARKET CLOSED';
+}
+
+async function fetchCandles() {
+  try {
+    const res = await fetch(API_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (json.status !== 'ok' || !Array.isArray(json.candles)) {
+      throw new Error('bad payload');
+    }
+    setCandles(json.candles);
+    statusEl.textContent = 'updated ' + new Date().toLocaleTimeString('en-GB') +
+                           ' · ' + json.candles.length + ' bars';
+  } catch (e) {
+    dotEl.className = 'dot err';
+    statusEl.textContent = 'fetch error: ' + e.message;
+  }
+}
+
+// Initial load (always, regardless of market hours, so the chart shows last data).
+setMarketBadge(isMarketOpenIST());
+fetchCandles();
+
+// Poll every 5s — but only actually fetch while the market is open.
+setInterval(() => {
+  const open = isMarketOpenIST();
+  setMarketBadge(open);
+  if (open) fetchCandles();   // closed → keep showing the last data, no fetch
+}, REFRESH_MS);
+</script>
+</body>
+</html>

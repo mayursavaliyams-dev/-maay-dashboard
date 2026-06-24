@@ -431,6 +431,41 @@ function _getOptHL(inst, strike, type) {
   return _optHL[inst]?.get(_optHLKey(strike, type)) || null;
 }
 
+// ── DATE-WISE H/L ARCHIVE ────────────────────────────────────────────────────
+// Redis holds only "today". This writes each day's full option-H/L map to
+// data/opthl/<date>.json so the high/low record is retained PER DATE and
+// survives restarts. Saved regularly (every 60s) + keeps the last ~120 days.
+const _optHLDir = require('path').join(__dirname, 'data', 'opthl');
+function _persistOptHLDay() {
+  try {
+    const fs2 = require('fs'), path2 = require('path');
+    const date = _istDateStr();
+    const out = { date, savedAt: new Date().toISOString(), strikes: {} };
+    let count = 0;
+    for (const inst of Object.keys(_optHL)) {
+      const m = _optHL[inst];
+      if (!m || !m.size) continue;
+      const recs = {};
+      for (const [key, rec] of m.entries()) {
+        if (!rec || rec.date !== date) continue;
+        recs[key] = { high: +Number(rec.high || 0).toFixed(2), highAt: rec.highAt,
+                      low: +Number(rec.low || 0).toFixed(2),  lowAt: rec.lowAt };
+        count++;
+      }
+      if (Object.keys(recs).length) out.strikes[inst] = recs;
+    }
+    if (!count) return false;
+    fs2.mkdirSync(_optHLDir, { recursive: true });
+    fs2.writeFileSync(path2.join(_optHLDir, `${date}.json`), JSON.stringify(out));
+    const files = fs2.readdirSync(_optHLDir).filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+    while (files.length > 120) { try { fs2.unlinkSync(path2.join(_optHLDir, files.shift())); } catch (_) {} }
+    return true;
+  } catch (_) { return false; }
+}
+// Regular save — every 60s writes today's records if any exist (captures the
+// post-close final state too, since _updateOptHL only mutates during hours).
+setInterval(_persistOptHLDay, 60 * 1000);
+
 // Periodically reconcile today's 1-minute option candles into the live record.
 // Failed pre-open attempts retry, while successful requests are cached/coalesced.
 const OPT_HL_RECONCILE_MS = 60 * 1000;
@@ -3287,7 +3322,7 @@ function _loadConfigOverrides() {
   }
   return {};
 }
-_loadConfigOverrides();
+const _cfgOverrides = _loadConfigOverrides();
 
 // Safe numeric bounds for each field
 const CONFIG_SPEC = {
@@ -4453,6 +4488,25 @@ app.get('/api/option-chain-full', async (req, res) => {
   }
 });
 
+// Date-wise archived option H/L. ?date=YYYY-MM-DD (default today) [&inst=NIFTY]
+app.get('/api/opthl-archive', (req, res) => {
+  try {
+    const fs2 = require('fs'), path2 = require('path');
+    const date = String(req.query.date || _istDateStr()).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date=YYYY-MM-DD required' });
+    const file = path2.join(_optHLDir, `${date}.json`);
+    if (!fs2.existsSync(file)) {
+      let availableDates = [];
+      try { availableDates = fs2.readdirSync(_optHLDir).filter(f => f.endsWith('.json')).map(f => f.replace('.json', '')).sort(); } catch (_) {}
+      return res.status(404).json({ error: 'no archive for ' + date, availableDates });
+    }
+    const data = JSON.parse(fs2.readFileSync(file, 'utf8'));
+    const inst = req.query.inst ? String(req.query.inst).toUpperCase() : null;
+    if (inst) return res.json({ date: data.date, savedAt: data.savedAt, inst, strikes: (data.strikes || {})[inst] || {} });
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/option-strike-history', async (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
   const strike = parseInt(req.query.strike, 10);
@@ -4897,6 +4951,15 @@ app.listen(PORT, '0.0.0.0', async () => {
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
   `);
+
+  // Apply persisted engine-state overrides LAST (after all env-based init) so they
+  // win across restarts: hedged-selling forward-test stays ON, directional autos OFF.
+  try {
+    if (typeof _cfgOverrides?.STRANGLE_ENGINE_ENABLED === 'boolean') strangleEngine.enabled = _cfgOverrides.STRANGLE_ENGINE_ENABLED;
+    if (_cfgOverrides?.NIFTY_DIRECTIONAL_AUTO === false && niftyEngine?.setAutoEnabled) niftyEngine.setAutoEnabled(false);
+    if (_cfgOverrides?.SENSEX_DIRECTIONAL_AUTO === false && engine?.setAutoEnabled) engine.setAutoEnabled(false);
+    console.log(`[config] engine-state applied → strangle=${strangleEngine.enabled} niftyAuto=${niftyEngine?.autoEnabled} sensexAuto=${engine?.autoEnabled}`);
+  } catch (e) { console.warn('[config] engine-state apply failed:', e.message); }
 });
 
 // ==================== GRACEFUL SHUTDOWN ====================

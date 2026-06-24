@@ -129,14 +129,6 @@ async function main() {
     });
   });
 
-  // ── 10. Backtest cache present ──
-  await check('Backtest report exists', async () => {
-    const fs = require('fs');
-    if (!fs.existsSync('./backtest-real-results.json')) return { warn: 'no backtest report — run npm run backtest first' };
-    const r = JSON.parse(fs.readFileSync('./backtest-real-results.json', 'utf8'));
-    return `${r.totalExpiries || '?'} expiries tested, ${r.stats?.totalTrades || '?'} trades`;
-  });
-
   // ── Summary ──
   console.log(`\n${'─'.repeat(64)}`);
   const total = pass + fail + warn;

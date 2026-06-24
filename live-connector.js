@@ -4,14 +4,17 @@
  * No demo fallback: if Dhan is unreachable or credentials are missing, calls throw.
  */
 
-const DhanClient = require('./backtest-real/dhan-client');
+const DhanClient = require('./dhan-client');
 const DhanWsFeed = require('./dhan-ws-feed');
+const { normalizeDhanAccessToken, normalizeDhanClientId, validateDhanCredentials } = require('./dhan-auth');
 
 const SENSEX_SECURITY_ID = process.env.DHAN_SENSEX_SECURITY_ID || '51';
 const NIFTY_SECURITY_ID  = process.env.DHAN_NIFTY_SECURITY_ID  || '13';
+const BANKNIFTY_SECURITY_ID = process.env.DHAN_BANKNIFTY_SECURITY_ID || '25';
 const IDX_SEGMENT = 'IDX_I';
 const SENSEX_SEGMENT = IDX_SEGMENT;
 const WS_TICK_MAX_AGE_MS = 10000;   // accept WS tick if it arrived in the last 10s
+const OPTION_CHAIN_CACHE_MS = 4500;
 
 class LiveConnector {
   constructor(config = {}) {
@@ -25,29 +28,67 @@ class LiveConnector {
     this._sensexChainAt = 0;
     this._niftyChainCache = null;
     this._niftyChainAt = 0;
+    this._authFailureLogged = false;
+  }
+
+  _createClient(clientId, accessToken) {
+    return new DhanClient({
+      clientId,
+      accessToken,
+      onAuthFailure: (err) => this._handleAuthFailure(err)
+    });
+  }
+
+  _handleAuthFailure(err) {
+    this.connected = false;
+    if (this.ws) {
+      this.ws.stop();
+      this.ws = null;
+    }
+    if (!this._authFailureLogged) {
+      this._authFailureLogged = true;
+      console.error(`[live] Dhan authentication paused: ${err.message}`);
+      console.error('[live] Refresh credentials at http://localhost:3000/api/dhan/login');
+    }
   }
 
   async connect() {
-    const clientId = this.config.dhanClientId || process.env.DHAN_CLIENT_ID;
-    const accessToken = this.config.dhanAccessToken || process.env.DHAN_ACCESS_TOKEN;
+    const clientId = normalizeDhanClientId(this.config.dhanClientId || process.env.DHAN_CLIENT_ID);
+    const accessToken = normalizeDhanAccessToken(this.config.dhanAccessToken || process.env.DHAN_ACCESS_TOKEN);
 
     if (!clientId || !accessToken || clientId === 'your_dhan_client_id') {
       throw new Error('DHAN_CLIENT_ID / DHAN_ACCESS_TOKEN not set — live connector cannot start');
     }
 
-    this.client = new DhanClient({ clientId, accessToken });
+    const auth = validateDhanCredentials(clientId, accessToken);
+    if (!auth.ok) {
+      const expiryText = auth.tokenStatus?.expiresAtIST ? ` Token expiry: ${auth.tokenStatus.expiresAtIST}.` : '';
+      throw new Error(`DHAN credentials invalid: ${auth.reason}.${expiryText} Refresh via /api/dhan/login.`);
+    }
+
+    this.config.dhanClientId = clientId;
+    this.config.dhanAccessToken = accessToken;
+    this.client = this._createClient(clientId, accessToken);
+    await this.client.verifyCredentials();
     this.connected = true;
+    this._authFailureLogged = false;
     console.log('[live] Connected to Dhan HQ v2');
 
     // Start WebSocket live tick feed for the three indices.
     if (process.env.DHAN_WS_ENABLED !== 'false') {
       try {
         this.ws = new DhanWsFeed({ clientId, accessToken });
+        this.ws.on('auth-error', (code) => {
+          const err = new Error(`Dhan WebSocket authentication rejected${code ? ` (${code})` : ''}`);
+          err.status = 401;
+          err.code = 'DHAN_AUTH';
+          this._handleAuthFailure(err);
+        });
         this.ws.start();
         this.ws.subscribe([
           { exchangeSegment: IDX_SEGMENT, securityId: NIFTY_SECURITY_ID  },
           { exchangeSegment: IDX_SEGMENT, securityId: SENSEX_SECURITY_ID },
-          { exchangeSegment: IDX_SEGMENT, securityId: '25' /* BANKNIFTY */ },
+          { exchangeSegment: IDX_SEGMENT, securityId: BANKNIFTY_SECURITY_ID },
         ]);
       } catch (e) {
         console.warn('[live] WS feed failed to start, falling back to REST polling:', e.message);
@@ -56,12 +97,68 @@ class LiveConnector {
     }
   }
 
+  async refreshAuth({ clientId, accessToken } = {}) {
+    const nextClientId = normalizeDhanClientId(clientId || this.config.dhanClientId || process.env.DHAN_CLIENT_ID);
+    const nextAccessToken = normalizeDhanAccessToken(accessToken || this.config.dhanAccessToken || process.env.DHAN_ACCESS_TOKEN);
+
+    if (!nextClientId || !nextAccessToken) {
+      throw new Error('Cannot refresh Dhan auth without DHAN_CLIENT_ID and DHAN_ACCESS_TOKEN');
+    }
+
+    const auth = validateDhanCredentials(nextClientId, nextAccessToken);
+    if (!auth.ok) {
+      const expiryText = auth.tokenStatus?.expiresAtIST ? ` Token expiry: ${auth.tokenStatus.expiresAtIST}.` : '';
+      throw new Error(`Cannot refresh Dhan auth: ${auth.reason}.${expiryText} Refresh via /api/dhan/login.`);
+    }
+
+    this.config.dhanClientId = nextClientId;
+    this.config.dhanAccessToken = nextAccessToken;
+    process.env.DHAN_CLIENT_ID = nextClientId;
+    process.env.DHAN_ACCESS_TOKEN = nextAccessToken;
+
+    if (this.client) this.client.updateCredentials({ clientId: nextClientId, accessToken: nextAccessToken });
+    else this.client = this._createClient(nextClientId, nextAccessToken);
+
+    await this.client.verifyCredentials();
+    this.connected = true;
+    this._authFailureLogged = false;
+
+    if (process.env.DHAN_WS_ENABLED !== 'false') {
+      if (this.ws) {
+        this.ws.stop();
+        this.ws = null;
+      }
+      this.ws = new DhanWsFeed({ clientId: nextClientId, accessToken: nextAccessToken });
+      this.ws.on('auth-error', (code) => {
+        const err = new Error(`Dhan WebSocket authentication rejected${code ? ` (${code})` : ''}`);
+        err.status = 401;
+        err.code = 'DHAN_AUTH';
+        this._handleAuthFailure(err);
+      });
+      this.ws.start();
+      this.ws.subscribe([
+        { exchangeSegment: IDX_SEGMENT, securityId: NIFTY_SECURITY_ID },
+        { exchangeSegment: IDX_SEGMENT, securityId: SENSEX_SECURITY_ID },
+        { exchangeSegment: IDX_SEGMENT, securityId: BANKNIFTY_SECURITY_ID },
+      ]);
+    }
+
+  }
+
   _assertConnected() {
-    if (!this.connected) throw new Error('Dhan not connected — check DHAN_CLIENT_ID / DHAN_ACCESS_TOKEN');
+    if (!this.connected) {
+      const authStatus = this.client?.getAuthStatus?.();
+      const suffix = authStatus?.blocked ? ' Refresh via /api/dhan/login.' : '';
+      throw new Error(`Dhan not connected - check DHAN_CLIENT_ID / DHAN_ACCESS_TOKEN.${suffix}`);
+    }
   }
 
   async getNiftyPrice() {
     return this._getIndexPriceFromCharts(NIFTY_SECURITY_ID, IDX_SEGMENT, '_niftyChartCache', '_niftyChartAt');
+  }
+
+  async getBankNiftyPrice() {
+    return this._getIndexPriceFromCharts(BANKNIFTY_SECURITY_ID, IDX_SEGMENT, '_bankNiftyChartCache', '_bankNiftyChartAt');
   }
 
   // /v2/marketfeed/quote returns empty {} for index data even with Data API
@@ -139,6 +236,7 @@ class LiveConnector {
   }
 
   _pickLeg(leg) {
+    const greeks = leg?.greeks || {};
     return leg ? {
       securityId: leg.security_id ?? leg.securityId ?? null,
       ltp: leg.last_price ?? 0,
@@ -154,12 +252,16 @@ class LiveConnector {
       bid:   leg.top_bid_price ?? 0,
       ask:   leg.top_ask_price ?? 0,
       bidQty: leg.top_bid_quantity ?? 0,
-      askQty: leg.top_ask_quantity ?? 0
+      askQty: leg.top_ask_quantity ?? 0,
+      delta: greeks.delta ?? leg.delta ?? 0,
+      gamma: greeks.gamma ?? leg.gamma ?? 0,
+      theta: greeks.theta ?? leg.theta ?? 0,
+      vega: greeks.vega ?? leg.vega ?? 0
     } : {};
   }
 
   async getNiftyOptionChain(spotPrice = null) {
-    if (this._niftyChainCache && Date.now() - this._niftyChainAt < 8000) return this._niftyChainCache;
+    if (this._niftyChainCache && Date.now() - this._niftyChainAt < OPTION_CHAIN_CACHE_MS) return this._niftyChainCache;
     // Skip Dhan entirely if a prior call failed with "Data APIs not Subscribed".
     if (!this._dhanChainBlocked) {
       try {
@@ -193,6 +295,37 @@ class LiveConnector {
     return free;
   }
 
+  async getBankNiftyOptionChain(spotPrice = null) {
+    if (this._bankNiftyChainCache && Date.now() - this._bankNiftyChainAt < OPTION_CHAIN_CACHE_MS) return this._bankNiftyChainCache;
+    if (!this._dhanChainBlocked) {
+      try {
+        this._assertConnected();
+        const expiry = await this._getNextExpiry(BANKNIFTY_SECURITY_ID, IDX_SEGMENT);
+        const body = { UnderlyingScrip: Number(BANKNIFTY_SECURITY_ID), UnderlyingSeg: IDX_SEGMENT, Expiry: expiry };
+        const res  = await this.client._post('/v2/optionchain', body);
+        const oc   = res?.data?.oc || res?.data || {};
+        const strikes = [];
+        for (const strikeStr of Object.keys(oc)) {
+          const row = oc[strikeStr];
+          strikes.push({ strike: Number(strikeStr), ce: this._pickLeg(row?.ce), pe: this._pickLeg(row?.pe) });
+        }
+        const spot = Number(res?.data?.last_price ?? spotPrice ?? 0);
+        const atmStrike = Math.round(spot / 100) * 100;
+        const result = { spotPrice: spot, atmStrike, strikes: strikes.sort((a, b) => a.strike - b.strike),
+                         timestamp: new Date(), source: 'dhan' };
+        this._bankNiftyChainCache = result;
+        this._bankNiftyChainAt = Date.now();
+        return result;
+      } catch (err) {
+        if (/Data APIs not Subscribed|806/i.test(err.message)) {
+          this._dhanChainBlocked = true;
+          console.log('[live] Dhan Data API not subscribed for BANKNIFTY chain');
+        } else { throw err; }
+      }
+    }
+    throw new Error('BANKNIFTY option chain unavailable from Dhan');
+  }
+
   async getSensexPrice() {
     const r = await this._getIndexPriceFromCharts(SENSEX_SECURITY_ID, SENSEX_SEGMENT, '_sensexChartCache', '_sensexChartAt');
     this.lastPrice = r.price;
@@ -201,7 +334,7 @@ class LiveConnector {
   }
 
   async getOptionChain(spotPrice = null) {
-    if (this._sensexChainCache && Date.now() - this._sensexChainAt < 8000) return this._sensexChainCache;
+    if (this._sensexChainCache && Date.now() - this._sensexChainAt < OPTION_CHAIN_CACHE_MS) return this._sensexChainCache;
     if (this._dhanChainBlocked) {
       const free = await require('./free-chain').getSensexChain(spotPrice);
       this._sensexChainCache = free;
@@ -315,6 +448,10 @@ class LiveConnector {
 
   disconnect() {
     this.connected = false;
+    if (this.ws) {
+      this.ws.stop();
+      this.ws = null;
+    }
     this.client = null;
   }
 }

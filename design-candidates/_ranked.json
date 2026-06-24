@@ -1,0 +1,192 @@
+[
+ {
+  "id": 4,
+  "label": "minimal-swiss",
+  "score": 92,
+  "critique": {
+   "scores": {
+    "visualPolish": 23,
+    "layoutResponsive": 22,
+    "brandFit": 19,
+    "dataIntegration": 15,
+    "codeQuality": 13
+   },
+   "total": 92,
+   "verdict": "A genuinely polished, restrained Swiss-terminal landing page with exemplary data-fetch resilience and clean responsive logic, marred only by minor sloppiness and a missing mobile nav.",
+   "topStrength": "Bulletproof data integration: every fetch has AbortController timeout (3500ms), per-request .catch with realistic demo fallback and a visible demo badge, timeout cleared in .finally, and NaN/empty-price guards — it cannot hang or render blanks.",
+   "worstFlaw": "KPI grid stays 2-column at all widths below 720px (no 1-col break), so on a 375px screen each big clamp(34px) value lives in ~110px of content width — compact k/L/Cr formatting saves it, but it is the closest thing to an overflow/cramping risk; secondary flaws: nav links vanish at 720px with no hamburger replacement, fragile .kpi:nth-child(3) selector, and an invalid --ink-faint:#5e7falpha custom property (unused but sloppy).",
+   "overflowRisk": false
+  }
+ },
+ {
+  "id": 8,
+  "label": "chart-hero",
+  "score": 91,
+  "critique": {
+   "scores": {
+    "visualPolish": 23,
+    "layoutResponsive": 22,
+    "brandFit": 19,
+    "dataIntegration": 14,
+    "codeQuality": 13
+   },
+   "total": 91,
+   "verdict": "A polished, brand-accurate trading-terminal landing page with a genuinely robust live-data layer and well-considered responsive behavior; only minor overflow tightness and a sticky online-flag mar it.",
+   "topStrength": "Live-data layer is properly defensive: per-call AbortController timeout (3500ms), per-job .catch, Promise.allSettled, an online flag that drives connection status, and realistic demo seeds plus an offline animation loop that bails when live — it cannot hang and degrades gracefully.",
+   "worstFlaw": "The non-wrapping .ch-top/.ch-tools row (three SENSEX/BANKNIFTY-length buttons plus the symbol/price block) is tight at 375px and is only saved from visible overflow by body{overflow-x:hidden} masking it; secondarily, the online flag never resets to false, so a mid-session engine drop keeps showing stale 'live data'.",
+   "overflowRisk": false
+  }
+ },
+ {
+  "id": 7,
+  "label": "pro-corporate",
+  "score": 89,
+  "critique": {
+   "scores": {
+    "visualPolish": 22,
+    "layoutResponsive": 21,
+    "brandFit": 19,
+    "dataIntegration": 15,
+    "codeQuality": 12
+   },
+   "total": 89,
+   "verdict": "A genuinely polished, institution-grade dark trading-terminal landing page with bulletproof fetch handling and demo fallback, marred only by minor dead code and a tight-but-masked indices grid on the narrowest phones.",
+   "topStrength": "Live-data layer is exemplary: AbortController 4s timeout with finally-cleanup, per-endpoint try/catch falling back to realistic demo data, an anyLive/DEMO status toggle, and price-validity guards (isFinite, >0) — it cannot hang or render NaN, which is exactly what the brief demands.",
+   "worstFlaw": "Dead/duplicated code in the render path: chgEl.textContent is assigned twice (first assignment with the malformed .replace(/^/,...) is immediately overwritten) and signedINR does a no-op .replace('-','-'); these signal insufficient review and the abandoned first formatting attempt suggests the % logic was rewritten without cleanup.",
+   "overflowRisk": false
+  }
+ },
+ {
+  "id": 9,
+  "label": "dark-luxe-gold",
+  "score": 89,
+  "critique": {
+   "scores": {
+    "visualPolish": 23,
+    "layoutResponsive": 19,
+    "brandFit": 19,
+    "dataIntegration": 15,
+    "codeQuality": 13
+   },
+   "total": 89,
+   "verdict": "A genuinely polished dark-gold trading terminal with best-in-class fetch resilience, let down only by a cramped mobile header that leans on overflow:hidden to mask a real squeeze.",
+   "topStrength": "Live-data layer is textbook: AbortController + 3.5s timeout + per-call try/catch returning null, Promise.all that can't reject, and realistic jittered demo fallbacks for both indices and KPIs, so the UI never hangs or shows raw errors.",
+   "worstFlaw": "At 375px the sticky header forces the serif brand block (~150px), a white-space:nowrap gold \"Launch Dashboard\" button (~150px), and the 42px toggle into ~331px of usable width; the nowrap button can't wrap, so content is compressed/clipped and only hidden by body overflow-x:hidden rather than actually fitting.",
+   "overflowRisk": true
+  }
+ },
+ {
+  "id": 1,
+  "label": "glass-terminal",
+  "score": 88,
+  "critique": {
+   "scores": {
+    "visualPolish": 23,
+    "layoutResponsive": 19,
+    "brandFit": 19,
+    "dataIntegration": 14,
+    "codeQuality": 13
+   },
+   "total": 88,
+   "verdict": "A polished, brand-true glass terminal with genuinely robust fetch handling, undermined slightly by relying on overflow-x:hidden as a safety net rather than truly overflow-proof index rows.",
+   "topStrength": "Live-data layer is properly defensive: AbortController timeout, per-index try/catch with realistic demo fallback, honest DEMO MODE labeling, and Promise.all that can never hang the UI.",
+   "worstFlaw": "The .idx-row (justify-content:space-between, no min-width:0/flex-wrap) carries long mono change strings like '▼ 277.55 (-0.53%)' next to the label; at 375px this is masked by body overflow-x:hidden instead of being structurally prevented, so content can clip rather than reflow. The nav at 375px (brand + toggle + pill + nowrap Launch button) is also uncomfortably tight.",
+   "overflowRisk": true
+  }
+ },
+ {
+  "id": 5,
+  "label": "gradient-aurora",
+  "score": 88,
+  "critique": {
+   "scores": {
+    "visualPolish": 23,
+    "layoutResponsive": 22,
+    "brandFit": 19,
+    "dataIntegration": 13,
+    "codeQuality": 11
+   },
+   "total": 88,
+   "verdict": "A polished, brand-true trading terminal landing page with genuinely robust fetch handling, marred by a dead throwing line and reliance on overflow-x:hidden as a safety net rather than true overflow prevention.",
+   "topStrength": "Live-data layer is properly defensive: AbortController + 3.5s timeout + clearTimeout in finally, per-index catch fallback to DEMO baselines, and Promise.allSettled with a full demo fallback for KPIs so nothing hangs or renders blank.",
+   "worstFlaw": "paintIdx ends with `card.querySelector('::before');` — an invalid selector that throws a SyntaxError on every successful index paint, producing unhandled promise rejections/console noise; it is dead code that should never have shipped. Secondary: live KPI path can render \"NaN\" for todayTrades when pnl exists but omits the field (Number(undefined)).",
+   "overflowRisk": false
+  }
+ },
+ {
+  "id": 3,
+  "label": "neon-cyber",
+  "score": 86,
+  "critique": {
+   "scores": {
+    "visualPolish": 23,
+    "layoutResponsive": 17,
+    "brandFit": 19,
+    "dataIntegration": 15,
+    "codeQuality": 12
+   },
+   "total": 86,
+   "verdict": "A genuinely polished, on-brand neon trading terminal with textbook live-fetch handling, undermined by a cramped nav header at 375px that leans on body overflow-x:hidden to mask real overflow rather than fix it.",
+   "topStrength": "Data integration is exemplary: AbortController timeout (3500ms) with clearTimeout in finally, per-endpoint try/catch with demo fallbacks, Promise.allSettled so the UI never hangs, and tolerant key-picking for varied API shapes.",
+   "worstFlaw": "At 375px the nav row keeps the 800-weight brand, a nowrap 'Launch Dashboard ▸' button, and a 42px menu button with no flex-shrink/min-width control; combined widths plus gaps exceed ~335px, so the layout relies on body{overflow-x:hidden} to hide genuine overflow instead of stacking or shrinking the header. The ghost button hiding at 480px does not solve this.",
+   "overflowRisk": true
+  }
+ },
+ {
+  "id": 6,
+  "label": "card-grid-bento",
+  "score": 84,
+  "critique": {
+   "scores": {
+    "visualPolish": 21,
+    "layoutResponsive": 20,
+    "brandFit": 18,
+    "dataIntegration": 14,
+    "codeQuality": 11
+   },
+   "total": 84,
+   "verdict": "A genuinely polished, well-engineered dark trading-terminal landing page whose data layer is solid and responsive design is mostly correct, dragged down by a broken CSS variable and a couple of mobile/number-formatting edge cases.",
+   "topStrength": "Robust, hang-proof data integration: AbortController timeouts, .ok/.catch null-guards, synchronous demo paint before fetch, live/demo connection indicator, and tolerant snake_case/camelCase key aliasing.",
+   "worstFlaw": "Broken CSS: `--faint:#5d7characterized;` is an invalid color declaration (it's then redeclared as `#5d708f` on the next line, which saves it, but it betrays sloppy authoring and any browser parsing the first line discards it harmlessly only by luck of the redeclaration). More functionally damaging: the P&L formatter double-applies a sign — `(pnl>=0?'+':'-') + fmtINR(Math.abs(pnl))` where fmtINR's last branch calls `v.toLocaleString('en-IN')` on an already-absolute value, so it's fine, but for negative pnl under ₹1L you get correct output, while the `.replace('₹','₹')` is a complete no-op revealing copy-paste cruft. The genuinely worst behavioral flaw is that demo/live numbers can't both be trusted: deployed falls back to capital so the big tile shows full capital as 'deployed' when the API omits it, misrepresenting the headline figure.",
+   "overflowRisk": false
+  }
+ },
+ {
+  "id": 10,
+  "label": "motion-animated",
+  "score": 78,
+  "critique": {
+   "scores": {
+    "visualPolish": 21,
+    "layoutResponsive": 18,
+    "brandFit": 19,
+    "dataIntegration": 9,
+    "codeQuality": 11
+   },
+   "total": 78,
+   "verdict": "A polished, on-brand dark trading terminal with solid fetch hygiene, undermined by KPIs that animate once from hardcoded demo values and never reflect live status, plus a crushable index-change column masked by overflow-x:hidden.",
+   "topStrength": "Robust live-fetch layer: AbortController timeout + .ok check + Promise.allSettled per-feed isolation + graceful DEMO fallback with jitter and an honest Live/Demo label flip.",
+   "worstFlaw": "KPIs (win rate, P&L, capital) are always seeded from hardcoded DEMO.status and animate only once; refresh() computes a 'trades' var then dead-ends with 'if(!kpiAnimated) return;', so live /api/bot/status never updates the displayed numbers — a 'Live' label over permanently static demo metrics.",
+   "overflowRisk": true
+  }
+ },
+ {
+  "id": 2,
+  "label": "bloomberg-dense",
+  "score": 71,
+  "critique": {
+   "scores": {
+    "visualPolish": 21,
+    "layoutResponsive": 20,
+    "brandFit": 19,
+    "dataIntegration": 7,
+    "codeQuality": 4
+   },
+   "total": 71,
+   "verdict": "Visually a strong, on-brand trading terminal with a well-architected fetch layer, fatally undermined by a JavaScript syntax error that prevents the entire script from running.",
+   "topStrength": "Cohesive Bloomberg-style dark terminal aesthetic with mono type, ticker tape, quote board, sparklines and FEED status — strong brand DNA and visual hierarchy.",
+   "worstFlaw": "setFeed(ok>0?(ok+'/3 live':''):'DEMO',ok>0) is a hard SyntaxError (stray colon inside parens); since all logic is in one IIFE, the parse failure kills the entire script — no clock, no JS-built tape, no fetches, and the much-praised try/catch+timeout+demo fallback never actually executes.",
+   "overflowRisk": false
+  }
+ }
+]
