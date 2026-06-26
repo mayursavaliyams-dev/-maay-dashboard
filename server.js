@@ -28,21 +28,38 @@ const ExecutionEngine = require("./execution-engine");
 const AfternoonEngine = require("./afternoon-engine");
 const BounceEngine = require("./bounce-engine");
 const StrangleEngine = require("./strangle-engine");
-const TelegramAlerter = require("./telegram");
 
-// Initialize Telegram (no-op if TELEGRAM_ENABLED=false or credentials missing)
-let telegram = null;
-try {
-  telegram = new TelegramAlerter();
-  if (telegram.enabled && telegram.botToken && telegram.chatId) {
-    telegram.connect().then(() => {
-      console.log('[telegram] ✓ ready — sending startup ping');
-      telegram.sendAlert('🟢 Bot Online', `Mode: ${process.env.TRADE_MODE}\nNIFTY auto: ${process.env.NIFTY_AUTO_ENABLED}\nSENSEX auto: ${process.env.SENSEX_AUTO_ENABLED}`).catch(()=>{});
-    }).catch(e => console.warn('[telegram] connect failed:', e.message));
-  } else if (telegram.enabled) {
-    console.warn('[telegram] TELEGRAM_ENABLED=true but missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID — skipping');
-  }
-} catch (e) { console.warn('[telegram] init error:', e.message); telegram = null; }
+// Telegram integration removed. `telegram` stays null so every guarded
+// `telegram?.enabled` call site throughout the file safely no-ops.
+const telegram = null;
+
+// ==================== CRASH GUARD ====================
+// A single unhandled error must NOT silently kill the bot mid-session and
+// leave the dashboard dark / positions unattended. Strategy:
+//   - log loudly + append to data/crash.log for post-mortem
+//   - keep serving (paper mode — a stray error shouldn't blank the UI)
+//   - but if crashes storm in (>5 in 60s), exit(1) so pm2/START restarts clean
+(() => {
+  const fsCrash = require('fs');
+  const path = require('path');
+  const crashLog = path.join(__dirname, 'data', 'crash.log');
+  let recent = [];
+  const onCrash = (kind, err) => {
+    const ts = new Date().toISOString();
+    const msg = (err && (err.stack || err.message)) || String(err);
+    console.error(`\n[CRASH-GUARD] ${kind} @ ${ts}\n${msg}\n`);
+    try { fsCrash.appendFileSync(crashLog, `[${ts}] ${kind}\n${msg}\n\n`); } catch {}
+    const now = Date.now();
+    recent = recent.filter(t => now - t < 60000);
+    recent.push(now);
+    if (recent.length > 5) {
+      console.error('[CRASH-GUARD] >5 crashes in 60s — exiting for a clean restart');
+      process.exit(1);
+    }
+  };
+  process.on('uncaughtException',  err => onCrash('uncaughtException', err));
+  process.on('unhandledRejection', err => onCrash('unhandledRejection', err));
+})();
 
 const app = express();
 // CORS allow-list from env (comma-separated origins). Empty = allow any.
@@ -1952,20 +1969,6 @@ setInterval(async () => {
 }, 120 * 1000);
 
 app.get('/api/ai-log/stats', (req, res) => res.json(aiLogger.stats()));
-
-// Send a test message via Telegram — used to verify TELEGRAM_BOT_TOKEN
-// and TELEGRAM_CHAT_ID are correct without waiting for a real trade signal.
-app.post("/api/telegram/test", async (req, res) => {
-  if (!telegram || !telegram.enabled) {
-    return res.status(400).json({ ok: false, error: 'Telegram disabled — set TELEGRAM_ENABLED=true and credentials in .env, then restart' });
-  }
-  try {
-    await telegram.sendTest();
-    res.json({ ok: true, message: 'Test alert sent — check your Telegram chat' });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
 
 // Kotak Neo OTP submission (call this after server starts if OTP is sent to mobile)
 app.post("/api/kotak/otp", async (req, res) => {

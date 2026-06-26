@@ -1729,6 +1729,29 @@
         .sb-chain-table th, .sb-chain-table td { padding-top: 2px; padding-bottom: 2px; }
         .wl-buy { padding: 3px 8px; }
         .is-val { font-size: 0.78rem; } .is-label { font-size: 0.56rem; }
+        /* Action Box — top-header horizontal strip (BUY CALL / BUY PUT suggestion) */
+        .actbar { margin:8px 14px 0; background:#0c1018; border:1px solid #1b2333; border-radius:10px; padding:9px 12px; }
+        .ab-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+        .ab-title { font-size:0.78rem; font-weight:800; color:#e5e7eb; letter-spacing:0.05em; }
+        .ab-inst { font-size:0.6rem; color:#64748b; }
+        .ab-bias { padding:3px 10px; border-radius:999px; font-size:0.66rem; font-weight:800; background:#1f2937; color:#94a3b8; letter-spacing:0.03em; }
+        .ab-note { margin-left:auto; font-size:0.6rem; color:#6b7280; }
+        .ab-instrow { display:flex; align-items:stretch; gap:10px; margin-top:7px; }
+        .ab-instlbl { flex-shrink:0; width:78px; display:flex; flex-direction:column; justify-content:center; gap:4px; font-size:0.74rem; font-weight:800; color:#cbd5e1; letter-spacing:0.04em; }
+        .ab-instrow .ab-cards { flex:1; }
+        .ab-cards { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .ab-card { display:flex; align-items:center; gap:14px; flex-wrap:wrap; border-radius:8px; padding:8px 12px; }
+        .ab-card.call { border:1px solid #14361f; background:linear-gradient(180deg,#0d1f14,#0a1410); }
+        .ab-card.put  { border:1px solid #3a1620; background:linear-gradient(180deg,#1f0d12,#14080b); }
+        .ab-side { font-weight:800; font-size:0.84rem; }
+        .ab-side.call { color:#22d39a; } .ab-side.put { color:#f7567c; }
+        .ab-strike { font-weight:700; font-size:0.84rem; color:#e5e7eb; }
+        .ab-cell { display:flex; flex-direction:column; line-height:1.15; }
+        .ab-cell i { font-style:normal; font-size:0.55rem; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em; }
+        .ab-cell b { font-size:0.84rem; font-weight:700; color:#e5e7eb; }
+        .ab-card.call.ab-glow { box-shadow:0 0 0 1px #22d39a, 0 0 12px rgba(34,211,154,0.22); }
+        .ab-card.put.ab-glow  { box-shadow:0 0 0 1px #f7567c, 0 0 12px rgba(247,86,124,0.22); }
+        @media (max-width:900px){ .ab-cards{ grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
@@ -1846,6 +1869,62 @@
       <div class="ft-cols">
         <div class="ft-col"><div class="ft-lab">Open positions</div><div id="ftOpen" class="ft-list"></div></div>
         <div class="ft-col"><div class="ft-lab">Recent closed</div><div id="ftRecent" class="ft-list"></div></div>
+      </div>
+    </div>
+
+    <!-- ===== ACTION BOX (top header): BUY CALL / BUY PUT suggestion — SENSEX + NIFTY ===== -->
+    <div class="actbar" id="actionBox">
+      <div class="ab-head">
+        <span class="ab-title">⚡ ACTION NOW</span>
+        <span class="ab-note">⚠️ directional buying = low edge · discretionary only · Tgt +40% / SL 5-15%</span>
+      </div>
+      <!-- SENSEX -->
+      <div class="ab-instrow">
+        <div class="ab-instlbl">SENSEX <span class="ab-bias" id="abSxBias">—</span></div>
+        <div class="ab-cards">
+          <div class="ab-card call" id="abSxCallCard">
+            <span class="ab-side call">🟢 CALL</span>
+            <span class="ab-strike" id="abSxCallStrike">—</span>
+            <span class="ab-cell"><i>LTP</i><b id="abSxCallLtp">—</b></span>
+            <span class="ab-cell"><i>PoP</i><b id="abSxCallPop">—</b></span>
+            <span class="ab-cell"><i>₹/Lot</i><b id="abSxCallLot">—</b></span>
+            <span class="ab-cell"><i>🎯 Tgt</i><b id="abSxCallTgt" style="color:#22d39a">—</b></span>
+            <span class="ab-cell"><i>🛑 SL 5-15%</i><b id="abSxCallSl" style="color:#f7567c">—</b></span>
+          </div>
+          <div class="ab-card put" id="abSxPutCard">
+            <span class="ab-side put">🔴 PUT</span>
+            <span class="ab-strike" id="abSxPutStrike">—</span>
+            <span class="ab-cell"><i>LTP</i><b id="abSxPutLtp">—</b></span>
+            <span class="ab-cell"><i>PoP</i><b id="abSxPutPop">—</b></span>
+            <span class="ab-cell"><i>₹/Lot</i><b id="abSxPutLot">—</b></span>
+            <span class="ab-cell"><i>🎯 Tgt</i><b id="abSxPutTgt" style="color:#22d39a">—</b></span>
+            <span class="ab-cell"><i>🛑 SL 5-15%</i><b id="abSxPutSl" style="color:#f7567c">—</b></span>
+          </div>
+        </div>
+      </div>
+      <!-- NIFTY -->
+      <div class="ab-instrow">
+        <div class="ab-instlbl">NIFTY <span class="ab-bias" id="abNfBias">—</span></div>
+        <div class="ab-cards">
+          <div class="ab-card call" id="abNfCallCard">
+            <span class="ab-side call">🟢 CALL</span>
+            <span class="ab-strike" id="abNfCallStrike">—</span>
+            <span class="ab-cell"><i>LTP</i><b id="abNfCallLtp">—</b></span>
+            <span class="ab-cell"><i>PoP</i><b id="abNfCallPop">—</b></span>
+            <span class="ab-cell"><i>₹/Lot</i><b id="abNfCallLot">—</b></span>
+            <span class="ab-cell"><i>🎯 Tgt</i><b id="abNfCallTgt" style="color:#22d39a">—</b></span>
+            <span class="ab-cell"><i>🛑 SL 5-15%</i><b id="abNfCallSl" style="color:#f7567c">—</b></span>
+          </div>
+          <div class="ab-card put" id="abNfPutCard">
+            <span class="ab-side put">🔴 PUT</span>
+            <span class="ab-strike" id="abNfPutStrike">—</span>
+            <span class="ab-cell"><i>LTP</i><b id="abNfPutLtp">—</b></span>
+            <span class="ab-cell"><i>PoP</i><b id="abNfPutPop">—</b></span>
+            <span class="ab-cell"><i>₹/Lot</i><b id="abNfPutLot">—</b></span>
+            <span class="ab-cell"><i>🎯 Tgt</i><b id="abNfPutTgt" style="color:#22d39a">—</b></span>
+            <span class="ab-cell"><i>🛑 SL 5-15%</i><b id="abNfPutSl" style="color:#f7567c">—</b></span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -3959,6 +4038,7 @@
             loadTradeHistory();
             loadBacktestResults();
             loadSensibullData();
+            loadActionBox();            // SENSEX + NIFTY BUY CALL/PUT suggestions
             loadGammaBlast();           // handles closed market gracefully
             initExpiryCountdown();
             refreshPosition();
@@ -3974,6 +4054,8 @@
             setInterval(loadGammaBlast, 10000);
             // Refresh sensibull/OI chain every 3s (matches Upstox 2.5s backend cache)
             setInterval(loadSensibullData, 3000);
+            // Action box (SENSEX + NIFTY together) every 3s
+            setInterval(loadActionBox, 3000);
             // Refresh market quotes watchlist every 5s
             bindWlSorting();
             loadWatchlist();
@@ -4407,6 +4489,52 @@
             } catch(e) {
                 console.error('Sensibull load failed:', e);
             }
+        }
+
+        // ==================== ACTION BOX (BUY CALL / BUY PUT suggestion) ====================
+        const AB_LOT = { SENSEX: 20, NIFTY: 65, BANKNIFTY: 30 };
+        // Show SENSEX + NIFTY suggestions together (independent of the selected instrument).
+        async function loadActionBox() {
+            try {
+                const [sx, nf] = await Promise.all([
+                    fetch(`${API_BASE}/api/options/analytics`).then(r => r.json()).catch(() => null),
+                    fetch(`${API_BASE}/api/nifty/options/analytics`).then(r => r.json()).catch(() => null),
+                ]);
+                if (sx) fillActionInst('Sx', 'SENSEX', sx);
+                if (nf) fillActionInst('Nf', 'NIFTY',  nf);
+            } catch (e) { console.error('Action box load failed:', e); }
+        }
+        function fillActionInst(pfx, inst, d) {
+            if (!d || !Array.isArray(d.optionChain) || !d.optionChain.length) return;
+            const lot = AB_LOT[inst] || 1;
+            const atm = d.atmStrike;
+            let row = d.optionChain.find(s => s.strike === atm);
+            if (!row) row = d.optionChain.reduce((b, s) =>
+                Math.abs(s.strike - (atm || d.spotPrice || 0)) < Math.abs(b.strike - (atm || d.spotPrice || 0)) ? s : b, d.optionChain[0]);
+            const fill = (side, leg) => {
+                const ltp = Number(leg?.ltp || 0);
+                const pop = Number(leg?.pop || 0);
+                document.getElementById(`ab${pfx}${side}Strike`).textContent = `${row.strike} ${side === 'Call' ? 'CE' : 'PE'}`;
+                document.getElementById(`ab${pfx}${side}Ltp`).textContent = ltp > 0 ? '₹' + fmtNum(ltp) : '—';
+                const popEl = document.getElementById(`ab${pfx}${side}Pop`);
+                popEl.textContent = pop > 0 ? pop.toFixed(0) + '%' : '—';
+                popEl.style.color = pop >= 50 ? '#22d39a' : pop >= 25 ? '#fbbf24' : '#f7567c';
+                document.getElementById(`ab${pfx}${side}Lot`).textContent = ltp > 0 ? '₹' + fmtNum(ltp * lot, 0) : '—';
+                document.getElementById(`ab${pfx}${side}Tgt`).textContent = ltp > 0 ? '₹' + fmtNum(ltp * 1.40) : '—';
+                // SL band 5–15% of premium: tight ₹(ltp×0.95) → wide ₹(ltp×0.85)
+                document.getElementById(`ab${pfx}${side}Sl`).textContent  = ltp > 0 ? '₹' + fmtNum(ltp * 0.95) + '–' + fmtNum(ltp * 0.85) : '—';
+            };
+            fill('Call', row.ce);
+            fill('Put',  row.pe);
+            // Bias from PCR — highlight the favoured side for this instrument
+            const bias = (d.pcr && d.pcr.interpretation && d.pcr.interpretation.bias) || 'SIDEWAYS';
+            const chip = document.getElementById(`ab${pfx}Bias`);
+            const callCard = document.getElementById(`ab${pfx}CallCard`);
+            const putCard  = document.getElementById(`ab${pfx}PutCard`);
+            callCard.classList.remove('ab-glow'); putCard.classList.remove('ab-glow');
+            if (bias === 'BULLISH') { chip.textContent = 'BULLISH · CALL'; chip.style.color = '#22d39a'; chip.style.background = '#0d1f14'; callCard.classList.add('ab-glow'); }
+            else if (bias === 'BEARISH') { chip.textContent = 'BEARISH · PUT'; chip.style.color = '#f7567c'; chip.style.background = '#1f0d12'; putCard.classList.add('ab-glow'); }
+            else { chip.textContent = 'RANGE'; chip.style.color = '#94a3b8'; chip.style.background = '#1f2937'; }
         }
 
         // ==================== MARKET QUOTES WATCHLIST ====================
