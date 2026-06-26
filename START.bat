@@ -9,7 +9,8 @@ REM  A green window will open and stay open while it runs.
 REM  Closing this window = the bot stops.
 REM ============================================================
 
-cd /d "D:\BACKUP\Expiry-Friday-5x"
+REM Run from THIS file's own folder (the current project), NOT the old D: backup.
+cd /d "%~dp0"
 
 echo ============================================================
 echo   EXPIRY-FRIDAY-5X  TRADING BOT

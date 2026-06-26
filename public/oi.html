@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OI Change — Antigravity</title>
+<style>
+  :root{ --bg:#0a0e17; --panel:#11161f; --line:rgba(255,255,255,.08); --txt:#d1d4dc; --dim:#8b95a7;
+         --green:#22d39a; --red:#f7567c; --cyan:#5fe1ff; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif; font-size:13px; }
+  .top{ display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .brand{ font-weight:800; letter-spacing:.5px; color:#fff; } .brand small{ color:var(--dim); font-weight:500; margin-left:6px; }
+  nav.topnav{ display:flex; gap:4px; flex-wrap:wrap; padding:6px 12px; border-bottom:1px solid var(--line); }
+  nav.topnav a{ color:var(--dim); text-decoration:none; font-size:11px; padding:4px 9px; border-radius:6px; }
+  nav.topnav a:hover{ color:var(--txt); } nav.topnav a.active{ color:#0a0e17; background:var(--cyan); }
+  .ctrls{ display:flex; align-items:center; gap:14px; padding:10px 14px; flex-wrap:wrap; }
+  .grp{ display:flex; align-items:center; gap:6px; }
+  .grp b{ font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.6px; }
+  button.pill{ background:var(--panel); color:var(--dim); border:1px solid var(--line); border-radius:7px;
+    padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer; transition:.12s; }
+  button.pill:hover{ color:var(--txt); border-color:rgba(255,255,255,.2); }
+  button.pill.active{ color:#0a0e17; background:var(--cyan); border-color:var(--cyan); }
+  .spacer{ flex:1 1 auto; }
+  .upd{ font-size:11px; color:var(--dim); font-family:ui-monospace,monospace; }
+  .led{ width:8px; height:8px; border-radius:50%; background:var(--green); display:inline-block; margin-right:5px; box-shadow:0 0 8px var(--green); }
+  .wrap{ margin:6px 14px 14px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .chart-hd{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px; }
+  .chart-hd h2{ margin:0; font-size:15px; } .chart-hd .legend{ display:flex; gap:14px; margin-left:auto; font-size:12px; }
+  .legend i{ width:11px; height:11px; border-radius:3px; display:inline-block; vertical-align:middle; margin-right:5px; }
+  #chart{ width:100%; height:440px; }
+  .summary{ display:flex; gap:26px; flex-wrap:wrap; margin-top:10px; padding-top:10px; border-top:1px solid var(--line); font-family:ui-monospace,monospace; font-size:12.5px; }
+  .summary div span{ color:var(--dim); }
+  .note{ color:var(--dim); font-size:11px; margin:0 14px 16px; }
+  .bar-ce{ fill:var(--red); } .bar-pe{ fill:var(--green); }
+  .ax{ stroke:rgba(255,255,255,.10); } .axlbl{ fill:var(--dim); font-size:10px; font-family:ui-monospace,monospace; }
+  .stk{ fill:var(--dim); font-size:9.5px; font-family:ui-monospace,monospace; }
+  .stk.atm{ fill:var(--cyan); font-weight:700; } .zeroline{ stroke:rgba(255,255,255,.28); }
+</style>
+</head>
+<body>
+  <div class="top">
+    <span class="brand">⚡ ANTIGRAVITY<small>OI CHANGE</small></span>
+    <span class="spacer"></span>
+    <span class="upd"><span class="led" id="led"></span><span id="updTxt">loading…</span></span>
+  </div>
+  <nav class="topnav">
+    <a href="/command.html">Command</a><a href="/command-pro.html">Pro</a><a href="/trade.html">Trade</a>
+    <a href="/dashboard.html">Dashboard</a><a href="/oi.html" class="active">OI Change</a>
+    <a href="/heatmap.html">OI Heatmap</a><a href="/pop.html">PoP</a><a href="/strike-history.html">Strike History</a>
+  </nav>
+
+  <div class="ctrls">
+    <div class="grp"><b>Index</b>
+      <button class="pill" data-inst="NIFTY">NIFTY</button>
+      <button class="pill" data-inst="SENSEX">SENSEX</button>
+      <button class="pill" data-inst="BANKNIFTY">BANK NIFTY</button>
+    </div>
+    <div class="grp"><b>Strikes ± ATM</b>
+      <button class="pill" data-n="5">5</button>
+      <button class="pill" data-n="10">10</button>
+      <button class="pill" data-n="15">15</button>
+      <button class="pill" data-n="20">20</button>
+      <button class="pill" data-n="0">All</button>
+    </div>
+    <div class="grp"><b>Window</b>
+      <button class="pill" data-w="5">5m</button>
+      <button class="pill" data-w="10">10m</button>
+      <button class="pill" data-w="15">15m</button>
+      <button class="pill" data-w="30">30m</button>
+      <button class="pill" data-w="60">1Hr</button>
+      <button class="pill" data-w="120">2Hr</button>
+      <button class="pill" data-w="180">3Hr</button>
+      <button class="pill" data-w="full">Full Day</button>
+    </div>
+    <span class="spacer"></span>
+    <button class="pill" id="autoBtn">AUTO: ON</button>
+    <button class="pill" id="refreshBtn">↻ Refresh</button>
+  </div>
+
+  <div class="wrap">
+    <div class="chart-hd">
+      <h2 id="title">OI Change · NIFTY</h2>
+      <span class="legend">
+        <span><i style="background:#22d39a"></i>Put OI chg</span>
+        <span><i style="background:#f7567c"></i>Call OI chg</span>
+      </span>
+    </div>
+    <svg id="chart"></svg>
+    <div class="summary" id="summary"></div>
+  </div>
+  <p class="note">OI change vs previous close, per strike (live chain). Auto-refreshes every 60s during the session — exchange
+     publishes OI every ~1–3 min, so this mirrors Sensibull's cadence. Spot from Upstox.</p>
+
+<script>
+const API = window.location.origin;
+let INST = 'NIFTY', NABOVE = 10, WINDOW = 'full', AUTO = true, _timer = null, _last = null;
+
+const fmtOI = v => { const a = Math.abs(v); return (v<0?'-':'') + (a>=1e7 ? (a/1e7).toFixed(2)+'Cr' : a>=1e5 ? (a/1e5).toFixed(1)+'L' : Math.round(a/1e3)+'K'); };
+const istOpen = () => { const t=new Date(Date.now()+5.5*3600e3); const d=t.getUTCDay(),m=t.getUTCHours()*60+t.getUTCMinutes(); return d>=1&&d<=5&&m>=555&&m<=930; };
+
+function setActive(sel, attr, val){ document.querySelectorAll(sel).forEach(b=>b.classList.toggle('active', String(b.dataset[attr])===String(val))); }
+
+async function load(){
+  try{
+    document.getElementById('led').style.background = '#f7a825';
+    const r = await fetch(`${API}/api/oi-change?inst=${INST}&window=${WINDOW}`, { cache:'no-store' });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    const rows = (d.strikes||[]).filter(s=>s && s.ce && s.pe);
+    const atm = Number(d.atmStrike)||0;
+    _last = { rows, atm, spot:Number(d.spotPrice)||0, baselineAt:d.baselineAt, snaps:d.snapshots, fallback:rows.some(s=>s.fallback) };
+    draw();
+    document.getElementById('led').style.background = '#22d39a';
+    document.getElementById('updTxt').textContent =
+      `updated ${new Date().toLocaleTimeString('en-GB')} · ${istOpen()?'LIVE':'closed'}` +
+      (d.baselineAt ? ` · since ${d.baselineAt}` : (_last.fallback ? ' · vs prev close' : ''));
+  }catch(e){
+    document.getElementById('led').style.background = '#f7567c';
+    document.getElementById('updTxt').textContent = 'fetch error: '+e.message;
+  }
+}
+
+function draw(){
+  if(!_last) return;
+  const { rows, atm, spot } = _last;
+  let strikes = rows.slice().sort((a,b)=>a.strike-b.strike);
+  if(NABOVE>0 && atm){
+    const step = strikes.length>1 ? Math.min(...strikes.slice(1).map((s,i)=>s.strike-strikes[i].strike).filter(x=>x>0)) : 50;
+    strikes = strikes.filter(s=>Math.abs(s.strike-atm) <= NABOVE*step);
+  }
+  document.getElementById('title').textContent = `OI Change · ${INST} ${spot?('· '+spot.toLocaleString('en-IN')):''}`;
+
+  const svg = document.getElementById('chart');
+  const W = svg.clientWidth || svg.parentElement.clientWidth-28, H = 440;
+  const padL=58, padR=14, padT=14, padB=52, plotW=W-padL-padR, plotH=H-padT-padB;
+  const n = strikes.length || 1;
+  const gw = plotW/n, bw = Math.max(3, Math.min(13, gw/2.5));
+
+  const vals = strikes.flatMap(s=>[Number(s.pe.changeOI)||0, Number(s.ce.changeOI)||0]);
+  const vmax = Math.max(0, ...vals), vmin = Math.min(0, ...vals), range=(vmax-vmin)||1;
+  const yOf = v => padT + plotH*(vmax - v)/range;
+  const yZero = yOf(0);
+
+  let g = `<g>`;
+  // y gridlines + labels (5 ticks)
+  for(let i=0;i<=4;i++){ const v = vmax - range*i/4; const y=yOf(v);
+    g += `<line class="ax" x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}"/>`;
+    g += `<text class="axlbl" x="${padL-6}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtOI(v)}</text>`; }
+  g += `<line class="zeroline" x1="${padL}" y1="${yZero.toFixed(1)}" x2="${W-padR}" y2="${yZero.toFixed(1)}"/>`;
+
+  let tCE=0,tPE=0;
+  strikes.forEach((s,i)=>{
+    const cx = padL + gw*i + gw/2;
+    const ce = Number(s.ce.changeOI)||0, pe = Number(s.pe.changeOI)||0; tCE+=ce; tPE+=pe;
+    // PE (green) left bar, CE (red) right bar
+    const peY=yOf(pe), ceY=yOf(ce);
+    const peTop=Math.min(peY,yZero), peH=Math.abs(peY-yZero);
+    const ceTop=Math.min(ceY,yZero), ceH=Math.abs(ceY-yZero);
+    g += `<rect class="bar-pe" x="${(cx-bw-1).toFixed(1)}" y="${peTop.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,peH).toFixed(1)}" rx="1"><title>PE ${s.strike}: ${fmtOI(pe)}</title></rect>`;
+    g += `<rect class="bar-ce" x="${(cx+1).toFixed(1)}" y="${ceTop.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,ceH).toFixed(1)}" rx="1"><title>CE ${s.strike}: ${fmtOI(ce)}</title></rect>`;
+    // strike label (rotated) — skip some if dense
+    if(n<=24 || i%Math.ceil(n/24)===0){
+      g += `<text class="stk${s.strike===atm?' atm':''}" x="${cx.toFixed(1)}" y="${(H-padB+14).toFixed(1)}" text-anchor="middle" transform="rotate(45 ${cx.toFixed(1)} ${(H-padB+14).toFixed(1)})">${s.strike}</text>`;
+    }
+  });
+  g += `</g>`;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.setAttribute('width','100%'); svg.setAttribute('height',H);
+  svg.innerHTML = g;
+
+  document.getElementById('summary').innerHTML =
+    `<div><span>Call OI change </span><b style="color:var(--red)">${tCE>=0?'+':''}${fmtOI(tCE)}</b></div>`+
+    `<div><span>Put OI change </span><b style="color:var(--green)">${tPE>=0?'+':''}${fmtOI(tPE)}</b></div>`+
+    `<div><span>PCR (ΔOI) </span><b>${tCE!==0?(Math.abs(tPE/tCE)).toFixed(2):'—'}</b></div>`+
+    `<div><span>ATM </span><b>${atm||'—'}</b></div>`+
+    `<div><span>Spot </span><b>${spot?spot.toLocaleString('en-IN'):'—'}</b></div>`+
+    `<div><span>Strikes </span><b>${strikes.length}</b></div>`;
+}
+
+// controls
+document.querySelectorAll('[data-inst]').forEach(b=>b.onclick=()=>{ INST=b.dataset.inst; setActive('[data-inst]','inst',INST); load(); });
+document.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{ NABOVE=+b.dataset.n; setActive('[data-n]','n',NABOVE); draw(); });
+document.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{ WINDOW=b.dataset.w; setActive('[data-w]','w',WINDOW); load(); });
+document.getElementById('refreshBtn').onclick = load;
+document.getElementById('autoBtn').onclick = function(){ AUTO=!AUTO; this.textContent='AUTO: '+(AUTO?'ON':'OFF'); this.classList.toggle('active',AUTO); arm(); };
+window.addEventListener('resize', draw);
+
+function arm(){ if(_timer) clearInterval(_timer); if(AUTO) _timer=setInterval(()=>{ if(istOpen()) load(); }, 60000); }
+
+// init
+setActive('[data-inst]','inst',INST); setActive('[data-n]','n',NABOVE); setActive('[data-w]','w',WINDOW);
+document.getElementById('autoBtn').classList.add('active');
+load(); arm();
+</script>
+</body>
+</html>

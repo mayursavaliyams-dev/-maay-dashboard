@@ -66,7 +66,7 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 app.use(express.static("public", {
-  index: "command.html",
+  index: "dashboard.html",
   // Never cache HTML dashboards — they change often and stale caches cause
   // "I don't see my update" confusion. Static assets (fonts/images) still cache.
   setHeaders: (res, path) => {
@@ -472,6 +472,61 @@ setInterval(_persistOptHLDay, 60 * 1000);
 // every 10 min (covers EOD) + once on boot. No-op/empty file when no signals.
 try { _consolidateAmiSignals(); } catch (_) {}
 setInterval(() => { try { _consolidateAmiSignals(); } catch (_) {} }, 10 * 60 * 1000);
+
+// ── OI SNAPSHOT RECORDER — per-minute per-strike CE/PE OI, for the OI-change
+//    time-slider (Sensibull-style "Last 5/10/15 min · 1/2/3 Hr · Full Day"). ──
+const _oiSnaps = { NIFTY: [], SENSEX: [], BANKNIFTY: [] };
+let _oiSnapDay = '';
+async function _recordOiSnap(inst) {
+  try {
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const today = _istDateStr();
+    if (_oiSnapDay !== today) { _oiSnapDay = today; _oiSnaps.NIFTY = []; _oiSnaps.SENSEX = []; _oiSnaps.BANKNIFTY = []; }
+    const byStrike = {};
+    for (const s of (chain.strikes || [])) byStrike[s.strike] = { ce: Number(s.ce?.oi || 0), pe: Number(s.pe?.oi || 0) };
+    const arr = _oiSnaps[inst] || (_oiSnaps[inst] = []);
+    arr.push({ t: Date.now(), atm: Number(chain.atmStrike) || 0, spot: Number(spot) || 0, byStrike });
+    if (arr.length > 450) arr.shift();   // ~7.5 hrs of 1-min snapshots
+  } catch (_) {}
+}
+setInterval(() => { if (getMarketSession().inMarketHours) ['NIFTY', 'SENSEX', 'BANKNIFTY'].forEach(i => _recordOiSnap(i)); }, 60 * 1000);
+setTimeout(() => { if (getMarketSession().inMarketHours) ['NIFTY', 'SENSEX', 'BANKNIFTY'].forEach(i => _recordOiSnap(i)); }, 8000); // baseline on boot
+
+// OI change over a window. ?inst=NIFTY&window=full|5|10|15|30|60|120|180 (minutes).
+// Falls back to the chain's day-change (vs prev close) until snapshots accrue.
+app.get('/api/oi-change', async (req, res) => {
+  try {
+    const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+    const win = String(req.query.window || 'full').toLowerCase();
+    const arr = _oiSnaps[inst] || [];
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const atm = Number(chain.atmStrike) || 0;
+    const cur = {};
+    for (const s of (chain.strikes || [])) cur[s.strike] = {
+      ce: Number(s.ce?.oi || 0), pe: Number(s.pe?.oi || 0),
+      dCe: Number(s.ce?.changeOI || 0), dPe: Number(s.pe?.changeOI || 0),
+    };
+    // Full Day = the chain's day-change (vs prev close), always available → base stays
+    // null so the per-strike fallback (dCe/dPe) is used. Short windows = snapshot diff.
+    let base = null;
+    if (win !== 'full') { const mins = parseInt(win) || 0, target = Date.now() - mins * 60000;
+      for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].t <= target) { base = arr[i]; break; } }
+      if (!base) base = arr[0] || null; }
+    const strikes = Object.keys(cur).map(Number).sort((a, b) => a - b).map(k => {
+      const c = cur[k], b = base && base.byStrike[k];
+      return b
+        ? { strike: k, ce: { changeOI: c.ce - b.ce, oi: c.ce }, pe: { changeOI: c.pe - b.pe, oi: c.pe } }
+        : { strike: k, ce: { changeOI: c.dCe, oi: c.ce }, pe: { changeOI: c.dPe, oi: c.pe }, fallback: true };
+    });
+    res.json({ instrument: inst, atmStrike: atm, spotPrice: spot, window: win, snapshots: arr.length,
+      baselineAt: base ? new Date(base.t + 5.5 * 3600e3).toISOString().slice(11, 16) : null,
+      baselineSpot: base ? base.spot : null, strikes });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Periodically reconcile today's 1-minute option candles into the live record.
 // Failed pre-open attempts retry, while successful requests are cached/coalesced.
@@ -4619,16 +4674,26 @@ app.get('/api/watchlist', async (req, res) => {
     const atm      = Math.round(spot / interval) * interval;
     const seg      = meta.segment;
 
-    const targetStrikes = [-2, -1, 0, 1, 2].map(o => atm + o * interval);
+    // Show the FULL strike range Upstox provides in the chain. Optional ?n=<N>
+    // limits to ATM±N strikes; default = ALL strikes. The heavy marketfeed/quote
+    // enrichment (UCL/LCL/52W) is capped to the liquid window so the call stays fast;
+    // strikes outside it still show from chain data (approx circuit limits).
+    const QUOTE_WIN = 12;   // strikes each side enriched via quote
+    const reqN = parseInt(req.query.n, 10);
+    const targetStrikes = (chain.strikes || [])
+      .map(x => Number(x.strike))
+      .filter(s => Number.isFinite(reqN) && reqN > 0 ? Math.abs(s - atm) <= reqN * interval : true)
+      .sort((a, b) => a - b);
     const legsMeta = [];
     const secIds = [];
     for (const s of targetStrikes) {
       const row = chain.strikes.find(x => x.strike === s);
       if (!row) continue;
+      const inQuoteWin = Math.abs(s - atm) <= QUOTE_WIN * interval;
       const pushLeg = (leg, type) => {
         const secId = leg?.securityId;
         legsMeta.push({ strike: s, type, secId: secId ? String(secId) : null, chain: leg || {} });
-        if (secId) secIds.push(Number(secId));
+        if (secId && inQuoteWin) secIds.push(Number(secId));
       };
       pushLeg(row.ce, 'CE');
       pushLeg(row.pe, 'PE');
