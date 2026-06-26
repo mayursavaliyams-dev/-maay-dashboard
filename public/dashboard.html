@@ -3970,10 +3970,10 @@
             fetchNiftyBackground();
             setInterval(fetchNiftyBackground, 5000);
 
-            // Refresh gamma blast every 60s
-            setInterval(loadGammaBlast, 60000);
-            // Refresh sensibull/OI chain every 60s
-            setInterval(loadSensibullData, 60000);
+            // Refresh gamma blast every 10s
+            setInterval(loadGammaBlast, 10000);
+            // Refresh sensibull/OI chain every 3s (matches Upstox 2.5s backend cache)
+            setInterval(loadSensibullData, 3000);
             // Refresh market quotes watchlist every 5s
             bindWlSorting();
             loadWatchlist();

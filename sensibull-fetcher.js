@@ -13,7 +13,9 @@ const HEADERS = {
   'Referer': 'https://web.sensibull.com/'
 };
 
-const CACHE_TTL = 5 * 60 * 1000; // 5 min cache
+// SENSEX chain freshness. Sensibull is an external API — too aggressive a poll
+// risks rate-limit/ban, so default 10s (env-tunable). Was 5 min (way too stale).
+const CACHE_TTL = Number(process.env.SENSIBULL_CACHE_MS) || 10 * 1000;
 let _cache = null;
 let _cacheAt = 0;
 
