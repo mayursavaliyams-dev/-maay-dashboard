@@ -2214,6 +2214,7 @@
                             <th class="wl-th-label" data-sort="label">Contract <span class="wl-arrow">⇅</span></th>
                             <th data-sort="ltp" class="wl-sort-active wl-sort-desc">LTP <span class="wl-arrow">▼</span></th>
                             <th>₹/Lot</th>
+                            <th data-sort="pop">PoP% <span class="wl-arrow">⇅</span></th>
                             <th data-sort="low">Low <span class="wl-arrow">⇅</span></th>
                             <th data-sort="high">High <span class="wl-arrow">⇅</span></th>
                             <th data-sort="chng">Chng <span class="wl-arrow">⇅</span></th>
@@ -2232,7 +2233,7 @@
                             <th class="wl-th-trade">Trade</th>
                         </tr></thead>
                         <tbody id="wl-body">
-                            <tr><td colspan="19" style="color:#6b7280;padding:20px;text-align:center;">Loading...</td></tr>
+                            <tr><td colspan="20" style="color:#6b7280;padding:20px;text-align:center;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -2501,15 +2502,17 @@
                                 <th style="color:#10b981;">Vol</th>
                                 <th style="color:#10b981;">OI Chng%</th>
                                 <th style="color:#10b981;">OI</th>
+                                <th style="color:#10b981;" title="Probability of Profit — CE buyer">PoP</th>
                                 <th style="color:#10b981;">CE LTP</th>
                                 <th style="background:#1a2035;color:#e5e7eb;">STRIKE</th>
                                 <th style="color:#ef4444;">PE LTP</th>
+                                <th style="color:#ef4444;" title="Probability of Profit — PE buyer">PoP</th>
                                 <th style="color:#ef4444;">OI</th>
                                 <th style="color:#ef4444;">OI Chng%</th>
                                 <th style="color:#ef4444;">Vol</th>
                             </tr></thead>
                             <tbody id="sb-chain-body">
-                                <tr><td colspan="9" style="color:#6b7280;padding:10px;">Loading...</td></tr>
+                                <tr><td colspan="11" style="color:#6b7280;padding:10px;">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -3590,7 +3593,7 @@
             const chainBody = document.getElementById('sb-chain-body');
             if (chainBody) chainBody.innerHTML = `<tr><td colspan="9" style="color:#6b7280;padding:10px;">Loading ${INST_CFG[inst].label}…</td></tr>`;
             const wlBody = document.getElementById('wl-body');
-            if (wlBody) wlBody.innerHTML = `<tr><td colspan="19" style="color:#6b7280;padding:14px;text-align:center;">Loading ${inst}…</td></tr>`;
+            if (wlBody) wlBody.innerHTML = `<tr><td colspan="20" style="color:#6b7280;padding:14px;text-align:center;">Loading ${inst}…</td></tr>`;
             const wlLabel = document.getElementById('wl-inst-label');
             if (wlLabel) wlLabel.textContent = inst === 'NIFTY' ? 'NIFTY · NSE_FNO' : 'SENSEX · BSE_FNO';
             // Reset position poll to use new instrument
@@ -5256,7 +5259,7 @@
                 const msg = d.error
                     ? `⚠ Dhan error: ${String(d.error).slice(0, 120)}`
                     : 'No data';
-                tbody.innerHTML = `<tr><td colspan="19" style="color:#ef4444;padding:20px;text-align:center;font-size:0.68rem;">${msg}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="20" style="color:#ef4444;padding:20px;text-align:center;font-size:0.68rem;">${msg}</td></tr>`;
                 updateWatchlistFilterButtons();
                 return;
             }
@@ -5274,7 +5277,7 @@
 
             if (!filteredRows.length) {
                 const filterLabel = _wlFilter === 'CE' ? 'CALL' : _wlFilter === 'PE' ? 'PUT' : 'selected';
-                tbody.innerHTML = `<tr><td colspan="19" style="color:#9ca3af;padding:20px;text-align:center;font-size:0.68rem;">No ${filterLabel} quotes available</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="20" style="color:#9ca3af;padding:20px;text-align:center;font-size:0.68rem;">No ${filterLabel} quotes available</td></tr>`;
                 updateWlHeaderArrows();
                 updateWatchlistFilterButtons();
                 return;
@@ -5292,6 +5295,7 @@
                     <td class="wl-label">${r.label}${isAtm ? '<span class="wl-atm-badge">ATM</span>' : ''}${aiBadge}</td>
                     <td class="${ltpCls}">${fmtNum(r.ltp)}</td>
                     <td class="wl-lot" style="color:#fbbf24;font-weight:600">₹${fmtNum(r.ltp * lot)}</td>
+                    <td class="wl-pop" style="color:${(r.pop||0)>=50?'#22d39a':(r.pop||0)>=25?'#fbbf24':'#f7567c'};font-weight:600">${r.pop!=null?fmtNum(r.pop)+'%':'—'}</td>
                     <td>${fmtNum(r.low)}</td>
                     <td>${fmtNum(r.high)}</td>
                     <td class="${chngCls}">${chngSign}${fmtNum(r.chng)}</td>
@@ -5495,6 +5499,11 @@
                 const peVol = s.pe.volume >= 1000 ? (s.pe.volume/1000).toFixed(0)+'K' : (s.pe.volume || 0);
                 const ceOIStr = s.ce.oi >= 1000 ? (s.ce.oi/1000).toFixed(0)+'K' : s.ce.oi;
                 const peOIStr = s.pe.oi >= 1000 ? (s.pe.oi/1000).toFixed(0)+'K' : s.pe.oi;
+                // Probability of Profit (option buyer)
+                const _popClr = p => p>=50?'#22d39a':p>=25?'#fbbf24':'#f7567c';
+                const cePop = Number(s.ce.pop||0), pePop = Number(s.pe.pop||0);
+                const cePopStr = cePop>0 ? `<span style="color:${_popClr(cePop)};font-weight:600;">${cePop.toFixed(0)}%</span>` : '<span style="color:#4b5563;">—</span>';
+                const pePopStr = pePop>0 ? `<span style="color:${_popClr(pePop)};font-weight:600;">${pePop.toFixed(0)}%</span>` : '<span style="color:#4b5563;">—</span>';
                 // OI bar widths (max 40px)
                 const ceW = maxCeOI > 0 ? Math.round((s.ce.oi / maxCeOI) * 40) : 0;
                 const peW = maxPeOI > 0 ? Math.round((s.pe.oi / maxPeOI) * 40) : 0;
@@ -5511,9 +5520,11 @@
                             <div style="width:${ceW}px;height:4px;background:#10b981;border-radius:2px;flex-shrink:0;"></div>
                         </div>
                     </td>
+                    <td style="text-align:right;">${cePopStr}</td>
                     <td class="ltp-col" style="color:#10b981;text-align:right;">${sbLtpCell(_inst, s.strike, 'CE', s.ce)}</td>
                     <td style="font-weight:bold;text-align:center;white-space:nowrap;">${strikeLabel}</td>
                     <td class="ltp-col" style="color:#ef4444;">${sbLtpCell(_inst, s.strike, 'PE', s.pe, 'left')}</td>
+                    <td style="text-align:left;">${pePopStr}</td>
                     <td>
                         <div style="display:flex;align-items:center;gap:2px;">
                             <div style="width:${peW}px;height:4px;background:#ef4444;border-radius:2px;flex-shrink:0;"></div>
@@ -6386,7 +6397,7 @@
                         </tr>
                     </thead>
                     <tbody id="ocBody">
-                        <tr><td colspan="19" style="text-align:center;padding:40px;color:#6b7280;">loading option chain…</td></tr>
+                        <tr><td colspan="20" style="text-align:center;padding:40px;color:#6b7280;">loading option chain…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -6516,7 +6527,7 @@
                 renderOptionChain(d);
             } catch (e) {
                 document.getElementById('ocBody').innerHTML =
-                    `<tr><td colspan="19" style="text-align:center;padding:30px;color:#ef4444;">load failed: ${e.message}</td></tr>`;
+                    `<tr><td colspan="20" style="text-align:center;padding:30px;color:#ef4444;">load failed: ${e.message}</td></tr>`;
             }
         }
 

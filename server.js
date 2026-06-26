@@ -2352,10 +2352,10 @@ app.get('/api/nifty/options/analytics', async (req, res) => {
       itmCE:  s.strike < atm,
       itmPE:  s.strike > atm,
       ce: _withLegHistory('NIFTY', s.strike, { ltp: s.ce.ltp, oi: s.ce.oi, changeOI: s.ce.changeOI || 0,
-            volume: s.ce.volume || 0, iv: s.ce.iv || 12,
+            volume: s.ce.volume || 0, iv: s.ce.iv || 12, pop: +Number(s.ce.pop || 0).toFixed(1),
             delta: s.strike < atm ? 0.85 : s.strike === atm ? 0.5 : 0.15 }, 'CE'),
       pe: _withLegHistory('NIFTY', s.strike, { ltp: s.pe.ltp, oi: s.pe.oi, changeOI: s.pe.changeOI || 0,
-            volume: s.pe.volume || 0, iv: s.pe.iv || 12,
+            volume: s.pe.volume || 0, iv: s.pe.iv || 12, pop: +Number(s.pe.pop || 0).toFixed(1),
             delta: s.strike > atm ? -0.85 : s.strike === atm ? -0.5 : -0.15 }, 'PE')
     }));
     const totalCeOI = optionChain.reduce((s, r) => s + r.ce.oi, 0);
@@ -2392,10 +2392,10 @@ app.get('/api/banknifty/options/analytics', async (req, res) => {
       itmCE:  s.strike < atm,
       itmPE:  s.strike > atm,
       ce: _withLegHistory('BANKNIFTY', s.strike, { ltp: s.ce.ltp, oi: s.ce.oi, changeOI: s.ce.changeOI || 0,
-            volume: s.ce.volume || 0, iv: s.ce.iv || 12,
+            volume: s.ce.volume || 0, iv: s.ce.iv || 12, pop: +Number(s.ce.pop || 0).toFixed(1),
             delta: s.strike < atm ? 0.85 : s.strike === atm ? 0.5 : 0.15 }, 'CE'),
       pe: _withLegHistory('BANKNIFTY', s.strike, { ltp: s.pe.ltp, oi: s.pe.oi, changeOI: s.pe.changeOI || 0,
-            volume: s.pe.volume || 0, iv: s.pe.iv || 12,
+            volume: s.pe.volume || 0, iv: s.pe.iv || 12, pop: +Number(s.pe.pop || 0).toFixed(1),
             delta: s.strike > atm ? -0.85 : s.strike === atm ? -0.5 : -0.15 }, 'PE')
     }));
     const totalCeOI = optionChain.reduce((s, r) => s + (r.ce?.oi || 0), 0);
@@ -4774,7 +4774,8 @@ app.get('/api/watchlist', async (req, res) => {
         lcl:      +lcl.toFixed(2),
         wkHigh:   +Number(d.fifty_two_week_high ?? d.week_52_high ?? high).toFixed(2),
         wkLow:    +Number(d.fifty_two_week_low  ?? d.week_52_low  ?? low).toFixed(2),
-        avgPrice: +avg.toFixed(2)
+        avgPrice: +avg.toFixed(2),
+        pop: +Number(c.pop || 0).toFixed(1)   // Probability of Profit (buyer, breakeven-adjusted)
       };
     });
 

@@ -659,6 +659,10 @@ class OptionAnalyzer {
       const ceG = this._rawGreeks(spot, strike, T, r, ceIV, 'CE');
       const peG = this._rawGreeks(spot, strike, T, r, peIV, 'PE');
 
+      // Breakeven-adjusted Probability of Profit for the option BUYER
+      const cePop = ce.ltp > 0.5 ? this._popBuyer(spot, strike, T, r, ceIV, ce.ltp, 'CE') : 0;
+      const pePop = pe.ltp > 0.5 ? this._popBuyer(spot, strike, T, r, peIV, pe.ltp, 'PE') : 0;
+
       return {
         strike,
         isATM: strike === atm,
@@ -676,6 +680,7 @@ class OptionAnalyzer {
           gamma:    ceG.gamma.toFixed(6),
           theta:    ceG.theta.toFixed(4),
           vega:     ceG.vega.toFixed(4),
+          pop:      +cePop.toFixed(1),
           token:    ce.token
         },
         pe: {
@@ -690,6 +695,7 @@ class OptionAnalyzer {
           gamma:    peG.gamma.toFixed(6),
           theta:    peG.theta.toFixed(4),
           vega:     peG.vega.toFixed(4),
+          pop:      +pePop.toFixed(1),
           token:    pe.token
         }
       };
@@ -716,6 +722,20 @@ class OptionAnalyzer {
       if (sigma > 5)  { sigma = 5;    break; }
     }
     return sigma;
+  }
+
+  /**
+   * Breakeven-adjusted Probability of Profit (%) for an option BUYER.
+   * CE breakeven = strike + premium; PE breakeven = strike - premium.
+   * PoP = risk-neutral P(S_T past breakeven) = N(d2) for CE, N(-d2) for PE.
+   */
+  _popBuyer(S, K, T, r, sigma, premium, type) {
+    if (!(S > 0) || !(sigma > 0) || !(T > 0)) return 0;
+    const be = type === 'CE' ? K + premium : K - premium;
+    if (be <= 0) return type === 'CE' ? 0 : 100;
+    const d2 = (Math.log(S / be) + (r - 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+    const p = type === 'CE' ? this.normalCDF(d2) : this.normalCDF(-d2);
+    return Math.max(0, Math.min(100, p * 100));
   }
 
   // ================================================================
