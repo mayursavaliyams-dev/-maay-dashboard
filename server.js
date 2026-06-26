@@ -2023,13 +2023,27 @@ async function _buildOptionSnapshot(instrument = 'NIFTY') {
 
     optionAnalyzer.spotPrice = spot;
     optionAnalyzer.strikePitch = meta.step;
+    // Time-to-expiry (years) for Black-Scholes fills — from the chain's expiry @15:30 IST.
+    const _bsmExp = chain?.expiry || null;
+    const _bsmT = _bsmExp
+      ? Math.max((new Date(_bsmExp + 'T15:30:00+05:30').getTime() - Date.now()) / (365 * 24 * 3600 * 1000), 1 / (365 * 24 * 60))
+      : 0.02;
     const normalizeLeg = (leg, type, strike) => {
       if (!leg) return {};
       const ltp = Number(leg.ltp || 0);
       _updateOptHL(inst, strike, type, ltp, Number(leg.high || 0), Number(leg.low || 0));
       const hl = _getOptHL(inst, strike, type) || {};
-      const fallback = optionAnalyzer.calculateGreeks(strike, type, spot);
-      const metric = (name) => Number.isFinite(Number(leg[name])) ? Number(leg[name]) : Number(fallback[name] || 0);
+      // Black-Scholes fill (FREE, no extra API): Upstox leaves IV/greeks at 0 on many
+      // strikes — solve implied vol from the live LTP, then derive greeks from it.
+      let iv = Number(leg.iv || 0), bsm = null;
+      if (iv <= 0 && ltp > 0.5) {
+        try {
+          const sig = optionAnalyzer._impliedVol(spot, strike, _bsmT, 0.065, ltp, type);
+          if (sig > 0.001 && sig < 5) { iv = +(sig * 100).toFixed(2); bsm = optionAnalyzer._rawGreeks(spot, strike, _bsmT, 0.065, sig, type); }
+        } catch (_) {}
+      }
+      const fallback = bsm || optionAnalyzer.calculateGreeks(strike, type, spot);
+      const metric = (name) => { const v = Number(leg[name]); return (Number.isFinite(v) && v !== 0) ? v : Number(fallback[name] || 0); };
       return {
         ...leg,
         ltp,
@@ -2038,7 +2052,8 @@ async function _buildOptionSnapshot(instrument = 'NIFTY') {
         oi: Number(leg.oi || 0),
         changeOI: Number(leg.changeOI || 0),
         volume: Number(leg.volume || 0),
-        iv: Number(leg.iv || 0),
+        iv,
+        ivSource: (Number(leg.iv || 0) <= 0 && iv > 0) ? 'bsm' : 'feed',
         delta: metric('delta'),
         gamma: metric('gamma'),
         theta: metric('theta'),
