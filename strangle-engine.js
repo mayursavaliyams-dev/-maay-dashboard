@@ -65,12 +65,19 @@ class StrangleEngine {
     this._lastIv = {};         // inst -> { iv, pct } (latest, for status)
     this._ivFile = require('path').join(__dirname, 'data', 'strangle-iv.json');
     this._loadIv();
+    // Persistent ALL-TIME forward-test trade log — survives restarts and accrues
+    // across days (_closed purges daily; this never does). The whole point of the
+    // paper forward-test: accumulate real win-rate / P&L on the validated edge.
+    this._tradesFile = require('path').join(__dirname, 'data', 'strangle-trades.json');
+    this._allTrades = this._loadTrades();
     this.onTrade = null;       // optional callback(event, data)
   }
 
   // ── IV-regime helpers ──────────────────────────────────────────────────────
   _loadIv() { try { this._ivHist = JSON.parse(require('fs').readFileSync(this._ivFile, 'utf8')) || {}; } catch { this._ivHist = {}; } }
   _saveIv() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._ivFile), { recursive: true }); fs.writeFileSync(this._ivFile, JSON.stringify(this._ivHist)); } catch (_) {} }
+  _loadTrades() { try { return JSON.parse(require('fs').readFileSync(this._tradesFile, 'utf8')) || []; } catch { return []; } }
+  _saveTrades() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._tradesFile), { recursive: true }); fs.writeFileSync(this._tradesFile, JSON.stringify(this._allTrades.slice(-5000))); } catch (_) {} }
   // Annualized ATM-straddle IV proxy: straddle / (0.8 * spot * sqrt(DTE/365)).
   _ivProxy(chain) {
     const atm = chain.atm; if (!atm) return null;
@@ -233,6 +240,8 @@ class StrangleEngine {
         reason: stopHit ? 'STOP' : 'TAKE_PROFIT'
       };
       this._closed.push(closed);
+      this._allTrades.push({ ...closed, date: this._date, closedAt: Date.now() });
+      this._saveTrades();
       this._open.delete(inst);
       if (this.onTrade) try { this.onTrade('SELL_CLOSE', { ...closed }); } catch (_) {}
     }
@@ -241,6 +250,9 @@ class StrangleEngine {
   status() {
     const wins = this._closed.filter(t => t.pnlAbs > 0).length;
     const net  = this._closed.reduce((s, t) => s + t.pnlAbs, 0);
+    const allW = this._allTrades.filter(t => t.pnlAbs > 0).length;
+    const allNet = this._allTrades.reduce((s, t) => s + (Number(t.pnlAbs) || 0), 0);
+    const allDates = [...new Set(this._allTrades.map(t => t.date).filter(Boolean))];
     // Current IV-regime snapshot (highest-history instrument shown if multiple).
     const ivState = {};
     for (const [inst, v] of Object.entries(this._lastIv)) {
@@ -267,6 +279,14 @@ class StrangleEngine {
       closedToday: this._closed.length,
       wins, winRate: this._closed.length ? +(100 * wins / this._closed.length).toFixed(0) : 0,
       netPnl: +net.toFixed(2),
+      // ALL-TIME forward-test stats (persisted across restarts) — the real validation.
+      allTime: {
+        trades: this._allTrades.length, days: allDates.length, wins: allW,
+        winRate: this._allTrades.length ? +(100 * allW / this._allTrades.length).toFixed(1) : 0,
+        netPnl: +allNet.toFixed(2),
+        avgPerTrade: this._allTrades.length ? +(allNet / this._allTrades.length).toFixed(2) : 0,
+        since: allDates.sort()[0] || null,
+      },
       recent: this._closed.slice(-12).reverse(),
       note: 'PAPER-only premium seller. Regime ladder: skip <50% IV / strangle 50-80% / tail-safe condor ≥80%. Sizing is margin-aware fractional-Kelly. Forward-test before trusting.'
     };
