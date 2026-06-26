@@ -1101,6 +1101,27 @@
         .tis-badge.neut{ background:#334155; color:#cbd5e1; }
         @media (max-width:700px){ .tis-cell{ padding:2px 9px; min-width:56px; } .tis-tag{ display:none; } }
 
+        /* ===== GAMMA BLAST header panel ===== */
+        .gblast{ display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+            margin:8px 12px 0; padding:8px 14px; border-radius:10px;
+            background:linear-gradient(90deg,#1a0f24,#0b0e17); border:1px solid #3b2a52; }
+        .gblast.firing{ border-color:#f72585; box-shadow:0 0 16px rgba(247,37,133,.45); animation:gbPulse 1s ease-in-out infinite; }
+        @keyframes gbPulse{ 0%,100%{box-shadow:0 0 10px rgba(247,37,133,.35)} 50%{box-shadow:0 0 22px rgba(247,37,133,.7)} }
+        .gb-head{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+        .gb-title{ font-weight:800; font-size:0.82rem; letter-spacing:.5px; color:#c77dff; }
+        .gb-inst{ font-weight:700; font-size:0.78rem; color:#fbbf24; }
+        .gb-state{ font-size:0.55rem; padding:2px 7px; border-radius:999px; background:#241733; color:#9ca3af; text-transform:uppercase; letter-spacing:.5px; }
+        .gb-state.active{ background:#3b0d2a; color:#f9a8d4; } .gb-state.primed{ background:#3a2d10; color:#fcd34d; }
+        .gb-meter{ display:flex; align-items:center; gap:8px; flex:1; min-width:180px; }
+        .gb-bar{ flex:1; height:12px; border-radius:7px; background:#241733; overflow:hidden; }
+        .gb-fill{ height:100%; border-radius:7px; transition:width .5s ease, background .3s;
+            background:linear-gradient(90deg,#6b7280,#9ca3af); }
+        .gb-score{ font-family:ui-monospace,monospace; font-weight:800; font-size:1.05rem; color:#e5e7eb; min-width:54px; text-align:right; }
+        .gb-score small{ font-size:0.6rem; color:#8b95a7; }
+        .gb-level{ font-weight:800; font-size:0.72rem; letter-spacing:.5px; padding:3px 10px; border-radius:7px; background:#241733; color:#9ca3af; }
+        .gb-time{ font-family:ui-monospace,monospace; font-size:0.72rem; color:#c4b5fd; }
+        .gb-detail{ font-size:0.62rem; color:#8b95a7; font-family:ui-monospace,monospace; }
+
         /* ===== AI-detected strike — watchlist banner + row highlight ===== */
         .wl-ai-banner{ margin:7px 0 3px; padding:5px 11px; border-radius:7px; font-size:0.64rem; font-weight:700;
             background:#0b1220; border:1px solid #1f2937; color:#9ca3af; letter-spacing:.3px; }
@@ -1640,6 +1661,55 @@
                 scroll-snap-align:start;
             }
         }
+
+        /* ============================================================
+           COMPACT MODE — denser layout so more parameters fit on screen
+           without scrolling. Loaded last so it overrides the panel rules
+           above (same specificity, later wins). Only trims empty space —
+           panels still grow if their content needs it.
+           ============================================================ */
+        .main-grid { gap: 6px; padding: 5px 8px; }
+        .panel-card { min-height: 148px; }
+        .levels-sheet, .signal-card { min-height: 148px; }
+        .chart-panel { min-height: 172px; }
+        .max-levels-card { min-height: 210px; }
+        .mxl-panel { min-height: 184px; }
+        .perf-panel, .an-panel, .gm-panel, .cal-panel, .hl-panel, .chart-panel,
+        .pos-panel, .ind-panel, .max-levels-card, .dual-levels-card,
+        .levels-sheet, .signal-card, .gb-panel, .card { padding: 6px 9px; }
+        .livebox { margin: 6px 8px 0; padding: 6px 10px; }
+        .topind-strip, .gblast { margin: 5px 8px 0; padding: 5px 11px; }
+        .topnav { margin: 4px 8px; padding: 4px 9px; }
+        .hl-hdr, .gm-hdr, .perf-hdr, .an-hdr, .cal-hdr, .mxl-hdr, .chart-hdr,
+        .pos-head, .dlv-hdr { margin-bottom: 5px; }
+        .livebox-cards { gap: 7px; }
+
+        /* ===== COMPACT v2 — even denser (smaller heights, fonts, rows) ===== */
+        .main-grid { gap: 4px; padding: 4px 6px; }
+        .panel-card { min-height: 118px; }
+        .levels-sheet, .signal-card { min-height: 118px; }
+        .chart-panel { min-height: 150px; }
+        .max-levels-card { min-height: 166px; }
+        .mxl-panel { min-height: 146px; }
+        .perf-panel, .an-panel, .gm-panel, .cal-panel, .hl-panel, .chart-panel,
+        .pos-panel, .ind-panel, .max-levels-card, .dual-levels-card,
+        .levels-sheet, .signal-card, .gb-panel, .card { padding: 5px 7px; }
+        .livebox { margin: 4px 6px 0; padding: 5px 8px; }
+        .topind-strip, .gblast { margin: 4px 6px 0; padding: 4px 9px; }
+        .gblast { gap: 10px; } .gb-bar { height: 10px; }
+        .topnav { margin: 3px 6px; padding: 3px 7px; }
+        .hl-hdr, .gm-hdr, .perf-hdr, .an-hdr, .cal-hdr, .mxl-hdr, .chart-hdr,
+        .pos-head, .dlv-hdr { margin-bottom: 3px; }
+        .livebox-cards { gap: 5px; }
+        /* tighter type + table rows */
+        body { font-size: 13px; }
+        .tis-cell { padding: 2px 9px; }
+        .tis-val { font-size: 0.82rem; } .tis-inst { font-size: 0.85rem; }
+        .ind-stat-grid { gap: 3px; }
+        .wl-table th, .wl-table td,
+        .sb-chain-table th, .sb-chain-table td { padding-top: 2px; padding-bottom: 2px; }
+        .wl-buy { padding: 3px 8px; }
+        .is-val { font-size: 0.78rem; } .is-label { font-size: 0.56rem; }
     </style>
 </head>
 <body>
@@ -1729,6 +1799,22 @@
             <div class="tis-cell"><span class="tis-lab">IV</span><span class="tis-val" id="tis-iv">--</span></div>
             <div class="tis-cell"><span class="tis-lab">Bias</span><span class="tis-badge" id="tis-bias">--</span></div>
         </div>
+    </div>
+
+    <!-- ===== GAMMA BLAST PANEL (live detector, score 0-100% + time) ===== -->
+    <div class="gblast" id="gblastPanel">
+        <div class="gb-head">
+            <span class="gb-title">⚡ GAMMA BLAST</span>
+            <span class="gb-inst" id="gbInst">SENSEX</span>
+            <span class="gb-state" id="gbState">—</span>
+        </div>
+        <div class="gb-meter">
+            <div class="gb-bar"><div class="gb-fill" id="gbFill" style="width:0%"></div></div>
+            <span class="gb-score" id="gbScore">--<small>%</small></span>
+        </div>
+        <span class="gb-level" id="gbLevel">—</span>
+        <span class="gb-time" id="gbTime">—</span>
+        <span class="gb-detail" id="gbDetail"></span>
     </div>
 
     <!-- ===== MAIN GRID ===== -->
@@ -3856,6 +3942,8 @@
             bindWlSorting();
             loadWatchlist();
             setInterval(loadWatchlist, 5000);
+            loadGammaBlastHeader();
+            setInterval(loadGammaBlastHeader, 3000);   // gamma-blast header panel — fast (expiry-day, time-sensitive)
             // Live Trades box — poll open positions every 2s (fast P&L/SL/trail)
             loadLiveTrades();
             setInterval(loadLiveTrades, 2000);
@@ -4853,6 +4941,66 @@
         let _wlSort = { key: 'ltp', dir: 'desc' };
         let _wlLastData = null;
         let _wlFilter = 'ALL';
+
+        // ── Gamma-blast ALERT (sound + desktop notification) — fires on the rising
+        //    edge when the blast actually triggers (firing) or score ≥ 85 (EXTREME+).
+        let _gbAlerted = false;
+        try { if (window.Notification && Notification.permission === 'default') Notification.requestPermission(); } catch (_) {}
+        function _gbBeep(freq) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator(), g = ctx.createGain();
+                o.connect(g); g.connect(ctx.destination);
+                o.type = 'sawtooth'; o.frequency.value = freq || 880;
+                g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+                o.start(); o.stop(ctx.currentTime + 0.45);
+            } catch (_) {}
+        }
+        function _gbAlert(d, score) {
+            _gbBeep(880); setTimeout(() => _gbBeep(1180), 260); setTimeout(() => _gbBeep(1480), 520); // triple rising beep
+            const msg = `🔥 BLAST ${d.side || ''} ${d.atmStrike} · ${score}% (${d.level}) · prem ${d.premVelPctMin >= 0 ? '+' : ''}${d.premVelPctMin}%/min · spot ${d.spotMovePct >= 0 ? '+' : ''}${d.spotMovePct}%`;
+            try { if (window.Notification && Notification.permission === 'granted') new Notification('⚡ GAMMA BLAST · ' + (d.inst || 'SENSEX'), { body: msg, requireInteraction: true }); } catch (_) {}
+            try { showAlert && showAlert('⚡ GAMMA BLAST ' + (d.inst || 'SENSEX') + ' · ' + msg, 'error'); } catch (_) {}
+        }
+
+        // Gamma-blast header panel — polls the live detector (SENSEX) and drives the
+        // 0-100% meter, level, window-timing, and firing glow.
+        async function loadGammaBlastHeader() {
+            try {
+                const r = await fetch(`${API_BASE}/api/gamma-blast/detect?inst=SENSEX`, { cache: 'no-store' });
+                const d = await r.json();
+                if (!d || d.error) return;
+                const score = Number(d.score) || 0;
+                const col = score >= 85 ? '#f72585' : score >= 72 ? '#ff6b35' : score >= 60 ? '#fbbf24' : score >= 45 ? '#a78bfa' : '#6b7280';
+                const fill = document.getElementById('gbFill');
+                fill.style.width = score + '%';
+                fill.style.background = `linear-gradient(90deg, ${col}aa, ${col})`;
+                document.getElementById('gbScore').innerHTML = score + '<small>%</small>';
+                document.getElementById('gbInst').textContent = d.inst || 'SENSEX';
+                const lvl = document.getElementById('gbLevel'); lvl.textContent = d.level || '—'; lvl.style.color = col;
+                const st = document.getElementById('gbState');
+                if (d.windowState === 'active') { st.textContent = 'WINDOW ACTIVE'; st.className = 'gb-state active'; }
+                else if (d.windowState === 'closed') { st.textContent = 'WINDOW CLOSED'; st.className = 'gb-state'; }
+                else { st.textContent = d.isExpiryToday ? 'EXPIRY · PRE-WINDOW' : 'NOT EXPIRY'; st.className = 'gb-state' + (score >= 60 ? ' primed' : ''); }
+                const t = document.getElementById('gbTime');
+                if (d.windowState === 'before') t.textContent = `⏱ starts in ${d.minsToWindow}m (at ${String(d.window).split('-')[0]})`;
+                else if (d.windowState === 'active') t.textContent = `⏱ ACTIVE · ${d.minsLeft}m left`;
+                else if (d.windowState === 'closed') t.textContent = `window closed (${d.window})`;
+                else t.textContent = d.window || '';
+                const det = document.getElementById('gbDetail');
+                const pv = (d.premVelPctMin >= 0 ? '+' : '') + d.premVelPctMin, sm = (d.spotMovePct >= 0 ? '+' : '') + d.spotMovePct;
+                det.textContent = d.firing
+                    ? `🔥 BLAST ${d.side || ''} ${d.atmStrike} · prem ${pv}%/min · spot ${sm}%`
+                    : `ATM ${d.atmStrike} · IV ${d.atmIV}% · prem ${pv}%/min · spot ${sm}%`;
+                document.getElementById('gblastPanel').classList.toggle('firing', !!d.firing);
+                // Alert on the rising edge: real blast (firing) or score ≥85 (EXTREME+).
+                const armed = !!d.firing || score >= 85;
+                if (armed && !_gbAlerted) { _gbAlerted = true; _gbAlert(d, score); }
+                else if (score < 75) { _gbAlerted = false; }   // hysteresis → can re-fire
+            } catch (e) { /* keep last */ }
+        }
 
         async function loadWatchlist() {
             try {

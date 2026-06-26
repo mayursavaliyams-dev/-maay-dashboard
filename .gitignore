@@ -50,3 +50,4 @@ data/opthl/
 bt-data/sensex-1min.json
 bt-data/banknifty-1min.json
 bt-data/nifty-1min.json
+data/ami-signals-all.json

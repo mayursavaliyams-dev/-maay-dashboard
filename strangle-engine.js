@@ -36,6 +36,10 @@ class StrangleEngine {
     // up the account. Costs ~half the credit, so only used in the danger regime.
     this.tailSafePct = parseFloat(cfg.tailSafePct ?? process.env.STRANGLE_TAILSAFE_PCT ?? 0.8); // >1 disables
     this.wingPts     = parseInt(cfg.wingPts ?? process.env.STRANGLE_WING_PTS ?? 200);
+    // ALWAYS hedge: buy wings every entry → defined-risk iron CONDOR regardless of
+    // IV-percentile. This is the backtest-validated structure (81% win, capped tail)
+    // and avoids naked strangles when IV history is too thin to classify the regime.
+    this.forceCondor = String(cfg.forceCondor ?? process.env.STRANGLE_FORCE_CONDOR ?? 'false').toLowerCase() === 'true';
     // Tier-2 — margin-aware, fractional-Kelly, IV-scaled sizing. Surfaces the
     // recommended REAL-capital lot count (paper still trades qtyPerLeg unless
     // useSizer). Stats default to the validated strangle backtest.
@@ -144,8 +148,9 @@ class StrangleEngine {
     const ivPct = (iv != null) ? this._ivPercentile(inst, iv) : null;
     if (this.ivPctMin > 0 && ivPct != null && ivPct < this.ivPctMin) return;  // not rich enough
 
-    // Tail-safe: in a very-high-IV regime, buy wings → defined-risk iron condor.
-    const wantCondor = this.tailSafePct <= 1 && ivPct != null && ivPct >= this.tailSafePct;
+    // Tail-safe: buy wings → defined-risk iron condor. Either forced (always hedge,
+    // validated config) or auto in a very-high-IV regime once history accrues.
+    const wantCondor = this.forceCondor || (this.tailSafePct <= 1 && ivPct != null && ivPct >= this.tailSafePct);
     let ceWing = null, peWing = null;
     if (wantCondor) {
       const lceRow = chain.rows.find(r => r.strike === atm + off + this.wingPts);

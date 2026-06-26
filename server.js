@@ -22,6 +22,8 @@ const KotakNeoConnector = require("./kotak-neo-connector");
 const UpstoxConnector = require("./upstox-connector");
 const { getChainAroundATM } = require("./sensibull-fetcher");
 const AmiBrokerBridge = require("./amibroker-bridge");
+const { consolidate: _consolidateAmiSignals } = require("./consolidate-ami-signals.js");
+const gammaBlastDetect = require("./gamma-blast-detect.js");
 const ExecutionEngine = require("./execution-engine");
 const AfternoonEngine = require("./afternoon-engine");
 const BounceEngine = require("./bounce-engine");
@@ -465,6 +467,11 @@ function _persistOptHLDay() {
 // Regular save — every 60s writes today's records if any exist (captures the
 // post-close final state too, since _updateOptHL only mutates during hours).
 setInterval(_persistOptHLDay, 60 * 1000);
+
+// Auto-consolidate AmiBroker signals into the single data/ami-signals-all.json
+// every 10 min (covers EOD) + once on boot. No-op/empty file when no signals.
+try { _consolidateAmiSignals(); } catch (_) {}
+setInterval(() => { try { _consolidateAmiSignals(); } catch (_) {} }, 10 * 60 * 1000);
 
 // Periodically reconcile today's 1-minute option candles into the live record.
 // Failed pre-open attempts retry, while successful requests are cached/coalesced.
@@ -3208,7 +3215,14 @@ app.post('/api/bounce/enable', (req, res) => { bounceEngine.enabled = req.body?.
 // ==================== STRANGLE ENGINE (premium selling, PAPER) ====================
 // Validated SHORT_STRANGLE from bt-strategies.js: 89% win / +₹53k / 4.3% DD on
 // 120 days real bhavcopy. PAPER-only; off by default (STRANGLE_ENGINE_ENABLED).
-const strangleEngine = new StrangleEngine();
+// Read strangle config from config-overrides.json (capital, force-hedge) at
+// construction — keeps the forward-test on the validated hedged-condor ₹7L config.
+let _strangleCfg = {};
+try { _strangleCfg = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, 'data', 'config-overrides.json'), 'utf8')); } catch (_) {}
+const strangleEngine = new StrangleEngine({
+  capital:     _strangleCfg.STRANGLE_CAPITAL,
+  forceCondor: _strangleCfg.STRANGLE_FORCE_CONDOR,
+});
 strangleEngine.onTrade = (event, d) => {
   if (event === 'SELL_OPEN') {
     console.log(`[strangle] OPEN ${d.structure} ${d.inst} ${d.pe.strike}PE/${d.ce.strike}CE credit ₹${d.credit}${d.maxLoss ? ` maxLoss ₹${d.maxLoss}` : ''} (exp ${d.expiry})`);
@@ -4488,6 +4502,37 @@ app.get('/api/option-chain-full', async (req, res) => {
   }
 });
 
+// Live gamma-blast detector — score 0-100 (~70 primed, ~100 blasting) + timing.
+// ?inst=SENSEX (default). Drives the header gamma-blast panel.
+app.get('/api/gamma-blast/detect', async (req, res) => {
+  try {
+    const inst = String(req.query.inst || 'SENSEX').toUpperCase();
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const step = meta.step;
+    const atm = Math.round(spot / step) * step;
+    const ist = new Date(Date.now() + 5.5 * 3600 * 1000);
+    const istDate = ist.toISOString().slice(0, 10);
+    const istMins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+    const atmRow = (chain.strikes || []).find(r => Number(r.strike) === atm) || {};
+    const atmIV = Number(atmRow.ce?.iv || atmRow.pe?.iv || 0);
+    res.json(gammaBlastDetect.detect({
+      inst, rows: chain.strikes, spot, atm, expiry: chain.expiry, istDate, istMins, atmIV,
+    }));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Consolidated AmiBroker signals (all dates merged into one). Re-consolidates on
+// request so it's always fresh, then returns the single file's contents.
+app.get('/api/amibroker/signals-all', (req, res) => {
+  try {
+    const summary = _consolidateAmiSignals();
+    const data = JSON.parse(require('fs').readFileSync(summary.out, 'utf8'));
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Date-wise archived option H/L. ?date=YYYY-MM-DD (default today) [&inst=NIFTY]
 app.get('/api/opthl-archive', (req, res) => {
   try {
@@ -4693,7 +4738,7 @@ function runBotEngine() {
     niftyAfternoonEngine.tick().catch(err => console.error('[nifty-afternoon] tick error:', err.message));
   }, 4000);
 
-  // Bounce + Strangle engines (paper) — feed the live NIFTY chain once per loop.
+  // Bounce + Strangle engines (paper) — feed live chains once per loop.
   if (bounceEngine.enabled || strangleEngine.enabled) {
     setTimeout(() => {
       live.getNiftyOptionChain(_niftyLivePrice)
@@ -4703,6 +4748,17 @@ function runBotEngine() {
           if (strangleEngine.enabled) strangleEngine.update('NIFTY', feed);
         })
         .catch(() => {});
+      // Multi-instrument forward-test: also feed SENSEX + BANKNIFTY to the strangle
+      // engine (strike step 100). Each chain carries its own live spot, so the open
+      // legs' LTP/P&L refresh every loop — same live price path as NIFTY.
+      if (strangleEngine.enabled) {
+        live.getOptionChain()
+          .then(chain => strangleEngine.update('SENSEX', { atm: chain.atmStrike, interval: 100, rows: chain.strikes, expiry: chain.expiry }))
+          .catch(() => {});
+        live.getBankNiftyOptionChain()
+          .then(chain => strangleEngine.update('BANKNIFTY', { atm: chain.atmStrike, interval: 100, rows: chain.strikes, expiry: chain.expiry }))
+          .catch(() => {});
+      }
     }, 4500);
   }
 }
