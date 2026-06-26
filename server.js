@@ -509,6 +509,7 @@ app.get('/api/oi-change', async (req, res) => {
     for (const s of (chain.strikes || [])) cur[s.strike] = {
       ce: Number(s.ce?.oi || 0), pe: Number(s.pe?.oi || 0),
       dCe: Number(s.ce?.changeOI || 0), dPe: Number(s.pe?.changeOI || 0),
+      vCe: Number(s.ce?.volume || 0), vPe: Number(s.pe?.volume || 0),
     };
     // Full Day = the chain's day-change (vs prev close), always available → base stays
     // null so the per-strike fallback (dCe/dPe) is used. Short windows = snapshot diff.
@@ -519,8 +520,8 @@ app.get('/api/oi-change', async (req, res) => {
     const strikes = Object.keys(cur).map(Number).sort((a, b) => a - b).map(k => {
       const c = cur[k], b = base && base.byStrike[k];
       return b
-        ? { strike: k, ce: { changeOI: c.ce - b.ce, oi: c.ce }, pe: { changeOI: c.pe - b.pe, oi: c.pe } }
-        : { strike: k, ce: { changeOI: c.dCe, oi: c.ce }, pe: { changeOI: c.dPe, oi: c.pe }, fallback: true };
+        ? { strike: k, ce: { changeOI: c.ce - b.ce, oi: c.ce, volume: c.vCe }, pe: { changeOI: c.pe - b.pe, oi: c.pe, volume: c.vPe } }
+        : { strike: k, ce: { changeOI: c.dCe, oi: c.ce, volume: c.vCe }, pe: { changeOI: c.dPe, oi: c.pe, volume: c.vPe }, fallback: true };
     });
     res.json({ instrument: inst, atmStrike: atm, spotPrice: spot, window: win, snapshots: arr.length,
       baselineAt: base ? new Date(base.t + 5.5 * 3600e3).toISOString().slice(11, 16) : null,
@@ -4777,7 +4778,7 @@ app.get('/api/watchlist', async (req, res) => {
       };
     });
 
-    res.json({ rows, spot, atm, inst, seg, source: Object.keys(fq).length ? 'dhan' : 'chain' });
+    res.json({ rows, spot, atm, inst, seg, lotSize: meta.lotSize, source: Object.keys(fq).length ? 'dhan' : 'chain' });
   } catch (err) {
     if (err?.code === 'DHAN_AUTH' || err?.code === 'DHAN_AUTH_BLOCKED' || err?.status === 401 || err?.status === 403) {
       return res.status(503).json({

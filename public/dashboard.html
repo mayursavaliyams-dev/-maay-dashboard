@@ -1122,6 +1122,25 @@
         .gb-time{ font-family:ui-monospace,monospace; font-size:0.72rem; color:#c4b5fd; }
         .gb-detail{ font-size:0.62rem; color:#8b95a7; font-family:ui-monospace,monospace; }
 
+        /* ===== FORWARD-TEST results panel ===== */
+        .ftpanel{ margin:5px 8px 0; padding:8px 14px; border-radius:10px; background:linear-gradient(90deg,#0b1f19,#0b0e17); border:1px solid #1d4d3e; }
+        .ft-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:7px; }
+        .ft-title{ font-weight:800; font-size:0.82rem; color:#22d39a; letter-spacing:.4px; }
+        .ft-sub{ font-size:0.58rem; color:#8b95a7; text-transform:uppercase; letter-spacing:1px; }
+        .ft-badge{ font-size:0.55rem; padding:2px 8px; border-radius:999px; background:#241733; color:#9ca3af; font-weight:700; }
+        .ft-badge.on{ background:#064e3b; color:#86efac; }
+        .ft-since{ font-size:0.62rem; color:#8b95a7; margin-left:auto; font-family:ui-monospace,monospace; }
+        .ft-stats{ display:flex; flex-wrap:wrap; }
+        .ft-stats .s{ display:flex; flex-direction:column; gap:1px; padding:3px 16px; border-left:1px solid #1d3d31; }
+        .ft-stats .s:first-child{ border-left:0; padding-left:0; }
+        .ft-stats .l{ font-size:0.54rem; color:#8b95a7; text-transform:uppercase; letter-spacing:.7px; }
+        .ft-stats .v{ font-family:ui-monospace,monospace; font-size:1rem; font-weight:700; }
+        .ft-cols{ display:flex; gap:24px; margin-top:8px; flex-wrap:wrap; }
+        .ft-col{ flex:1; min-width:240px; }
+        .ft-lab{ font-size:0.54rem; color:#8b95a7; text-transform:uppercase; letter-spacing:.7px; margin-bottom:3px; }
+        .ft-list{ font-family:ui-monospace,monospace; font-size:0.66rem; color:#d1d4dc; line-height:1.75; }
+        .ft-list .none{ color:#6b7280; } .ft-list .win{ color:#22d39a; } .ft-list .loss{ color:#f7567c; }
+
         /* ===== AI-detected strike — watchlist banner + row highlight ===== */
         .wl-ai-banner{ margin:7px 0 3px; padding:5px 11px; border-radius:7px; font-size:0.64rem; font-weight:700;
             background:#0b1220; border:1px solid #1f2937; color:#9ca3af; letter-spacing:.3px; }
@@ -1771,8 +1790,6 @@
       <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/ami-heatmap.html">AMI Heatmap</a>
     </nav>
 
-    <div class="disclaimer">⚠️ <b>High Risk:</b> Expiry options trading. Paper trade first. Never risk more than you can afford to lose.</div>
-
     <!-- Data-source watchdog banner (hidden when healthy) -->
     <div id="dataBanner" style="display:none;padding:9px 16px;font-size:0.78rem;font-weight:700;letter-spacing:.3px;text-align:center;animation:dbpulse 1.6s ease-in-out infinite"></div>
 
@@ -1815,6 +1832,21 @@
         <span class="gb-level" id="gbLevel">—</span>
         <span class="gb-time" id="gbTime">—</span>
         <span class="gb-detail" id="gbDetail"></span>
+    </div>
+
+    <!-- ===== FORWARD-TEST RESULTS (hedged condor, paper — the validated edge) ===== -->
+    <div class="ftpanel" id="ftPanel">
+      <div class="ft-head">
+        <span class="ft-title">🛡️ FORWARD-TEST · Hedged Condor</span>
+        <span class="ft-sub">paper · ₹7L</span>
+        <span class="ft-badge" id="ftBadge">—</span>
+        <span class="ft-since" id="ftSince"></span>
+      </div>
+      <div class="ft-stats" id="ftStats"></div>
+      <div class="ft-cols">
+        <div class="ft-col"><div class="ft-lab">Open positions</div><div id="ftOpen" class="ft-list"></div></div>
+        <div class="ft-col"><div class="ft-lab">Recent closed</div><div id="ftRecent" class="ft-list"></div></div>
+      </div>
     </div>
 
     <!-- ===== MAIN GRID ===== -->
@@ -2181,6 +2213,7 @@
                         <thead><tr>
                             <th class="wl-th-label" data-sort="label">Contract <span class="wl-arrow">⇅</span></th>
                             <th data-sort="ltp" class="wl-sort-active wl-sort-desc">LTP <span class="wl-arrow">▼</span></th>
+                            <th>₹/Lot</th>
                             <th data-sort="low">Low <span class="wl-arrow">⇅</span></th>
                             <th data-sort="high">High <span class="wl-arrow">⇅</span></th>
                             <th data-sort="chng">Chng <span class="wl-arrow">⇅</span></th>
@@ -2199,7 +2232,7 @@
                             <th class="wl-th-trade">Trade</th>
                         </tr></thead>
                         <tbody id="wl-body">
-                            <tr><td colspan="18" style="color:#6b7280;padding:20px;text-align:center;">Loading...</td></tr>
+                            <tr><td colspan="19" style="color:#6b7280;padding:20px;text-align:center;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -3557,7 +3590,7 @@
             const chainBody = document.getElementById('sb-chain-body');
             if (chainBody) chainBody.innerHTML = `<tr><td colspan="9" style="color:#6b7280;padding:10px;">Loading ${INST_CFG[inst].label}…</td></tr>`;
             const wlBody = document.getElementById('wl-body');
-            if (wlBody) wlBody.innerHTML = `<tr><td colspan="18" style="color:#6b7280;padding:14px;text-align:center;">Loading ${inst}…</td></tr>`;
+            if (wlBody) wlBody.innerHTML = `<tr><td colspan="19" style="color:#6b7280;padding:14px;text-align:center;">Loading ${inst}…</td></tr>`;
             const wlLabel = document.getElementById('wl-inst-label');
             if (wlLabel) wlLabel.textContent = inst === 'NIFTY' ? 'NIFTY · NSE_FNO' : 'SENSEX · BSE_FNO';
             // Reset position poll to use new instrument
@@ -3944,6 +3977,8 @@
             setInterval(loadWatchlist, 5000);
             loadGammaBlastHeader();
             setInterval(loadGammaBlastHeader, 3000);   // gamma-blast header panel — fast (expiry-day, time-sensitive)
+            loadForwardTest();
+            setInterval(loadForwardTest, 8000);        // forward-test results panel
             // Live Trades box — poll open positions every 2s (fast P&L/SL/trail)
             loadLiveTrades();
             setInterval(loadLiveTrades, 2000);
@@ -4965,6 +5000,40 @@
             try { showAlert && showAlert('⚡ GAMMA BLAST ' + (d.inst || 'SENSEX') + ' · ' + msg, 'error'); } catch (_) {}
         }
 
+        // Forward-test results panel — hedged-condor all-time stats + open + recent.
+        async function loadForwardTest() {
+            try {
+                const r = await fetch(`${API_BASE}/api/strangle/status`, { cache: 'no-store' });
+                const d = await r.json();
+                const a = d.allTime || {};
+                const bd = document.getElementById('ftBadge');
+                bd.textContent = d.enabled ? 'LIVE' : 'OFF'; bd.className = 'ft-badge' + (d.enabled ? ' on' : '');
+                document.getElementById('ftSince').textContent = a.since ? ('since ' + a.since) : 'no trades yet';
+                const net = Number(a.netPnl) || 0;
+                const netCol = net > 0 ? '#22d39a' : net < 0 ? '#f7567c' : '#d1d4dc';
+                const inr = v => '₹' + Math.round(v).toLocaleString('en-IN');
+                document.getElementById('ftStats').innerHTML =
+                    `<div class="s"><span class="l">Trades</span><span class="v">${a.trades || 0}</span></div>`+
+                    `<div class="s"><span class="l">Win rate</span><span class="v" style="color:${(a.winRate||0)>=70?'#22d39a':(a.trades?'#fbbf24':'#d1d4dc')}">${a.winRate || 0}%</span></div>`+
+                    `<div class="s"><span class="l">Net P&L</span><span class="v" style="color:${netCol}">${net>=0?'+':''}${inr(net)}</span></div>`+
+                    `<div class="s"><span class="l">Avg / trade</span><span class="v">${inr(a.avgPerTrade || 0)}</span></div>`+
+                    `<div class="s"><span class="l">Days</span><span class="v">${a.days || 0}</span></div>`+
+                    `<div class="s"><span class="l">Open now</span><span class="v">${(d.openPositions||[]).length}</span></div>`;
+                const op = d.openPositions || [];
+                document.getElementById('ftOpen').innerHTML = op.length ? op.map(p => {
+                    const ce = p.ce||{}, pe = p.pe||{};
+                    const pnl = ((ce.entry||0)+(pe.entry||0)) - ((ce.ltp||0)+(pe.ltp||0));
+                    const cls = pnl>0?'win':pnl<0?'loss':'';
+                    return `${p.inst} ${p.structure} CE${ce.strike}/PE${pe.strike} <span class="${cls}">${pnl>=0?'+':''}${pnl.toFixed(1)}/u</span>`;
+                }).join('<br>') : '<span class="none">no open positions (market closed / waiting for entry)</span>';
+                const rc = d.recent || [];
+                document.getElementById('ftRecent').innerHTML = rc.length ? rc.slice(0,6).map(t => {
+                    const cls = (t.pnlAbs||0)>0?'win':'loss';
+                    return `<span class="${cls}">${(t.pnlAbs||0)>=0?'+':''}${inr(t.pnlAbs||0)}</span> ${t.inst} ${t.reason||''} ${t.exitAt||''}`;
+                }).join('<br>') : '<span class="none">no closed trades yet — accrues from Monday\'s session</span>';
+            } catch (e) { /* keep last */ }
+        }
+
         // Gamma-blast header panel — polls the live detector (SENSEX) and drives the
         // 0-100% meter, level, window-timing, and firing glow.
         async function loadGammaBlastHeader() {
@@ -5180,13 +5249,14 @@
             const tbody = document.getElementById('wl-body');
             const ai = _aiPick();          // AI-detected strike (or null on WAIT)
             _renderAiBanner(ai);
+            const lot = Number(d.lotSize) || 1;   // ₹/Lot = LTP × lot size (live)
             const label = document.getElementById('wl-inst-label');
             if (label) label.textContent = `${d.inst || _inst} · ${d.seg || (_inst === 'NIFTY' ? 'NSE_FNO' : 'BSE_FNO')}${d.source === 'dhan' ? '' : ' · ' + (d.source || 'chain')}`;
             if (!d.rows || !d.rows.length) {
                 const msg = d.error
                     ? `⚠ Dhan error: ${String(d.error).slice(0, 120)}`
                     : 'No data';
-                tbody.innerHTML = `<tr><td colspan="18" style="color:#ef4444;padding:20px;text-align:center;font-size:0.68rem;">${msg}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="19" style="color:#ef4444;padding:20px;text-align:center;font-size:0.68rem;">${msg}</td></tr>`;
                 updateWatchlistFilterButtons();
                 return;
             }
@@ -5204,7 +5274,7 @@
 
             if (!filteredRows.length) {
                 const filterLabel = _wlFilter === 'CE' ? 'CALL' : _wlFilter === 'PE' ? 'PUT' : 'selected';
-                tbody.innerHTML = `<tr><td colspan="18" style="color:#9ca3af;padding:20px;text-align:center;font-size:0.68rem;">No ${filterLabel} quotes available</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="19" style="color:#9ca3af;padding:20px;text-align:center;font-size:0.68rem;">No ${filterLabel} quotes available</td></tr>`;
                 updateWlHeaderArrows();
                 updateWatchlistFilterButtons();
                 return;
@@ -5221,6 +5291,7 @@
                 return `<tr class="${aiRowCls}">
                     <td class="wl-label">${r.label}${isAtm ? '<span class="wl-atm-badge">ATM</span>' : ''}${aiBadge}</td>
                     <td class="${ltpCls}">${fmtNum(r.ltp)}</td>
+                    <td class="wl-lot" style="color:#fbbf24;font-weight:600">₹${fmtNum(r.ltp * lot)}</td>
                     <td>${fmtNum(r.low)}</td>
                     <td>${fmtNum(r.high)}</td>
                     <td class="${chngCls}">${chngSign}${fmtNum(r.chng)}</td>
