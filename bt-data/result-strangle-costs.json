@@ -1,90 +1,90 @@
 {
- "days": 300,
+ "days": 600,
  "range": [
-  "2025-03-27",
+  "2024-01-08",
   "2026-06-17"
  ],
  "breakevenSlip": null,
  "sweep": [
   {
    "slip": 0,
-   "trades": 66,
-   "winPct": 94,
-   "net": 169482,
-   "final": 269482,
-   "maxDDpct": 2.1,
-   "avgWin": 2959,
-   "avgLoss": -3498
+   "trades": 129,
+   "winPct": 91,
+   "net": 441104,
+   "final": 541104,
+   "maxDDpct": 5.9,
+   "avgWin": 4186,
+   "avgLoss": -4807
   },
   {
    "slip": 0.0025,
-   "trades": 66,
-   "winPct": 94,
-   "net": 166347,
-   "final": 266347,
-   "maxDDpct": 2.2,
-   "avgWin": 2913,
-   "avgLoss": -3571
+   "trades": 129,
+   "winPct": 91,
+   "net": 434313,
+   "final": 534313,
+   "maxDDpct": 6,
+   "avgWin": 4113,
+   "avgLoss": -4640
   },
   {
    "slip": 0.005,
-   "trades": 66,
-   "winPct": 94,
-   "net": 162144,
-   "final": 262144,
-   "maxDDpct": 2.3,
-   "avgWin": 2850,
-   "avgLoss": -3643
+   "trades": 129,
+   "winPct": 91,
+   "net": 423374,
+   "final": 523374,
+   "maxDDpct": 6.1,
+   "avgWin": 4027,
+   "avgLoss": -4708
   },
   {
    "slip": 0.0075,
-   "trades": 66,
-   "winPct": 94,
-   "net": 159024,
-   "final": 259024,
-   "maxDDpct": 2.4,
-   "avgWin": 2805,
-   "avgLoss": -3716
+   "trades": 129,
+   "winPct": 91,
+   "net": 415773,
+   "final": 515773,
+   "maxDDpct": 6.2,
+   "avgWin": 3969,
+   "avgLoss": -4777
   },
   {
    "slip": 0.01,
-   "trades": 66,
-   "winPct": 94,
-   "net": 155893,
-   "final": 255893,
-   "maxDDpct": 2.4,
-   "avgWin": 2759,
-   "avgLoss": -3789
+   "trades": 129,
+   "winPct": 91,
+   "net": 407051,
+   "final": 507051,
+   "maxDDpct": 6.3,
+   "avgWin": 3935,
+   "avgLoss": -4442
   },
   {
    "slip": 0.015,
-   "trades": 66,
-   "winPct": 91,
-   "net": 149645,
-   "final": 249645,
-   "maxDDpct": 2.6,
-   "avgWin": 2759,
-   "avgLoss": -2645
+   "trades": 129,
+   "winPct": 89,
+   "net": 382981,
+   "final": 482981,
+   "maxDDpct": 6.5,
+   "avgWin": 3809,
+   "avgLoss": -3929
   },
   {
    "slip": 0.02,
-   "trades": 66,
-   "winPct": 91,
-   "net": 143149,
-   "final": 243149,
-   "maxDDpct": 2.7,
-   "avgWin": 2665,
-   "avgLoss": -2794
+   "trades": 129,
+   "winPct": 88,
+   "net": 365579,
+   "final": 465579,
+   "maxDDpct": 6.7,
+   "avgWin": 3707,
+   "avgLoss": -3800
   },
   {
    "slip": 0.03,
-   "trades": 66,
-   "winPct": 88,
-   "net": 121739,
-   "final": 221739,
-   "maxDDpct": 3.2,
-   "avgWin": 2424,
-   "avgLoss": -2360
+   "trades": 129,
+   "winPct": 84,
+   "net": 314069,
+   "final": 414069,
+   "maxDDpct": 7.2,
+   "avgWin": 3483,
+   "avgLoss": -2956
   }
  ]
 }

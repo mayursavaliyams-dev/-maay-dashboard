@@ -1,41 +1,41 @@
 {
- "days": 300,
+ "days": 600,
  "results": [
   {
    "name": "NO FILTER (baseline)",
-   "trades": 66,
+   "trades": 129,
    "skipped": 0,
-   "winPct": 94,
-   "net": 155893,
-   "netPerTrade": 2362,
-   "maxDDpct": 2.4
+   "winPct": 91,
+   "net": 407051,
+   "netPerTrade": 3155,
+   "maxDDpct": 6.3
   },
   {
    "name": "Skip when |spot−SMA10| > 1.5%",
-   "trades": 60,
-   "skipped": 33,
-   "winPct": 97,
-   "net": 142946,
-   "netPerTrade": 2382,
-   "maxDDpct": 2.6
+   "trades": 116,
+   "skipped": 75,
+   "winPct": 92,
+   "net": 336752,
+   "netPerTrade": 2903,
+   "maxDDpct": 5.4
   },
   {
    "name": "Skip when |5-day move| > 2.5%",
-   "trades": 61,
-   "skipped": 28,
-   "winPct": 93,
-   "net": 129421,
-   "netPerTrade": 2122,
-   "maxDDpct": 2.7
+   "trades": 124,
+   "skipped": 46,
+   "winPct": 92,
+   "net": 407767,
+   "netPerTrade": 3288,
+   "maxDDpct": 4.3
   },
   {
    "name": "Skip when EITHER (trend strong)",
-   "trades": 59,
-   "skipped": 38,
-   "winPct": 95,
-   "net": 117908,
-   "netPerTrade": 1998,
-   "maxDDpct": 2.8
+   "trades": 116,
+   "skipped": 77,
+   "winPct": 91,
+   "net": 321844,
+   "netPerTrade": 2775,
+   "maxDDpct": 5.3
   }
  ]
 }

@@ -1,51 +1,51 @@
 {
- "days": 300,
+ "days": 600,
  "posVrpPct": 87,
  "results": [
   {
    "name": "NO FILTER (baseline)",
-   "trades": 66,
+   "trades": 129,
    "skipped": 0,
-   "winPct": 94,
-   "net": 155893,
-   "netPerTrade": 2362,
-   "maxDDpct": 2.4
+   "winPct": 91,
+   "net": 407051,
+   "netPerTrade": 3155,
+   "maxDDpct": 6.3
   },
   {
    "name": "VRP > 0 (sell only when IV>RV)",
-   "trades": 58,
-   "skipped": 48,
-   "winPct": 91,
-   "net": 114644,
-   "netPerTrade": 1977,
-   "maxDDpct": 2.9
+   "trades": 120,
+   "skipped": 75,
+   "winPct": 90,
+   "net": 383337,
+   "netPerTrade": 3194,
+   "maxDDpct": 7.2
   },
   {
    "name": "VRP > +2 vol pts (richer)",
-   "trades": 57,
-   "skipped": 67,
-   "winPct": 93,
-   "net": 127123,
-   "netPerTrade": 2230,
-   "maxDDpct": 2.8
+   "trades": 117,
+   "skipped": 108,
+   "winPct": 91,
+   "net": 429884,
+   "netPerTrade": 3674,
+   "maxDDpct": 7.6
   },
   {
    "name": "IV percentile > 50%",
-   "trades": 57,
-   "skipped": 132,
-   "winPct": 93,
-   "net": 257115,
-   "netPerTrade": 4511,
-   "maxDDpct": 2.1
+   "trades": 115,
+   "skipped": 224,
+   "winPct": 88,
+   "net": 627586,
+   "netPerTrade": 5457,
+   "maxDDpct": 7.4
   },
   {
    "name": "VRP>0 AND IV pct>40%",
-   "trades": 56,
-   "skipped": 124,
-   "winPct": 89,
-   "net": 180265,
-   "netPerTrade": 3219,
-   "maxDDpct": 2.8
+   "trades": 113,
+   "skipped": 211,
+   "winPct": 88,
+   "net": 532251,
+   "netPerTrade": 4710,
+   "maxDDpct": 8.2
   }
  ]
 }

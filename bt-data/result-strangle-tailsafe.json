@@ -1,62 +1,62 @@
 {
- "days": 300,
+ "days": 600,
  "wingPts": 200,
  "stress": [
   {
    "mult": 2,
    "naked": {
-    "trades": 66,
-    "winPct": 94,
-    "net": 155893,
-    "maxDDpct": 2.4,
-    "worstTrade": -5374
+    "trades": 129,
+    "winPct": 91,
+    "net": 407051,
+    "maxDDpct": 6.3,
+    "worstTrade": -11581
    }
   },
   {
    "mult": 3,
    "naked": {
-    "trades": 66,
-    "winPct": 82,
-    "net": 91168,
-    "maxDDpct": 7.3,
-    "worstTrade": -8867
+    "trades": 129,
+    "winPct": 81,
+    "net": 225731,
+    "maxDDpct": 13.2,
+    "worstTrade": -21093
    }
   },
   {
    "mult": 4,
    "naked": {
-    "trades": 66,
-    "winPct": 74,
-    "net": 30630,
-    "maxDDpct": 16.8,
-    "worstTrade": -14647
+    "trades": 129,
+    "winPct": 76,
+    "net": 72218,
+    "maxDDpct": 22.5,
+    "worstTrade": -30606
    }
   },
   {
    "mult": 5,
    "naked": {
-    "trades": 66,
-    "winPct": 73,
-    "net": -20688,
-    "maxDDpct": 35.1,
-    "worstTrade": -20427
+    "trades": 129,
+    "winPct": 72,
+    "net": -43256,
+    "maxDDpct": 51.8,
+    "worstTrade": -40118
    }
   },
   {
    "mult": 7,
    "naked": {
-    "trades": 66,
+    "trades": 129,
     "winPct": 71,
-    "net": -125362,
-    "maxDDpct": 125.2,
-    "worstTrade": -33221
+    "net": -256203,
+    "maxDDpct": 256.7,
+    "worstTrade": -59143
    }
   }
  ],
  "condorEcon": {
-  "avgNakedCredit": 127.4,
-  "avgCondorCredit": 57,
-  "avgCapPerUnit": 143,
-  "avgCapPerLot": 10723
+  "avgNakedCredit": 126.8,
+  "avgCondorCredit": 59.2,
+  "avgCapPerUnit": 140.8,
+  "avgCapPerLot": 10561
  }
 }
