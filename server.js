@@ -28,6 +28,7 @@ const ExecutionEngine = require("./execution-engine");
 const AfternoonEngine = require("./afternoon-engine");
 const BounceEngine = require("./bounce-engine");
 const StrangleEngine = require("./strangle-engine");
+const GammaBlastEngine = require("./gamma-blast-engine");
 
 // Telegram integration removed. `telegram` stays null so every guarded
 // `telegram?.enabled` call site throughout the file safely no-ops.
@@ -3312,6 +3313,30 @@ strangleEngine.onTrade = (event, d) => {
 app.get('/api/strangle/status', (req, res) => res.json(strangleEngine.status()));
 app.post('/api/strangle/enable', (req, res) => { strangleEngine.enabled = req.body?.enabled !== false; res.json({ ok: true, enabled: strangleEngine.enabled }); });
 
+// ── GAMMA-BLAST ENGINE — expiry-day option-BUYING paper forward-test ──
+const gammaBlastEngine = new GammaBlastEngine({ enabled: _strangleCfg.GAMMA_BLAST_ENGINE_ENABLED });
+gammaBlastEngine.onTrade = (event, d) => {
+  if (event === 'open') {
+    console.log(`[gamma-blast] BUY ${d.inst} ${d.strike}${d.side} @ ₹${d.entry} (${d.qty} lot · score ${d.score}/${d.level})`);
+  } else {
+    console.log(`[gamma-blast] EXIT ${d.inst} ${d.strike}${d.side} ${d.reason} ₹${d.pnl} (${d.pnlPct}%)`);
+  }
+};
+app.get('/api/gamma-blast/status', (req, res) => res.json(gammaBlastEngine.status()));
+app.post('/api/gamma-blast/enable', (req, res) => {
+  gammaBlastEngine.enabled = req.body?.enabled !== false;
+  // persist across restarts (same mechanism as strangle/directional engine state)
+  try {
+    const fs = require('fs'), p = require('path');
+    const f = p.join(__dirname, 'data', 'config-overrides.json');
+    let o = {}; try { o = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) {}
+    o.GAMMA_BLAST_ENGINE_ENABLED = gammaBlastEngine.enabled;
+    fs.mkdirSync(p.dirname(f), { recursive: true });
+    fs.writeFileSync(f, JSON.stringify(o, null, 2));
+  } catch (e) { console.warn('[gamma-blast] persist enable failed:', e.message); }
+  res.json({ ok: true, enabled: gammaBlastEngine.enabled });
+});
+
 // ==================== AFTERNOON ENGINE ENDPOINTS ====================
 app.get('/api/afternoon/status', (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
@@ -4823,14 +4848,15 @@ function runBotEngine() {
     niftyAfternoonEngine.tick().catch(err => console.error('[nifty-afternoon] tick error:', err.message));
   }, 4000);
 
-  // Bounce + Strangle engines (paper) — feed live chains once per loop.
-  if (bounceEngine.enabled || strangleEngine.enabled) {
+  // Bounce + Strangle + Gamma-blast engines (paper) — feed live chains once per loop.
+  if (bounceEngine.enabled || strangleEngine.enabled || gammaBlastEngine.enabled) {
     setTimeout(() => {
       live.getNiftyOptionChain(_niftyLivePrice)
         .then(chain => {
           const feed = { atm: chain.atmStrike, interval: 50, rows: chain.strikes, expiry: chain.expiry };
-          if (bounceEngine.enabled)   bounceEngine.update('NIFTY', feed);
-          if (strangleEngine.enabled) strangleEngine.update('NIFTY', feed);
+          if (bounceEngine.enabled)     bounceEngine.update('NIFTY', feed);
+          if (strangleEngine.enabled)   strangleEngine.update('NIFTY', feed);
+          if (gammaBlastEngine.enabled) gammaBlastEngine.update('NIFTY', { spot: _niftyLivePrice, ...feed });
         })
         .catch(() => {});
       // Multi-instrument forward-test: also feed SENSEX + BANKNIFTY to the strangle
@@ -4842,6 +4868,13 @@ function runBotEngine() {
           .catch(() => {});
         live.getBankNiftyOptionChain()
           .then(chain => strangleEngine.update('BANKNIFTY', { atm: chain.atmStrike, interval: 100, rows: chain.strikes, expiry: chain.expiry }))
+          .catch(() => {});
+      }
+      // Gamma-blast also watches SENSEX (the headline expiry instrument). The
+      // detector needs live spot for the trigger/side, so pass _livePrice.
+      if (gammaBlastEngine.enabled) {
+        live.getOptionChain()
+          .then(chain => gammaBlastEngine.update('SENSEX', { spot: _livePrice, atm: chain.atmStrike, interval: 100, rows: chain.strikes, expiry: chain.expiry }))
           .catch(() => {});
       }
     }, 4500);
@@ -5097,9 +5130,10 @@ app.listen(PORT, '0.0.0.0', async () => {
   // win across restarts: hedged-selling forward-test stays ON, directional autos OFF.
   try {
     if (typeof _cfgOverrides?.STRANGLE_ENGINE_ENABLED === 'boolean') strangleEngine.enabled = _cfgOverrides.STRANGLE_ENGINE_ENABLED;
+    if (typeof _cfgOverrides?.GAMMA_BLAST_ENGINE_ENABLED === 'boolean') gammaBlastEngine.enabled = _cfgOverrides.GAMMA_BLAST_ENGINE_ENABLED;
     if (_cfgOverrides?.NIFTY_DIRECTIONAL_AUTO === false && niftyEngine?.setAutoEnabled) niftyEngine.setAutoEnabled(false);
     if (_cfgOverrides?.SENSEX_DIRECTIONAL_AUTO === false && engine?.setAutoEnabled) engine.setAutoEnabled(false);
-    console.log(`[config] engine-state applied → strangle=${strangleEngine.enabled} niftyAuto=${niftyEngine?.autoEnabled} sensexAuto=${engine?.autoEnabled}`);
+    console.log(`[config] engine-state applied → strangle=${strangleEngine.enabled} gammaBlast=${gammaBlastEngine.enabled} niftyAuto=${niftyEngine?.autoEnabled} sensexAuto=${engine?.autoEnabled}`);
   } catch (e) { console.warn('[config] engine-state apply failed:', e.message); }
 });
 
