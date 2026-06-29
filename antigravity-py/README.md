@@ -13,6 +13,11 @@ keeps running; this is a parallel greenfield build per `../MASTER_PROMPT_PYTHON.
 - `app/engines/strangle_engine.py` — premium-selling engine skeleton (the validated edge).
 - `app/main.py` — FastAPI: `/api/health`, `/api/options/analytics`, `/api/options/greeks`,
   `/api/strangle/status`, `/api/strangle/enable`. Global crash-guard → `data/crash.log`.
+- `app/backtest/` — **edge validation on real 600-day NSE bhavcopy** (exact Node parity):
+  - `strangle.py` cost-sweep: 129 trades, 91% win, +₹4.41L @ 0 slip; survives 3% slippage (+₹3.14L)
+  - `regime.py` IV/VRP filter: proves the engine's IV-percentile gate is data-justified —
+    IV-pct>50% lifts net-per-trade ₹3,155 → ₹5,457 (+73%) vs no filter
+  - Parity locked by tests. Run: `python -m app.backtest.strangle` / `.regime`.
 
 ## Run
 ```bash
@@ -31,9 +36,11 @@ pytest -q
 ```
 
 ## Roadmap (next phases, per the master prompt)
-1. **Backtest** (`backtest/`) on real NSE bhavcopy — validate the selling edge in Python
-   *before* trusting the engine (math must match the Node leaderboard: SHORT_STRANGLE ~91% win).
-2. **Strangle engine** entry/adjust/exit ladder (IV-percentile gate, naked→condor tail-safe).
+1. ✅ **Backtest** — DONE. Real 600-day bhavcopy; matches the Node leaderboard exactly
+   (SHORT_STRANGLE 91% win), parity locked by tests.
+2. ✅ **Strangle engine** — DONE. IV-percentile ladder (skip<50 / strangle 50-80 /
+   tail-safe condor ≥80), per-leg 2x stop, 50% take-profit, weekly re-entry, paper
+   `on_tick`. Pure decision helpers (regime/select_legs/manage) unit-tested (9 tests).
 3. **Sizing** — margin-aware fractional-Kelly, VIX-scaled.
 4. **Serve the existing dashboard** (FastAPI static) — no frontend rewrite needed.
 5. Live order path — only on explicit authorization, with margin pre-check + kill-switch.
