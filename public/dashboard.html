@@ -3791,7 +3791,8 @@
             document.getElementById('levelSpot').textContent = priceNum
                 ? priceNum.toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:2})
                 : data.price;
-            const srcLabel = data.source === 'yahoo_fallback' ? ' (Yahoo)' : ' (Dhan)';
+            const _srcMap = { yahoo_fallback: ' (Yahoo)', upstox: ' (Upstox)', kotak: ' (Kotak)', dhan: ' (Dhan)' };
+            const srcLabel = _srcMap[data.source] || (data.source ? ' (' + data.source + ')' : '');
             const statusLabel = data.marketOpen === false ? ' | Market Closed' : '';
             document.getElementById('updateTime').textContent = `Updated: ${data.time}${srcLabel}${statusLabel}`;
 
@@ -5401,7 +5402,7 @@
             if (label) label.textContent = `${d.inst || _inst} · ${d.seg || (_inst === 'NIFTY' ? 'NSE_FNO' : 'BSE_FNO')}${d.source === 'dhan' ? '' : ' · ' + (d.source || 'chain')}`;
             if (!d.rows || !d.rows.length) {
                 const msg = d.error
-                    ? `⚠ Dhan error: ${String(d.error).slice(0, 120)}`
+                    ? `⚠ Chain error: ${String(d.error).slice(0, 120)}`
                     : 'No data';
                 tbody.innerHTML = `<tr><td colspan="20" style="color:#ef4444;padding:20px;text-align:center;font-size:0.68rem;">${msg}</td></tr>`;
                 updateWatchlistFilterButtons();
