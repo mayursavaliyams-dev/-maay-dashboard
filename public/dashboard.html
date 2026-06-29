@@ -232,6 +232,7 @@
         .wl-filter-btn.active.all { color:#7dd3fc; border-color:#3b82f6; background:#10233c; }
         .wl-filter-btn.active.ce  { color:#6ee7b7; border-color:#10b981; background:#052e26; }
         .wl-filter-btn.active.pe  { color:#fca5a5; border-color:#ef4444; background:#3a1116; }
+        .wl-filter-btn.active.atm { color:#fde68a; border-color:#f59e0b; background:#2a2206; }
         /* Market Quotes instrument toggle (SENSEX / NIFTY) */
         .wl-inst-toggle { display:flex; gap:0; margin-right:6px; border:1px solid #374151; border-radius:999px; overflow:hidden; }
         .wl-inst-btn {
@@ -1758,6 +1759,81 @@
         .ab-cell { display:flex; flex-direction:column; line-height:1.15; }
         .ab-cell i { font-style:normal; font-size:0.55rem; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em; }
         .ab-cell b { font-size:0.84rem; font-weight:700; color:#e5e7eb; }
+        /* ===== AMI SIGNAL header strip ===== */
+        .amihdr{ margin:6px 12px 0; background:linear-gradient(90deg,#0a1626,#0b0e17); border:1px solid #18304a; border-radius:10px; padding:9px 13px; }
+        .ah-now{ display:flex; align-items:center; gap:11px; flex-wrap:wrap; margin-bottom:8px; }
+        .ah-lbl{ font-size:0.78rem; font-weight:800; color:#7dd3fc; letter-spacing:.5px; }
+        .ah-badge{ font-weight:900; font-size:0.82rem; padding:3px 12px; border-radius:7px; letter-spacing:.4px; }
+        .ah-badge.call{ background:#0d2a1a; color:#34e3a4; box-shadow:inset 0 0 0 1px #1c5a38; }
+        .ah-badge.put{ background:#2a0f17; color:#ff6b8b; box-shadow:inset 0 0 0 1px #5a1d2c; }
+        .ah-badge.wait{ background:#1f2937; color:#9ca3af; }
+        .ah-inst{ font-size:0.7rem; font-weight:800; color:#fbbf24; }
+        .ah-strike{ font-size:1rem; font-weight:800; color:#f1f5f9; font-variant-numeric:tabular-nums; }
+        .ah-kv{ font-size:0.66rem; color:#9aa5b6; } .ah-kv b{ color:#e5e7eb; font-weight:700; }
+        .ah-stat{ font-size:0.54rem; font-weight:800; padding:2px 8px; border-radius:999px; background:#1f2937; color:#9ca3af; letter-spacing:.4px; }
+        .ah-stat.executed{ background:#064e3b; color:#86efac; } .ah-stat.ready{ background:#3a2d10; color:#fcd34d; }
+        .ah-time{ margin-left:auto; font-size:0.58rem; color:#6b7280; font-family:ui-monospace,monospace; }
+        .ah-feeds{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .ah-col-lbl{ font-size:0.56rem; color:#6b7280; text-transform:uppercase; letter-spacing:.6px; font-weight:700; margin-bottom:4px; }
+        .ah-ct{ color:#7dd3fc; font-weight:800; margin-left:3px; }
+        .ah-feed{ display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+        .ah-empty{ font-size:0.6rem; color:#5b6576; font-style:italic; padding:3px 1px; }
+        .ah-chip{ flex-shrink:0; display:flex; align-items:center; gap:6px; border-radius:6px; padding:4px 9px; border:1px solid; font-size:0.6rem; white-space:nowrap; }
+        .ah-chip.call,.ah-chip.high{ background:#0d1f14; border-color:#14361f; } .ah-chip.put,.ah-chip.low{ background:#1f0d12; border-color:#3a1620; }
+        .ah-cd{ font-weight:800; } .ah-cd.call,.ah-cd.high{ color:#34e3a4; } .ah-cd.put,.ah-cd.low{ color:#ff6b8b; }
+        .ah-ci{ color:#fbbf24; font-weight:700; font-size:0.54rem; } .ah-cs{ color:#e5e7eb; font-weight:700; } .ah-ct2{ color:#6b7280; font-size:0.52rem; }
+        @media (max-width:900px){ .ah-feeds{ grid-template-columns:1fr; } }
+        /* AMI singles — lifecycle + clickable detail */
+        .ah-now{ cursor:pointer; border-radius:8px; padding:2px 4px; margin:-2px -4px 6px; transition:background .12s; }
+        .ah-now:hover{ background:rgba(125,211,252,.06); }
+        .ah-life{ font-size:0.54rem; font-weight:800; padding:2px 8px; border-radius:999px; letter-spacing:.4px; }
+        .ah-life.active{ background:#06281c; color:#34e3a4; box-shadow:inset 0 0 0 1px #14512f; }
+        .ah-life.expired{ background:#241016; color:#f0789a; box-shadow:inset 0 0 0 1px #4a1d2c; }
+        .ah-life.exit{ background:#1d2433; color:#9fb0cc; }
+        .ah-chip{ cursor:pointer; transition:transform .08s, border-color .12s, opacity .12s; }
+        .ah-chip:hover{ transform:translateY(-1px); border-color:#3b6ea5; }
+        .ah-chip.expired{ opacity:.5; filter:grayscale(.45); }
+        .ah-xp{ font-size:0.5rem; color:#f0789a; font-weight:800; letter-spacing:.3px; }
+        /* AMI single full-detail modal */
+        .ami-modal{ position:fixed; inset:0; background:rgba(3,7,15,.72); backdrop-filter:blur(3px); z-index:9999; display:none; align-items:center; justify-content:center; padding:20px; }
+        .ami-modal.show{ display:flex; }
+        .ami-card{ width:min(440px,94vw); max-height:88vh; overflow:auto; background:linear-gradient(160deg,#0c1726,#0a0e17); border:1px solid #21405f; border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.6); padding:18px; }
+        .ami-top{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+        .ami-top .ah-badge{ font-size:0.9rem; }
+        .ami-x{ margin-left:auto; cursor:pointer; color:#8b97a8; font-size:1.15rem; line-height:1; padding:2px 8px; border-radius:7px; }
+        .ami-x:hover{ background:#1b2738; color:#e5e7eb; }
+        .ami-rows{ display:grid; grid-template-columns:auto 1fr; gap:8px 16px; font-size:0.76rem; align-items:baseline; }
+        .ami-rows .k{ color:#7f8aa0; font-weight:600; }
+        .ami-rows .v{ color:#eef2f7; font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
+        .ami-rows .v.big{ font-size:0.92rem; }
+        /* Pattern-signals compact strip */
+        .psstrip{ margin:6px 12px 0; background:linear-gradient(90deg,#140f06,#0b0e17); border:1px solid #3a2d10; border-radius:10px; padding:8px 13px; display:flex; align-items:center; gap:12px; }
+        .ps-lbl{ font-size:0.74rem; font-weight:800; color:#fbbf24; white-space:nowrap; letter-spacing:.4px; }
+        .ps-items{ display:flex; gap:8px; overflow-x:auto; flex:1; padding-bottom:1px; }
+        .ps-it{ flex-shrink:0; display:flex; align-items:center; gap:9px; border-radius:8px; padding:5px 11px; border:1px solid #2b3850; cursor:pointer; transition:transform .08s, border-color .12s; background:#0e1626; }
+        .ps-it:hover{ transform:translateY(-1px); }
+        .ps-it.bull{ border-color:#1c5a38; } .ps-it.bear{ border-color:#5a1d2c; }
+        .ps-it .pi-inst{ font-size:0.64rem; font-weight:800; }
+        .ps-it .pi-pat{ font-size:0.58rem; color:#9fb0c8; white-space:nowrap; }
+        .ps-it .pi-bias{ font-size:0.54rem; font-weight:800; padding:1px 7px; border-radius:999px; white-space:nowrap; }
+        .ps-it .pi-bias.bull{ background:#0d2a1a; color:#34e3a4; } .ps-it .pi-bias.bear{ background:#2a0f17; color:#ff6b8b; } .ps-it .pi-bias.neu{ background:#1f2937; color:#9ca3af; }
+        .ps-it .pi-leg{ font-size:0.56rem; font-variant-numeric:tabular-nums; font-weight:700; }
+        .ps-it .pi-buy{ color:#34e3a4; } .ps-it .pi-sell{ color:#ff6b8b; }
+        .ps-all{ font-size:0.6rem; font-weight:700; color:#7dd3fc; text-decoration:none; white-space:nowrap; }
+        .ps-all:hover{ text-decoration:underline; }
+        .ps-empty{ font-size:0.6rem; color:#5b6576; font-style:italic; }
+        /* Early-signals strip (leading — option H/L breakout, auto-hides when none) */
+        .esstrip{ margin:6px 12px 0; background:linear-gradient(90deg,#06121a,#0b0e17); border:1px solid #164e63; border-radius:10px; padding:8px 13px; display:flex; align-items:center; gap:12px; }
+        .es-lbl{ font-size:0.74rem; font-weight:800; color:#5fe1ff; white-space:nowrap; letter-spacing:.4px; }
+        .es-items{ display:flex; gap:8px; overflow-x:auto; flex:1; padding-bottom:1px; }
+        .es-it{ flex-shrink:0; display:flex; align-items:center; gap:8px; border-radius:8px; padding:5px 11px; border:1px solid #2b3850; background:#0e1626; }
+        .es-it.bull{ border-color:#1c5a38; } .es-it.bear{ border-color:#5a1d2c; }
+        .es-it .ei-dir{ font-weight:900; font-size:0.72rem; } .es-it.bull .ei-dir{ color:#34e3a4; } .es-it.bear .ei-dir{ color:#ff6b8b; }
+        .es-it .ei-sk{ font-size:0.64rem; font-weight:800; }
+        .es-it .ei-lbl{ font-size:0.56rem; color:#9fb0c8; white-space:nowrap; }
+        .es-it .ei-st{ font-size:0.5rem; font-weight:800; padding:1px 7px; border-radius:999px; letter-spacing:.3px; }
+        .ei-st.confirmed{ background:#06281c; color:#34e3a4; } .ei-st.early{ background:#3a2d10; color:#fcd34d; } .ei-st.divergent{ background:#241016; color:#f0789a; }
+        .es-it .ei-age{ font-size:0.5rem; color:#6b7280; }
         .ab-card.call.ab-glow { box-shadow:0 0 0 1px #22d39a, 0 0 12px rgba(34,211,154,0.22); }
         .ab-card.put.ab-glow  { box-shadow:0 0 0 1px #f7567c, 0 0 12px rgba(247,86,124,0.22); }
         @media (max-width:900px){ .ab-cards{ grid-template-columns:1fr; } }
@@ -1817,9 +1893,11 @@
       <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/signal-heatmap.html">Signal Heatmap</a>
       <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strategy.html">Strategy</a>
       <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/heatmap.html">OI Heatmap</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/oi.html">OI Change</a>
       <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/pop.html">PoP</a>
       <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strike-history.html">Strike History</a>
       <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/ami-heatmap.html">AMI Heatmap</a>
+      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:700;color:#fbbf24;text-decoration:none;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);white-space:nowrap;" onmouseover="this.style.background='rgba(251,191,36,.16)'" onmouseout="this.style.background='rgba(251,191,36,.08)'" href="/pattern-signals.html">🕯️ Patterns</a>
     </nav>
 
     <!-- Data-source watchdog banner (hidden when healthy) -->
@@ -1935,6 +2013,50 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ===== AMI SIGNAL HEADER — latest AmiBroker single + recent singles + H/L alerts ===== -->
+    <div class="amihdr" id="amiHdr">
+      <div class="ah-now" id="ahNow" onclick="showAmiDetail(0)" title="click for full details">
+        <span class="ah-lbl">📡 AMI SIGNAL</span>
+        <span class="ah-badge wait" id="ahDir">WAIT</span>
+        <span class="ah-inst" id="ahInst">—</span>
+        <span class="ah-strike" id="ahStrike">—</span>
+        <span class="ah-kv">Prem <b id="ahPrem">—</b></span>
+        <span class="ah-kv">Conf <b id="ahConf">—</b></span>
+        <span class="ah-stat" id="ahStat">—</span>
+        <span class="ah-life active" id="ahLife" style="display:none">ACTIVE</span>
+        <span class="ah-time" id="ahTime">—</span>
+      </div>
+      <div class="ah-feeds">
+        <div class="ah-feed-col">
+          <div class="ah-col-lbl">📡 Singles <span class="ah-ct" id="ahSigCt">0</span></div>
+          <div class="ah-feed" id="ahSigFeed"><span class="ah-empty">waiting for AmiBroker push…</span></div>
+        </div>
+        <div class="ah-feed-col">
+          <div class="ah-col-lbl">🔔 Low / High <span class="ah-ct" id="ahHlCt">0</span></div>
+          <div class="ah-feed" id="ahHlFeed"><span class="ah-empty">no H/L breaks yet…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AMI single full-detail modal (click any single / the header to open) -->
+    <div class="ami-modal" id="amiModal" onclick="if(event.target===this)closeAmiDetail()">
+      <div class="ami-card" id="amiCard"></div>
+    </div>
+
+    <!-- ===== EARLY SIGNALS — leading (option H/L breakout, before candle confirms). Auto-hides when none. ===== -->
+    <div class="esstrip" id="esStrip" style="display:none">
+      <span class="es-lbl">⚡ EARLY SIGNALS</span>
+      <div class="es-items" id="esItems"></div>
+      <a class="ps-all" href="/oi.html" title="OI buildup + chart">OI →</a>
+    </div>
+
+    <!-- ===== PATTERN SIGNALS — compact strip (full page → /pattern-signals.html) ===== -->
+    <div class="psstrip" id="psStrip">
+      <span class="ps-lbl">🕯️ PATTERN SIGNALS</span>
+      <div class="ps-items" id="psItems"><span class="ps-empty">loading patterns…</span></div>
+      <a class="ps-all" href="/pattern-signals.html">view all →</a>
     </div>
 
     <!-- ===== MAIN GRID ===== -->
@@ -2292,6 +2414,7 @@
                             <button class="wl-inst-btn active" id="wlInstSENSEX" onclick="setWatchlistInst('SENSEX')">SENSEX</button>
                             <button class="wl-inst-btn" id="wlInstNIFTY" onclick="setWatchlistInst('NIFTY')">NIFTY</button>
                         </div>
+                        <button class="wl-filter-btn atm active" id="wlSortAtm" onclick="setWatchlistSortAtm()" title="Sort by nearest to ATM">◎ ATM</button>
                         <button class="wl-filter-btn all active" id="wlFilterAll" onclick="setWatchlistFilter('ALL')">ALL</button>
                         <button class="wl-filter-btn ce" id="wlFilterCE" onclick="setWatchlistFilter('CE')">CALL</button>
                         <button class="wl-filter-btn pe" id="wlFilterPE" onclick="setWatchlistFilter('PE')">PUT</button>
@@ -2303,7 +2426,7 @@
                     <table class="wl-table">
                         <thead><tr>
                             <th class="wl-th-label" data-sort="label">Contract <span class="wl-arrow">⇅</span></th>
-                            <th data-sort="ltp" class="wl-sort-active wl-sort-desc">LTP <span class="wl-arrow">▼</span></th>
+                            <th data-sort="ltp">LTP <span class="wl-arrow">⇅</span></th>
                             <th>₹/Lot</th>
                             <th data-sort="pop">PoP% <span class="wl-arrow">⇅</span></th>
                             <th data-sort="low">Low <span class="wl-arrow">⇅</span></th>
@@ -4051,6 +4174,9 @@
             loadBacktestResults();
             loadSensibullData();
             loadActionBox();            // SENSEX + NIFTY BUY CALL/PUT suggestions
+            loadAmiHeader();            // AMI single (ready) + singles feed + H/L alerts
+            loadPatternStrip();         // candlestick pattern signals (compact strip)
+            loadEarlySignals();         // leading option H/L breakout signals (auto-hide strip)
             loadGammaBlast();           // handles closed market gracefully
             initExpiryCountdown();
             refreshPosition();
@@ -4068,6 +4194,9 @@
             setInterval(loadSensibullData, 3000);
             // Action box (SENSEX + NIFTY together) every 3s
             setInterval(loadActionBox, 3000);
+            setInterval(loadAmiHeader, 4000);
+            setInterval(loadPatternStrip, 20000);   // pattern signals strip (candles update slowly)
+            setInterval(loadEarlySignals, 5000);    // early signals — fast (leading, tick-driven)
             // Refresh market quotes watchlist every 5s
             bindWlSorting();
             loadWatchlist();
@@ -4506,6 +4635,157 @@
         // ==================== ACTION BOX (BUY CALL / BUY PUT suggestion) ====================
         const AB_LOT = { SENSEX: 20, NIFTY: 65, BANKNIFTY: 30 };
         // Show SENSEX + NIFTY suggestions together (independent of the selected instrument).
+        // ===== AMI SIGNAL header — latest single (ready) + recent singles + H/L alerts =====
+        let _amiSigShown = [];
+        function amiLife(s){
+            if (!s) return 'ACTIVE';
+            if (s.lifecycle) return String(s.lifecycle).toUpperCase();
+            if (String(s.action||'').toUpperCase()==='EXIT') return 'EXIT';
+            const exp = s.expiresAt ? Date.parse(s.expiresAt) : NaN;
+            if (Number.isFinite(exp)) return Date.now() > exp ? 'EXPIRED' : 'ACTIVE';
+            return 'ACTIVE';
+        }
+        function _amiRow(k,v,cls){ return (v===undefined||v===null||v===''||v==='—') ? '' : `<div class="k">${k}</div><div class="v ${cls||''}">${v}</div>`; }
+        function showAmiDetail(i){
+            const s = _amiSigShown[i];
+            if (!s) return;
+            const life = amiLife(s);
+            const dc  = s.signal==='CALL'?'call':s.signal==='PUT'?'put':'wait';
+            const dir = s.signal==='CALL'?'CALL ▲':s.signal==='PUT'?'PUT ▼':(s.signal||'WAIT');
+            const money = v => (+v>0) ? '₹'+(+v).toLocaleString('en-IN',{maximumFractionDigits:2}) : '';
+            const fmtT  = iso => { if(!iso) return ''; const d=new Date(iso); return Number.isFinite(d.getTime()) ? d.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false}) : ''; };
+            const lifeTxt = life==='EXPIRED'?'EXPIRED':life==='EXIT'?'EXIT':'ACTIVE';
+            const rows = [
+                _amiRow('Instrument', s.instrument||'—', 'big'),
+                _amiRow('Strike', `${s.strike||'—'} ${s.signal==='CALL'?'CE':s.signal==='PUT'?'PE':''}`.trim(), 'big'),
+                _amiRow('Confidence', s.conf?`${s.conf}%`:''),
+                _amiRow('Premium', money(s.premium)),
+                _amiRow('Spot / Px', money(s.price)),
+                _amiRow('Target', s.target>0?(s.target<10?`${s.target}×`:money(s.target)):''),
+                _amiRow('Execution', s.execution?.status||'LOGGED'),
+                _amiRow('Strategy', s.strategy||''),
+                _amiRow('Source', s.source||''),
+                _amiRow('Bar / ref', s.barId||''),
+                _amiRow('Received', `${s.date||''} ${s.time||''}`.trim()),
+                _amiRow('Expires', s.expiresAt ? fmtT(s.expiresAt)+(s.ttlMin?` · ${s.ttlMin}m window`:'') : (life==='EXIT'?'—':'no expiry')),
+                _amiRow('Reason', s.reason||''),
+            ].join('');
+            document.getElementById('amiCard').innerHTML =
+                `<div class="ami-top"><span class="ah-badge ${dc}">${dir}</span>`
+                + `<span class="ah-life ${life.toLowerCase()}">${lifeTxt}</span>`
+                + `<span class="ami-x" onclick="closeAmiDetail()" title="close">✕</span></div>`
+                + `<div class="ami-rows">${rows}</div>`;
+            document.getElementById('amiModal').classList.add('show');
+        }
+        function closeAmiDetail(){ document.getElementById('amiModal').classList.remove('show'); }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAmiDetail(); });
+
+        // Pattern Signals compact strip — top candlestick-pattern verdicts (full page: /pattern-signals.html)
+        async function loadPatternStrip() {
+            try {
+                const r = await fetch(`${API_BASE}/api/pattern-signals?inst=ALL&tf=15,60`, {cache:'no-store'});
+                const d = await r.json();
+                const sigs = (d.signals||[]).slice(0,5);
+                const el = document.getElementById('psItems');
+                if (!sigs.length) { el.innerHTML = '<span class="ps-empty">no patterns (market closed / candles pending)</span>'; return; }
+                el.innerHTML = sigs.map(s=>{
+                    const k = s.confluence.bias==='BULLISH'?'bull':s.confluence.bias==='BEARISH'?'bear':'neu';
+                    const ic = s.inst==='NIFTY'?'#fbbf24':s.inst==='SENSEX'?'#7dd3fc':'#c4b5fd';
+                    const cv = s.confluence.conviction || 'LOW';
+                    const cvcol = cv==='HIGH'?'#34e3a4':cv==='MEDIUM'?'#fcd34d':'#9ca3af';
+                    const cvtxt = cv==='HIGH'?'★HIGH':cv==='MEDIUM'?'◆MED':'LOW';
+                    const buy = s.reco&&s.reco.buy ? `<span class="pi-leg pi-buy">B ${s.reco.buy.strike}${s.reco.buy.type}</span>` : '';
+                    const sell= s.reco&&s.reco.sell ? `<span class="pi-leg pi-sell">S ${s.reco.sell.strike}${s.reco.sell.type}</span>` : '';
+                    return `<div class="ps-it ${k}" onclick="location.href='/pattern-signals.html'" title="${s.pattern.name} · ${cv} conviction · ${s.confluence.confidence}% · click for full page">`
+                        + `<span class="pi-inst" style="color:${ic}">${s.inst}</span>`
+                        + `<span class="pi-pat">${s.tfLabel} · ${s.pattern.name}</span>`
+                        + `<span class="pi-bias ${k}">${s.confluence.bias} ${s.confluence.confidence}%</span>`
+                        + `<span style="font-size:0.5rem;font-weight:800;color:${cvcol}">${cvtxt}</span>`
+                        + buy + sell + `</div>`;
+                }).join('');
+            } catch(e) {}
+        }
+
+        // Early Signals strip — leading triggers from near-ATM option H/L breakouts
+        // (fires before the candlestick trend confirms). Auto-hides when none.
+        async function loadEarlySignals() {
+            try {
+                const r = await fetch(`${API_BASE}/api/early-signals?inst=ALL&lookback=12`, {cache:'no-store'});
+                const d = await r.json();
+                const strip = document.getElementById('esStrip');
+                const sigs = (d.signals||[]).slice(0,8);
+                if (!sigs.length) { strip.style.display='none'; return; }
+                strip.style.display='flex';
+                document.getElementById('esItems').innerHTML = sigs.map(s=>{
+                    const k = s.dir>0?'bull':s.dir<0?'bear':'';
+                    const ic = s.inst==='NIFTY'?'#fbbf24':s.inst==='SENSEX'?'#7dd3fc':'#c4b5fd';
+                    const st = String(s.status||'EARLY').toLowerCase();
+                    const age = s.ageSec<60?`${s.ageSec}s`:`${Math.floor(s.ageSec/60)}m`;
+                    return `<div class="es-it ${k}" title="${s.label} · ${s.action}">`
+                        + `<span class="ei-dir">${s.dir>0?'▲':s.dir<0?'▼':'•'}</span>`
+                        + `<span class="ei-sk" style="color:${ic}">${s.inst} ${s.strike}${s.type}</span>`
+                        + `<span class="ei-lbl">${s.kind} ${s.movePct>=0?'+':''}${s.movePct}%</span>`
+                        + `<span class="ei-st ${st}">${s.status}</span>`
+                        + `<span class="ei-age">${age} ago</span></div>`;
+                }).join('');
+            } catch(e) {}
+        }
+
+        async function loadAmiHeader() {
+            try {
+                const [sig, ...hls] = await Promise.all([
+                    fetch(`${API_BASE}/api/amibroker/signals`,{cache:'no-store'}).then(r=>r.json()).catch(()=>null),
+                    fetch(`${API_BASE}/api/hl-alerts?inst=NIFTY&limit=20`,{cache:'no-store'}).then(r=>r.json()).catch(()=>null),
+                    fetch(`${API_BASE}/api/hl-alerts?inst=SENSEX&limit=20`,{cache:'no-store'}).then(r=>r.json()).catch(()=>null),
+                    fetch(`${API_BASE}/api/hl-alerts?inst=BANKNIFTY&limit=20`,{cache:'no-store'}).then(r=>r.json()).catch(()=>null),
+                ]);
+                // ---- latest single (ready) — API returns newest-first, so sigs[0] is latest ----
+                const sigs = (sig && sig.signals) ? sig.signals : [];
+                _amiSigShown = sigs.slice(0, 25);
+                const latest = sigs[0];
+                const dirEl = document.getElementById('ahDir');
+                const lifeEl = document.getElementById('ahLife');
+                if (latest) {
+                    const dc = latest.signal === 'CALL' ? 'call' : latest.signal === 'PUT' ? 'put' : 'wait';
+                    dirEl.className = 'ah-badge ' + dc;
+                    dirEl.textContent = latest.signal === 'CALL' ? 'CALL ▲' : latest.signal === 'PUT' ? 'PUT ▼' : (latest.signal||'WAIT');
+                    document.getElementById('ahInst').textContent = latest.instrument || '—';
+                    document.getElementById('ahStrike').textContent = latest.strike || '—';
+                    const prem = (latest.premium>0?latest.premium:latest.price)||0;
+                    document.getElementById('ahPrem').textContent = prem>0 ? '₹'+(+prem).toLocaleString('en-IN') : '—';
+                    document.getElementById('ahConf').textContent = latest.conf ? latest.conf+'%' : '—';
+                    const st = String(latest.execution?.status||'LOGGED');
+                    const stEl = document.getElementById('ahStat');
+                    stEl.textContent = st; stEl.className = 'ah-stat ' + st.toLowerCase();
+                    document.getElementById('ahTime').textContent = latest.time || '';
+                    const lf = amiLife(latest);
+                    lifeEl.style.display = ''; lifeEl.className = 'ah-life ' + lf.toLowerCase();
+                    lifeEl.textContent = lf;
+                } else {
+                    dirEl.className = 'ah-badge wait'; dirEl.textContent = 'WAIT';
+                    lifeEl.style.display = 'none';
+                }
+                // ---- singles mini-feed (newest first; click a chip for full detail) ----
+                document.getElementById('ahSigCt').textContent = sigs.length;
+                const sf = document.getElementById('ahSigFeed');
+                sf.innerHTML = _amiSigShown.length ? _amiSigShown.map((s,i)=>{
+                    const c = s.signal==='CALL'?'call':s.signal==='PUT'?'put':'';
+                    const life = amiLife(s);
+                    const xp = life==='EXPIRED' ? '<span class="ah-xp">exp</span>' : '';
+                    return `<span class="ah-chip ${c} ${life==='EXPIRED'?'expired':''}" onclick="showAmiDetail(${i})" title="click for full details"><span class="ah-cd ${c}">${s.signal==='CALL'?'▲':s.signal==='PUT'?'▼':''}</span><span class="ah-ci">${s.instrument}</span><span class="ah-cs">${s.strike||''}</span>${s.conf?`<span class="ah-ct2">${s.conf}%</span>`:''}<span class="ah-ct2">${s.time||''}</span>${xp}</span>`;
+                }).join('') : '<span class="ah-empty">waiting for AmiBroker push…</span>';
+                // ---- H/L alerts mini-feed ----
+                let alerts = [];
+                hls.forEach(a => { if (a && a.alerts) alerts = alerts.concat(a.alerts); });
+                alerts.sort((x,y)=>(y.at||0)-(x.at||0));
+                document.getElementById('ahHlCt').textContent = alerts.length;
+                const hf = document.getElementById('ahHlFeed');
+                hf.innerHTML = alerts.length ? alerts.slice(0,25).map(a=>{
+                    const k = a.kind==='HIGH'?'high':'low';
+                    return `<span class="ah-chip ${k}"><span class="ah-cd ${k}">${a.kind==='HIGH'?'H▲':'L▼'}</span><span class="ah-ci">${a.inst}</span><span class="ah-cs">${a.strike}${a.type||''}</span><span class="ah-ct2">₹${a.price}</span><span class="ah-ct2">${a.time||''}</span></span>`;
+                }).join('') : '<span class="ah-empty">no H/L breaks yet…</span>';
+            } catch (e) {}
+        }
         async function loadActionBox() {
             try {
                 const [sx, nf] = await Promise.all([
@@ -5108,7 +5388,7 @@
             }).join('');
         }
 
-        let _wlSort = { key: 'ltp', dir: 'desc' };
+        let _wlSort = { key: 'atm', dir: 'asc' };   // default: near-ATM strikes first
         let _wlLastData = null;
         let _wlFilter = 'ALL';
 
@@ -5410,6 +5690,10 @@
             }
             const atm = d.atm;
             const rows = [...d.rows].sort((a, b) => {
+                if (_wlSort.key === 'atm') {            // near-ATM first (default focus)
+                    const d1 = Math.abs(a.strike - atm), d2 = Math.abs(b.strike - atm);
+                    return d1 !== d2 ? d1 - d2 : a.strike - b.strike;
+                }
                 const av = a[_wlSort.key], bv = b[_wlSort.key];
                 if (typeof av === 'string') {
                     return _wlSort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
@@ -5468,7 +5752,13 @@
             updateWatchlistFilterButtons();
         }
 
+        function setWatchlistSortAtm() {
+            _wlSort = { key: 'atm', dir: 'asc' };
+            if (_wlLastData) renderWatchlist(_wlLastData);
+        }
         function updateWlHeaderArrows() {
+            const atmBtn = document.getElementById('wlSortAtm');
+            if (atmBtn) atmBtn.classList.toggle('active', _wlSort.key === 'atm');
             document.querySelectorAll('.wl-table th[data-sort]').forEach(th => {
                 const key = th.getAttribute('data-sort');
                 const arrow = th.querySelector('.wl-arrow');

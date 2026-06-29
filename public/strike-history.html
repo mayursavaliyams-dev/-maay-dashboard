@@ -268,8 +268,12 @@
         price: Number(entry.price),
         kind, tag, color
       });
+      const tickHistory = Array.isArray(leg?.tickHistory) ? leg.tickHistory : [];
       const lowSeries  = lowHistory.map((e, i) => mk(e, i, 'low')).filter(e => Number.isFinite(e.price) && e.time);
       const highSeries = highHistory.map((e, i) => mk(e, i, 'high')).filter(e => Number.isFinite(e.price) && e.time);
+      // full tick path — the genuine session low/high lives here (markers are sparse)
+      const tickSeries = tickHistory.map((e, i) => mk(e, i, 'tick')).filter(e => Number.isFinite(e.price) && e.price > 0);
+      tickSeries.sort((a, b) => a.ts - b.ts);
       if (Number.isFinite(Number(leg?.ltp))) {
         const latestTime = String(leg.lastAt || leg.highAt || leg.lowAt || highHistory.at(-1)?.time || lowHistory.at(-1)?.time || '');
         if (latestTime) {
@@ -279,7 +283,7 @@
       // Sort each series chronologically so the line goes strictly left→right.
       lowSeries.sort((a, b) => a.ts - b.ts);
       highSeries.sort((a, b) => a.ts - b.ts);
-      return { lowSeries, highSeries };
+      return { lowSeries, highSeries, tickSeries };
     }
     function buildPath(points, xScale, yScale) {
       return points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${xScale(point.ts).toFixed(2)} ${yScale(point.price).toFixed(2)}`).join(' ');
@@ -347,13 +351,15 @@
       // valid pair where SELL happens AFTER BUY (max forward gain). Merges low+high
       // records into one time-sorted price path, then finds best buy-then-sell.
       function bsSignal(leg, tag) {
-        const pts = [...leg.lowSeries, ...leg.highSeries]
-          .filter(p => p.kind !== 'ltp' && Number.isFinite(p.price) && p.price > 0)
+        // Merge the FULL tick path with the low/high markers so BUY lands on the
+        // genuine session low (markers alone are sparse → missed lower entries).
+        const pts = [...(leg.tickSeries||[]), ...leg.lowSeries, ...leg.highSeries]
+          .filter(p => Number.isFinite(p.price) && p.price > 0)
           .sort((a, b) => a.ts - b.ts);
         if (pts.length < 2) return null;
         let minSoFar = pts[0], buy = pts[0], sell = pts[0], best = -Infinity;
         for (const p of pts) {
-          if (p.price < minSoFar.price) minSoFar = p;          // track lowest seen so far
+          if (p.price < minSoFar.price) minSoFar = p;          // track the LOWEST price seen so far
           const g = (p.price - minSoFar.price) / minSoFar.price;
           if (g > best) { best = g; buy = minSoFar; sell = p; } // best sell after that low
         }

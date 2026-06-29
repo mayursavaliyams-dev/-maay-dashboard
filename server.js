@@ -14,6 +14,7 @@ const aiLogger = require("./ai-logger");
 const popSeller   = require("./pop-seller");
 const redisStore  = require("./redis-store");
 const multiconfirm = require("./multiconfirm");
+const candlestickPatterns = require("./candlestick-patterns");
 const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
 const SimpleDB = require("./database");
@@ -503,7 +504,12 @@ async function _recordOiSnap(inst) {
     const today = _istDateStr();
     if (_oiSnapDay !== today) { _oiSnapDay = today; _oiSnaps.NIFTY = []; _oiSnaps.SENSEX = []; _oiSnaps.BANKNIFTY = []; }
     const byStrike = {};
-    for (const s of (chain.strikes || [])) byStrike[s.strike] = { ce: Number(s.ce?.oi || 0), pe: Number(s.pe?.oi || 0) };
+    // cl/pl = CE/PE premium (LTP) so the buildup detector can tell long-buildup
+    // (OI↑ + premium↑) from writing (OI↑ + premium↓) on intraday windows.
+    for (const s of (chain.strikes || [])) byStrike[s.strike] = {
+      ce: Number(s.ce?.oi || 0), pe: Number(s.pe?.oi || 0),
+      cl: Number(s.ce?.ltp || 0), pl: Number(s.pe?.ltp || 0)
+    };
     const arr = _oiSnaps[inst] || (_oiSnaps[inst] = []);
     arr.push({ t: Date.now(), atm: Number(chain.atmStrike) || 0, spot: Number(spot) || 0, byStrike });
     if (arr.length > 450) arr.shift();   // ~7.5 hrs of 1-min snapshots
@@ -545,6 +551,96 @@ app.get('/api/oi-change', async (req, res) => {
       baselineAt: base ? new Date(base.t + 5.5 * 3600e3).toISOString().slice(11, 16) : null,
       baselineSpot: base ? base.spot : null, strikes });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── OI BUILDUP SIGNALS ───────────────────────────────────────────────────────
+// Where is OI building up (++++) at a strike, and is it a BUY-side (bullish) or
+// SELL-side (bearish) buildup? Reuses the same per-minute snapshots as /api/oi-change.
+//   CE OI↑ + premium↑ = Call Long Buildup  → bullish (BUY)
+//   CE OI↑ + premium↓ = Call Writing       → bearish (resistance / SELL)
+//   PE OI↑ + premium↓ = Put Writing        → bullish (support / BUY)
+//   PE OI↑ + premium↑ = Put Long Buildup   → bearish (SELL)
+// Full-day (no intraday snapshot) → premium unknown → writer logic (CE↑=bearish, PE↑=bullish).
+//   ?inst=NIFTY&window=full|5|10|15|30|60|120|180&top=6
+app.get('/api/oi-signals', async (req, res) => {
+  try {
+    const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+    const win  = String(req.query.window || 'full').toLowerCase();
+    const topN = Math.max(3, Math.min(15, parseInt(req.query.top, 10) || 6));
+    const arr  = _oiSnaps[inst] || [];
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const atm  = Number(chain.atmStrike) || 0;
+
+    const cur = {};
+    for (const s of (chain.strikes || [])) cur[s.strike] = {
+      ce: Number(s.ce?.oi || 0), pe: Number(s.pe?.oi || 0),
+      dCe: Number(s.ce?.changeOI || 0), dPe: Number(s.pe?.changeOI || 0),
+      cl: Number(s.ce?.ltp || 0), pl: Number(s.pe?.ltp || 0),
+    };
+
+    let base = null;
+    if (win !== 'full') { const mins = parseInt(win) || 0, target = Date.now() - mins * 60000;
+      for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].t <= target) { base = arr[i]; break; } }
+      if (!base) base = arr[0] || null; }
+    const spotMove = base ? +(spot - (base.spot || spot)).toFixed(2) : null;
+
+    // Classify ONE leg's buildup (only fires on OI increase — "OI ++++").
+    const classify = (strike, type, oiChg, pxChg) => {
+      if (!(oiChg > 0)) return null;                 // only OI buildup
+      const known = pxChg != null;
+      let buildup, dir, action;
+      if (type === 'CE') {
+        if (known && pxChg > 0) { buildup = 'Call Long Buildup'; dir = 1;  action = `BUY ${strike} CE (fresh longs)`; }
+        else                    { buildup = 'Call Writing';      dir = -1; action = `Resistance ${strike} · BUY ${atm} PE / SELL ${strike} CE`; }
+      } else {
+        if (known && pxChg > 0) { buildup = 'Put Long Buildup';  dir = -1; action = `BUY ${strike} PE (fresh longs)`; }
+        else                    { buildup = 'Put Writing';       dir = 1;  action = `Support ${strike} · BUY ${atm} CE / SELL ${strike} PE`; }
+      }
+      return { strike, type, oiChg: Math.round(oiChg), pxChg: known ? +pxChg.toFixed(2) : null,
+               buildup, dir, strength: Math.abs(oiChg),
+               moneyness: strike < atm ? 'ITM/below' : strike > atm ? 'OTM/above' : 'ATM', action };
+    };
+
+    let totCe = 0, totPe = 0;
+    const buy = [], sell = [];
+    for (const k of Object.keys(cur).map(Number).sort((a, b) => a - b)) {
+      const c = cur[k], b = base && base.byStrike[k];
+      const ceChg = b ? c.ce - b.ce : c.dCe;
+      const peChg = b ? c.pe - b.pe : c.dPe;
+      const cePx  = (b && b.cl != null && c.cl) ? c.cl - b.cl : null;
+      const pePx  = (b && b.pl != null && c.pl) ? c.pl - b.pl : null;
+      totCe += ceChg; totPe += peChg;
+      for (const lg of [classify(k, 'CE', ceChg, cePx), classify(k, 'PE', peChg, pePx)]) {
+        if (lg) (lg.dir > 0 ? buy : sell).push(lg);
+      }
+    }
+    // threshold: drop noise below 12% of the strongest buildup
+    const maxStr = Math.max(1, ...buy.concat(sell).map(s => s.strength));
+    const minStr = maxStr * 0.12;
+    const flt = a => a.filter(s => s.strength >= minStr).sort((x, y) => y.strength - x.strength).slice(0, topN);
+    const buyTop = flt(buy), sellTop = flt(sell);
+
+    // net bias — more put writing = bullish; refined by spot move
+    const net = totPe - totCe;
+    let bias = 'NEUTRAL', label = 'balanced OI flow';
+    const thr = Math.max(maxStr * 0.3, 1);
+    if (net > thr)  { bias = 'BULLISH'; label = 'Put writing dominant — support building'; }
+    else if (net < -thr) { bias = 'BEARISH'; label = 'Call writing dominant — resistance building'; }
+    if (spotMove != null && Math.abs(spotMove) > (spot * 0.0008)) {
+      if (bias === 'BEARISH' && spotMove < 0) label += ' · price down = short buildup confirmed';
+      if (bias === 'BULLISH' && spotMove > 0) label += ' · price up = long buildup confirmed';
+    }
+
+    res.json({
+      ok: true, instrument: inst, window: win, atmStrike: atm, spotPrice: spot,
+      snapshots: arr.length, baselineAt: base ? new Date(base.t + 5.5 * 3600e3).toISOString().slice(11, 16) : null,
+      spotMove, premiumAware: !!base,
+      net: { bias, label, callOIChg: Math.round(totCe), putOIChg: Math.round(totPe) },
+      buy: buyTop, sell: sellTop,
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // Periodically reconcile today's 1-minute option candles into the live record.
@@ -4152,6 +4248,300 @@ app.get('/api/ema-stack', async (req, res) => {
   } catch (err) {
     res.status(500).json({ inst, ready: false, error: err.message });
   }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PATTERN SIGNALS — Angel-One-style candlestick signals (candlestick-patterns.js)
+// Detects classic candle patterns on real 15m/1hr bars, fuses with OI + momentum
+// + trend into a BULLISH/BEARISH/NEUTRAL verdict, and names a BUY leg + SELL leg.
+// ════════════════════════════════════════════════════════════════════════════
+const PS_INSTS = {
+  NIFTY:     { sid: process.env.DHAN_NIFTY_SECURITY_ID     || '13', step: 50,  lot: Number(process.env.NIFTY_LOT_SIZE     || 65), label: 'Nifty 50',   analytics: '/api/nifty/options/analytics' },
+  BANKNIFTY: { sid: process.env.DHAN_BANKNIFTY_SECURITY_ID || '25', step: 100, lot: Number(process.env.BANKNIFTY_LOT_SIZE || 30), label: 'Nifty Bank',  analytics: '/api/banknifty/options/analytics' },
+  SENSEX:    { sid: process.env.DHAN_SENSEX_SECURITY_ID    || '51', step: 100, lot: Number(process.env.SENSEX_LOT_SIZE    || 20), label: 'BSE Sensex', analytics: '/api/options/analytics' },
+};
+const PS_TFS = [{ m: 5, label: '5m' }, { m: 15, label: '15m' }, { m: 60, label: '1hr' }];
+const PS_CACHE_MS = Number(process.env.PATTERN_SIGNALS_CACHE_MS) || 30000;
+
+const _psCandleCache = {}, _psCandleAt = {};
+async function _psFetchCandles(inst) {
+  const now = Date.now();
+  if (_psCandleCache[inst] && now - (_psCandleAt[inst] || 0) < PS_CACHE_MS) return _psCandleCache[inst];
+  const cfg = PS_INSTS[inst];
+  const today = new Date(now + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  const r = await live.client._post('/v2/charts/intraday', {
+    securityId: String(cfg.sid), exchangeSegment: 'IDX_I', instrument: 'INDEX', interval: '1', fromDate: today, toDate: today
+  });
+  _psCandleCache[inst] = r; _psCandleAt[inst] = now;
+  return r;
+}
+
+const _psAnalyticsCache = {}, _psAnalyticsAt = {};
+async function _psFetchAnalytics(inst) {
+  const now = Date.now();
+  if (_psAnalyticsCache[inst] && now - (_psAnalyticsAt[inst] || 0) < PS_CACHE_MS) return _psAnalyticsCache[inst];
+  const cfg = PS_INSTS[inst];
+  // Reuse the existing analytics routes in-process (keeps PCR/max-pain logic single-sourced).
+  const resp = await fetch(`http://127.0.0.1:${PORT}${cfg.analytics}`, { headers: { 'cache-control': 'no-store' } });
+  const a = await resp.json();
+  const spot = Number(a.spotPrice || a.livePrice || 0);
+  const rows = (a.optionChain || []).map(r => ({
+    strike: Number(r.strike),
+    ce: { ltp: Number(r.ce?.ltp || 0), oi: Number(r.ce?.oi || 0), changeOI: Number(r.ce?.changeOI || 0) },
+    pe: { ltp: Number(r.pe?.ltp || 0), oi: Number(r.pe?.oi || 0), changeOI: Number(r.pe?.changeOI || 0) },
+  }));
+  const norm = {
+    spot,
+    atm: Number(a.atmStrike || (cfg.step ? Math.round(spot / cfg.step) * cfg.step : 0)),
+    step: cfg.step, rows,
+    pcr: Number(a.pcr?.pcr ?? a.pcr ?? 0) || null,
+    pcrBias: a.pcr?.interpretation?.bias || 'SIDEWAYS',
+    maxPain: Number(a.maxPain?.maxPain ?? a.maxPain ?? 0) || null,
+    iv: Number(a.ivSummary?.overallIV ?? 0) || null,
+    ivPctile: Number(a.ivSummary?.ivPercentile ?? 0) || null,
+  };
+  _psAnalyticsCache[inst] = norm; _psAnalyticsAt[inst] = now;
+  return norm;
+}
+
+app.get('/api/pattern-signals', async (req, res) => {
+  try {
+    const instReq = String(req.query.inst || 'ALL').toUpperCase();
+    const insts = instReq === 'ALL'
+      ? Object.keys(PS_INSTS)
+      : instReq.split(',').map(s => s.trim()).filter(i => PS_INSTS[i]);
+    const tfReq = String(req.query.tf || '15,60').toUpperCase();
+    const tfs = PS_TFS.filter(t => tfReq === 'ALL' || tfReq.split(',').map(s => s.trim()).includes(String(t.m)));
+
+    const out = [];
+    await Promise.all(insts.map(async inst => {
+      const cfg = PS_INSTS[inst];
+      const [oneMin, analytics] = await Promise.all([
+        _psFetchCandles(inst).catch(() => null),
+        _psFetchAnalytics(inst).catch(() => null),
+      ]);
+      if (!oneMin || !(oneMin.close || []).length) return;
+      for (const tf of tfs) {
+        const sig = candlestickPatterns.analyzeTimeframe({ oneMin, minutesPerBar: tf.m, analytics, lot: cfg.lot });
+        if (sig) out.push({ inst, instLabel: cfg.label, tf: tf.m, tfLabel: tf.label, iv: analytics?.iv ?? null, oiAvailable: !!analytics, ...sig });
+      }
+    }));
+    // HIGH-conviction first (1hr + factors aligned), then MEDIUM, then by confidence;
+    // neutrals sink to the bottom. Operationalizes the backtest: trust aligned 1hr setups.
+    const cw = c => c === 'HIGH' ? 3000 : c === 'MEDIUM' ? 2000 : 0;
+    const rank = s => cw(s.confluence.conviction) + (s.confluence.bias !== 'NEUTRAL' ? 500 : 0) + s.confluence.confidence;
+    out.sort((a, b) => rank(b) - rank(a));
+    res.json({ ok: true, generatedAt: new Date().toISOString(), count: out.length, signals: out });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EARLY SIGNALS — the LEADING path. A candlestick trend only confirms on a CLOSED
+// bar (lagging). But a near-ATM option's own premium breaking its session HIGH is
+// real-time (fires on the tick, via _updateOptHL → _hlTouchAlerts) — so it flags
+// the move EARLIER. We classify the break directionally and tag whether the slower
+// candlestick trend has CONFIRMED it yet, or it's still EARLY (provisional).
+//   CE new HIGH → bullish · PE new HIGH → bearish · CE new LOW → bearish · PE new LOW → bullish
+// ════════════════════════════════════════════════════════════════════════════
+const EARLY_MIN_MOVE = Number(process.env.EARLY_MIN_MOVE_PCT) || 2.0; // % jump on the break
+const EARLY_NEAR_ATM = Number(process.env.EARLY_NEAR_ATM_STRIKES) || 3; // within N strikes of ATM
+
+// 15m confluence bias per inst (cached) — reuses the pattern-signals pipeline so the
+// "is the trend confirming this yet?" check is single-sourced.
+const _earlyBiasCache = {}, _earlyBiasAt = {};
+async function _confluenceBias(inst) {
+  const now = Date.now();
+  if (_earlyBiasCache[inst] && now - (_earlyBiasAt[inst] || 0) < PS_CACHE_MS) return _earlyBiasCache[inst];
+  let bias = 'NEUTRAL';
+  try {
+    const [oneMin, analytics] = await Promise.all([_psFetchCandles(inst).catch(() => null), _psFetchAnalytics(inst).catch(() => null)]);
+    if (oneMin && (oneMin.close || []).length) {
+      const sig = candlestickPatterns.analyzeTimeframe({ oneMin, minutesPerBar: 15, analytics, lot: 1 });
+      if (sig) bias = sig.confluence.bias;
+    }
+  } catch (_) {}
+  _earlyBiasCache[inst] = bias; _earlyBiasAt[inst] = now;
+  return bias;
+}
+
+app.get('/api/early-signals', async (req, res) => {
+  try {
+    const instReq = String(req.query.inst || 'ALL').toUpperCase();
+    const insts = instReq === 'ALL' ? ['NIFTY', 'SENSEX', 'BANKNIFTY']
+      : instReq.split(',').map(s => s.trim()).filter(i => _hlTouchAlerts[i]);
+    const lookbackMin = Math.max(1, Math.min(120, parseInt(req.query.lookback, 10) || 12));
+    const minMove = Number(req.query.minMove) || EARLY_MIN_MOVE;
+    const cutoff = Date.now() - lookbackMin * 60000;
+
+    const out = [];
+    for (const inst of insts) {
+      let atm = 0, step = 50;
+      try { const a = await _psFetchAnalytics(inst); if (a) { atm = a.atm; step = a.step; } } catch (_) {}
+      const bias = await _confluenceBias(inst);
+      const near = atm ? EARLY_NEAR_ATM * step : Infinity;
+      const seen = new Set();
+      for (const a of (_hlTouchAlerts[inst] || [])) {     // newest-first already
+        if (a.at < cutoff) continue;
+        if (atm && Math.abs(Number(a.strike) - atm) > near) continue;
+        if (Math.abs(Number(a.movePct || 0)) < minMove) continue;
+        const key = `${a.strike}_${a.type}_${a.kind}`;
+        if (seen.has(key)) continue; seen.add(key);
+        let dir = 0, label = '';
+        if (a.type === 'CE' && a.kind === 'HIGH') { dir = 1;  label = 'Call ↑ new high — bullish momentum'; }
+        else if (a.type === 'PE' && a.kind === 'HIGH') { dir = -1; label = 'Put ↑ new high — bearish momentum'; }
+        else if (a.type === 'CE' && a.kind === 'LOW')  { dir = -1; label = 'Call ↓ new low — bearish'; }
+        else if (a.type === 'PE' && a.kind === 'LOW')  { dir = 1;  label = 'Put ↓ new low — bullish'; }
+        const dStr = dir > 0 ? 'BULLISH' : dir < 0 ? 'BEARISH' : 'NEUTRAL';
+        const status = (!bias || bias === 'NEUTRAL') ? 'EARLY' : (dStr === bias ? 'CONFIRMED' : 'DIVERGENT');
+        out.push({
+          inst, strike: a.strike, type: a.type, kind: a.kind, dir, dirLabel: dStr, label,
+          price: a.price, movePct: a.movePct, time: a.time, at: a.at,
+          ageSec: Math.round((Date.now() - a.at) / 1000),
+          trendBias: bias, status,
+          action: dir > 0 ? `BUY ${atm} CE (early)` : dir < 0 ? `BUY ${atm} PE (early)` : '',
+        });
+      }
+    }
+    out.sort((a, b) => b.at - a.at);
+    // primary = HIGH breaks (premium expansion = real momentum); confirmed first
+    const rank = s => (s.status === 'CONFIRMED' ? 100 : s.status === 'EARLY' ? 50 : 0) + (s.kind === 'HIGH' ? 10 : 0);
+    out.sort((a, b) => rank(b) - rank(a) || b.at - a.at);
+    res.json({ ok: true, generatedAt: new Date().toISOString(), lookbackMin, minMove, count: out.length, signals: out });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// ORB SIGNALS — Opening-Range-Breakout + retest, mapped to a CALL/PUT entry.
+// `today` = live ORB per inst. `?backtest=N` = replay the rule over the last N
+// trading days (real 1-min candles via the historical endpoint) and report win%
+// + avg spot points — so the edge can be TESTED before it's relied on.
+//   ?inst=NIFTY&orbMin=15&backtest=10
+// ════════════════════════════════════════════════════════════════════════════
+const ORB_MIN_DEFAULT = Number(process.env.ORB_MINUTES) || 3;
+async function _orbCandlesForDate(inst, dateStr) {
+  const cfg = PS_INSTS[inst];
+  return live.client._post('/v2/charts/intraday', {
+    securityId: String(cfg.sid), exchangeSegment: 'IDX_I', instrument: 'INDEX', interval: '1', fromDate: dateStr, toDate: dateStr
+  });
+}
+
+app.get('/api/orb-signals', async (req, res) => {
+  try {
+    const instReq = String(req.query.inst || 'ALL').toUpperCase();
+    const insts = instReq === 'ALL' ? Object.keys(PS_INSTS) : instReq.split(',').map(s => s.trim()).filter(i => PS_INSTS[i]);
+    const orbMin = Math.max(1, Math.min(60, parseInt(req.query.orbMin, 10) || ORB_MIN_DEFAULT));
+    const backtestDays = Math.max(0, Math.min(30, parseInt(req.query.backtest, 10) || 0));
+
+    // today's live ORB per inst
+    const today = [];
+    await Promise.all(insts.map(async inst => {
+      const cfg = PS_INSTS[inst];
+      const [oneMin, analytics] = await Promise.all([_psFetchCandles(inst).catch(() => null), _psFetchAnalytics(inst).catch(() => null)]);
+      if (!oneMin || !(oneMin.close || []).length) { today.push({ inst, instLabel: cfg.label, ready: false, reason: 'no candles today (market closed / holiday)' }); return; }
+      const orb = candlestickPatterns.orbSignal(oneMin, { orbMin, atm: analytics?.atm || 0 });
+      today.push({ inst, instLabel: cfg.label, spot: analytics?.spot || null, step: cfg.step, ...orb });
+    }));
+
+    // optional multi-day backtest (for ALL, limit to the first inst to bound API calls)
+    let backtest = null;
+    if (backtestDays > 0) {
+      const btInsts = instReq === 'ALL' ? [insts[0]] : insts;
+      backtest = {};
+      for (const inst of btInsts) {
+        const cfg = PS_INSTS[inst];
+        const days = [];
+        const d = new Date(Date.now() + 5.5 * 3600 * 1000);  // IST "today"
+        let scanned = 0;
+        while (days.length < backtestDays && scanned < backtestDays * 3 + 12) {
+          d.setUTCDate(d.getUTCDate() - 1); scanned++;
+          const dow = d.getUTCDay(); if (dow === 0 || dow === 6) continue;   // skip weekend
+          const ds = d.toISOString().slice(0, 10);
+          let cndl = null; try { cndl = await _orbCandlesForDate(inst, ds); } catch (_) {}
+          if (!cndl || !(cndl.close || []).length) continue;                 // holiday / no data
+          const orb = candlestickPatterns.orbSignal(cndl, { orbMin, atm: 0 });
+          if (!orb || !orb.ready || !orb.breakout) { days.push({ date: ds, breakout: false }); continue; }
+          const mg = orb.outcome.managed || {};
+          days.push({
+            date: ds, dir: orb.breakout.dir, type: orb.optType,
+            retest: !!(orb.retest && orb.retest.held), invalid: !!(orb.retest && orb.retest.invalidated),
+            points: orb.outcome.points, mfe: orb.outcome.mfe, mae: orb.outcome.mae, win: orb.outcome.win,
+            mPoints: mg.points, mWin: mg.win, exitReason: mg.exitReason
+          });
+        }
+        const trades = days.filter(x => x.dir);
+        const withRetest = trades.filter(x => x.retest);
+        const agg = arr => {
+          const n = arr.length;
+          const rawW = arr.filter(x => x.win).length, rawTp = arr.reduce((s, x) => s + (x.points || 0), 0);
+          const mgW = arr.filter(x => x.mWin).length, mgTp = arr.reduce((s, x) => s + (x.mPoints || 0), 0);
+          const tpHit = arr.filter(x => x.exitReason === 'TP').length, slHit = arr.filter(x => x.exitReason === 'SL').length;
+          return {
+            trades: n,
+            holdEOD:  { wins: rawW, winPct: n ? +(rawW / n * 100).toFixed(1) : 0, totalPoints: +rawTp.toFixed(1), avgPoints: n ? +(rawTp / n).toFixed(1) : 0 },
+            managed:  { wins: mgW, winPct: n ? +(mgW / n * 100).toFixed(1) : 0, totalPoints: +mgTp.toFixed(1), avgPoints: n ? +(mgTp / n).toFixed(1) : 0, tpHit, slHit },
+          };
+        };
+        backtest[inst] = { instLabel: cfg.label, orbMin, daysWithData: days.length, allBreakouts: agg(trades), retestOnly: agg(withRetest), days };
+      }
+    }
+
+    res.json({ ok: true, generatedAt: new Date().toISOString(), orbMin, today, backtest });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── PATTERN BACKTEST — does a candlestick pattern predict the next `fwd` bars?
+// Replays detectPattern over real historical 1-min candles (aggregated to `tf`),
+// measures forward-return hit-rate per pattern + overall. (Raw pattern only — the
+// live feature adds OI/momentum confluence, which isn't historically available.)
+//   ?inst=NIFTY&days=15&tf=15&fwd=2
+app.get('/api/pattern-backtest', async (req, res) => {
+  try {
+    const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+    if (!PS_INSTS[inst]) return res.status(400).json({ ok: false, error: 'unknown inst' });
+    const days = Math.max(1, Math.min(40, parseInt(req.query.days, 10) || 15));
+    const tf   = Math.max(5, Math.min(60, parseInt(req.query.tf, 10) || 15));
+    const fwd  = Math.max(1, Math.min(6, parseInt(req.query.fwd, 10) || 2));
+
+    const perPattern = {};
+    let total = 0, hits = 0, ptsSum = 0, dayCount = 0;
+    const bull = { n: 0, h: 0 }, bear = { n: 0, h: 0 };
+    const d = new Date(Date.now() + 5.5 * 3600 * 1000);
+    let scanned = 0;
+    while (dayCount < days && scanned < days * 3 + 14) {
+      d.setUTCDate(d.getUTCDate() - 1); scanned++;
+      const dow = d.getUTCDay(); if (dow === 0 || dow === 6) continue;
+      const ds = d.toISOString().slice(0, 10);
+      let cndl = null; try { cndl = await _orbCandlesForDate(inst, ds); } catch (_) {}
+      if (!cndl || !(cndl.close || []).length) continue;
+      const bars = candlestickPatterns.aggregate(cndl, tf);
+      if (bars.length < 5 + fwd) continue;
+      dayCount++;
+      for (let i = 3; i <= bars.length - 1 - fwd; i++) {
+        const p = candlestickPatterns.detectPattern(bars.slice(0, i + 1), tf);
+        if (!p || (p.sentiment !== 'Bullish' && p.sentiment !== 'Bearish')) continue;
+        const c0 = bars[p.idx].c, c1 = bars[Math.min(bars.length - 1, p.idx + fwd)].c;
+        const ret = c1 - c0;
+        const signed = p.sentiment === 'Bullish' ? ret : -ret;   // points in the predicted direction
+        const hit = signed > 0;
+        total++; if (hit) hits++; ptsSum += signed;
+        if (p.sentiment === 'Bullish') { bull.n++; if (hit) bull.h++; } else { bear.n++; if (hit) bear.h++; }
+        const pp = perPattern[p.name] || (perPattern[p.name] = { n: 0, h: 0, pts: 0 });
+        pp.n++; if (hit) pp.h++; pp.pts += signed;
+      }
+    }
+    const patterns = Object.entries(perPattern)
+      .map(([name, v]) => ({ name, signals: v.n, hitRate: +(v.h / v.n * 100).toFixed(1), avgPts: +(v.pts / v.n).toFixed(1) }))
+      .sort((a, b) => b.signals - a.signals);
+    res.json({
+      ok: true, inst, tf, fwd, daysTested: dayCount,
+      overall: { signals: total, hitRate: total ? +(hits / total * 100).toFixed(1) : 0, avgFwdPoints: total ? +(ptsSum / total).toFixed(1) : 0, totalPoints: +ptsSum.toFixed(1) },
+      bullish: { signals: bull.n, hitRate: bull.n ? +(bull.h / bull.n * 100).toFixed(1) : 0 },
+      bearish: { signals: bear.n, hitRate: bear.n ? +(bear.h / bear.n * 100).toFixed(1) : 0 },
+      patterns,
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // ==================== DHAN CLIENT STATS ====================

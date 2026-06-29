@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pattern Signals · Antigravity Pro</title>
+<style>
+  :root{ --bg:#070b12; --panel:#0b1320; --panel2:#0d1726; --border:#1c2940; --muted:#8b97a8; --green:#22d39a; --red:#f7567c; --amber:#fbbf24; --blue:#7dd3fc; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:#e6edf6; font-family:'Inter',system-ui,Segoe UI,Roboto,sans-serif; }
+  a{ color:inherit; }
+  .wrap{ max-width:1480px; margin:0 auto; padding:0 14px 40px; }
+  /* top bar */
+  .topbar{ display:flex; align-items:center; gap:14px; padding:14px 16px 6px; }
+  .brand{ font-size:1.05rem; font-weight:800; color:#7aa2ff; letter-spacing:.3px; white-space:nowrap; }
+  .brand b{ color:#fff; }
+  .tally{ display:flex; gap:8px; margin-left:auto; flex-wrap:wrap; }
+  .tally .t{ font-size:0.62rem; font-weight:800; padding:3px 10px; border-radius:999px; }
+  .t.bull{ background:#0d2a1a; color:var(--green); border:1px solid #1c5a38; }
+  .t.bear{ background:#2a0f17; color:var(--red); border:1px solid #5a1d2c; }
+  .t.neu{ background:#1f2937; color:#9ca3af; border:1px solid #2b3850; }
+  /* nav (matches dashboard) */
+  nav{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin:8px 2px 0; padding:8px 12px; background:rgba(9,17,29,.78); border:1px solid #243041; border-radius:12px; }
+  nav a{ padding:4px 10px; border-radius:6px; font-size:.7rem; font-weight:600; color:#94a3b8; text-decoration:none; border:1px solid transparent; white-space:nowrap; }
+  nav a:hover{ background:rgba(255,255,255,.06); }
+  nav a.active{ color:var(--amber); border:1px solid rgba(251,191,36,.35); background:rgba(251,191,36,.10); }
+  /* header + filters */
+  .hd{ display:flex; align-items:center; gap:12px; margin:16px 2px 12px; flex-wrap:wrap; }
+  .hd h1{ font-size:1.15rem; margin:0; font-weight:800; }
+  .hd .sub{ font-size:0.66rem; color:var(--muted); }
+  .filters{ display:flex; gap:6px; margin-left:auto; align-items:center; flex-wrap:wrap; }
+  .seg{ display:flex; background:#0c1626; border:1px solid #21314a; border-radius:9px; overflow:hidden; }
+  .seg button{ background:transparent; border:0; color:#9fb0c8; font-size:0.66rem; font-weight:700; padding:6px 11px; cursor:pointer; }
+  .seg button.active{ background:rgba(122,162,255,.16); color:#cfe0ff; }
+  .ref{ font-size:0.6rem; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); }
+  /* cards */
+  .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:12px; }
+  .card{ background:linear-gradient(165deg,var(--panel2),#0a0f18); border:1px solid var(--border); border-radius:14px; padding:13px 14px; position:relative; overflow:hidden; }
+  .card.bull{ border-color:#1c4a30; } .card.bear{ border-color:#4a1d2c; } .card.neu{ border-color:#2b3850; }
+  .card::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; }
+  .card.bull::before{ background:linear-gradient(180deg,#22d39a,#0d6b48); }
+  .card.bear::before{ background:linear-gradient(180deg,#f7567c,#7a1330); }
+  .card.neu::before{ background:linear-gradient(180deg,#64748b,#334155); }
+  .c-top{ display:flex; align-items:flex-start; gap:11px; }
+  .c-candle{ flex-shrink:0; width:34px; display:flex; flex-direction:column; align-items:center; gap:3px; padding-top:2px; }
+  .c-candle .pn{ font-size:0.48rem; color:var(--muted); text-align:center; line-height:1.1; }
+  .c-meta{ flex:1; min-width:0; }
+  .c-inst{ font-size:0.92rem; font-weight:800; }
+  .c-lbl{ font-size:0.6rem; color:var(--muted); }
+  .c-pat{ font-size:0.74rem; font-weight:700; margin-top:2px; }
+  .c-pat.bull{ color:var(--green); } .c-pat.bear{ color:var(--red); } .c-pat.neu{ color:#9fb0c8; }
+  .c-px{ text-align:right; white-space:nowrap; }
+  .c-ltp{ font-size:0.92rem; font-weight:800; font-variant-numeric:tabular-nums; }
+  .c-chg{ font-size:0.62rem; font-weight:700; }
+  .c-chg.up{ color:var(--green); } .c-chg.dn{ color:var(--red); }
+  .c-tf{ font-size:0.54rem; color:#7c8aa0; margin-top:2px; }
+  /* verdict */
+  .v-row{ display:flex; align-items:center; gap:9px; margin:11px 0 8px; }
+  .v-bias{ font-size:0.72rem; font-weight:900; padding:4px 12px; border-radius:8px; letter-spacing:.4px; }
+  .v-bias.bull{ background:#0d2a1a; color:var(--green); box-shadow:inset 0 0 0 1px #1c5a38; }
+  .v-bias.bear{ background:#2a0f17; color:var(--red); box-shadow:inset 0 0 0 1px #5a1d2c; }
+  .v-bias.neu{ background:#1f2937; color:#c2ccda; }
+  .v-conf{ flex:1; }
+  .v-conf .bar{ height:6px; border-radius:4px; background:#1a2435; overflow:hidden; }
+  .v-conf .bar > i{ display:block; height:100%; border-radius:4px; }
+  .v-conf.bull .bar > i{ background:linear-gradient(90deg,#0d6b48,#22d39a); }
+  .v-conf.bear .bar > i{ background:linear-gradient(90deg,#7a1330,#f7567c); }
+  .v-conf.neu .bar > i{ background:linear-gradient(90deg,#475569,#94a3b8); }
+  .v-conf .lab{ font-size:0.54rem; color:var(--muted); margin-top:3px; }
+  .conv{ font-size:0.5rem; font-weight:800; padding:3px 8px; border-radius:999px; letter-spacing:.4px; align-self:center; white-space:nowrap; }
+  .conv.high{ background:#06281c; color:var(--green); box-shadow:inset 0 0 0 1px #14512f; }
+  .conv.medium{ background:#3a2d10; color:#fcd34d; }
+  .conv.low{ background:#1f2937; color:#9ca3af; }
+  .pill.conv-high{ background:#06281c; color:var(--green); } .pill.conv-medium{ background:#3a2d10; color:#fcd34d; } .pill.conv-low{ background:#1f2937; color:#9ca3af; }
+  /* legs */
+  .legs{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .leg{ border-radius:9px; padding:8px 9px; border:1px solid; }
+  .leg.buy{ background:#0c1c14; border-color:#1c4a30; }
+  .leg.sell{ background:#1c0e13; border-color:#4a1d2c; }
+  .leg.empty{ background:#11161f; border-color:#222c3c; color:#5b6576; display:flex; align-items:center; justify-content:center; font-size:0.6rem; font-style:italic; }
+  .leg .lh{ display:flex; align-items:center; justify-content:space-between; }
+  .leg .act{ font-size:0.56rem; font-weight:800; letter-spacing:.4px; }
+  .leg.buy .act{ color:var(--green); } .leg.sell .act{ color:var(--red); }
+  .leg .strike{ font-size:0.82rem; font-weight:800; font-variant-numeric:tabular-nums; }
+  .leg .opt{ font-size:0.58rem; color:#9fb0c8; }
+  .leg .kv{ font-size:0.56rem; color:var(--muted); margin-top:3px; display:flex; justify-content:space-between; }
+  .leg .kv b{ color:#e5e7eb; }
+  /* factor chips */
+  .facts{ display:flex; gap:5px; flex-wrap:wrap; margin-top:9px; }
+  .fc{ font-size:0.5rem; font-weight:700; padding:2px 7px; border-radius:999px; border:1px solid #25324a; color:#8b97a8; background:#0e1626; }
+  .fc.bull{ color:var(--green); border-color:#1c5a38; } .fc.bear{ color:var(--red); border-color:#5a1d2c; }
+  .fc.agree::before{ content:'✓ '; }
+  .idea{ font-size:0.56rem; color:#7c8aa0; margin-top:8px; line-height:1.4; font-style:italic; }
+  /* table */
+  .tbl-wrap{ margin-top:22px; background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .tbl-hd{ padding:12px 16px; font-size:0.82rem; font-weight:800; border-bottom:1px solid var(--border); }
+  table{ width:100%; border-collapse:collapse; font-size:0.72rem; }
+  th{ text-align:left; color:#7c8aa0; font-weight:700; font-size:0.6rem; text-transform:uppercase; letter-spacing:.5px; padding:9px 14px; border-bottom:1px solid var(--border); }
+  td{ padding:10px 14px; border-bottom:1px solid #131c2b; font-variant-numeric:tabular-nums; }
+  tr:last-child td{ border-bottom:0; }
+  tr:hover td{ background:rgba(255,255,255,.02); }
+  .pill{ font-size:0.56rem; font-weight:800; padding:2px 9px; border-radius:999px; }
+  .pill.bull{ background:#0d2a1a; color:var(--green); } .pill.bear{ background:#2a0f17; color:var(--red); } .pill.neu{ background:#1f2937; color:#9ca3af; }
+  .tnum.up{ color:var(--green); } .tnum.dn{ color:var(--red); }
+  .empty{ padding:40px; text-align:center; color:var(--muted); font-size:0.8rem; }
+  .note{ font-size:0.58rem; color:#6b7787; margin:10px 2px 0; line-height:1.5; }
+  /* ORB section */
+  .orb-wrap{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+  .orb-hd{ display:flex; align-items:center; gap:12px; margin-bottom:11px; flex-wrap:wrap; }
+  .orb-hd h2{ font-size:1.02rem; margin:0; }
+  .orb-hd .sub{ font-size:0.6rem; color:var(--muted); }
+  .orb-btn{ margin-left:auto; background:#0c1626; border:1px solid #21314a; color:#9fb0c8; font-size:0.64rem; font-weight:700; padding:6px 12px; border-radius:8px; cursor:pointer; }
+  .orb-btn:hover{ color:#cfe0ff; border-color:#3b6ea5; }
+  .orb-cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; }
+  .orb-card{ border:1px solid var(--border); border-radius:11px; padding:11px 12px; background:linear-gradient(165deg,#0d1726,#0a0f18); }
+  .orb-card.bull{ border-color:#1c4a30; } .orb-card.bear{ border-color:#4a1d2c; } .orb-card.wait{ border-color:#2b3850; }
+  .orb-c-top{ display:flex; justify-content:space-between; align-items:baseline; }
+  .orb-inst{ font-size:0.86rem; font-weight:800; }
+  .orb-sig{ font-size:0.58rem; font-weight:800; padding:2px 9px; border-radius:999px; }
+  .orb-sig.bull{ background:#0d2a1a; color:var(--green); } .orb-sig.bear{ background:#2a0f17; color:var(--red); } .orb-sig.wait{ background:#1f2937; color:#9ca3af; }
+  .orb-lv{ display:flex; gap:13px; margin:7px 0; font-size:0.66rem; font-variant-numeric:tabular-nums; }
+  .orb-lv .hi{ color:var(--red); } .orb-lv .lo{ color:var(--green); }
+  .orb-row{ font-size:0.62rem; color:#9fb0c8; margin-top:4px; }
+  .orb-row b{ color:#e6edf6; }
+  .orb-tag{ font-size:0.5rem; font-weight:700; padding:1px 7px; border-radius:999px; background:#1a2435; color:#9fb0c8; margin-left:4px; }
+  .orb-tag.held{ background:#06281c; color:var(--green); } .orb-tag.invalid{ background:#241016; color:var(--red); }
+  .orb-out{ font-size:0.6rem; margin-top:6px; color:var(--muted); }
+  .orb-out .win{ color:var(--green); font-weight:700; } .orb-out .loss{ color:var(--red); font-weight:700; }
+  .orb-bt{ margin-top:12px; border-top:1px solid var(--border); padding-top:11px; display:none; }
+  .orb-bt table{ width:100%; border-collapse:collapse; font-size:0.68rem; }
+  .orb-bt td,.orb-bt th{ padding:6px 10px; border-bottom:1px solid #131c2b; text-align:right; }
+  .orb-bt th:first-child,.orb-bt td:first-child{ text-align:left; }
+  .orb-bt th{ color:#7c8aa0; font-size:0.58rem; text-transform:uppercase; letter-spacing:.4px; }
+  .orb-verdict{ font-size:0.66rem; font-weight:700; padding:8px 11px; border-radius:8px; margin-top:9px; line-height:1.45; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">🚀 ANTIGRAVITY <b>PRO</b></div>
+    <div class="tally" id="tally"></div>
+  </div>
+  <nav>
+    <a href="/">Command</a>
+    <a href="/command-pro.html">Pro</a>
+    <a href="/trade.html">Trade</a>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/signal-heatmap.html">Signal Heatmap</a>
+    <a href="/strategy.html">Strategy</a>
+    <a href="/heatmap.html">OI Heatmap</a>
+    <a href="/pop.html">PoP</a>
+    <a href="/strike-history.html">Strike History</a>
+    <a href="/ami-heatmap.html">AMI Heatmap</a>
+    <a href="/pattern-signals.html" class="active">🕯️ Patterns</a>
+  </nav>
+
+  <div class="hd">
+    <div>
+      <h1>🕯️ Pattern Signals</h1>
+      <div class="sub">Candlestick pattern × OI × momentum × trend → which strike to BUY or SELL</div>
+    </div>
+    <div class="filters">
+      <div class="seg" id="instSeg">
+        <button data-inst="ALL" class="active">All</button>
+        <button data-inst="NIFTY">NIFTY</button>
+        <button data-inst="BANKNIFTY">BANKNIFTY</button>
+        <button data-inst="SENSEX">SENSEX</button>
+      </div>
+      <div class="seg" id="tfSeg">
+        <button data-tf="5,15,60">All TF</button>
+        <button data-tf="15,60" class="active">15m+1hr</button>
+        <button data-tf="5">5m</button>
+        <button data-tf="15">15m</button>
+        <button data-tf="60">1hr</button>
+      </div>
+      <div class="ref"><span class="dot" id="dot"></span><span id="refTxt">live</span></div>
+    </div>
+  </div>
+
+  <div class="orb-wrap">
+    <div class="orb-hd">
+      <h2>📐 ORB Breakout + Retest</h2>
+      <span class="sub">opening range (first 3m) breaks, then a retest that holds → mapped to an ATM CE/PE entry</span>
+      <button class="orb-btn" id="orbBtBtn" onclick="runOrbBacktest()">🧪 Test last 12 days</button>
+    </div>
+    <div class="orb-cards" id="orbCards"><div class="empty">loading ORB…</div></div>
+    <div class="orb-bt" id="orbBt"></div>
+  </div>
+
+  <div class="cards" id="cards"><div class="empty">Loading signals…</div></div>
+
+  <div class="tbl-wrap">
+    <div class="tbl-hd">All Signals</div>
+    <table>
+      <thead><tr>
+        <th>Symbol</th><th>LTP</th><th>Pattern</th><th>TF</th><th>Bias</th><th>Conviction</th><th>Conf</th>
+        <th>BUY leg</th><th>SELL leg</th><th>Updated</th>
+      </tr></thead>
+      <tbody id="tblBody"><tr><td colspan="10" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    Patterns are read off the last <b>closed</b> 15m / 1hr candle (real Upstox OHLC). The verdict blends the
+    pattern (35%) + momentum RSI/MACD/EMA (30%) + option-chain OI/PCR/max-pain (20%) + trend vs VWAP (15%).
+    BUY leg = directional option (theta-risk); SELL leg = premium credit with the same bias. <b>Paper / educational — not advice.</b>
+  </div>
+</div>
+
+<script>
+const API = '';
+let curInst = 'ALL', curTf = '15,60';
+let timer = null;
+
+function instColor(i){ return i==='NIFTY'?'#fbbf24':i==='SENSEX'?'#7dd3fc':i==='BANKNIFTY'?'#c4b5fd':'#e6edf6'; }
+function money(v){ return (+v>0) ? '₹'+(+v).toLocaleString('en-IN',{maximumFractionDigits:2}) : '--'; }
+function cls(b){ return b==='BULLISH'?'bull':b==='BEARISH'?'bear':'neu'; }
+function senCls(s){ return s==='Bullish'?'bull':s==='Bearish'?'bear':'neu'; }
+function timeAgo(epochSec){
+  if(!epochSec) return '';
+  const mins = Math.max(0, Math.floor((Date.now()/1000 - epochSec)/60));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins+'m ago';
+  const h = Math.floor(mins/60); return h+'h '+(mins%60)+'m ago';
+}
+function miniCandle(bar){
+  if(!bar) return '';
+  const {o,h,l,c}=bar; const range=Math.max(1e-6, h-l);
+  const W=30,H=46,pad=3, cx=W/2;
+  const y=v=> pad + (h-v)/range*(H-2*pad);
+  const up = c>=o; const col = up?'#22d39a':'#f7567c';
+  const bt=y(Math.max(o,c)), bb=y(Math.min(o,c)); const bh=Math.max(2.5, bb-bt);
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="${cx}" y1="${y(h).toFixed(1)}" x2="${cx}" y2="${y(l).toFixed(1)}" stroke="${col}" stroke-width="1.6"/><rect x="${cx-7}" y="${bt.toFixed(1)}" width="14" height="${bh.toFixed(1)}" rx="1.6" fill="${col}"/></svg>`;
+}
+function legHtml(leg){
+  if(!leg) return `<div class="leg empty">no clean directional buy</div>`;
+  const klass = leg.action==='BUY'?'buy':'sell';
+  const isCredit = leg.action==='SELL';
+  const pair = leg.pair ? `<div class="kv"><span>+ ${leg.pair.action} ${leg.pair.strike} ${leg.pair.type}</span><b>${money(leg.pair.ltp)}</b></div>` : '';
+  return `<div class="leg ${klass}">
+    <div class="lh"><span class="act">${leg.action}</span><span><span class="strike">${leg.strike}</span> <span class="opt">${leg.type}</span></span></div>
+    <div class="kv"><span>LTP</span><b>${money(leg.ltp)}</b></div>
+    <div class="kv"><span>${isCredit?'Credit':'Cost'} ×${leg.lot}</span><b>${money(leg.value)}</b></div>
+    ${pair}
+  </div>`;
+}
+function factChips(s){
+  const c = s.confluence;
+  const agree = new Set(c.agree||[]);
+  const items = [
+    { k:'pattern', txt:s.pattern.name, dir:s.pattern.sentiment },
+    { k:'momentum', txt:s.momentum.label, dir: s.momentum.dir>0?'Bullish':s.momentum.dir<0?'Bearish':'Neutral' },
+    { k:'oi', txt:s.oi.label + (s.oi.pcr?` (PCR ${s.oi.pcr})`:''), dir: s.oi.dir>0?'Bullish':s.oi.dir<0?'Bearish':'Neutral' },
+    { k:'trend', txt:s.trend.label, dir: s.trend.dir>0?'Bullish':s.trend.dir<0?'Bearish':'Neutral' },
+  ];
+  return items.map(it=>`<span class="fc ${senCls(it.dir)} ${agree.has(it.k)?'agree':''}">${it.txt}</span>`).join('');
+}
+
+function renderCards(signals){
+  const el = document.getElementById('cards');
+  if(!signals.length){ el.innerHTML = '<div class="empty">No signals — market may be closed or candles not yet available for the selected filter.</div>'; return; }
+  el.innerHTML = signals.map(s=>{
+    const b = s.confluence; const k = cls(b.bias);
+    const up = s.changePct>=0;
+    return `<div class="card ${k}">
+      <div class="c-top">
+        <div class="c-candle">${miniCandle(s.pattern.bar)}<div class="pn">${s.tfLabel}</div></div>
+        <div class="c-meta">
+          <div class="c-inst" style="color:${instColor(s.inst)}">${s.inst}</div>
+          <div class="c-lbl">${s.instLabel}</div>
+          <div class="c-pat ${senCls(s.pattern.sentiment)}">${s.pattern.name} · ${s.pattern.sentiment}${s.pattern.forming?' (forming)':''}</div>
+        </div>
+        <div class="c-px">
+          <div class="c-ltp">${(+s.spot).toLocaleString('en-IN')}</div>
+          <div class="c-chg ${up?'up':'dn'}">${up?'▲':'▼'} ${s.changeAbs>=0?'+':''}${s.changeAbs} (${s.changePct>=0?'+':''}${s.changePct}%)</div>
+          <div class="c-tf">${s.tfLabel} · ${timeAgo(s.barTime)}</div>
+        </div>
+      </div>
+      <div class="v-row">
+        <span class="v-bias ${k}">${b.bias}</span>
+        <span class="conv ${(b.conviction||'LOW').toLowerCase()}" title="conviction — higher TF + more factors agreeing">${b.conviction||'LOW'}</span>
+        <div class="v-conf ${k}"><div class="bar"><i style="width:${b.confidence}%"></i></div><div class="lab">${b.confidence}% confidence · ${b.agreeN||0}/4 agree · ${s.tfLabel} reliability ${Math.round((b.tfRel||1)*100)}%</div></div>
+      </div>
+      <div class="legs">
+        ${legHtml(s.reco && s.reco.buy)}
+        ${legHtml(s.reco && s.reco.sell)}
+      </div>
+      <div class="facts">${factChips(s)}</div>
+      ${s.reco && s.reco.idea ? `<div class="idea">${s.reco.idea}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderTable(signals){
+  const tb = document.getElementById('tblBody');
+  if(!signals.length){ tb.innerHTML = '<tr><td colspan="10" class="empty">No signals.</td></tr>'; return; }
+  tb.innerHTML = signals.map(s=>{
+    const b=s.confluence; const up=s.changePct>=0;
+    const buy = s.reco&&s.reco.buy ? `${s.reco.buy.strike} ${s.reco.buy.type} @ ${money(s.reco.buy.ltp)}` : '—';
+    const sell= s.reco&&s.reco.sell ? `${s.reco.sell.strike} ${s.reco.sell.type} @ ${money(s.reco.sell.ltp)}` : '—';
+    return `<tr>
+      <td><b style="color:${instColor(s.inst)}">${s.inst}</b></td>
+      <td>${(+s.spot).toLocaleString('en-IN')} <span class="tnum ${up?'up':'dn'}" style="font-size:.62rem">${s.changePct>=0?'+':''}${s.changePct}%</span></td>
+      <td>${s.pattern.name} <span class="pill ${senCls(s.pattern.sentiment)}">${s.pattern.sentiment}</span></td>
+      <td>${s.tfLabel}</td>
+      <td><span class="pill ${cls(b.bias)}">${b.bias}</span></td>
+      <td><span class="pill conv-${(b.conviction||'LOW').toLowerCase()}">${b.conviction||'LOW'}</span></td>
+      <td>${b.confidence}%</td>
+      <td style="color:#9fe6c4">${buy}</td>
+      <td style="color:#f7a8bc">${sell}</td>
+      <td style="color:#7c8aa0">${timeAgo(s.barTime)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTally(signals){
+  const bull=signals.filter(s=>s.confluence.bias==='BULLISH').length;
+  const bear=signals.filter(s=>s.confluence.bias==='BEARISH').length;
+  const neu =signals.filter(s=>s.confluence.bias==='NEUTRAL').length;
+  document.getElementById('tally').innerHTML =
+    `<span class="t bull">▲ ${bull} Bullish</span><span class="t bear">▼ ${bear} Bearish</span><span class="t neu">● ${neu} Neutral</span>`;
+}
+
+async function load(){
+  try{
+    const dot=document.getElementById('dot'); dot.style.background='#fbbf24'; dot.style.boxShadow='0 0 8px #fbbf24';
+    const r = await fetch(`${API}/api/pattern-signals?inst=${curInst}&tf=${curTf}`, {cache:'no-store'});
+    const d = await r.json();
+    const signals = (d.signals||[]);
+    renderCards(signals); renderTable(signals); renderTally(signals);
+    document.getElementById('refTxt').textContent = 'updated ' + new Date().toLocaleTimeString('en-IN',{hour12:false});
+    dot.style.background='#22d39a'; dot.style.boxShadow='0 0 8px #22d39a';
+  }catch(e){
+    document.getElementById('cards').innerHTML = '<div class="empty">Failed to load signals — is the server running?</div>';
+  }
+}
+
+document.getElementById('instSeg').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#instSeg button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); curInst=b.dataset.inst; load();
+});
+document.getElementById('tfSeg').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#tfSeg button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); curTf=b.dataset.tf; load();
+});
+
+// ── ORB breakout + retest ──────────────────────────────────────────────────
+async function loadOrb(){
+  try{
+    const r = await fetch(`${API}/api/orb-signals?inst=ALL&orbMin=3`, {cache:'no-store'});
+    const d = await r.json();
+    const el = document.getElementById('orbCards');
+    if(!d.today || !d.today.length){ el.innerHTML = '<div class="empty">no ORB data (market closed / no candles)</div>'; return; }
+    el.innerHTML = d.today.map(t=>{
+      if(!t.ready){ return `<div class="orb-card wait"><div class="orb-c-top"><span class="orb-inst" style="color:${instColor(t.inst)}">${t.inst}</span><span class="orb-sig wait">N/A</span></div><div class="orb-row">${t.reason||'not ready'}</div></div>`; }
+      const k = t.signal==='BULLISH'?'bull':t.signal==='BEARISH'?'bear':'wait';
+      const sig = t.signal==='BULLISH'?'BULLISH ▲':t.signal==='BEARISH'?'BEARISH ▼':'WAIT';
+      const bk = t.breakout ? `Broke <b>${t.breakout.type}</b> @ ${(+t.breakout.price).toLocaleString('en-IN')} <span style="color:var(--muted)">(lvl ${t.breakout.level})</span>` : 'No breakout — ranging';
+      const rt = t.retest ? (t.retest.held ? `<span class="orb-tag held">retest held @ ${t.retest.price}</span>` : `<span class="orb-tag invalid">retest failed</span>`) : (t.breakout?`<span class="orb-tag">awaiting retest</span>`:'');
+      const strike = (t.breakout && t.strike) ? `→ <b>BUY ${t.strike} ${t.optType==='CALL'?'CE':'PE'}</b>  ·  SL ${t.sl} / TP ${t.tp}` : '';
+      const o = t.outcome;
+      const oc = o ? `<div class="orb-out">today (spot): <span class="${o.win?'win':'loss'}">${o.points>=0?'+':''}${o.points} pts</span> · managed <span class="${o.managed.win?'win':'loss'}">${o.managed.points>=0?'+':''}${o.managed.points}</span> (${o.managed.exitReason})</div>` : '';
+      return `<div class="orb-card ${k}">
+        <div class="orb-c-top"><span class="orb-inst" style="color:${instColor(t.inst)}">${t.inst}</span><span class="orb-sig ${k}">${sig}</span></div>
+        <div class="orb-lv"><span class="hi">ORB H ${(+t.orb.high).toLocaleString('en-IN')}</span><span class="lo">ORB L ${(+t.orb.low).toLocaleString('en-IN')}</span><span style="color:var(--muted)">range ${t.orb.range}</span></div>
+        <div class="orb-row">${bk} ${rt}</div>
+        ${strike?`<div class="orb-row" style="color:#9fe6c4">${strike}</div>`:''}
+        ${oc}
+      </div>`;
+    }).join('');
+  }catch(e){}
+}
+async function runOrbBacktest(){
+  const bt = document.getElementById('orbBt');
+  const btn = document.getElementById('orbBtBtn');
+  bt.style.display='block'; bt.innerHTML='<div class="empty">running 12-day backtest on real candles… (~20-40s)</div>';
+  btn.disabled=true; btn.textContent='⏳ testing…';
+  try{
+    const r = await fetch(`${API}/api/orb-signals?inst=NIFTY,BANKNIFTY,SENSEX&orbMin=3&backtest=12`, {cache:'no-store'});
+    const d = await r.json();
+    if(!d.backtest){ bt.innerHTML='<div class="empty">no backtest data</div>'; return; }
+    let rows='', netMgd=0, netEod=0;
+    for(const inst of Object.keys(d.backtest)){
+      const a = d.backtest[inst].allBreakouts; netMgd+=a.managed.totalPoints; netEod+=a.holdEOD.totalPoints;
+      const up=v=>v>=0?'tnum up':'tnum dn';
+      rows += `<tr><td><b style="color:${instColor(inst)}">${inst}</b></td><td>${a.trades}</td>`
+        + `<td>${a.holdEOD.winPct}%</td><td class="${up(a.holdEOD.totalPoints)}">${a.holdEOD.totalPoints>=0?'+':''}${a.holdEOD.totalPoints}</td>`
+        + `<td>${a.managed.winPct}%</td><td class="${up(a.managed.totalPoints)}">${a.managed.totalPoints>=0?'+':''}${a.managed.totalPoints}</td>`
+        + `<td>${a.managed.tpHit}/${a.managed.slHit}</td></tr>`;
+    }
+    const verdict = netMgd>0
+      ? `<div class="orb-verdict" style="background:rgba(34,211,154,.12);color:var(--green)">✓ Net managed <b>+${netMgd.toFixed(0)} pts</b> over the window — a mild edge. Forward-test on paper before relying on it.</div>`
+      : `<div class="orb-verdict" style="background:rgba(247,86,124,.12);color:var(--red)">✗ Net managed <b>${netMgd.toFixed(0)} pts</b> — <b>no standalone edge</b> (breakouts whipsaw, SL hit often). Use the ORB levels as a confluence input, not a naked auto-trigger.</div>`;
+    bt.innerHTML = `<table><thead><tr><th>Index</th><th>Trades</th><th>Hold-EOD win%</th><th>EOD pts</th><th>Managed win%</th><th>Managed pts</th><th>TP/SL</th></tr></thead><tbody>${rows}</tbody></table>${verdict}`;
+  }catch(e){ bt.innerHTML='<div class="empty">backtest failed — '+e.message+'</div>'; }
+  finally{ btn.disabled=false; btn.textContent='🧪 Test last 12 days'; }
+}
+
+load();
+loadOrb();
+timer = setInterval(load, 20000);
+setInterval(loadOrb, 30000);
+</script>
+</body>
+</html>

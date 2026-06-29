@@ -161,6 +161,72 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
 .tt-row{display:flex;justify-content:space-between;gap:10px;padding:1px 0;}
 .tt-lbl{color:var(--muted);}
 .tt-val{font-weight:700;}
+/* AMI Signals feed — polished signal cards */
+.ami-feed{ margin:6px 10px 0; background:linear-gradient(180deg,#0b0f17,#0a0d14); border:1px solid #1b2333; border-radius:11px; padding:9px 12px; }
+.af-hdr{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
+.af-title{ font-size:0.76rem; font-weight:800; color:#e5e7eb; letter-spacing:.4px; }
+.af-count{ font-size:0.6rem; font-weight:800; padding:2px 9px; border-radius:999px; background:#172033; color:#93c5fd; border:1px solid #243049; }
+.af-tally{ display:flex; gap:6px; }
+.af-tally .t{ font-size:0.58rem; font-weight:800; padding:2px 8px; border-radius:999px; }
+.af-tally .tc{ background:#0d1f14; color:#22d39a; border:1px solid #14361f; }
+.af-tally .tp{ background:#1f0d12; color:#f7567c; border:1px solid #3a1620; }
+.af-hint{ margin-left:auto; font-size:0.57rem; color:#5b6576; }
+.af-list{ display:flex; gap:8px; overflow-x:auto; padding-bottom:3px; scrollbar-width:thin; }
+.af-empty{ font-size:0.64rem; color:#6b7280; font-style:italic; padding:8px 2px; }
+.af-card{ flex-shrink:0; width:158px; border-radius:9px; padding:8px 10px; border:1px solid; position:relative; overflow:hidden; }
+.af-card.call{ background:linear-gradient(160deg,#0e2418,#0a130d); border-color:#1c4429; }
+.af-card.put{ background:linear-gradient(160deg,#26101a,#13080c); border-color:#4a1d2a; }
+.af-card.exit{ background:linear-gradient(160deg,#1a1c24,#101116); border-color:#33384a; }
+.af-c1{ display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+.af-dir{ font-weight:900; font-size:0.78rem; letter-spacing:.3px; }
+.af-dir.call{ color:#34e3a4; } .af-dir.put{ color:#ff6b8b; } .af-dir.exit{ color:#cbd5e1; }
+.af-tm{ font-size:0.56rem; color:#6b7280; font-variant-numeric:tabular-nums; }
+.af-c2{ display:flex; align-items:baseline; gap:6px; margin-bottom:6px; }
+.af-ins{ font-size:0.55rem; font-weight:800; color:#fbbf24; letter-spacing:.4px; }
+.af-st{ font-size:1rem; font-weight:800; color:#f1f5f9; font-variant-numeric:tabular-nums; }
+.af-bar{ height:4px; border-radius:3px; background:#1f2937; overflow:hidden; margin-bottom:6px; }
+.af-bar > i{ display:block; height:100%; border-radius:3px; }
+.af-bar.call > i{ background:linear-gradient(90deg,#16a34a,#34e3a4); }
+.af-bar.put  > i{ background:linear-gradient(90deg,#be123c,#ff6b8b); }
+.af-meta{ display:flex; justify-content:space-between; align-items:center; font-size:0.58rem; }
+.af-kv{ color:#9aa5b6; } .af-kv b{ color:#e5e7eb; font-weight:700; }
+.af-cf{ font-size:0.56rem; font-weight:800; color:#93c5fd; }
+.af-stat{ font-size:0.5rem; font-weight:800; padding:1px 6px; border-radius:999px; letter-spacing:.4px; }
+.af-stat.disabled{ background:#1f2937; color:#9ca3af; }
+.af-stat.ready{ background:#3a2d10; color:#fcd34d; }
+.af-stat.executed{ background:#064e3b; color:#86efac; }
+/* clickable card + expiry lifecycle */
+.af-card{ cursor:pointer; transition:transform .08s, border-color .12s, opacity .12s; }
+.af-card:hover{ transform:translateY(-2px); border-color:#3b6ea5; }
+.af-card.expired{ opacity:.5; filter:grayscale(.45); }
+.af-xp{ position:absolute; top:6px; right:7px; font-size:0.46rem; font-weight:800; color:#f0789a; background:#241016; border:1px solid #4a1d2c; border-radius:999px; padding:1px 6px; letter-spacing:.3px; }
+/* AMI single full-detail modal */
+.ami-modal{ position:fixed; inset:0; background:rgba(3,7,15,.72); backdrop-filter:blur(3px); z-index:9999; display:none; align-items:center; justify-content:center; padding:20px; }
+.ami-modal.show{ display:flex; }
+.ami-card2{ width:min(440px,94vw); max-height:88vh; overflow:auto; background:linear-gradient(160deg,#0c1726,#0a0e17); border:1px solid #21405f; border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.6); padding:18px; }
+.ami-top{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.ami-dir{ font-weight:900; font-size:0.9rem; padding:3px 12px; border-radius:7px; }
+.ami-dir.call{ background:#0d2a1a; color:#34e3a4; } .ami-dir.put{ background:#2a0f17; color:#ff6b8b; } .ami-dir.exit{ background:#1d2433; color:#cbd5e1; }
+.ami-life{ font-size:0.56rem; font-weight:800; padding:2px 9px; border-radius:999px; letter-spacing:.4px; }
+.ami-life.active{ background:#06281c; color:#34e3a4; box-shadow:inset 0 0 0 1px #14512f; }
+.ami-life.expired{ background:#241016; color:#f0789a; box-shadow:inset 0 0 0 1px #4a1d2c; }
+.ami-life.exit{ background:#1d2433; color:#9fb0cc; }
+.ami-x{ margin-left:auto; cursor:pointer; color:#8b97a8; font-size:1.15rem; line-height:1; padding:2px 8px; border-radius:7px; }
+.ami-x:hover{ background:#1b2738; color:#e5e7eb; }
+.ami-rows{ display:grid; grid-template-columns:auto 1fr; gap:8px 16px; font-size:0.76rem; align-items:baseline; }
+.ami-rows .k{ color:#7f8aa0; font-weight:600; }
+.ami-rows .v{ color:#eef2f7; font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
+.ami-rows .v.big{ font-size:0.92rem; }
+/* Low/High alert chips */
+.hl-chip{ flex-shrink:0; display:flex; align-items:center; gap:7px; border-radius:8px; padding:6px 11px; border:1px solid; font-size:0.64rem; white-space:nowrap; }
+.hl-chip.high{ background:linear-gradient(160deg,#0e2418,#0a130d); border-color:#1c4429; }
+.hl-chip.low{ background:linear-gradient(160deg,#26101a,#13080c); border-color:#4a1d2a; }
+.hl-k{ font-weight:900; font-size:0.62rem; } .hl-k.high{ color:#34e3a4; } .hl-k.low{ color:#ff6b8b; }
+.hl-ins{ color:#fbbf24; font-weight:800; font-size:0.55rem; }
+.hl-st{ font-weight:800; color:#f1f5f9; }
+.hl-px{ color:#cbd5e1; font-weight:700; }
+.hl-mv{ font-size:0.58rem; font-weight:700; } .hl-mv.up{ color:#34e3a4; } .hl-mv.dn{ color:#ff6b8b; }
+.hl-tm{ color:#6b7280; font-size:0.54rem; }
 </style>
 </head>
 <body>
@@ -217,6 +283,28 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
     <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strike-history.html">Strike History</a>
     <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#78a8ff;text-decoration:none;border:1px solid rgba(120,168,255,.3);background:rgba(120,168,255,.1);white-space:nowrap;" href="/ami-heatmap.html">AMI Heatmap</a>
   </nav>
+</div>
+
+<!-- AMI SIGNALS FEED — every signal your AmiBroker pushed today -->
+<div class="ami-feed" id="amiFeed">
+  <div class="af-hdr">
+    <span class="af-title">📡 AMI Signals (today)</span>
+    <span class="af-count" id="afCount">0</span>
+    <span class="af-tally"><span class="t tc" id="afCalls">▲ 0</span><span class="t tp" id="afPuts">▼ 0</span></span>
+    <span class="af-hint">live · newest first · pushed from AmiBroker</span>
+  </div>
+  <div class="af-list" id="afList"><div class="af-empty">no signals yet — waiting for AmiBroker push…</div></div>
+</div>
+
+<!-- LOW / HIGH ALERTS — option H/L breaks (live) -->
+<div class="ami-feed" id="hlFeed">
+  <div class="af-hdr">
+    <span class="af-title">🔔 Low / High Alerts</span>
+    <span class="af-count" id="hlCount">0</span>
+    <span class="af-tally"><span class="t tc" id="hlHighs">▲ 0</span><span class="t tp" id="hlLows">▼ 0</span></span>
+    <span class="af-hint">live · option made a new session high/low · newest first</span>
+  </div>
+  <div class="af-list" id="hlList"><div class="af-empty">no H/L breaks yet — alerts appear when an option prints a new session high/low…</div></div>
 </div>
 
 <!-- 3 PANELS -->
@@ -286,6 +374,11 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
   </div>
 
 </div><!-- panels-wrap -->
+
+<!-- AMI single full-detail modal (click any signal card to open) -->
+<div class="ami-modal" id="amiModal" onclick="if(event.target===this)closeAmiDetail()">
+  <div class="ami-card2" id="amiCard"></div>
+</div>
 
 <script>
 const INSTS = ['NIFTY','SENSEX','BANKNIFTY'];
@@ -537,6 +630,113 @@ function addToStrategy(el) {
   window.open(`/strategy.html?inst=${inst}&strike=${strike}&type=${type}`,'_blank');
 }
 
+// ── AMI signals feed (all pushed today) ───────────────────────────────────
+let _amiSigShown = [];
+function amiLife(s){
+  if (!s) return 'ACTIVE';
+  if (s.lifecycle) return String(s.lifecycle).toUpperCase();
+  if (String(s.action||'').toUpperCase()==='EXIT') return 'EXIT';
+  const exp = s.expiresAt ? Date.parse(s.expiresAt) : NaN;
+  if (Number.isFinite(exp)) return Date.now() > exp ? 'EXPIRED' : 'ACTIVE';
+  return 'ACTIVE';
+}
+function _amiRow(k,v,cls){ return (v===undefined||v===null||v===''||v==='--') ? '' : `<div class="k">${k}</div><div class="v ${cls||''}">${v}</div>`; }
+function showAmiDetail(i){
+  const s = _amiSigShown[i];
+  if (!s) return;
+  const life = amiLife(s);
+  const dc  = s.signal==='CALL'?'call':s.signal==='PUT'?'put':'exit';
+  const dir = s.signal==='CALL'?'CALL ▲':s.signal==='PUT'?'PUT ▼':(s.signal||'EXIT');
+  const money = v => (+v>0) ? '₹'+(+v).toLocaleString('en-IN',{maximumFractionDigits:2}) : '';
+  const fmtT  = iso => { if(!iso) return ''; const d=new Date(iso); return Number.isFinite(d.getTime()) ? d.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false}) : ''; };
+  const rows = [
+    _amiRow('Instrument', s.instrument||'--', 'big'),
+    _amiRow('Strike', `${s.strike||'--'} ${s.signal==='CALL'?'CE':s.signal==='PUT'?'PE':''}`.trim(), 'big'),
+    _amiRow('Confidence', s.conf?`${s.conf}%`:''),
+    _amiRow('Premium', money(s.premium)),
+    _amiRow('Spot / Px', money(s.price)),
+    _amiRow('Target', s.target>0?(s.target<10?`${s.target}×`:money(s.target)):''),
+    _amiRow('Execution', s.execution?.status||'LOGGED'),
+    _amiRow('Strategy', s.strategy||''),
+    _amiRow('Source', s.source||''),
+    _amiRow('Bar / ref', s.barId||''),
+    _amiRow('Received', `${s.date||''} ${s.time||''}`.trim()),
+    _amiRow('Expires', s.expiresAt ? fmtT(s.expiresAt)+(s.ttlMin?` · ${s.ttlMin}m window`:'') : (life==='EXIT'?'--':'no expiry')),
+    _amiRow('Reason', s.reason||''),
+  ].join('');
+  document.getElementById('amiCard').innerHTML =
+    `<div class="ami-top"><span class="ami-dir ${dc}">${dir}</span>`
+    + `<span class="ami-life ${life.toLowerCase()}">${life}</span>`
+    + `<span class="ami-x" onclick="closeAmiDetail()" title="close">✕</span></div>`
+    + `<div class="ami-rows">${rows}</div>`;
+  document.getElementById('amiModal').classList.add('show');
+}
+function closeAmiDetail(){ document.getElementById('amiModal').classList.remove('show'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAmiDetail(); });
+
+async function loadAmiFeed() {
+  try {
+    const r = await fetch('/api/amibroker/signals',{cache:'no-store'});
+    const d = await r.json();
+    const all = d.signals||[];
+    const sigs = all;   // API already returns newest-first
+    _amiSigShown = sigs;
+    document.getElementById('afCount').textContent = d.total||0;
+    document.getElementById('afCalls').textContent = '▲ ' + all.filter(s=>s.signal==='CALL').length;
+    document.getElementById('afPuts').textContent  = '▼ ' + all.filter(s=>s.signal==='PUT').length;
+    const list = document.getElementById('afList');
+    if (!sigs.length) { list.innerHTML = '<div class="af-empty">no signals yet — waiting for AmiBroker push…</div>'; return; }
+    const money = v => v>0 ? '₹'+(+v).toLocaleString('en-IN',{maximumFractionDigits:2}) : '--';
+    list.innerHTML = sigs.map((s,i)=>{
+      const c = s.signal==='CALL'?'call':s.signal==='PUT'?'put':'exit';
+      const dir = s.signal==='CALL'?'CALL ▲':s.signal==='PUT'?'PUT ▼':(s.signal||'EXIT');
+      const conf = Math.max(0, Math.min(100, +s.conf||0));
+      const stat = String(s.execution?.status||'').toLowerCase();
+      const statCls = stat==='executed'?'executed':stat==='ready'?'ready':'disabled';
+      const prem = (s.premium>0?s.premium:s.price)||0;
+      const life = amiLife(s);
+      const xp = life==='EXPIRED' ? '<span class="af-xp">EXPIRED</span>' : '';
+      return `<div class="af-card ${c} ${life==='EXPIRED'?'expired':''}" onclick="showAmiDetail(${i})" title="click for full details">${xp}
+        <div class="af-c1"><span class="af-dir ${c}">${dir}</span><span class="af-tm">${s.time||''}</span></div>
+        <div class="af-c2"><span class="af-ins">${s.instrument}</span><span class="af-st">${s.strike||'--'}</span></div>
+        <div class="af-bar ${c}"><i style="width:${conf}%"></i></div>
+        <div class="af-meta"><span class="af-kv">${s.premium>0?'Prem':'Px'} <b>${money(prem)}</b>${s.target>0?` · Tgt <b>${money(s.target)}</b>`:''}</span><span class="af-cf">${conf?conf+'%':''}</span></div>
+        <div class="af-meta" style="margin-top:4px;"><span class="af-stat ${statCls}">${(s.execution?.status||'LOGGED')}</span><span class="af-kv" style="font-size:0.52rem;color:#5b6576">${s.strategy||'ami'}</span></div>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+// ── Low/High alerts feed (option H/L breaks, all instruments) ─────────────
+async function loadHlAlerts() {
+  try {
+    const insts = ['NIFTY','SENSEX','BANKNIFTY'];
+    const arrs = await Promise.all(insts.map(i =>
+      fetch(`/api/hl-alerts?inst=${i}&limit=30`,{cache:'no-store'}).then(r=>r.json()).catch(()=>null)));
+    let all = [];
+    arrs.forEach(a => { if (a && a.alerts) all = all.concat(a.alerts); });
+    all.sort((x,y)=>(y.at||0)-(x.at||0));
+    document.getElementById('hlCount').textContent = all.length;
+    document.getElementById('hlHighs').textContent = '▲ ' + all.filter(a=>a.kind==='HIGH').length;
+    document.getElementById('hlLows').textContent  = '▼ ' + all.filter(a=>a.kind==='LOW').length;
+    const list = document.getElementById('hlList');
+    if (!all.length) { list.innerHTML = '<div class="af-empty">no H/L breaks yet — alerts appear when an option prints a new session high/low…</div>'; return; }
+    list.innerHTML = all.slice(0,40).map(a=>{
+      const k = a.kind==='HIGH'?'high':'low';
+      const arrow = a.kind==='HIGH'?'HIGH ▲':'LOW ▼';
+      const mv = +a.movePct||0, mvc = mv>=0?'up':'dn';
+      return `<div class="hl-chip ${k}">
+        <span class="hl-k ${k}">${arrow}</span>
+        <span class="hl-ins">${a.inst}</span>
+        <span class="hl-st">${a.strike}${a.type||''}</span>
+        <span class="hl-px">₹${a.price}</span>
+        ${mv?`<span class="hl-mv ${mvc}">${mv>0?'+':''}${mv}%</span>`:''}
+        <span class="hl-tm">${a.time||''}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
 // ── View switch ───────────────────────────────────────────────────────────
 function switchView(view,btn) {
   document.querySelectorAll('.view-tab').forEach(b=>b.classList.remove('active'));
@@ -552,7 +752,7 @@ async function loadAll() {
   }
   loadAllBusy = true;
   try {
-    await Promise.all(INSTS.map(loadInst));
+    await Promise.all([...INSTS.map(loadInst), loadAmiFeed(), loadHlAlerts()]);
     document.getElementById('tbUpd').textContent =
       new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour12:false});
   } finally {

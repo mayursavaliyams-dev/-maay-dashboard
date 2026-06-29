@@ -1,0 +1,75 @@
+// ============================================================================
+//  Antigravity Push-Hook  —  paste this at the END of YOUR strategy AFL.
+//
+//  WHY: your AFL already generates signals (the 22 "singles"), but nothing was
+//  POSTing them to the bot, so the bot received 0. This block reads your
+//  existing Buy / Sell / Short / Cover arrays and pushes each NEW signal to:
+//      http://<server>:3000/api/amibroker/push-signal
+//
+//  SETUP (one time):
+//   1. Make sure your AFL sets Buy/Short (entries) and Sell/Cover (exits)
+//      — the standard AmiBroker trading arrays. (If you use other variable
+//      names, set BuySig/PutSig/ExitSig below to point at them.)
+//   2. Paste this whole block at the very END of your AFL.
+//   3. Apply the AFL to a chart of your instrument in REAL-TIME, OR run it in
+//      Analysis -> Scan with "Auto-Repeat (RT)" ON, so it fires every bar.
+//   4. Set the params (right-click chart -> Parameters): Server URL, Instrument,
+//      Push Signals = ON. Watch them arrive at /api/amibroker/signals.
+//
+//  Mapping:  Buy -> CALL ,  Short -> PUT ,  Sell/Cover -> EXIT.
+// ============================================================================
+
+AG_Server   = ParamStr  ("AG: Server URL", "http://127.0.0.1:3000");
+AG_Key      = ParamStr  ("AG: API Key", "antigravity");
+AG_Inst     = ParamList ("AG: Instrument", "NIFTY|SENSEX|BANKNIFTY", 0);
+AG_On       = ParamToggle("AG: Push Signals", "OFF|ON", 1);
+AG_Conf     = Param     ("AG: Confidence", 75, 1, 100, 1);
+AG_FixStrike= Param     ("AG: Strike (0=Auto ATM)", 0, 0, 100000, 50);
+
+// --- Point these at YOUR signal arrays if they aren't the standard Buy/Sell. ---
+BuySig  = Buy;     // CALL entry
+PutSig  = Short;   // PUT entry
+ExitSig = Sell OR Cover;   // close
+
+// strike: auto ATM from last close if not fixed
+AG_step = IIf(AG_Inst == "NIFTY", 50, 100);
+AG_strike = AG_FixStrike;
+if (AG_strike <= 0) AG_strike = round(LastValue(Close) / AG_step) * AG_step;
+
+// decide the signal on the LAST (current) bar
+AG_sig = "WAIT";
+if (LastValue(BuySig))       AG_sig = "CALL";
+else if (LastValue(PutSig))  AG_sig = "PUT";
+else if (LastValue(ExitSig)) AG_sig = "EXIT";
+
+// dedupe: only push when the signal is NEW for this bar
+AG_bar  = NumToStr(LastValue(BarIndex()), 1.0, False);
+AG_keyV = AG_Inst + "|" + AG_sig + "|" + AG_bar;
+AG_prevK= "AG_PUSHED_" + AG_Inst;
+
+if (AG_On AND AG_sig != "WAIT" AND AG_keyV != StaticVarGetText(AG_prevK))
+{
+    AG_url = AG_Server + "/api/amibroker/push-signal"
+        + "?key="    + AG_Key
+        + "&inst="   + AG_Inst
+        + "&sig="    + AG_sig
+        + "&strike=" + NumToStr(AG_strike, 1.0, False)
+        + "&conf="   + NumToStr(AG_Conf, 1.0, False)
+        + "&price="  + NumToStr(LastValue(Close), 1.2, False)
+        + "&barId="  + AG_bar
+        + "&strategy=my_afl";
+
+    AG_ih = InternetOpenURL(AG_url);
+    AG_resp = "";
+    if (AG_ih)
+    {
+        while ((AG_line = InternetReadString(AG_ih)) != "")
+            AG_resp = AG_resp + AG_line;
+        InternetClose(AG_ih);
+    }
+    StaticVarSetText(AG_prevK, AG_keyV);
+    _TRACE("[AG PUSH] " + AG_sig + " " + AG_Inst + " " + AG_strike + " -> " + AG_resp);
+}
+
+_N(Title = StrFormat("{{NAME}} | AG Push: %s %s %g | Server %s",
+    AG_Inst, AG_sig, AG_strike, AG_Server));

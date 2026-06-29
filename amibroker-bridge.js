@@ -29,6 +29,10 @@ class AmiBrokerBridge {
     this.signalStoreEnabled = config.signalStoreEnabled ?? (String(process.env.AMIBROKER_SIGNAL_STORE || 'true').toLowerCase() !== 'false');
     const storeDir = config.signalStoreDir || process.env.AMIBROKER_SIGNAL_DIR || path.join('data', 'ami-signals');
     this.signalStoreDir = path.isAbsolute(storeDir) ? storeDir : path.join(__dirname, storeDir);
+    // Signal lifecycle: a CALL/PUT single is "ACTIVE" for this many minutes after it
+    // arrives, then it becomes EXPIRED. Expired signals are KEPT (never deleted) so the
+    // saved feed stays intact — they just render greyed-out as EXPIRED. 0 = never expire.
+    this.signalTtlMs = Math.max(0, parseFloat(config.signalTtlMinutes || process.env.AMIBROKER_SIGNAL_TTL_MIN || 30) * 60 * 1000);
 
     // Track incoming AFL signals
     this.lastAflSignal = null;
@@ -95,6 +99,13 @@ class AmiBrokerBridge {
     const receivedDate = new Date(receivedAt);
     const date = this.istDateString(receivedDate);
     const time = this.istTimeString(receivedDate);
+    const recMs = receivedDate.getTime();
+    const isEntry = signal.signal === 'CALL' || signal.signal === 'PUT';
+    // Stamp an absolute expiry on entry singles so the lifecycle is reproducible even
+    // after a restart or if the TTL setting later changes. EXIT events don't expire.
+    const expiresAt = (isEntry && this.signalTtlMs > 0 && Number.isFinite(recMs))
+      ? new Date(recMs + this.signalTtlMs).toISOString()
+      : null;
     return {
       id: `${receivedAt}|${this.signalKey(signal)}`,
       date,
@@ -102,8 +113,25 @@ class AmiBrokerBridge {
       ...signal,
       event,
       execution,
-      receivedAt
+      receivedAt,
+      expiresAt,
+      ttlMin: this.signalTtlMs > 0 ? Math.round(this.signalTtlMs / 60000) : 0
     };
+  }
+
+  // Current lifecycle of a stored signal: 'ACTIVE' | 'EXPIRED' | 'EXIT'.
+  // Computed on read so an active single auto-flips to EXPIRED once its window passes —
+  // the record itself is never mutated or removed.
+  lifecycleOf(signal, now = Date.now()) {
+    if (!signal) return 'ACTIVE';
+    if (String(signal.action || '').toUpperCase() === 'EXIT') return 'EXIT';
+    let exp = signal.expiresAt ? new Date(signal.expiresAt).getTime() : NaN;
+    if (!Number.isFinite(exp) && this.signalTtlMs > 0 && signal.receivedAt) {
+      const r = new Date(signal.receivedAt).getTime();
+      if (Number.isFinite(r)) exp = r + this.signalTtlMs;
+    }
+    if (Number.isFinite(exp) && now > exp) return 'EXPIRED';
+    return 'ACTIVE';
   }
 
   appendStoredSignal(record) {
@@ -203,10 +231,15 @@ class AmiBrokerBridge {
       to: query.to
     });
     const limit = Math.max(1, Math.min(2000, parseInt(query.limit, 10) || 80));
+    const now = Date.now();
+    const active = filtered.filter(s => this.lifecycleOf(s, now) === 'ACTIVE').length;
     return {
       date: date || null,
-      signals: filtered.slice(-limit).reverse(),
-      total: filtered.length
+      // newest-first, each tagged with its live lifecycle (ACTIVE/EXPIRED/EXIT)
+      signals: filtered.slice(-limit).reverse().map(s => ({ ...s, lifecycle: this.lifecycleOf(s, now) })),
+      total: filtered.length,
+      active,
+      ttlMin: this.signalTtlMs > 0 ? Math.round(this.signalTtlMs / 60000) : 0
     };
   }
 
@@ -667,6 +700,9 @@ class AmiBrokerBridge {
         date: result.date,
         count: result.signals.length,
         total: result.total,
+        active: result.active,
+        expired: Math.max(0, result.total - (result.active || 0)),
+        ttlMin: result.ttlMin,
         signals: result.signals
       });
     });

@@ -56,6 +56,26 @@
   .pcr-tbl td.calc{ font-family:ui-monospace,monospace; color:var(--cyan); }
   .pcr-tbl td b{ font-family:ui-monospace,monospace; font-size:1.05rem; }
   .pcr-tbl .bias-bull{ color:var(--green); font-weight:700; } .pcr-tbl .bias-bear{ color:var(--red); font-weight:700; } .pcr-tbl .bias-neut{ color:var(--cyan); font-weight:700; }
+  /* OI buildup signals */
+  .sig-net{ margin-left:auto; font-size:12px; font-weight:700; padding:5px 13px; border-radius:8px; }
+  .sig-net.bull{ background:rgba(34,211,154,.12); color:var(--green); } .sig-net.bear{ background:rgba(247,86,124,.12); color:var(--red); } .sig-net.neut{ background:rgba(95,225,255,.12); color:var(--cyan); }
+  .sig-cols{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:760px){ .sig-cols{ grid-template-columns:1fr; } }
+  .sig-col{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .sig-col.buy{ background:linear-gradient(180deg,rgba(34,211,154,.05),transparent); border-color:rgba(34,211,154,.18); }
+  .sig-col.sell{ background:linear-gradient(180deg,rgba(247,86,124,.05),transparent); border-color:rgba(247,86,124,.18); }
+  .sig-h{ font-size:12px; font-weight:800; margin-bottom:9px; }
+  .sig-col.buy .sig-h{ color:var(--green); } .sig-col.sell .sig-h{ color:var(--red); }
+  .sig-it{ display:flex; align-items:center; gap:9px; padding:7px 9px; border-radius:8px; margin-bottom:5px; background:rgba(255,255,255,.02); flex-wrap:wrap; }
+  .sig-it .sk{ font-family:ui-monospace,monospace; font-weight:800; font-size:13px; min-width:58px; }
+  .sig-it .sk .ty{ font-size:9px; color:var(--dim); margin-left:2px; }
+  .sig-it .bd{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .sig-col.buy .bd{ background:rgba(34,211,154,.14); color:var(--green); }
+  .sig-col.sell .bd{ background:rgba(247,86,124,.14); color:var(--red); }
+  .sig-it .chg{ font-family:ui-monospace,monospace; font-size:11px; font-weight:700; }
+  .sig-col.buy .chg{ color:var(--green); } .sig-col.sell .chg{ color:var(--red); }
+  .sig-it .act{ font-size:10px; color:var(--dim); margin-left:auto; text-align:right; }
+  .sig-empty{ font-size:11px; color:var(--dim); font-style:italic; padding:7px 2px; }
 </style>
 </head>
 <body>
@@ -67,8 +87,9 @@
   </div>
   <nav class="topnav">
     <a href="/command.html">Command</a><a href="/command-pro.html">Pro</a><a href="/trade.html">Trade</a>
-    <a href="/dashboard.html">Dashboard</a><a href="/oi.html" class="active">OI Change</a>
-    <a href="/heatmap.html">OI Heatmap</a><a href="/pop.html">PoP</a><a href="/strike-history.html">Strike History</a>
+    <a href="/dashboard.html">Dashboard</a><a href="/signal-heatmap.html">Signal Heatmap</a><a href="/strategy.html">Strategy</a>
+    <a href="/heatmap.html">OI Heatmap</a><a href="/oi.html" class="active">OI Change</a><a href="/pop.html">PoP</a>
+    <a href="/strike-history.html">Strike History</a><a href="/ami-heatmap.html">AMI Heatmap</a><a href="/pattern-signals.html">🕯️ Patterns</a>
   </nav>
 
   <div class="ctrls">
@@ -113,6 +134,25 @@
     </div>
     <div class="summary" id="summary"></div>
   </div>
+
+  <div class="wrap">
+    <div class="chart-hd">
+      <h2>🎯 OI Buildup Signals</h2>
+      <span class="sig-net neut" id="sigNet">—</span>
+    </div>
+    <div class="sig-cols">
+      <div class="sig-col buy">
+        <div class="sig-h">🟢 BUY-side — bullish buildup (Put writing = support · Call longs)</div>
+        <div id="buyList"><div class="sig-empty">loading…</div></div>
+      </div>
+      <div class="sig-col sell">
+        <div class="sig-h">🔴 SELL-side — bearish buildup (Call writing = resistance · Put longs)</div>
+        <div id="sellList"><div class="sig-empty">loading…</div></div>
+      </div>
+    </div>
+    <p style="color:var(--dim);font-size:11px;margin:10px 0 0">Detects strikes where OI is building (++++). <b>Put writing</b> → support → bullish (BUY-side); <b>Call writing</b> → resistance → bearish (SELL-side). Intraday windows also read the option premium to separate fresh <b>longs</b> (OI↑ + premium↑) from <b>writing</b> (OI↑ + premium↓).</p>
+  </div>
+
   <div class="wrap">
     <div class="chart-hd"><h2>PCR — Put-Call Ratio · full calculation</h2></div>
     <table class="pcr-tbl" id="pcrTable"></table>
@@ -141,6 +181,7 @@ async function load(){
     const atm = Number(d.atmStrike)||0;
     _last = { rows, atm, spot:Number(d.spotPrice)||0, baselineAt:d.baselineAt, snaps:d.snapshots, fallback:rows.some(s=>s.fallback) };
     draw();
+    loadSignals();
     document.getElementById('led').style.background = '#22d39a';
     document.getElementById('updTxt').textContent =
       `updated ${new Date().toLocaleTimeString('en-GB')} · ${istOpen()?'LIVE':'closed'}` +
@@ -242,6 +283,25 @@ function draw(){
     pcrRow('Volume', totVce, totVpe)+
     pcrRow('OI Change', tCE, tPE)+
     `</tbody>`;
+}
+
+// ── OI buildup signals (BUY-side / SELL-side) ──────────────────────────────
+async function loadSignals(){
+  try{
+    const r = await fetch(`${API}/api/oi-signals?inst=${INST}&window=${WINDOW}&top=7`, { cache:'no-store' });
+    const d = await r.json(); if(!d || !d.ok) return;
+    const net = document.getElementById('sigNet');
+    const nb = d.net.bias==='BULLISH'?'bull':d.net.bias==='BEARISH'?'bear':'neut';
+    net.className = 'sig-net '+nb;
+    net.textContent = `${d.net.bias} · ${d.net.label}`;
+    const signed = v => (v>=0?'+':'') + fmtOI(v);
+    const row = s => `<div class="sig-it"><span class="sk">${s.strike}<span class="ty">${s.type}</span></span>`
+      + `<span class="bd">${s.buildup}</span>`
+      + `<span class="chg">ΔOI ${signed(s.oiChg)}${s.pxChg!=null?` · ₹${s.pxChg>=0?'+':''}${s.pxChg}`:''}</span>`
+      + `<span class="act">${s.action}</span></div>`;
+    document.getElementById('buyList').innerHTML  = (d.buy && d.buy.length)  ? d.buy.map(row).join('')  : '<div class="sig-empty">no bullish OI buildup in this window</div>';
+    document.getElementById('sellList').innerHTML = (d.sell && d.sell.length) ? d.sell.map(row).join('') : '<div class="sig-empty">no bearish OI buildup in this window</div>';
+  }catch(e){}
 }
 
 // controls
