@@ -4732,6 +4732,44 @@ app.post('/api/backtest/run', (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// MODULE 13/14 — WHITE-BOX BACKTEST REPORT. Institutional metrics (Sharpe/Sortino/
+// expectancy/CAGR/maxDD/equity-curve) from the REAL bhavcopy per-trade ledger in
+// bt-data/result-strategies.json, with the exact strategy rules disclosed + an
+// honest disclaimer. This is the trust + SEBI white-box cornerstone.
+//   GET /api/backtest/report?strategy=SHORT_STRANGLE
+//   GET /api/backtest/report?all=1   → leaderboard of every strategy's headline metrics
+// ════════════════════════════════════════════════════════════════════════════
+const backtestReport = require('./backtest-report');
+const _btStratFile = _btPath.join(__dirname, 'bt-data', 'result-strategies.json');
+app.get('/api/backtest/report', (req, res) => {
+  try {
+    if (!_btFs.existsSync(_btStratFile)) return res.json({ ok: false, available: false, reason: 'run bt-strategies.js first' });
+    const data = JSON.parse(_btFs.readFileSync(_btStratFile, 'utf8')) || {};
+    const trades = data.trades || {};
+    const names = Object.keys(trades);
+    if (!names.length) return res.json({ ok: false, available: false, reason: 'no strategy trades on file' });
+
+    if (req.query.all === '1') {
+      const leaderboard = names.map(name => {
+        const r = backtestReport.report(trades[name], { strategy: name });
+        return r.available ? {
+          strategy: name, trades: r.summary.trades, winRate: r.summary.winRate, net: r.summary.net,
+          expectancy: r.summary.expectancy, profitFactor: r.summary.profitFactor,
+          sharpe: r.risk.sharpe, sortino: r.risk.sortino, maxDrawdownPct: r.risk.maxDrawdownPct, cagrPct: r.risk.cagrPct,
+        } : { strategy: name, available: false };
+      }).sort((a, b) => (b.net || -1e9) - (a.net || -1e9));
+      return res.json({ ok: true, range: data.range, days: data.generatedOnDays, leaderboard, disclaimer: backtestReport.DISCLAIMER });
+    }
+
+    const strategy = String(req.query.strategy || 'SHORT_STRANGLE').toUpperCase();
+    if (!trades[strategy]) return res.status(404).json({ ok: false, error: `unknown strategy '${strategy}'`, available: names });
+    const startCapital = Math.max(10000, parseInt(req.query.capital, 10) || 100000);
+    const r = backtestReport.report(trades[strategy], { strategy, startCapital });
+    res.json({ ok: true, source: 'real NSE bhavcopy', range: data.range, days: data.generatedOnDays, ...r });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // SELF-TEST / HEALTH — one call checks every feature end-to-end and reports
 // PASS / WARN / FAIL + the live data counts (so you can SEE that old data is
 // intact, not wiped). 100% READ-ONLY: only GETs existing endpoints, never
