@@ -15,6 +15,8 @@ const popSeller   = require("./pop-seller");
 const redisStore  = require("./redis-store");
 const multiconfirm = require("./multiconfirm");
 const masterConfluence = require("./master-confluence");
+const { ConfluenceLearner } = require("./confluence-learner");
+const confluenceLearner = new ConfluenceLearner();
 const candlestickPatterns = require("./candlestick-patterns");
 const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
@@ -4952,15 +4954,37 @@ app.get('/api/master-signal/:inst(nifty|sensex)', async (req, res) => {
     // ── 10. DELIVERY % (no live index-delivery feed; honest unavailable) ──
     factors.delivery = { available: false, label: 'Delivery %', note: 'no live feed (cash delivery is stock-level)' };
 
+    // adaptive weighting: stamp learned per-leg weights before fusing
+    confluenceLearner.applyWeights(inst, factors);
     const verdict = masterConfluence.fuse(factors);
+    // register a tradeable verdict so its outcome can teach the learner later
+    const signalId = req.query.track === '0' ? null : confluenceLearner.track(inst, verdict, factors);
     res.json({
       ok: true, instrument: inst, spot: Math.round(spot), atmStrike: atm,
-      generatedAt: new Date().toISOString(),
+      generatedAt: new Date().toISOString(), signalId,
       ...verdict,
       factors,
     });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
+
+// Trade closed → AI learns → re-weight the factors.
+//   resolve a tracked verdict:   { signalId, result:'WIN'|'LOSS', pnl? }
+//   or teach inline:             { inst, direction|decision, result, factors:{leg:score}, score?, pnl? }
+app.post('/api/master-signal/outcome', (req, res) => {
+  try {
+    const b = req.body || {};
+    const out = (b.signalId != null)
+      ? confluenceLearner.resolve(b.signalId, b.result, { pnl: b.pnl, lr: b.lr })
+      : confluenceLearner.learn(b);
+    if (out.error) return res.status(400).json({ ok: false, ...out });
+    res.json({ ok: true, ...out });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// learned weights + per-leg hit-rate + recent learning history
+app.get('/api/master-signal/weights', (req, res) => res.json({ ok: true, ...confluenceLearner.status(req.query.inst) }));
+app.post('/api/master-signal/weights/reset', (req, res) => res.json(confluenceLearner.reset((req.body || {}).inst)));
 
 // ==================== DHAN CLIENT STATS ====================
 // Exposes in-flight coalescing / cache / rate-limit counters for observability.
