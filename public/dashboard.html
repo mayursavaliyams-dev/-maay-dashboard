@@ -1889,6 +1889,7 @@
 <button class="hk-open-btn" onclick="openHotkeyHelp()" title="Keyboard Shortcuts (?)">⌨ ?</button>
 <button class="mute-btn" id="muteBtn" onclick="toggleMute()">🔔 Alerts ON</button>
 <button class="hk-open-btn" id="selfTestBtn" onclick="openSelfTest()" title="Health check — test ALL features (full-day auto)"><span id="stDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6b7280;margin-right:5px;vertical-align:middle;"></span>🩺 Self-Test</button>
+<button class="hk-open-btn" id="notifBell" onclick="toggleNotifBar()" title="Notifications" style="position:relative;">🔔 Alerts<span id="notifBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:#f7567c;color:#fff;font-size:0.5rem;font-weight:800;min-width:15px;height:15px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;">0</span></button>
     </div>
 
     <!-- ===== SELF-TEST / HEALTH modal — 1-click check of every feature (read-only) ===== -->
@@ -4207,10 +4208,12 @@
             const alert = document.getElementById('alert');
             alert.textContent = message;
             alert.className = `alert show ${type}`;
-            
+
             setTimeout(() => {
                 alert.classList.remove('show');
             }, 3000);
+            // mirror every toast into the side Notification Bar
+            try { if (window.pushNotif) window.pushNotif(message, type); } catch (_) {}
         }
 
         // ==================== UPDATE LOOP ====================
@@ -4797,6 +4800,16 @@
                         + `<span class="ei-st ${st}">${s.status}</span>`
                         + `<span class="ei-age">${age} ago</span></div>`;
                 }).join('');
+                // feed NEW confirmed early signals into the Notification Bar (first load just seeds)
+                try {
+                    const firstRun = !window._esSeen; window._esSeen = window._esSeen || new Set();
+                    sigs.filter(s => s.status === 'CONFIRMED').forEach(s => {
+                        const key = `${s.inst}_${s.strike}${s.type}_${s.kind}_${s.time || s.at}`;
+                        if (window._esSeen.has(key)) return;
+                        window._esSeen.add(key);
+                        if (!firstRun && window.pushNotif) window.pushNotif(`⚡ ${s.inst} ${s.strike}${s.type} ${s.kind} — ${s.dir > 0 ? 'BULLISH' : 'BEARISH'} CONFIRMED (${s.movePct >= 0 ? '+' : ''}${s.movePct}%)`, s.dir > 0 ? 'success' : 'error');
+                    });
+                } catch (_) {}
             } catch(e) {}
         }
 
@@ -8108,6 +8121,67 @@
         setTimeout(function(){ try{ window.runSelfTest(); }catch(_){}; _stAutoTimer=setInterval(window.runSelfTest, 180000); }, 7000);
       });
       document.addEventListener('keydown', function(e){ if(e.key==='Escape') window.closeSelfTest(); });
+    })();
+    </script>
+
+    <!-- ===== NOTIFICATION BAR (right side) — live feed of every alert ===== -->
+    <style>
+      .notifbar{ position:fixed; top:0; right:0; width:330px; max-width:90vw; height:100vh; background:linear-gradient(180deg,#0b1320,#070b12); border-left:1px solid #21314a; box-shadow:-14px 0 44px rgba(0,0,0,.55); z-index:10001; transform:translateX(100%); transition:transform .25s ease; display:flex; flex-direction:column; }
+      .notifbar.show{ transform:translateX(0); }
+      .nb-head{ display:flex; align-items:center; gap:9px; padding:14px 16px; border-bottom:1px solid #1a2435; }
+      .nb-title{ font-weight:800; font-size:0.92rem; color:#e6edf6; }
+      .nb-ct{ font-size:0.6rem; color:#7dd3fc; font-weight:700; }
+      .nb-clear{ margin-left:auto; font-size:0.6rem; color:#7dd3fc; cursor:pointer; }
+      .nb-clear:hover{ text-decoration:underline; }
+      .nb-x{ cursor:pointer; color:#8b97a8; font-size:1.15rem; padding:0 4px; }
+      .nb-x:hover{ color:#e5e7eb; }
+      .nb-list{ flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:7px; }
+      .nb-item{ display:flex; gap:9px; padding:9px 10px; border-radius:9px; background:rgba(255,255,255,.03); border-left:3px solid #475569; }
+      .nb-item.error{ border-left-color:#f7567c; } .nb-item.success{ border-left-color:#22d39a; } .nb-item.warning{ border-left-color:#fbbf24; } .nb-item.info{ border-left-color:#7dd3fc; }
+      .nb-ico{ font-size:0.8rem; line-height:1.4; }
+      .nb-body{ flex:1; min-width:0; }
+      .nb-msg{ font-size:0.66rem; color:#e6edf6; line-height:1.4; word-break:break-word; }
+      .nb-time{ font-size:0.52rem; color:#6b7280; margin-top:3px; }
+      .nb-empty{ color:#5b6576; font-size:0.7rem; font-style:italic; text-align:center; padding:24px 10px; line-height:1.5; }
+    </style>
+    <div class="notifbar" id="notifBar">
+      <div class="nb-head">
+        <span class="nb-title">🔔 Notifications</span><span class="nb-ct" id="nbCount"></span>
+        <span class="nb-clear" onclick="clearNotifs()">clear all</span>
+        <span class="nb-x" onclick="toggleNotifBar()" title="close">✕</span>
+      </div>
+      <div class="nb-list" id="nbList"><div class="nb-empty">No notifications yet — alerts (gamma blast, signals, self-test…) appear here.</div></div>
+    </div>
+    <script>
+    (function(){
+      let _notifs = [], _unread = 0;
+      try { _notifs = JSON.parse(localStorage.getItem('ag_notifs') || '[]') || []; } catch (_) { _notifs = []; }
+      function ico(t){ return t==='error'?'🔴':t==='success'?'🟢':t==='warning'?'🟡':'🔵'; }
+      function ago(t){ const s=Math.floor((Date.now()-t)/1000); if(s<60)return s+'s ago'; const m=Math.floor(s/60); if(m<60)return m+'m ago'; try{return new Date(t).toLocaleTimeString('en-IN',{hour12:false});}catch(_){return m+'m ago';} }
+      function render(){
+        const list=document.getElementById('nbList');
+        if(list) list.innerHTML = _notifs.length
+          ? _notifs.map(n=>`<div class="nb-item ${n.type||'info'}"><span class="nb-ico">${ico(n.type)}</span><div class="nb-body"><div class="nb-msg">${n.message}</div><div class="nb-time">${ago(n.t)}</div></div></div>`).join('')
+          : '<div class="nb-empty">No notifications yet — alerts (gamma blast, signals, self-test…) appear here.</div>';
+        const ct=document.getElementById('nbCount'); if(ct) ct.textContent=_notifs.length?String(_notifs.length):'';
+        const b=document.getElementById('notifBadge'); if(b){ if(_unread>0){ b.style.display='flex'; b.textContent=_unread>99?'99+':String(_unread); } else b.style.display='none'; }
+      }
+      window.pushNotif = function(message, type){
+        if(!message) return;
+        const last=_notifs[0];
+        if(last && last.message===String(message) && (Date.now()-last.t)<4000) return;  // de-dupe rapid repeats
+        _notifs.unshift({ message:String(message), type:type||'info', t:Date.now() });
+        if(_notifs.length>60) _notifs.length=60;
+        try{ localStorage.setItem('ag_notifs', JSON.stringify(_notifs)); }catch(_){}
+        const bar=document.getElementById('notifBar');
+        if(!bar || !bar.classList.contains('show')) _unread++;
+        render();
+      };
+      window.toggleNotifBar = function(){ const bar=document.getElementById('notifBar'); if(!bar) return; bar.classList.toggle('show'); if(bar.classList.contains('show')){ _unread=0; render(); } };
+      window.clearNotifs = function(){ _notifs=[]; _unread=0; try{ localStorage.setItem('ag_notifs','[]'); }catch(_){} render(); };
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ const bar=document.getElementById('notifBar'); if(bar) bar.classList.remove('show'); } });
+      render();
+      setInterval(render, 30000);   // refresh relative timestamps
     })();
     </script>
 </body>
