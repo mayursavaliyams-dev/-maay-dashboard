@@ -2122,38 +2122,45 @@
       @media (max-width:640px){ .top4-row{ grid-template-columns:1fr; } }
     </style>
     <style>
-              #mcLayers .mc-row{display:flex;justify-content:space-between;}
-              #mcLayers .mc-row span{font-weight:700;}
+              #mcLayers .mc-row{ display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:center; }
+              #mcLayers .mc-row .mc-nf, #mcLayers .mc-row .mc-sx{ font-weight:700; text-align:right; min-width:56px; }
+              #mcLayers .mc-l{ color:#9ca3af; }
               .mc-ok{color:#34d399!important;} .mc-no{color:#6b7280!important;} .mc-warn{color:#fbbf24!important;}
+              .mc-sep{ border-top:1px solid #1f2937; margin:4px 0; }
+              .mc-head{ display:grid; grid-template-columns:1fr auto auto; gap:8px; font-size:0.52rem; color:#6b7280; margin-bottom:4px; align-items:baseline; }
+              .mc-head .mc-h-nf, .mc-head .mc-h-sx{ text-align:right; font-weight:800; }
+              .mc-head .mc-h-nf{ color:#fbbf24; } .mc-head .mc-h-sx{ color:#7dd3fc; }
+              .mc-sig{ font-size:0.5rem; padding:0 4px; border-radius:3px; background:#1f2937; color:#9ca3af; }
+              .mc-sc{ font-size:0.5rem; color:#9ca3af; }
             </style>
     <div class="top4-row">
 <!-- Multi-Confirmation Strategy Panel (ported from Pine F&O strategy) — pinned to top -->
             <div class="card" id="mcPanel" style="padding:8px 10px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <div style="font-size:0.6rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">🎯 Multi-Confirm</div>
-                    <span id="mcSignal" style="font-size:0.6rem;padding:1px 7px;border-radius:4px;background:#1f2937;color:#9ca3af;font-weight:700;">WAIT</span>
+                    <div style="font-size:0.6rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">🎯 Multi-Confirm · NIFTY + SENSEX</div>
                 </div>
-                <div style="display:flex;justify-content:space-between;font-size:0.55rem;color:#6b7280;margin-bottom:5px;">
-                    <span>Inst: <b id="mcInst" style="color:#9ca3af;cursor:pointer;" onclick="mcToggleInst()">NIFTY</b></span>
-                    <span>Score: <b id="mcScore" style="color:#9ca3af;">0/8</b></span>
+                <div class="mc-head">
+                    <span class="mc-h-lbl">Layer</span>
+                    <span class="mc-h-nf">NIFTY <b id="mcNfSig" class="mc-sig">WAIT</b> <b id="mcNfScore" class="mc-sc">0/8</b></span>
+                    <span class="mc-h-sx">SENSEX <b id="mcSxSig" class="mc-sig">WAIT</b> <b id="mcSxScore" class="mc-sc">0/8</b></span>
                 </div>
-                <div id="mcLayers" style="font-size:0.56rem;line-height:1.6;color:#9ca3af;">
-                    <div class="mc-row" data-k="emaStack">① EMA Stack <span>–</span></div>
-                    <div class="mc-row" data-k="vwap">② VWAP <span>–</span></div>
-                    <div class="mc-row" data-k="rsi">③ RSI <span>–</span></div>
-                    <div class="mc-row" data-k="volume">④ Volume <span>–</span></div>
-                    <div class="mc-row" data-k="candle">⑤ Candle <span>–</span></div>
-                    <div class="mc-row" data-k="macd">⑥ MACD <span>–</span></div>
-                    <div class="mc-row" data-k="bollinger">⑦ Bollinger <span>–</span></div>
-                    <div class="mc-row" data-k="obv">⑧ OBV <span>–</span></div>
-                    <div class="mc-row" data-k="stochastic">Stochastic <span>–</span></div>
-                    <div style="border-top:1px solid #1f2937;margin:4px 0;"></div>
-                    <div class="mc-row" data-k="sideways">Market <span>–</span></div>
-                    <div class="mc-row" data-k="adx">🛡 ADX <span>–</span></div>
-                    <div class="mc-row" data-k="supertrend">🛡 Supertrend <span>–</span></div>
-                    <div class="mc-row" data-k="htf">🛡 HTF EMA <span>–</span></div>
+                <div id="mcLayers" style="font-size:0.56rem;line-height:1.55;color:#9ca3af;">
+                    <div class="mc-row" data-k="emaStack"><span class="mc-l">① EMA Stack</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="vwap"><span class="mc-l">② VWAP</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="rsi"><span class="mc-l">③ RSI</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="volume"><span class="mc-l">④ Volume</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="candle"><span class="mc-l">⑤ Candle</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="macd"><span class="mc-l">⑥ MACD</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="bollinger"><span class="mc-l">⑦ Bollinger</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="obv"><span class="mc-l">⑧ OBV</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="stochastic"><span class="mc-l">Stochastic</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-sep"></div>
+                    <div class="mc-row" data-k="sideways"><span class="mc-l">Market</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="adx"><span class="mc-l">🛡 ADX</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="supertrend"><span class="mc-l">🛡 Supertrend</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
+                    <div class="mc-row" data-k="htf"><span class="mc-l">🛡 HTF EMA</span><span class="mc-nf">–</span><span class="mc-sx">–</span></div>
                 </div>
-                <div style="font-size:0.5rem;color:#4b5563;margin-top:4px;">Read-only confirmation read-out · not auto-trading</div>
+                <div style="font-size:0.5rem;color:#4b5563;margin-top:4px;">Read-only · both indices side-by-side · not auto-trading</div>
             </div>
 
             <!-- Signal -->
@@ -3631,50 +3638,45 @@
         setInterval(loadDhanStats, 8000);
 
         // ==================== MULTI-CONFIRM STRATEGY ====================
-        let mcInstrument = 'nifty';
-        function mcToggleInst() {
-            mcInstrument = mcInstrument === 'nifty' ? 'sensex' : 'nifty';
-            document.getElementById('mcInst').textContent = mcInstrument.toUpperCase();
-            loadMultiConfirm();
+        // Multi-Confirm — NIFTY + SENSEX side by side (no toggle, both always shown).
+        function mcToggleInst() {}   // retained as no-op (toggle removed)
+        function _mcCell(side, k, ok, txt, warn) {
+            const el = document.querySelector(`#mcLayers .mc-row[data-k="${k}"] .mc-${side}`);
+            if (!el) return;
+            el.textContent = txt;
+            el.className = `mc-${side} ` + (warn ? 'mc-warn' : ok ? 'mc-ok' : 'mc-no');
         }
-        function mcMark(k, ok, txt, warn) {
-            const row = document.querySelector(`#mcLayers .mc-row[data-k="${k}"] span`);
-            if (!row) return;
-            row.textContent = txt;
-            row.className = warn ? 'mc-warn' : (ok ? 'mc-ok' : 'mc-no');
+        function _mcFill(side, d) {
+            const pfx = side === 'nf' ? 'Nf' : 'Sx';
+            const sig = d.signal || 'WAIT', bull = sig === 'CALL', bear = sig === 'PUT';
+            const sb = document.getElementById('mc' + pfx + 'Sig');
+            if (sb) { sb.textContent = bull ? 'CE' : bear ? 'PE' : 'WAIT'; sb.style.background = bull ? '#064e3b' : bear ? '#7f1d1d' : '#1f2937'; sb.style.color = bull ? '#34d399' : bear ? '#fca5a5' : '#9ca3af'; }
+            const L = d.layers || {}, S = d.shields || {};
+            const score = Math.max(d.callScore || 0, d.putScore || 0);
+            const sc = document.getElementById('mc' + pfx + 'Score'); if (sc) sc.textContent = `${score}/8`;
+            if (!L.emaStack) { document.querySelectorAll(`#mcLayers .mc-${side}`).forEach(s => { s.textContent = '–'; s.className = `mc-${side} mc-no`; }); return; }
+            _mcCell(side, 'emaStack', L.emaStack.bull || L.emaStack.bear, L.emaStack.bull ? '✓Bull' : L.emaStack.bear ? '✓Bear' : '✗');
+            _mcCell(side, 'vwap', L.vwap.bull || L.vwap.bear, L.vwap.bull ? '✓Abv' : L.vwap.bear ? '✓Blw' : '✗');
+            _mcCell(side, 'rsi', L.rsi.bull || L.rsi.bear, `${L.rsi.value}`);
+            _mcCell(side, 'volume', L.volume.spike, `${L.volume.ratio}×`);
+            _mcCell(side, 'candle', L.candle.bull || L.candle.bear, `${L.candle.bodyPct}%`);
+            _mcCell(side, 'macd', !!(L.macd && (L.macd.bull || L.macd.bear)), L.macd ? `${L.macd.hist}` : '–');
+            _mcCell(side, 'bollinger', !!(L.bollinger && (L.bollinger.bull || L.bollinger.bear)), L.bollinger ? `${L.bollinger.pctB}` : '–');
+            _mcCell(side, 'obv', !!(L.obv && (L.obv.bull || L.obv.bear)), L.obv ? (L.obv.rising ? '✓Ris' : '✓Fall') : '–');
+            _mcCell(side, 'stochastic', !!(L.stochastic && (L.stochastic.bull || L.stochastic.bear)), L.stochastic ? `${L.stochastic.k}` : '–', L.stochastic && (L.stochastic.bull || L.stochastic.bear));
+            _mcCell(side, 'sideways', !L.sideways.choppy, L.sideways.choppy ? '⚠Chop' : '✓Trnd', L.sideways.choppy);
+            _mcCell(side, 'adx', S.adx.ok, `${S.adx.value}`);
+            _mcCell(side, 'supertrend', S.supertrend.bull || S.supertrend.bear, S.supertrend.bull ? '✓Bull' : '✓Bear');
+            _mcCell(side, 'htf', S.htf.bull || S.htf.bear, S.htf.bull ? '✓Abv' : '✓Blw');
         }
         async function loadMultiConfirm() {
             try {
-                const r = await fetch(`${API_BASE}/api/multiconfirm/${mcInstrument}`, { cache: 'no-store' });
-                const d = await r.json();
-                const sig = d.signal || 'WAIT';
-                const bull = sig === 'CALL', bear = sig === 'PUT';
-                const sb = document.getElementById('mcSignal');
-                sb.textContent = sig === 'CALL' ? 'CE BUY' : sig === 'PUT' ? 'PE BUY' : 'WAIT';
-                sb.style.background = bull ? '#064e3b' : bear ? '#7f1d1d' : '#1f2937';
-                sb.style.color = bull ? '#34d399' : bear ? '#fca5a5' : '#9ca3af';
-                const L = d.layers || {}, S = d.shields || {};
-                // Score reflects the dominant side
-                const score = Math.max(d.callScore || 0, d.putScore || 0);
-                document.getElementById('mcScore').textContent = `${score}/8`;
-                if (!L.emaStack) {  // warming up
-                    document.querySelectorAll('#mcLayers .mc-row span').forEach(s => { s.textContent = '–'; s.className = 'mc-no'; });
-                    return;
-                }
-                mcMark('emaStack', L.emaStack.bull || L.emaStack.bear, L.emaStack.bull ? '✓ Bull' : L.emaStack.bear ? '✓ Bear' : '✗');
-                mcMark('vwap', L.vwap.bull || L.vwap.bear, L.vwap.bull ? '✓ Above' : L.vwap.bear ? '✓ Below' : '✗');
-                mcMark('rsi', L.rsi.bull || L.rsi.bear, `${L.rsi.value} ${L.rsi.bull ? '✓' : L.rsi.bear ? '✓' : '✗'}`);
-                mcMark('volume', L.volume.spike, `${L.volume.ratio}× ${L.volume.spike ? '✓' : '✗'}`);
-                mcMark('candle', L.candle.bull || L.candle.bear, `${L.candle.bodyPct}% ${(L.candle.bull || L.candle.bear) ? '✓' : '✗'}`);
-                // New indicators (added to the engine) — null-guarded (may warm up later).
-                mcMark('macd', !!(L.macd && (L.macd.bull || L.macd.bear)), L.macd ? `${L.macd.hist} ${L.macd.bull ? '✓' : L.macd.bear ? '✓' : '✗'}` : '–');
-                mcMark('bollinger', !!(L.bollinger && (L.bollinger.bull || L.bollinger.bear)), L.bollinger ? `%B ${L.bollinger.pctB} ${L.bollinger.bull ? '✓' : L.bollinger.bear ? '✓' : '✗'}` : '–');
-                mcMark('obv', !!(L.obv && (L.obv.bull || L.obv.bear)), L.obv ? (L.obv.rising ? '✓ Rising' : '✓ Falling') : '–');
-                mcMark('stochastic', !!(L.stochastic && (L.stochastic.bull || L.stochastic.bear)), L.stochastic ? `${L.stochastic.k}${L.stochastic.bull ? ' ✓ os' : L.stochastic.bear ? ' ✓ ob' : ''}` : '–', L.stochastic && (L.stochastic.bull || L.stochastic.bear));
-                mcMark('sideways', !L.sideways.choppy, L.sideways.choppy ? '⚠ Choppy' : '✓ Trending', L.sideways.choppy);
-                mcMark('adx', S.adx.ok, `${S.adx.value} ${S.adx.ok ? '✓' : '✗'}`);
-                mcMark('supertrend', S.supertrend.bull || S.supertrend.bear, S.supertrend.bull ? '✓ Bull' : '✓ Bear');
-                mcMark('htf', S.htf.bull || S.htf.bear, S.htf.bull ? '✓ Above' : '✓ Below');
+                const [nf, sx] = await Promise.all([
+                    fetch(`${API_BASE}/api/multiconfirm/nifty`, { cache: 'no-store' }).then(r => r.json()).catch(() => null),
+                    fetch(`${API_BASE}/api/multiconfirm/sensex`, { cache: 'no-store' }).then(r => r.json()).catch(() => null),
+                ]);
+                if (nf) _mcFill('nf', nf);
+                if (sx) _mcFill('sx', sx);
             } catch (_) {}
         }
         loadMultiConfirm();
