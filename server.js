@@ -14,6 +14,7 @@ const aiLogger = require("./ai-logger");
 const popSeller   = require("./pop-seller");
 const redisStore  = require("./redis-store");
 const multiconfirm = require("./multiconfirm");
+const masterConfluence = require("./master-confluence");
 const candlestickPatterns = require("./candlestick-patterns");
 const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
@@ -4821,6 +4822,142 @@ app.get('/api/intel', async (req, res) => {
       fiiDii: eventEngine.fiiDiiLatest(),
       topNews: newsEngine.recent(200).slice().sort((a, b) => b.impactScore - a.impactScore).slice(0, 8),
       news: newsEngine.status(),
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ==================== MASTER CONFLUENCE — one verdict from every signal ====================
+// Trend + OI + Volume + News + Event + IV + PCR + Greeks + FII + Delivery
+//   → weighted, confidence-scaled, agreement-aware Probability → BUY / SELL / HOLD.
+// Per-instrument (NIFTY + SENSEX kept separate, per house style). Pure math lives in
+// master-confluence.js; this handler just gathers each live factor and normalises it.
+const _clampScore = (v) => +(Math.max(-100, Math.min(100, Number(v) || 0))).toFixed(1);
+app.get('/api/master-signal/:inst(nifty|sensex)', async (req, res) => {
+  try {
+    const inst = req.params.inst.toUpperCase();
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const strikes = (chain && chain.strikes) || [];
+    const atm = Number(chain && chain.atmStrike) || (strikes.length ? strikes[Math.floor(strikes.length / 2)].strike : 0);
+
+    const closes  = inst === 'NIFTY' ? niftyPrices  : prices;
+    const vols    = inst === 'NIFTY' ? niftyVolumes : volumes;
+    const vwapVal = inst === 'NIFTY' ? niftyVwap    : vwap;
+
+    const factors = {};
+
+    // ── 1. TREND (multiconfirm engine) ──
+    if (closes && closes.length >= 52) {
+      const win = closes.slice(-5);
+      const candle = { open: win[0], high: Math.max(...win), low: Math.min(...win), close: closes[closes.length - 1] };
+      const htfClose = closes.length >= 75
+        ? (() => { const k = 2 / (75 + 1); let e = closes[0]; for (let i = 1; i < closes.length; i++) e = closes[i] * k + e * (1 - k); return e; })()
+        : null;
+      const mc = multiconfirm.evaluate({ closes, volumes: vols, candle, vwap: vwapVal, htfClose });
+      const net = (mc.callScore || 0) - (mc.putScore || 0);                 // layer counts ~[-9,9]
+      const fired = mc.signal === 'CALL' ? 1 : mc.signal === 'PUT' ? -1 : 0;
+      // confirmed direction gets a magnitude floor so a clean CALL/PUT isn't washed out
+      let score = _clampScore((net / 9) * 100);
+      if (fired) score = _clampScore(Math.max(Math.abs(score), 55) * fired);
+      factors.trend = { score, confidence: Math.min(95, 40 + Math.max(mc.callScore || 0, mc.putScore || 0) * 7),
+        label: 'Trend (multi-confirm)', note: `${mc.signal} · CALL ${mc.callScore} / PUT ${mc.putScore}` };
+    } else {
+      factors.trend = { available: false, label: 'Trend', note: 'warming up' };
+    }
+
+    // ── 2. OI buildup (put-writing bullish / call-writing bearish) ──
+    let totCeChg = 0, totPeChg = 0, totCeOI = 0, totPeOI = 0;
+    for (const s of strikes) {
+      totCeChg += Number(s.ce?.changeOI || 0); totPeChg += Number(s.pe?.changeOI || 0);
+      totCeOI  += Number(s.ce?.oi || 0);        totPeOI  += Number(s.pe?.oi || 0);
+    }
+    const oiDen = Math.abs(totCeChg) + Math.abs(totPeChg) + 1;
+    if (Math.abs(totCeChg) + Math.abs(totPeChg) > 0) {
+      const oiScore = _clampScore(((totPeChg - totCeChg) / oiDen) * 100);
+      factors.oi = { score: oiScore, confidence: 70,
+        label: 'OI buildup', note: `ΔPE ${Math.round(totPeChg)} vs ΔCE ${Math.round(totCeChg)}` };
+    } else {
+      factors.oi = { available: false, label: 'OI buildup', note: 'no ΔOI yet' };
+    }
+
+    // ── 3. VOLUME (price direction confirmed by volume expansion) ──
+    if (vols && vols.length >= 10 && closes && closes.length >= 10) {
+      const recent = vols.slice(-3).reduce((a, b) => a + Number(b || 0), 0) / 3;
+      const avg = vols.slice(-20).reduce((a, b) => a + Number(b || 0), 0) / Math.min(20, vols.length);
+      const ratio = avg > 0 ? recent / avg : 0;
+      const priceDir = Math.sign(closes[closes.length - 1] - closes[closes.length - 6]);
+      if (ratio > 0) {
+        const mag = Math.min(100, Math.max(0, (ratio - 1) * 120));
+        factors.volume = { score: _clampScore(priceDir * mag), confidence: ratio > 1.3 ? 70 : 45,
+          label: 'Volume', note: `${ratio.toFixed(2)}× avg · price ${priceDir > 0 ? 'up' : priceDir < 0 ? 'down' : 'flat'}` };
+      } else factors.volume = { available: false, label: 'Volume', note: 'no volume feed' };
+    } else {
+      factors.volume = { available: false, label: 'Volume', note: 'warming up' };
+    }
+
+    // ── 4. NEWS sentiment ──
+    const ms = newsEngine.marketSentiment(12);
+    factors.news = { score: _clampScore(Number(ms.score) || 0), confidence: Math.min(90, Number(ms.confidence) || 0),
+      label: 'News sentiment', note: `${ms.label} · ${ms.articles || 0} articles` };
+
+    // ── 5. PCR (total OI) ──
+    if (totCeOI > 0) {
+      const pcr = +(totPeOI / totCeOI).toFixed(2);
+      factors.pcr = { score: _clampScore((pcr - 1) * 110), confidence: 65,
+        label: 'PCR', note: `${pcr} (${pcr > 1.2 ? 'bullish' : pcr < 0.8 ? 'bearish' : 'neutral'})` };
+    } else {
+      factors.pcr = { available: false, label: 'PCR', note: 'no OI' };
+    }
+
+    // ── 6. GREEKS (max-pain pull: spot below max-pain = upward magnet) ──
+    if (strikes.length && spot > 0) {
+      let maxPain = atm, best = Infinity;
+      for (const s of strikes) {
+        const pain = strikes.reduce((t, r) =>
+          t + Math.max(0, s.strike - r.strike) * Number(r.ce?.oi || 0) +
+              Math.max(0, r.strike - s.strike) * Number(r.pe?.oi || 0), 0);
+        if (pain < best) { best = pain; maxPain = s.strike; }
+      }
+      const pullPct = ((maxPain - spot) / spot) * 100;          // +ve = pull up
+      factors.greeks = { score: _clampScore(pullPct * 60), confidence: 55,
+        label: 'Greeks (max-pain)', note: `max-pain ${maxPain} vs spot ${Math.round(spot)}` };
+    } else {
+      factors.greeks = { available: false, label: 'Greeks', note: 'no chain' };
+    }
+
+    // ── 7. FII/DII flows ──
+    const fd = eventEngine.fiiDiiLatest();
+    if (fd && fd.available) {
+      factors.fii = { score: _clampScore((Number(fd.netCash) || 0) / 50), confidence: 60,
+        label: 'FII/DII flow', note: `${fd.bias} · net ₹${fd.netCash}cr (${fd.date})` };
+    } else {
+      factors.fii = { available: false, label: 'FII/DII flow', note: 'ingest via /api/fii-dii' };
+    }
+
+    // ── 8. IV / India VIX (rising fear = mildly bearish) ──
+    const vix = await eventEngine.getVix();
+    if (vix && vix.value > 0) {
+      factors.iv = { score: _clampScore(-(Number(vix.changePct) || 0) * 5), confidence: 45,
+        label: 'India VIX', note: `${vix.value} ${vix.regime} (${vix.changePct > 0 ? '+' : ''}${vix.changePct}%)` };
+    } else {
+      factors.iv = { available: false, label: 'India VIX', note: 'unavailable' };
+    }
+
+    // ── 9. EVENT risk (caution leg — never votes direction, only trims probability) ──
+    const er = await eventEngine.eventRiskScore(5);
+    factors.event = { kind: 'risk', score: Number(er.score) || 0, confidence: 80, weight: 10,
+      label: 'Event risk', note: `${er.level}${er.driver ? ' · ' + er.driver.title : ''}` };
+
+    // ── 10. DELIVERY % (no live index-delivery feed; honest unavailable) ──
+    factors.delivery = { available: false, label: 'Delivery %', note: 'no live feed (cash delivery is stock-level)' };
+
+    const verdict = masterConfluence.fuse(factors);
+    res.json({
+      ok: true, instrument: inst, spot: Math.round(spot), atmStrike: atm,
+      generatedAt: new Date().toISOString(),
+      ...verdict,
+      factors,
     });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
