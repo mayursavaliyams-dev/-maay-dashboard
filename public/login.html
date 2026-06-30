@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Antigravity Pro</title>
+<style>
+  *{ box-sizing:border-box; }
+  body{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+        background:radial-gradient(1200px 600px at 50% -10%, #10203a, #070b12); color:#e6edf6;
+        font-family:'Inter',system-ui,Segoe UI,Roboto,sans-serif; }
+  .box{ width:min(360px,92vw); background:linear-gradient(160deg,#0c1726,#0a0e17); border:1px solid #21405f;
+        border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.55); padding:26px 24px; }
+  .brand{ font-size:1.15rem; font-weight:800; color:#7aa2ff; letter-spacing:.3px; margin-bottom:2px; }
+  .brand b{ color:#fff; } .sub{ font-size:0.66rem; color:#8b97a8; margin-bottom:18px; }
+  label{ display:block; font-size:0.62rem; color:#9fb0c8; text-transform:uppercase; letter-spacing:.5px; margin:12px 0 4px; }
+  input{ width:100%; background:#0c1626; border:1px solid #21314a; border-radius:9px; color:#e6edf6;
+         font-size:0.85rem; padding:10px 12px; outline:none; }
+  input:focus{ border-color:#3b6ea5; }
+  button{ width:100%; margin-top:18px; background:linear-gradient(135deg,#2563eb,#1d4ed8); border:0; color:#fff;
+          font-size:0.82rem; font-weight:700; padding:11px; border-radius:9px; cursor:pointer; }
+  button:disabled{ opacity:.6; cursor:default; }
+  .err{ margin-top:12px; font-size:0.7rem; color:#ff6b8b; min-height:14px; }
+  .foot{ margin-top:16px; font-size:0.56rem; color:#5b6576; text-align:center; line-height:1.5; }
+</style>
+</head>
+<body>
+  <form class="box" id="f" onsubmit="return doLogin(event)">
+    <div class="brand">🚀 ANTIGRAVITY <b>PRO</b></div>
+    <div class="sub">Sign in to the trading terminal</div>
+    <label for="u">Username</label>
+    <input id="u" autocomplete="username" autofocus required>
+    <label for="p">Password</label>
+    <input id="p" type="password" autocomplete="current-password" required>
+    <button id="btn" type="submit">Sign in →</button>
+    <div class="err" id="err"></div>
+    <div class="foot">JWT cookie session · roles: viewer · trader · admin<br>PAPER / educational — not financial advice.</div>
+  </form>
+<script>
+  async function doLogin(e){
+    e.preventDefault();
+    const btn=document.getElementById('btn'), err=document.getElementById('err');
+    err.textContent=''; btn.disabled=true; btn.textContent='Signing in…';
+    try{
+      const r=await fetch('/api/auth/login',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ username:document.getElementById('u').value, password:document.getElementById('p').value }) });
+      const d=await r.json();
+      if(r.ok && d.ok){ const to=new URLSearchParams(location.search).get('next')||'/dashboard.html'; location.href=to; }
+      else { err.textContent=d.error||'Login failed'; btn.disabled=false; btn.textContent='Sign in →'; }
+    }catch(ex){ err.textContent='Network error'; btn.disabled=false; btn.textContent='Sign in →'; }
+    return false;
+  }
+</script>
+</body>
+</html>

@@ -84,6 +84,48 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
+
+// ── AUTH (opt-in · no-op unless AUTH_ENABLED=true) ───────────────────────────
+const auth = require('./auth');
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body || {};
+  const r = auth.login(String(username || ''), String(password || ''));
+  if (!r) return res.status(401).json({ ok: false, error: 'invalid credentials' });
+  res.setHeader('Set-Cookie', auth.cookieHeader(r.token));
+  res.json({ ok: true, user: r.user, role: r.role });
+});
+app.post('/api/auth/logout', (req, res) => { res.setHeader('Set-Cookie', auth.clearCookieHeader()); res.json({ ok: true }); });
+app.get('/api/auth/me', (req, res) => {
+  if (!auth.ENABLED) return res.json({ authEnabled: false, role: 'admin' });
+  const u = auth.verifyToken(auth.readToken(req));
+  if (!u) return res.status(401).json({ authEnabled: true, authenticated: false, login: '/login.html' });
+  res.json({ authEnabled: true, authenticated: true, user: u.sub, role: u.role });
+});
+if (auth.ENABLED) {
+  // Page gate — HTML navigations need a valid session cookie, else the login page.
+  app.use((req, res, next) => {
+    const p = req.path;
+    if (p === '/login.html' || (!p.endsWith('.html') && p !== '/')) return next();   // assets/api pass; HTML gated
+    if (auth.verifyToken(auth.readToken(req))) return next();
+    return res.redirect('/login.html');
+  });
+  // API gate — reads need viewer; mutations (writes / enable·run·reset·order…) need trader.
+  app.use('/api', (req, res, next) => {
+    if (['/auth/login', '/auth/logout', '/auth/me', '/health'].includes(req.path) || req.path.startsWith('/healthz')) return next();
+    const u = auth.verifyToken(auth.readToken(req));
+    if (!u) return res.status(401).json({ error: 'unauthorized', login: '/login.html' });
+    const isWrite = req.method !== 'GET' || /\/(enable|disable|run|reset|start|stop|order|execute|config|set|push)/i.test(req.path);
+    const min = isWrite ? 'trader' : 'viewer';
+    if (!auth.roleOk(u.role, min)) return res.status(403).json({ error: 'forbidden', need: min, have: u.role });
+    req.user = u; next();
+  });
+  console.log(`[auth] ENABLED · ${auth.userCount()} user(s) · cookie-session RBAC (viewer<trader<admin)`);
+}
+
+// Lightweight liveness probe for Docker/K8s/Nginx (public, no data fetch).
+const _bootAt = Date.now();
+app.get('/healthz', (req, res) => res.json({ status: 'ok', uptimeSec: Math.round((Date.now() - _bootAt) / 1000), authEnabled: auth.ENABLED, ts: new Date().toISOString() }));
+
 app.use(express.static("public", {
   index: "dashboard.html",
   // Never cache HTML dashboards — they change often and stale caches cause

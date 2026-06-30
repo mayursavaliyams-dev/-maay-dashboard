@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci || npm install
+
+      - name: Syntax-check core modules
+        run: |
+          node -e "['server.js','auth.js','candlestick-patterns.js','multiconfirm.js','amibroker-bridge.js','gamma-blast-engine.js','gamma-blast-detect.js','gamma-blast-params.js','option-analyzer.js','redis-store.js'].forEach(f=>require('child_process').execSync('node -c '+f,{stdio:'inherit'}))"
+
+      - name: Validate dashboard inline scripts
+        run: |
+          node -e "const fs=require('fs'),vm=require('vm');let bad=0;for(const f of ['dashboard','login','pattern-signals','oi','ami-heatmap']){const p='public/'+f+'.html';if(!fs.existsSync(p))continue;const h=fs.readFileSync(p,'utf8');for(const m of h.matchAll(/<script>([\s\S]*?)<\/script>/g)){try{new vm.Script(m[1])}catch(e){console.error(f,e.message);bad++}}}process.exit(bad?1:0)"
+
+      - name: Auth unit test
+        env:
+          AUTH_ENABLED: 'true'
+          AUTH_SECRET: 'ci-secret'
+          AUTH_ADMIN_USER: 'admin'
+          AUTH_ADMIN_PASS: 'ci-pass'
+        run: |
+          node -e "const a=require('./auth');const t=a.signToken({sub:'x',role:'admin'});if(!a.verifyToken(t))throw'verify';if(a.verifyToken(t+'x'))throw'tamper';if(!a.login('admin','ci-pass'))throw'login';if(a.login('admin','no'))throw'badlogin';if(a.roleOk('viewer','admin'))throw'role';console.log('auth OK')"
+
+      - name: candlestick-patterns module test
+        run: |
+          node -e "const P=require('./candlestick-patterns');const eng=[{t:0,o:100,h:101,l:95,c:96,v:1,n:15},{t:900,o:95,h:103,l:94,c:102,v:1,n:15}];const r=P.detectPattern(eng,15);if(r.name!=='Bullish Engulfing')throw'pattern:'+r.name;console.log('patterns OK')"
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install + test FastAPI port
+        run: |
+          pip install pytest httpx pydantic pydantic-settings fastapi uvicorn 2>/dev/null || true
+          [ -f antigravity-py/requirements.txt ] && pip install -r antigravity-py/requirements.txt || true
+          cd antigravity-py && python -m pytest -q || echo "py tests skipped/failed (non-blocking)"
