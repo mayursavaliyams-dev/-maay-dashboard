@@ -17,6 +17,7 @@ const multiconfirm = require("./multiconfirm");
 const masterConfluence = require("./master-confluence");
 const { ConfluenceLearner } = require("./confluence-learner");
 const confluenceLearner = new ConfluenceLearner();
+const signalEngine = require("./signal-engine");
 const candlestickPatterns = require("./candlestick-patterns");
 const smartMoney = require("./smart-money");
 const pineConverter = require("./pine-converter");
@@ -4856,9 +4857,7 @@ app.get('/api/intel', async (req, res) => {
 // Per-instrument (NIFTY + SENSEX kept separate, per house style). Pure math lives in
 // master-confluence.js; this handler just gathers each live factor and normalises it.
 const _clampScore = (v) => +(Math.max(-100, Math.min(100, Number(v) || 0))).toFixed(1);
-app.get('/api/master-signal/:inst(nifty|sensex)', async (req, res) => {
-  try {
-    const inst = req.params.inst.toUpperCase();
+async function gatherMasterSignal(inst, opts = {}) {
     const meta = getInstrumentMeta(inst);
     const spot = await meta.priceGetter();
     const chain = await meta.chainGetter(spot);
@@ -4991,13 +4990,20 @@ app.get('/api/master-signal/:inst(nifty|sensex)', async (req, res) => {
     confluenceLearner.applyWeights(inst, factors);
     const verdict = masterConfluence.fuse(factors);
     // register a tradeable verdict so its outcome can teach the learner later
-    const signalId = req.query.track === '0' ? null : confluenceLearner.track(inst, verdict, factors);
-    res.json({
+    const signalId = opts.track === false ? null : confluenceLearner.track(inst, verdict, factors);
+    return {
       ok: true, instrument: inst, spot: Math.round(spot), atmStrike: atm,
       generatedAt: new Date().toISOString(), signalId,
       ...verdict,
       factors,
-    });
+      _chain: { strikes, atm, spot, step: (PS_INSTS[inst] && PS_INSTS[inst].step) || null, ivAvg: null },
+    };
+}
+app.get('/api/master-signal/:inst(nifty|sensex)', async (req, res) => {
+  try {
+    const out = await gatherMasterSignal(req.params.inst.toUpperCase(), { track: req.query.track !== '0' });
+    const { _chain, ...pub } = out;
+    res.json(pub);
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -5018,6 +5024,27 @@ app.post('/api/master-signal/outcome', (req, res) => {
 // learned weights + per-leg hit-rate + recent learning history
 app.get('/api/master-signal/weights', (req, res) => res.json({ ok: true, ...confluenceLearner.status(req.query.inst) }));
 app.post('/api/master-signal/weights/reset', (req, res) => res.json(confluenceLearner.reset((req.body || {}).inst)));
+
+// ════════════════════════════════════════════════════════════════════════════
+// MODULE 11 — SIGNAL ENGINE: master verdict → actionable option trade plan.
+//   BUY CALL · BUY PUT · SELL CALL · SELL PUT · NO TRADE — with entry/SL/T1/T2/T3,
+//   expected holding time, expected premium, expected move, confidence, probability,
+//   risk score. Reuses gatherMasterSignal (no double-fetch). Pure plan in signal-engine.js.
+// ════════════════════════════════════════════════════════════════════════════
+app.get('/api/signal/:inst(nifty|sensex)', async (req, res) => {
+  try {
+    const inst = req.params.inst.toUpperCase();
+    const ms = await gatherMasterSignal(inst, { track: req.query.track !== '0' });
+    const ch = ms._chain || {};
+    let isExpiry = false;
+    try { isExpiry = !!(gammaBlastEngine.status().detect || {})[inst]?.isExpiryToday; } catch (_) {}
+    const plan = signalEngine.buildPlan(ms, {
+      inst, spot: ch.spot, atm: ch.atm, strikes: ch.strikes, step: ch.step,
+      lotSize: (PS_INSTS[inst] && PS_INSTS[inst].lot) || null, isExpiry,
+    });
+    res.json({ ok: true, generatedAt: ms.generatedAt, signalId: ms.signalId, ...plan });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
 
 // ==================== DHAN CLIENT STATS ====================
 // Exposes in-flight coalescing / cache / rate-limit counters for observability.
