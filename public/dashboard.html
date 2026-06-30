@@ -4807,7 +4807,7 @@
                         const key = `${s.inst}_${s.strike}${s.type}_${s.kind}_${s.time || s.at}`;
                         if (window._esSeen.has(key)) return;
                         window._esSeen.add(key);
-                        if (!firstRun && window.pushNotif) window.pushNotif(`⚡ ${s.inst} ${s.strike}${s.type} ${s.kind} — ${s.dir > 0 ? 'BULLISH' : 'BEARISH'} CONFIRMED (${s.movePct >= 0 ? '+' : ''}${s.movePct}%)`, s.dir > 0 ? 'success' : 'error');
+                        if (!firstRun && window.pushNotif) window.pushNotif(`⚡ ${s.inst} ${s.strike}${s.type} ${s.kind} — ${s.dir > 0 ? 'BULLISH' : 'BEARISH'} CONFIRMED (${s.movePct >= 0 ? '+' : ''}${s.movePct}%)`, s.dir > 0 ? 'success' : 'error', { inst: s.inst, dir: s.dir });
                     });
                 } catch (_) {}
             } catch(e) {}
@@ -5520,6 +5520,8 @@
             const title = '⚡ GAMMA BLAST · ' + (d.inst || 'SENSEX') + (d.isExpiryToday ? ' (EXPIRY)' : '');
             try { if (window.Notification && Notification.permission === 'granted') new Notification(title, { body: msg, requireInteraction: true }); } catch (_) {}
             try { showAlert && showAlert(title + ' · ' + msg, 'error'); } catch (_) {}
+            // tag the notification with direction so it gets verified (CE→bullish, PE→bearish)
+            try { window.pushNotif && window.pushNotif(title + ' · ' + msg, 'error', { inst: d.inst, dir: d.side === 'CE' ? 1 : d.side === 'PE' ? -1 : 0 }); } catch (_) {}
         }
 
         // Forward-test results panel — hedged-condor all-time stats + open + recent.
@@ -8147,6 +8149,10 @@
       .nb-msg{ font-size:0.66rem; color:#e6edf6; line-height:1.4; word-break:break-word; }
       .nb-time{ font-size:0.52rem; color:#6b7280; margin-top:3px; }
       .nb-empty{ color:#5b6576; font-size:0.7rem; font-style:italic; text-align:center; padding:24px 10px; line-height:1.5; }
+      .nb-acc{ padding:7px 16px; font-size:0.62rem; color:#9fb0c8; border-bottom:1px solid #1a2435; }
+      .nb-acc:empty{ display:none; }
+      .nb-vd{ font-size:0.5rem; font-weight:800; margin-left:8px; padding:1px 6px; border-radius:4px; }
+      .nb-vd.correct{ background:#06281c; color:#34e3a4; } .nb-vd.wrong{ background:#2a0f17; color:#ff6b8b; } .nb-vd.pending{ background:#1f2937; color:#9ca3af; }
     </style>
     <div class="notifbar" id="notifBar">
       <div class="nb-head">
@@ -8154,38 +8160,80 @@
         <span class="nb-clear" onclick="clearNotifs()">clear all</span>
         <span class="nb-x" onclick="toggleNotifBar()" title="close">✕</span>
       </div>
+      <div class="nb-acc" id="nbAcc" title="directional notifications that moved the predicted way (live until market close)"></div>
       <div class="nb-list" id="nbList"><div class="nb-empty">No notifications yet — alerts (gamma blast, signals, self-test…) appear here.</div></div>
     </div>
     <script>
     (function(){
+      const API = (typeof API_BASE !== 'undefined') ? API_BASE : '';
       let _notifs = [], _unread = 0;
       try { _notifs = JSON.parse(localStorage.getItem('ag_notifs') || '[]') || []; } catch (_) { _notifs = []; }
+      function save(){ try{ localStorage.setItem('ag_notifs', JSON.stringify(_notifs)); }catch(_){} }
+
+      // ── live spot per index — used to VERIFY whether each directional notification
+      //    turned out correct (predicted direction vs actual move). NIFTY/SENSEX read
+      //    from the top bar; BANKNIFTY fetched. Settles at market close. ──
+      const _spotNow = { NIFTY:0, SENSEX:0, BANKNIFTY:0 };
+      function _num(id){ const e=document.getElementById(id); if(!e) return 0; return parseFloat(String(e.textContent).replace(/[^\d.]/g,'')) || 0; }
+      function _readSpots(){ const n=_num('niftyPriceTop'); if(n>0)_spotNow.NIFTY=n; const s=_num('price'); if(s>0)_spotNow.SENSEX=s; }
+      async function _readBnf(){ try{ const d=await fetch(API+'/api/banknifty',{cache:'no-store'}).then(r=>r.json()); const p=Number(d.price||d.spot||d.ltp||0); if(p>0)_spotNow.BANKNIFTY=p; }catch(_){} }
+      _readSpots(); setInterval(_readSpots, 3000); _readBnf(); setInterval(_readBnf, 12000);
+      function _istDay(t){ return new Date(t + 330*60000).toISOString().slice(0,10); }
+
       function ico(t){ return t==='error'?'🔴':t==='success'?'🟢':t==='warning'?'🟡':'🔵'; }
       function ago(t){ const s=Math.floor((Date.now()-t)/1000); if(s<60)return s+'s ago'; const m=Math.floor(s/60); if(m<60)return m+'m ago'; try{return new Date(t).toLocaleTimeString('en-IN',{hour12:false});}catch(_){return m+'m ago';} }
+      // verdict for a directional notif: predicted dir vs actual spot move since fire
+      function verdict(n){
+        if(!n.meta || !n.meta.dir || !n.ref) return null;
+        if(_istDay(n.t) !== _istDay(Date.now())) return null;   // only verify today's (ref is intraday)
+        const cur = _spotNow[n.meta.inst]; if(!cur) return null;
+        const mv = ((cur - n.ref) / n.ref) * 100;
+        if(Math.abs(mv) < 0.03) return { st:'pending', mv:+mv.toFixed(2) };
+        const correct = n.meta.dir > 0 ? mv > 0 : mv < 0;
+        return { st: correct ? 'correct' : 'wrong', mv:+mv.toFixed(2) };
+      }
       function render(){
         const list=document.getElementById('nbList');
         if(list) list.innerHTML = _notifs.length
-          ? _notifs.map(n=>`<div class="nb-item ${n.type||'info'}"><span class="nb-ico">${ico(n.type)}</span><div class="nb-body"><div class="nb-msg">${n.message}</div><div class="nb-time">${ago(n.t)}</div></div></div>`).join('')
+          ? _notifs.map(n=>{
+              const v = verdict(n);
+              const vb = v ? `<span class="nb-vd ${v.st}">${v.st==='correct'?'✓ right':v.st==='wrong'?'✗ wrong':'⏳ flat'} ${v.mv>=0?'+':''}${v.mv}%</span>` : '';
+              return `<div class="nb-item ${n.type||'info'}"><span class="nb-ico">${ico(n.type)}</span><div class="nb-body"><div class="nb-msg">${n.message}</div><div class="nb-time">${ago(n.t)}${vb}</div></div></div>`;
+            }).join('')
           : '<div class="nb-empty">No notifications yet — alerts (gamma blast, signals, self-test…) appear here.</div>';
         const ct=document.getElementById('nbCount'); if(ct) ct.textContent=_notifs.length?String(_notifs.length):'';
         const b=document.getElementById('notifBadge'); if(b){ if(_unread>0){ b.style.display='flex'; b.textContent=_unread>99?'99+':String(_unread); } else b.style.display='none'; }
+        // accuracy summary over TODAY's directional notifications
+        const acc=document.getElementById('nbAcc');
+        if(acc){
+          const today=_istDay(Date.now()); let c=0,w=0,p=0;
+          _notifs.filter(n=>n.meta && _istDay(n.t)===today).forEach(n=>{ const v=verdict(n); if(!v)return; if(v.st==='correct')c++; else if(v.st==='wrong')w++; else p++; });
+          const tot=c+w;
+          acc.innerHTML = (c+w+p)>0 ? `today's signals: ✓ <b style="color:#34e3a4">${c}</b> · ✗ <b style="color:#ff6b8b">${w}</b>${p?` · ⏳ ${p}`:''} · <b>${tot?Math.round(c/tot*100):0}%</b> accurate` : '';
+        }
       }
-      window.pushNotif = function(message, type){
+      window.pushNotif = function(message, type, meta){
         if(!message) return;
+        message=String(message);
         const last=_notifs[0];
-        if(last && last.message===String(message) && (Date.now()-last.t)<4000) return;  // de-dupe rapid repeats
-        _notifs.unshift({ message:String(message), type:type||'info', t:Date.now() });
-        if(_notifs.length>60) _notifs.length=60;
-        try{ localStorage.setItem('ag_notifs', JSON.stringify(_notifs)); }catch(_){}
+        if(last && last.message===message && (Date.now()-last.t)<4000){
+          if(meta && !last.meta){ last.meta=meta; last.ref=(meta.inst && _spotNow[meta.inst])||0; save(); render(); }  // enrich existing with direction+ref
+          return;
+        }
+        const n={ message, type:type||'info', t:Date.now() };
+        if(meta){ n.meta=meta; n.ref=(meta.inst && _spotNow[meta.inst])||0; }
+        _notifs.unshift(n);
+        if(_notifs.length>80) _notifs.length=80;
+        save();
         const bar=document.getElementById('notifBar');
         if(!bar || !bar.classList.contains('show')) _unread++;
         render();
       };
       window.toggleNotifBar = function(){ const bar=document.getElementById('notifBar'); if(!bar) return; bar.classList.toggle('show'); if(bar.classList.contains('show')){ _unread=0; render(); } };
-      window.clearNotifs = function(){ _notifs=[]; _unread=0; try{ localStorage.setItem('ag_notifs','[]'); }catch(_){} render(); };
+      window.clearNotifs = function(){ _notifs=[]; _unread=0; save(); render(); };
       document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ const bar=document.getElementById('notifBar'); if(bar) bar.classList.remove('show'); } });
       render();
-      setInterval(render, 30000);   // refresh relative timestamps
+      setInterval(render, 8000);   // re-verify outcomes + refresh timestamps
     })();
     </script>
 </body>
