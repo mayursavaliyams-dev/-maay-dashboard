@@ -1887,7 +1887,6 @@
 <button class="hk-open-btn" onclick="openLogs()" title="Live Logs (L)">📟 Logs</button>
 <button class="hk-open-btn" onclick="openConfig()" title="Strategy Config (S)">⚙ Config</button>
 <button class="hk-open-btn" onclick="openHotkeyHelp()" title="Keyboard Shortcuts (?)">⌨ ?</button>
-<button class="mute-btn" id="muteBtn" onclick="toggleMute()">🔔 Alerts ON</button>
 <button class="hk-open-btn" id="selfTestBtn" onclick="openSelfTest()" title="Health check — test ALL features (full-day auto)"><span id="stDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6b7280;margin-right:5px;vertical-align:middle;"></span>🩺 Self-Test</button>
 <button class="hk-open-btn" id="notifBell" onclick="toggleNotifBar()" title="Notifications" style="position:relative;">🔔 Alerts<span id="notifBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:#f7567c;color:#fff;font-size:0.5rem;font-weight:800;min-width:15px;height:15px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;">0</span></button>
     </div>
@@ -6897,9 +6896,11 @@
         // Mute toggle
         function toggleMute() {
             _alertsMuted = !_alertsMuted;
-            const btn = document.getElementById('muteBtn');
-            btn.textContent = _alertsMuted ? '🔕 Muted' : '🔔 Alerts ON';
-            btn.style.color = _alertsMuted ? '#6b7280' : '#10b981';
+            const btn = document.getElementById('muteBtn');   // button removed — guard
+            if (btn) {
+                btn.textContent = _alertsMuted ? '🔕 Muted' : '🔔 Alerts ON';
+                btn.style.color = _alertsMuted ? '#6b7280' : '#10b981';
+            }
         }
 
 // ==================== SERVICE WORKER — DISABLED (caused stale dashboard) ====================
