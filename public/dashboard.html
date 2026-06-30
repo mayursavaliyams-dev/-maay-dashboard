@@ -1883,6 +1883,43 @@
 <button class="hk-open-btn" onclick="openConfig()" title="Strategy Config (S)">⚙ Config</button>
 <button class="hk-open-btn" onclick="openHotkeyHelp()" title="Keyboard Shortcuts (?)">⌨ ?</button>
 <button class="mute-btn" id="muteBtn" onclick="toggleMute()">🔔 Alerts ON</button>
+<button class="hk-open-btn" id="selfTestBtn" onclick="openSelfTest()" title="Health check — test ALL features (full-day auto)"><span id="stDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6b7280;margin-right:5px;vertical-align:middle;"></span>🩺 Self-Test</button>
+    </div>
+
+    <!-- ===== SELF-TEST / HEALTH modal — 1-click check of every feature (read-only) ===== -->
+    <style>
+      .st-overlay{ position:fixed; inset:0; background:rgba(3,7,15,.74); backdrop-filter:blur(3px); z-index:10000; display:none; align-items:flex-start; justify-content:center; padding:40px 16px; }
+      .st-overlay.show{ display:flex; }
+      .st-modal{ width:min(640px,96vw); max-height:86vh; overflow:auto; background:linear-gradient(160deg,#0c1726,#0a0e17); border:1px solid #21405f; border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.6); padding:16px 18px; }
+      .st-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+      .st-title{ font-size:1rem; font-weight:800; }
+      .st-summary{ font-size:0.64rem; font-weight:700; padding:3px 10px; border-radius:999px; background:#1f2937; color:#9ca3af; }
+      .st-auto{ font-size:0.62rem; color:#9fb0c8; display:flex; align-items:center; gap:5px; cursor:pointer; }
+      .st-run{ background:linear-gradient(135deg,#7c3aed,#6d28d9); border:0; color:#fff; font-size:0.64rem; font-weight:700; padding:6px 13px; border-radius:8px; cursor:pointer; }
+      .st-run:disabled{ opacity:.6; cursor:default; }
+      .st-x{ margin-left:auto; cursor:pointer; color:#8b97a8; font-size:1.1rem; padding:2px 7px; border-radius:6px; }
+      .st-x:hover{ background:#1b2738; color:#e5e7eb; }
+      .st-meta{ font-size:0.58rem; color:#6b7787; margin-bottom:10px; }
+      .st-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+      @media(max-width:600px){ .st-grid{ grid-template-columns:1fr; } }
+      .st-item{ display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:8px; background:rgba(255,255,255,.02); border:1px solid #1a2435; }
+      .st-st{ font-size:0.5rem; font-weight:800; padding:2px 6px; border-radius:5px; white-space:nowrap; }
+      .st-st.pass{ background:#06281c; color:#34e3a4; } .st-st.warn{ background:#3a2d10; color:#fcd34d; } .st-st.fail{ background:#3a1016; color:#ff6b8b; }
+      .st-lbl{ font-size:0.62rem; font-weight:700; color:#e6edf6; }
+      .st-det{ font-size:0.55rem; color:#9aa5b6; margin-left:auto; text-align:right; }
+    </style>
+    <div class="st-overlay" id="stOverlay" onclick="if(event.target===this)closeSelfTest()">
+      <div class="st-modal">
+        <div class="st-head">
+          <span class="st-title">🩺 System Self-Test</span>
+          <span class="st-summary" id="stSummary">not run yet</span>
+          <label class="st-auto"><input type="checkbox" id="stAuto" onchange="toggleSelfTestAuto()"> Full-day auto</label>
+          <button class="st-run" id="stRunBtn" onclick="runSelfTest()">▶ Run check</button>
+          <span class="st-x" onclick="closeSelfTest()" title="close">✕</span>
+        </div>
+        <div class="st-meta" id="stMeta">Read-only — checks every feature, never resets or deletes any data. Counts shown prove old data is intact.</div>
+        <div class="st-grid" id="stGrid"></div>
+      </div>
     </div>
 
     <nav style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:8px 12px 0;padding:8px 12px;background:rgba(9,17,29,.78);border:1px solid #243041;border-radius:12px;">
@@ -7988,6 +8025,47 @@
             window.executeTradeRaw = window.executeTrade;
             window.executeTrade = function(type) { window.openTradeConfirm(type); };
         }
+    })();
+    </script>
+
+    <!-- ===== SELF-TEST / HEALTH — 1-click + full-day auto check of every feature ===== -->
+    <script>
+    (function(){
+      let _stAutoTimer = null;
+      function _stCol(s){ return s==='ok'?'#22d39a':s==='warn'?'#fbbf24':s==='fail'?'#f7567c':'#6b7280'; }
+      function _stDot(state){ const d=document.getElementById('stDot'); if(d){ d.style.background=_stCol(state); d.style.boxShadow= state&&state!=='idle' ? '0 0 6px '+_stCol(state) : 'none'; } }
+      window.openSelfTest = function(){ document.getElementById('stOverlay').classList.add('show'); if(!document.getElementById('stGrid').children.length) window.runSelfTest(); };
+      window.closeSelfTest = function(){ document.getElementById('stOverlay').classList.remove('show'); };
+      window.runSelfTest = async function(){
+        const btn=document.getElementById('stRunBtn'); if(btn){ btn.disabled=true; btn.textContent='⏳ checking…'; }
+        try{
+          const r=await fetch((window.API_BASE||'')+'/api/selftest',{cache:'no-store'});
+          const d=await r.json(); const sm=d.summary||{};
+          const sumEl=document.getElementById('stSummary');
+          if(sumEl){ sumEl.textContent=`✅ ${sm.pass||0} · ⚠️ ${sm.warn||0} · ❌ ${sm.fail||0} · ${d.durationMs}ms`;
+            sumEl.style.background = sm.fail? '#3a1016' : sm.warn? '#3a2d10':'#06281c';
+            sumEl.style.color = sm.fail? '#ff6b8b' : sm.warn? '#fcd34d':'#34e3a4'; }
+          const meta=document.getElementById('stMeta');
+          if(meta) meta.textContent=`Last check ${new Date(d.checkedAt).toLocaleTimeString('en-IN',{hour12:false})} · ${d.durationMs}ms · read-only (no data touched). Counts below = data intact.`;
+          const grid=document.getElementById('stGrid');
+          if(grid) grid.innerHTML=(d.checks||[]).map(c=>`<div class="st-item"><span class="st-st ${String(c.status).toLowerCase()}">${c.status}</span><span class="st-lbl">${c.label}</span><span class="st-det">${c.detail||''}</span></div>`).join('');
+          _stDot(sm.fail? 'fail' : sm.warn? 'warn':'ok');
+          if(sm.fail>0){ try{ if(window.showAlert) showAlert('🩺 Self-Test: '+sm.fail+' feature(s) FAILED — open Self-Test', 'error'); }catch(_){} }
+        }catch(e){ const meta=document.getElementById('stMeta'); if(meta) meta.textContent='Self-test request failed: '+e.message; _stDot('fail'); }
+        finally{ if(btn){ btn.disabled=false; btn.textContent='▶ Run check'; } }
+      };
+      window.toggleSelfTestAuto = function(){
+        const on=document.getElementById('stAuto').checked;
+        if(_stAutoTimer){ clearInterval(_stAutoTimer); _stAutoTimer=null; }
+        if(on){ window.runSelfTest(); _stAutoTimer=setInterval(window.runSelfTest, 180000); }   // every 3 min, all day
+      };
+      // Full-day auto ON by default today — keep checking all day; first run after load settles.
+      window.addEventListener('load', function(){
+        const cb=document.getElementById('stAuto'); if(cb){ cb.checked=true; }
+        _stDot('idle');
+        setTimeout(function(){ try{ window.runSelfTest(); }catch(_){}; _stAutoTimer=setInterval(window.runSelfTest, 180000); }, 7000);
+      });
+      document.addEventListener('keydown', function(e){ if(e.key==='Escape') window.closeSelfTest(); });
     })();
     </script>
 </body>

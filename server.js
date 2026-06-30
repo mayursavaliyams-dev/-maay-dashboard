@@ -4605,6 +4605,84 @@ app.post('/api/backtest/run', (req, res) => {
   } catch (e) { _btState.running = false; _btState.error = e.message; res.status(500).json({ error: e.message }); }
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// SELF-TEST / HEALTH — one call checks every feature end-to-end and reports
+// PASS / WARN / FAIL + the live data counts (so you can SEE that old data is
+// intact, not wiped). 100% READ-ONLY: only GETs existing endpoints, never
+// resets/clears anything. Drives the dashboard 🩺 Self-Test button + full-day auto.
+// ════════════════════════════════════════════════════════════════════════════
+function _stFetch(pathStr, ms = 8000) {
+  return Promise.race([
+    fetch(`http://127.0.0.1:${PORT}${pathStr}`, { headers: { 'cache-control': 'no-store' } }).then(r => r.json()),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)),
+  ]);
+}
+
+app.get('/api/selftest', async (req, res) => {
+  const t0 = Date.now();
+  const checks = [
+    { key: 'data', label: 'Live data feed (Upstox)', fn: async () => {
+        const d = await _stFetch('/api/nifty/options/analytics'); const s = Number(d.spotPrice || d.livePrice || 0);
+        return s > 0 ? { status: 'PASS', detail: `NIFTY ₹${Math.round(s).toLocaleString('en-IN')}` } : { status: 'FAIL', detail: 'no spot price' }; } },
+    { key: 'chainNf', label: 'NIFTY option chain', fn: async () => {
+        const d = await _stFetch('/api/nifty/options/analytics'); const n = (d.optionChain || []).length;
+        return n > 0 ? { status: 'PASS', detail: `${n} strikes`, count: n } : { status: 'FAIL', detail: 'empty chain' }; } },
+    { key: 'chainSx', label: 'SENSEX option chain', fn: async () => {
+        const d = await _stFetch('/api/options/analytics'); const n = (d.optionChain || []).length;
+        return n > 0 ? { status: 'PASS', detail: `${n} strikes`, count: n } : { status: 'FAIL', detail: 'empty chain' }; } },
+    { key: 'pattern', label: 'Pattern Signals', fn: async () => {
+        const d = await _stFetch('/api/pattern-signals?inst=ALL&tf=15,60'); const n = d.count || 0;
+        return n > 0 ? { status: 'PASS', detail: `${n} signals`, count: n } : { status: 'WARN', detail: '0 (no candles / closed)' }; } },
+    { key: 'oi', label: 'OI Buildup signals', fn: async () => {
+        const d = await _stFetch('/api/oi-signals?inst=NIFTY&window=full');
+        return d.ok ? { status: 'PASS', detail: `net ${d.net?.bias || '—'} · ${(d.buy || []).length + (d.sell || []).length} strikes` } : { status: 'FAIL', detail: 'error' }; } },
+    { key: 'early', label: 'Early Signals (H/L breakout)', fn: async () => {
+        const d = await _stFetch('/api/early-signals?inst=ALL');
+        return d.ok ? { status: 'PASS', detail: `${d.count || 0} live`, count: d.count || 0 } : { status: 'FAIL', detail: 'error' }; } },
+    { key: 'orb', label: 'ORB Breakout + Retest', fn: async () => {
+        const d = await _stFetch('/api/orb-signals?inst=ALL&orbMin=3'); const ready = (d.today || []).filter(t => t.ready).length;
+        return d.ok ? { status: ready ? 'PASS' : 'WARN', detail: `${ready}/${(d.today || []).length} instruments ready` } : { status: 'FAIL', detail: 'error' }; } },
+    { key: 'gamma', label: 'Gamma Blast detector', fn: async () => {
+        const d = await _stFetch('/api/gamma-blast/status'); const dt = Object.values(d.detect || {});
+        const exp = dt.find(x => x.isExpiryToday); const top = exp || dt.slice().sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+        return top ? { status: 'PASS', detail: `${top.inst} ${top.score}% ${top.level}${top.isExpiryToday ? ' · 🎯EXPIRY' : ''}` } : { status: 'WARN', detail: 'no detect' }; } },
+    { key: 'ami', label: 'AmiBroker signals (stored)', fn: async () => {
+        const d = await _stFetch('/api/amibroker/status'); const c = d.signalHistoryCount || 0; const rcv = d.stats?.signalsReceived || 0;
+        return { status: 'PASS', detail: `${c} stored · ${rcv} received today`, count: c }; } },
+    { key: 'strangle', label: 'Strangle engine (paper)', fn: async () => {
+        const d = await _stFetch('/api/strangle/status');
+        return { status: d.enabled ? 'PASS' : 'WARN', detail: `${d.enabled ? 'ON' : 'OFF'} · ${(d.openPositions || []).length} open · ${d.allTime?.trades || 0} all-time` }; } },
+    { key: 'gammaEng', label: 'Gamma-blast engine (paper)', fn: async () => {
+        const d = await _stFetch('/api/gamma-blast/status');
+        return { status: d.enabled ? 'PASS' : 'WARN', detail: `${d.enabled ? 'ON' : 'OFF'} · ${(d.openPositions || []).length} open · ${d.today?.trades || 0} today` }; } },
+    { key: 'backtest', label: 'Backtest result data', fn: async () => {
+        const d = await _stFetch('/api/backtest/real');
+        return d.available ? { status: 'PASS', detail: `${d.stats?.totalTrades || 0} trades saved`, count: d.stats?.totalTrades || 0 } : { status: 'WARN', detail: 'no result file' }; } },
+    { key: 'hl', label: 'H/L alert feed', fn: async () => {
+        const d = await _stFetch('/api/hl-alerts?inst=NIFTY&limit=5');
+        return { status: 'PASS', detail: `${(d.alerts || []).length} recent` }; } },
+    { key: 'oichange', label: 'OI-change snapshots', fn: async () => {
+        const d = await _stFetch('/api/oi-change?inst=NIFTY&window=full');
+        return { status: 'PASS', detail: `${(d.strikes || []).length} strikes · ${d.snapshots || 0} snaps` }; } },
+    { key: 'bot', label: 'Bot / server', fn: async () => {
+        const d = await _stFetch('/api/bot/status');
+        return { status: d.running ? 'PASS' : 'WARN', detail: `running=${d.running} · signal ${d.currentSignal || '—'}` }; } },
+  ];
+
+  const results = await Promise.all(checks.map(async c => {
+    const s = Date.now();
+    try { const r = await c.fn(); return { key: c.key, label: c.label, status: r.status || 'PASS', detail: r.detail || '', count: r.count ?? null, latencyMs: Date.now() - s }; }
+    catch (e) { return { key: c.key, label: c.label, status: 'FAIL', detail: e.message || 'error', count: null, latencyMs: Date.now() - s }; }
+  }));
+  const summary = {
+    total: results.length,
+    pass: results.filter(r => r.status === 'PASS').length,
+    warn: results.filter(r => r.status === 'WARN').length,
+    fail: results.filter(r => r.status === 'FAIL').length,
+  };
+  res.json({ ok: summary.fail === 0, checkedAt: new Date().toISOString(), durationMs: Date.now() - t0, summary, checks: results });
+});
+
 // ==================== DHAN CLIENT STATS ====================
 // Exposes in-flight coalescing / cache / rate-limit counters for observability.
 app.get('/api/dhan-stats', (req, res) => {
