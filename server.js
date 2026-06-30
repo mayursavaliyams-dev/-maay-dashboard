@@ -4413,6 +4413,64 @@ app.get('/api/early-signals', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// HIGH/LOW SIGNAL ACCURACY — did each near-ATM option H/L break (the Early Signal /
+// notification source) actually predict the index's direction? Joins the live H/L
+// break events (_hlTouchAlerts) with the per-minute spot timeline (_oiSnaps): spot
+// AT the break vs spot `horizon` minutes later → ✓correct / ✗wrong / ⏳pending.
+// Same near-ATM + min-move filter as the Early Signals, so it scores what's shown.
+//   ?inst=ALL&horizon=10
+// ════════════════════════════════════════════════════════════════════════════
+app.get('/api/hl-accuracy', async (req, res) => {
+  try {
+    const instReq = String(req.query.inst || 'ALL').toUpperCase();
+    const insts = instReq === 'ALL' ? ['NIFTY', 'SENSEX', 'BANKNIFTY']
+      : instReq.split(',').map(s => s.trim()).filter(i => _hlTouchAlerts[i]);
+    const horizonMin = Math.max(1, Math.min(120, parseInt(req.query.horizon, 10) || 10));
+    const minMove = Number(req.query.minMove) || EARLY_MIN_MOVE;
+    const FLAT = 0.03;   // |move%| below this = inconclusive
+    const out = { ok: true, horizonMin, minMove, generatedAt: new Date().toISOString(), perInst: {}, byKind: {}, total: { correct: 0, wrong: 0, pending: 0 } };
+
+    for (const inst of insts) {
+      let atm = 0, step = 50; try { const a = await _psFetchAnalytics(inst); if (a) { atm = a.atm; step = a.step; } } catch (_) {}
+      const snaps = (_oiSnaps[inst] || []).filter(s => Number(s.spot) > 0);
+      const spotAtOrBefore = target => { let best = null; for (const s of snaps) { if (s.t <= target) best = s; else break; } return best ? Number(best.spot) : (snaps[0] ? Number(snaps[0].spot) : null); };
+      const spotAtOrAfter = target => { for (const s of snaps) { if (s.t >= target) return Number(s.spot); } return null; };
+
+      const alerts = (_hlTouchAlerts[inst] || []).filter(a =>
+        (!atm || Math.abs(Number(a.strike) - atm) <= EARLY_NEAR_ATM * step) && Math.abs(Number(a.movePct || 0)) >= minMove);
+
+      let c = 0, w = 0, p = 0; const list = [];
+      for (const a of alerts) {
+        let dir = 0;
+        if (a.type === 'CE' && a.kind === 'HIGH') dir = 1;
+        else if (a.type === 'PE' && a.kind === 'HIGH') dir = -1;
+        else if (a.type === 'CE' && a.kind === 'LOW') dir = -1;
+        else if (a.type === 'PE' && a.kind === 'LOW') dir = 1;
+        if (!dir) continue;
+        const spot0 = spotAtOrBefore(a.at);
+        const spotH = spotAtOrAfter(a.at + horizonMin * 60000);
+        const kindKey = `${a.type}-${a.kind}`;
+        out.byKind[kindKey] = out.byKind[kindKey] || { correct: 0, wrong: 0, pending: 0 };
+        let st = 'pending', mv = null;
+        if (spot0 && spotH) {
+          mv = +(((spotH - spot0) / spot0) * 100).toFixed(2);
+          if (Math.abs(mv) >= FLAT) st = (dir > 0 ? mv > 0 : mv < 0) ? 'correct' : 'wrong';
+        }
+        if (st === 'correct') { c++; out.byKind[kindKey].correct++; out.total.correct++; }
+        else if (st === 'wrong') { w++; out.byKind[kindKey].wrong++; out.total.wrong++; }
+        else { p++; out.byKind[kindKey].pending++; out.total.pending++; }
+        list.push({ strike: a.strike, type: a.type, kind: a.kind, dir, time: a.time, spot0, spotH, movePct: mv, status: st });
+      }
+      const tot = c + w;
+      out.perInst[inst] = { signals: alerts.length, correct: c, wrong: w, pending: p, accuracy: tot ? +(c / tot * 100).toFixed(1) : 0, snapshots: snaps.length, list: list.slice(-50) };
+    }
+    const T = out.total.correct + out.total.wrong;
+    out.accuracy = T ? +(out.total.correct / T * 100).toFixed(1) : 0;
+    res.json(out);
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // ORB SIGNALS — Opening-Range-Breakout + retest, mapped to a CALL/PUT entry.
 // `today` = live ORB per inst. `?backtest=N` = replay the rule over the last N
 // trading days (real 1-min candles via the historical endpoint) and report win%

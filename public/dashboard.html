@@ -2000,6 +2000,61 @@
         <span class="gb-detail" id="gbDetail"></span>
     </div>
 
+    <!-- ===== GAMMA BLAST greek panel (pinned up, below the strip) ===== -->
+    <!-- Gamma Blast -->
+            <div class="gb-panel" id="gbSection">
+                <div class="gb-hdr">
+                    <div class="gb-score-ring" id="gbScoreRing" style="--ring-pct:0%;--ring-color:#374151;">
+                        <span id="gbScoreVal">--</span>
+                    </div>
+                    <div>
+                        <div class="gb-level-badge low" id="gbLevelBadge">LOADING</div>
+                        <div class="gb-grade-lbl" id="gbGradeLabel">--</div>
+                    </div>
+                    <button class="gb-refresh" onclick="loadGammaBlast()">↻</button>
+                </div>
+
+                <div class="gb-desc" id="gbDesc" style="--blast-color:#374151;">Calculating...</div>
+
+                <!-- Rank bars -->
+                <div style="margin-bottom:4px;">
+                    <div class="gb-bar-row"><span class="gb-bar-lbl">Gamma Power</span><div class="gb-bar-track"><div class="gb-bar-fill gamma" id="gbBarGamma" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsGamma">0/25</span></div>
+                    <div class="gb-bar-row"><span class="gb-bar-lbl">Delta Spot</span><div class="gb-bar-track"><div class="gb-bar-fill delta" id="gbBarDelta" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsDelta">0/20</span></div>
+                    <div class="gb-bar-row"><span class="gb-bar-lbl">Theta Accel</span><div class="gb-bar-track"><div class="gb-bar-fill theta" id="gbBarTheta" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsTheta">0/20</span></div>
+                    <div class="gb-bar-row"><span class="gb-bar-lbl">Vega Edge</span><div class="gb-bar-track"><div class="gb-bar-fill vega" id="gbBarVega" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsVega">0/15</span></div>
+                    <div class="gb-bar-row"><span class="gb-bar-lbl">GTR Ratio</span><div class="gb-bar-track"><div class="gb-bar-fill gtr" id="gbBarGTR" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsGTR">0/20</span></div>
+                </div>
+                <div style="text-align:right;font-size:0.72rem;font-weight:700;color:#e5e7eb;margin-bottom:4px;" id="gbRankTotal">--/100</div>
+
+                <!-- Metrics -->
+                <div class="gb-metrics" id="gbMetrics">
+                    <div class="gb-m"><div class="gb-m-lbl">Gamma</div><div class="gb-m-val" id="gbmGamma">--</div></div>
+                    <div class="gb-m"><div class="gb-m-lbl">Delta</div><div class="gb-m-val" id="gbmDelta">--</div></div>
+                    <div class="gb-m"><div class="gb-m-lbl">Theta</div><div class="gb-m-val" id="gbmTheta">--</div></div>
+                    <div class="gb-m"><div class="gb-m-lbl">Γ/Δ</div><div class="gb-m-val" id="gbmGperD">--</div></div>
+                    <div class="gb-m"><div class="gb-m-lbl">GTR</div><div class="gb-m-val" id="gbmGTR">--</div></div>
+                    <div class="gb-m"><div class="gb-m-lbl">IV</div><div class="gb-m-val" id="gbmIV">--</div></div>
+                </div>
+
+                <div class="gb-ranges" id="gbRanges">
+                    <div class="gb-range">
+                        <div class="gb-range-top">
+                            <span class="gb-range-lbl">Reaction</span>
+                            <span class="gb-range-move">--</span>
+                        </div>
+                        <div class="gb-range-band">
+                            <span class="gb-range-low">--</span>
+                            <span class="gb-range-mid">spot band</span>
+                            <span class="gb-range-high">--</span>
+                        </div>
+                        <div class="gb-range-meta">Waiting for gamma range data</div>
+                    </div>
+                </div>
+
+                <div class="gb-ts" id="gbTimestamp"></div>
+                <table style="display:none;"><tbody id="gbLadderBody"></tbody></table>
+            </div>
+
     <!-- ===== FORWARD-TEST RESULTS (hedged condor, paper — the validated edge) ===== -->
     <div class="ftpanel" id="ftPanel">
       <div class="ft-head">
@@ -3115,59 +3170,7 @@
                 </div>
             </div>
 
-            <!-- Gamma Blast -->
-            <div class="gb-panel" id="gbSection">
-                <div class="gb-hdr">
-                    <div class="gb-score-ring" id="gbScoreRing" style="--ring-pct:0%;--ring-color:#374151;">
-                        <span id="gbScoreVal">--</span>
-                    </div>
-                    <div>
-                        <div class="gb-level-badge low" id="gbLevelBadge">LOADING</div>
-                        <div class="gb-grade-lbl" id="gbGradeLabel">--</div>
-                    </div>
-                    <button class="gb-refresh" onclick="loadGammaBlast()">↻</button>
-                </div>
-
-                <div class="gb-desc" id="gbDesc" style="--blast-color:#374151;">Calculating...</div>
-
-                <!-- Rank bars -->
-                <div style="margin-bottom:4px;">
-                    <div class="gb-bar-row"><span class="gb-bar-lbl">Gamma Power</span><div class="gb-bar-track"><div class="gb-bar-fill gamma" id="gbBarGamma" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsGamma">0/25</span></div>
-                    <div class="gb-bar-row"><span class="gb-bar-lbl">Delta Spot</span><div class="gb-bar-track"><div class="gb-bar-fill delta" id="gbBarDelta" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsDelta">0/20</span></div>
-                    <div class="gb-bar-row"><span class="gb-bar-lbl">Theta Accel</span><div class="gb-bar-track"><div class="gb-bar-fill theta" id="gbBarTheta" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsTheta">0/20</span></div>
-                    <div class="gb-bar-row"><span class="gb-bar-lbl">Vega Edge</span><div class="gb-bar-track"><div class="gb-bar-fill vega" id="gbBarVega" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsVega">0/15</span></div>
-                    <div class="gb-bar-row"><span class="gb-bar-lbl">GTR Ratio</span><div class="gb-bar-track"><div class="gb-bar-fill gtr" id="gbBarGTR" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsGTR">0/20</span></div>
-                </div>
-                <div style="text-align:right;font-size:0.72rem;font-weight:700;color:#e5e7eb;margin-bottom:4px;" id="gbRankTotal">--/100</div>
-
-                <!-- Metrics -->
-                <div class="gb-metrics" id="gbMetrics">
-                    <div class="gb-m"><div class="gb-m-lbl">Gamma</div><div class="gb-m-val" id="gbmGamma">--</div></div>
-                    <div class="gb-m"><div class="gb-m-lbl">Delta</div><div class="gb-m-val" id="gbmDelta">--</div></div>
-                    <div class="gb-m"><div class="gb-m-lbl">Theta</div><div class="gb-m-val" id="gbmTheta">--</div></div>
-                    <div class="gb-m"><div class="gb-m-lbl">Γ/Δ</div><div class="gb-m-val" id="gbmGperD">--</div></div>
-                    <div class="gb-m"><div class="gb-m-lbl">GTR</div><div class="gb-m-val" id="gbmGTR">--</div></div>
-                    <div class="gb-m"><div class="gb-m-lbl">IV</div><div class="gb-m-val" id="gbmIV">--</div></div>
-                </div>
-
-                <div class="gb-ranges" id="gbRanges">
-                    <div class="gb-range">
-                        <div class="gb-range-top">
-                            <span class="gb-range-lbl">Reaction</span>
-                            <span class="gb-range-move">--</span>
-                        </div>
-                        <div class="gb-range-band">
-                            <span class="gb-range-low">--</span>
-                            <span class="gb-range-mid">spot band</span>
-                            <span class="gb-range-high">--</span>
-                        </div>
-                        <div class="gb-range-meta">Waiting for gamma range data</div>
-                    </div>
-                </div>
-
-                <div class="gb-ts" id="gbTimestamp"></div>
-                <table style="display:none;"><tbody id="gbLadderBody"></tbody></table>
-            </div>
+            <!-- Gamma Blast greek panel moved up (below the GAMMA BLAST strip) -->
 
             <!-- Expiry Prep -->
             <div class="ep-panel" id="expiryPrepPanel">
