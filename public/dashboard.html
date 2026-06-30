@@ -1095,8 +1095,13 @@
         .topind-strip{ display:flex; align-items:center; gap:12px; flex-wrap:wrap;
             margin:8px 12px 0; padding:7px 14px;
             background:linear-gradient(90deg,#0d1322,#0b0e17); border:1px solid #1f2937; border-radius:10px; }
-        .tis-brand{ display:flex; align-items:baseline; gap:7px; flex-shrink:0; }
+        .tis-brand{ display:flex; align-items:baseline; gap:7px; flex-shrink:0; min-width:118px; }
         .tis-inst{ font-weight:800; font-size:0.92rem; color:#fbbf24; letter-spacing:.5px; }
+        /* dual strip: SENSEX + NIFTY stacked, no switching */
+        .topind-strip.dual{ flex-direction:column; align-items:stretch; gap:6px; }
+        .topind-strip.dual .tis-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        .topind-strip.dual .tis-row + .tis-row{ border-top:1px solid #18212f; padding-top:6px; }
+        .tis-inst.sx{ color:#7dd3fc; } .tis-inst.nf{ color:#fbbf24; }
         .tis-tag{ font-size:0.56rem; color:#6b7280; text-transform:uppercase; letter-spacing:1px; }
         .tis-cells{ display:flex; align-items:stretch; flex-wrap:wrap; flex:1; }
         .tis-cell{ display:flex; flex-direction:column; gap:1px; padding:2px 14px;
@@ -1952,16 +1957,29 @@
         <div class="livebox-cards" id="lbCards"></div>
     </div>
 
-    <!-- ===== TOP INDICATOR STRIP (compact, dashboard-style) ===== -->
-    <div class="topind-strip" id="topIndStrip">
-        <div class="tis-brand"><span class="tis-inst" id="tis-inst">SENSEX</span><span class="tis-tag">Indicators</span></div>
-        <div class="tis-cells">
-            <div class="tis-cell"><span class="tis-lab">ATM</span><span class="tis-val" id="tis-atm">--</span></div>
-            <div class="tis-cell"><span class="tis-lab">Max Pain</span><span class="tis-val" id="tis-maxpain">--</span><span class="tis-sub" id="tis-mpdist"></span></div>
-            <div class="tis-cell"><span class="tis-lab">PCR (OI)</span><span class="tis-val" id="tis-pcr">--</span></div>
-            <div class="tis-cell"><span class="tis-lab">IV %ile</span><span class="tis-val" id="tis-ivpct">--</span></div>
-            <div class="tis-cell"><span class="tis-lab">IV</span><span class="tis-val" id="tis-iv">--</span></div>
-            <div class="tis-cell"><span class="tis-lab">Bias</span><span class="tis-badge" id="tis-bias">--</span></div>
+    <!-- ===== TOP INDICATOR STRIP — SENSEX + NIFTY together (no switching) ===== -->
+    <div class="topind-strip dual" id="topIndStrip">
+        <div class="tis-row">
+            <div class="tis-brand"><span class="tis-inst sx">SENSEX</span><span class="tis-tag">Indicators</span></div>
+            <div class="tis-cells">
+                <div class="tis-cell"><span class="tis-lab">ATM</span><span class="tis-val" id="tisSx-atm">--</span></div>
+                <div class="tis-cell"><span class="tis-lab">Max Pain</span><span class="tis-val" id="tisSx-maxpain">--</span><span class="tis-sub" id="tisSx-mpdist"></span></div>
+                <div class="tis-cell"><span class="tis-lab">PCR (OI)</span><span class="tis-val" id="tisSx-pcr">--</span></div>
+                <div class="tis-cell"><span class="tis-lab">IV %ile</span><span class="tis-val" id="tisSx-ivpct">--</span></div>
+                <div class="tis-cell"><span class="tis-lab">IV</span><span class="tis-val" id="tisSx-iv">--</span></div>
+                <div class="tis-cell"><span class="tis-lab">Bias</span><span class="tis-badge" id="tisSx-bias">--</span></div>
+            </div>
+        </div>
+        <div class="tis-row">
+            <div class="tis-brand"><span class="tis-inst nf">NIFTY</span><span class="tis-tag">Indicators</span></div>
+            <div class="tis-cells">
+                <div class="tis-cell"><span class="tis-lab">ATM</span><span class="tis-val" id="tisNf-atm">--</span></div>
+                <div class="tis-cell"><span class="tis-lab">Max Pain</span><span class="tis-val" id="tisNf-maxpain">--</span><span class="tis-sub" id="tisNf-mpdist"></span></div>
+                <div class="tis-cell"><span class="tis-lab">PCR (OI)</span><span class="tis-val" id="tisNf-pcr">--</span></div>
+                <div class="tis-cell"><span class="tis-lab">IV %ile</span><span class="tis-val" id="tisNf-ivpct">--</span></div>
+                <div class="tis-cell"><span class="tis-lab">IV</span><span class="tis-val" id="tisNf-iv">--</span></div>
+                <div class="tis-cell"><span class="tis-lab">Bias</span><span class="tis-badge" id="tisNf-bias">--</span></div>
+            </div>
         </div>
     </div>
 
@@ -4835,6 +4853,27 @@
                 }).join('') : '<span class="ah-empty">no H/L breaks yet…</span>';
             } catch (e) {}
         }
+        // Top indicator strip — SENSEX + NIFTY both, no instrument switch needed.
+        function _fillTopInd(pfx, d) {
+            if (!d) return;
+            const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+            const atm = d.atmStrike || 0, spot = d.spotPrice || d.livePrice || 0;
+            const mp = (d.maxPain && d.maxPain.maxPain) || 0;
+            const mpDist = (d.maxPain && d.maxPain.distancePercent != null) ? d.maxPain.distancePercent
+                         : (spot ? +(((mp - spot) / spot) * 100).toFixed(2) : 0);
+            const pcr = Number((d.pcr && (d.pcr.pcr != null ? d.pcr.pcr : d.pcr.pcrOI != null ? d.pcr.pcrOI : d.pcr)) || 0);
+            const bias = (d.pcr && d.pcr.interpretation && d.pcr.interpretation.bias) || 'SIDEWAYS';
+            const iv = d.ivSummary || {};
+            set(`tis${pfx}-atm`, atm || '--');
+            set(`tis${pfx}-maxpain`, mp || '--');
+            set(`tis${pfx}-mpdist`, mp ? `${mpDist >= 0 ? '+' : ''}${mpDist}% off` : '');
+            const tp = document.getElementById(`tis${pfx}-pcr`);
+            if (tp) { tp.textContent = pcr ? pcr.toFixed(2) : '--'; tp.className = 'tis-val ' + (pcr > 1.2 ? 'green' : (pcr > 0 && pcr < 0.8) ? 'red' : 'white'); }
+            set(`tis${pfx}-ivpct`, (iv.ivPercentile != null ? iv.ivPercentile : '--') + '%ile');
+            set(`tis${pfx}-iv`, (iv.overallIV != null ? iv.overallIV : '--') + '%');
+            const tb = document.getElementById(`tis${pfx}-bias`);
+            if (tb) { tb.textContent = bias; tb.className = 'tis-badge ' + (bias === 'BULLISH' ? 'bull' : bias === 'BEARISH' ? 'bear' : 'neut'); }
+        }
         async function loadActionBox() {
             try {
                 const [sx, nf] = await Promise.all([
@@ -4843,6 +4882,7 @@
                 ]);
                 if (sx) fillActionInst('Sx', 'SENSEX', sx);
                 if (nf) fillActionInst('Nf', 'NIFTY',  nf);
+                _fillTopInd('Sx', sx); _fillTopInd('Nf', nf);   // dual indicator strip
             } catch (e) { console.error('Action box load failed:', e); }
         }
         function fillActionInst(pfx, inst, d) {

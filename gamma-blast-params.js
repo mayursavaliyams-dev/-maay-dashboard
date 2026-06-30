@@ -28,9 +28,12 @@ module.exports = {
   maxDTE:             N('GB_MAX_DTE', 0),        // 0 = expiry day only; 1 = also allow T-1
   requireExpiryDay:   S('GB_EXPIRY_ONLY', 'true') === 'true',
 
-  // ── 2. TIME-OF-DAY WINDOW (IST) — blasts cluster in the afternoon ──────────
-  //     Theta decay + OI unwinding accelerate after ~13:00; stop before square-off.
-  startHHMM:          S('GB_START', '13:15'),    // don't watch before this
+  // ── 2. TIME-OF-DAY WINDOW (IST) — FULL expiry day active ───────────────────
+  //     On expiry (engine is 0-DTE only) watch from the open so morning gamma
+  //     spikes are caught too; still stop before square-off. (Afternoon is where
+  //     blasts cluster — theta/OI unwinding after ~13:00 — but expiry can blast
+  //     any time, so the user wants the detector live all day.)
+  startHHMM:          S('GB_START', '09:15'),    // full-day on expiry (was 13:15)
   endHHMM:            S('GB_END',   '15:15'),    // stop before 15:25 square-off
 
   // ── 3. ATM PROXIMITY — spot must sit ON a strike for peak gamma ────────────
