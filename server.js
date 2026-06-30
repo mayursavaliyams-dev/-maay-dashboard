@@ -18,6 +18,7 @@ const masterConfluence = require("./master-confluence");
 const { ConfluenceLearner } = require("./confluence-learner");
 const confluenceLearner = new ConfluenceLearner();
 const candlestickPatterns = require("./candlestick-patterns");
+const smartMoney = require("./smart-money");
 const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
 const SimpleDB = require("./database");
@@ -4383,6 +4384,27 @@ app.get('/api/pattern-signals', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// MODULE 5 — SMART MONEY CONCEPTS (BOS/CHOCH/order-blocks/FVG/sweeps/structure)
+// Reuses the 1-min candle source + candlestick `aggregate` so bar-building is
+// single-sourced. Pure detection lives in smart-money.js. NIFTY + SENSEX separate.
+// ════════════════════════════════════════════════════════════════════════════
+async function _smcAnalyze(inst, minutesPerBar) {
+  const key = PS_INSTS[inst] ? inst : 'NIFTY';
+  const oneMin = await _psFetchCandles(key).catch(() => null);
+  if (!oneMin || !(oneMin.close || []).length) return { available: false, reason: 'no candle feed', bias: { score: 0, confidence: 0, available: false } };
+  const bars = candlestickPatterns.aggregate(oneMin, minutesPerBar);
+  return smartMoney.analyze(bars, {});
+}
+app.get('/api/smart-money/:inst(nifty|sensex)', async (req, res) => {
+  try {
+    const inst = req.params.inst.toUpperCase();
+    const tf = Math.max(1, Math.min(60, parseInt(req.query.tf, 10) || 15));
+    const r = await _smcAnalyze(inst, tf);
+    res.json({ ok: true, instrument: inst, timeframeMin: tf, generatedAt: new Date().toISOString(), ...r });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // EARLY SIGNALS — the LEADING path. A candlestick trend only confirms on a CLOSED
 // bar (lagging). But a near-ATM option's own premium breaking its session HIGH is
 // real-time (fires on the tick, via _updateOptHL → _hlTouchAlerts) — so it flags
@@ -4867,6 +4889,17 @@ app.get('/api/master-signal/:inst(nifty|sensex)', async (req, res) => {
     } else {
       factors.trend = { available: false, label: 'Trend', note: 'warming up' };
     }
+
+    // ── 1b. SMART MONEY structure (Module 5 — BOS/CHOCH/OB/FVG/sweeps) ──
+    try {
+      const smc = await _smcAnalyze(inst, 15);
+      if (smc && smc.available && smc.bias && smc.bias.available !== false) {
+        factors.smartMoney = { score: _clampScore(smc.bias.score), confidence: smc.bias.confidence,
+          label: 'Smart Money', note: `${smc.structure.trend}${smc.lastEvent ? ' · ' + smc.lastEvent.dir + ' ' + smc.lastEvent.kind : ''}` };
+      } else {
+        factors.smartMoney = { available: false, label: 'Smart Money', note: (smc && smc.reason) || 'warming up' };
+      }
+    } catch (_) { factors.smartMoney = { available: false, label: 'Smart Money', note: 'unavailable' }; }
 
     // ── 2. OI buildup (put-writing bullish / call-writing bearish) ──
     let totCeChg = 0, totPeChg = 0, totCeOI = 0, totPeOI = 0;

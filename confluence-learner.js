@@ -28,7 +28,7 @@ const DATA = path.join(__dirname, 'data');
 const FILE = path.join(DATA, 'confluence-weights.json');
 
 // legs whose weight is learnable (directional). risk/unavailable legs excluded.
-const LEARNABLE = ['trend', 'oi', 'volume', 'news', 'pcr', 'greeks', 'fii', 'iv'];
+const LEARNABLE = ['trend', 'smartMoney', 'oi', 'volume', 'news', 'pcr', 'greeks', 'fii', 'iv'];
 const LR_DEFAULT = Number(process.env.CONFLUENCE_LR || 0.06);   // learning rate
 const W_MIN = 3, W_MAX = 40;                                    // per-leg bounds
 const TRADES_KEEP = 500;

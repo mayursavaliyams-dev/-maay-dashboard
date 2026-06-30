@@ -25,7 +25,7 @@
 
 // default importance of each leg (re-normalised over whatever is actually available)
 const DEFAULT_WEIGHTS = {
-  trend: 18, oi: 16, volume: 8, news: 10, pcr: 12, greeks: 12, fii: 10, iv: 6,
+  trend: 16, smartMoney: 14, oi: 15, volume: 8, news: 9, pcr: 11, greeks: 11, fii: 9, iv: 6,
   // risk legs (do not carry directional weight)
   event: 0, delivery: 8,
 };
