@@ -6897,11 +6897,15 @@
             btn.style.color = _alertsMuted ? '#6b7280' : '#10b981';
         }
 
-// ==================== SERVICE WORKER (PWA) ====================
+// ==================== SERVICE WORKER — DISABLED (caused stale dashboard) ====================
+        // No longer register a SW. The browser still auto-checks the previously-registered
+        // /sw.js, which is now a kill-switch that purges caches + unregisters itself. We also
+        // proactively remove any existing SW + caches here so every refresh loads fresh.
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(err => {
-                console.log('SW registration failed:', err);
-            });
+            navigator.serviceWorker.getRegistrations()
+                .then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+            if (window.caches && caches.keys)
+                caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {});
         }
     </script>
 
