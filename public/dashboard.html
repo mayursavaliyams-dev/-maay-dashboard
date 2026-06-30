@@ -5405,8 +5405,9 @@
         let _wlFilter = 'ALL';
 
         // ── Gamma-blast ALERT (sound + desktop notification) — fires on the rising
-        //    edge when the blast actually triggers (firing) or score ≥ 85 (EXTREME+).
-        let _gbAlerted = false;
+        //    edge per instrument. On the instrument expiring TODAY it arms at the
+        //    engine alertThreshold (≈60); other days only at score ≥ 85 (EXTREME+).
+        let _gbAlerted = {};   // inst -> already-alerted (hysteresis reset)
         try { if (window.Notification && Notification.permission === 'default') Notification.requestPermission(); } catch (_) {}
         function _gbBeep(freq) {
             try {
@@ -5422,9 +5423,11 @@
         }
         function _gbAlert(d, score) {
             _gbBeep(880); setTimeout(() => _gbBeep(1180), 260); setTimeout(() => _gbBeep(1480), 520); // triple rising beep
-            const msg = `🔥 BLAST ${d.side || ''} ${d.atmStrike} · ${score}% (${d.level}) · prem ${d.premVelPctMin >= 0 ? '+' : ''}${d.premVelPctMin}%/min · spot ${d.spotMovePct >= 0 ? '+' : ''}${d.spotMovePct}%`;
-            try { if (window.Notification && Notification.permission === 'granted') new Notification('⚡ GAMMA BLAST · ' + (d.inst || 'SENSEX'), { body: msg, requireInteraction: true }); } catch (_) {}
-            try { showAlert && showAlert('⚡ GAMMA BLAST ' + (d.inst || 'SENSEX') + ' · ' + msg, 'error'); } catch (_) {}
+            const exp = d.isExpiryToday ? '🎯 EXPIRY · ' : '';
+            const msg = `${exp}🔥 BLAST ${d.side || ''} ${d.atmStrike} · ${score}% (${d.level}) · prem ${d.premVelPctMin >= 0 ? '+' : ''}${d.premVelPctMin}%/min · spot ${d.spotMovePct >= 0 ? '+' : ''}${d.spotMovePct}%`;
+            const title = '⚡ GAMMA BLAST · ' + (d.inst || 'SENSEX') + (d.isExpiryToday ? ' (EXPIRY)' : '');
+            try { if (window.Notification && Notification.permission === 'granted') new Notification(title, { body: msg, requireInteraction: true }); } catch (_) {}
+            try { showAlert && showAlert(title + ' · ' + msg, 'error'); } catch (_) {}
         }
 
         // Forward-test results panel — hedged-condor all-time stats + open + recent.
@@ -5465,9 +5468,13 @@
         // 0-100% meter, level, window-timing, and firing glow.
         async function loadGammaBlastHeader() {
             try {
-                const r = await fetch(`${API_BASE}/api/gamma-blast/detect?inst=SENSEX`, { cache: 'no-store' });
-                const d = await r.json();
-                if (!d || d.error) return;
+                const r = await fetch(`${API_BASE}/api/gamma-blast/status`, { cache: 'no-store' });
+                const s = await r.json();
+                const insts = Object.values(s.detect || {});
+                if (!insts.length) return;
+                // Display the instrument that matters most: TODAY's expiry first, then hottest score.
+                insts.sort((a, b) => (b.isExpiryToday ? 1 : 0) - (a.isExpiryToday ? 1 : 0) || (Number(b.score) || 0) - (Number(a.score) || 0));
+                const d = insts[0];
                 const score = Number(d.score) || 0;
                 const col = score >= 85 ? '#f72585' : score >= 72 ? '#ff6b35' : score >= 60 ? '#fbbf24' : score >= 45 ? '#a78bfa' : '#6b7280';
                 const fill = document.getElementById('gbFill');
@@ -5489,12 +5496,18 @@
                 const pv = (d.premVelPctMin >= 0 ? '+' : '') + d.premVelPctMin, sm = (d.spotMovePct >= 0 ? '+' : '') + d.spotMovePct;
                 det.textContent = d.firing
                     ? `🔥 BLAST ${d.side || ''} ${d.atmStrike} · prem ${pv}%/min · spot ${sm}%`
-                    : `ATM ${d.atmStrike} · IV ${d.atmIV}% · prem ${pv}%/min · spot ${sm}%`;
+                    : `${d.isExpiryToday ? '🎯 EXPIRY · ' : ''}ATM ${d.atmStrike} · IV ${d.atmIV}% · prem ${pv}%/min · spot ${sm}%`;
                 document.getElementById('gblastPanel').classList.toggle('firing', !!d.firing);
-                // Alert on the rising edge: real blast (firing) or score ≥85 (EXTREME+).
-                const armed = !!d.firing || score >= 85;
-                if (armed && !_gbAlerted) { _gbAlerted = true; _gbAlert(d, score); }
-                else if (score < 75) { _gbAlerted = false; }   // hysteresis → can re-fire
+                // ── ALERT on EVERY instrument that arms. Today's expiry inst arms at the
+                //    engine alertThreshold (≈60); others only at score ≥ 85 (EXTREME+). ──
+                for (const di of insts) {
+                    const dscore = Number(di.score) || 0;
+                    const thr = di.isExpiryToday ? (Number(di.alertThreshold) || 60) : 85;
+                    const armed = !!di.firing || dscore >= thr;
+                    const key = di.inst || 'X';
+                    if (armed && !_gbAlerted[key]) { _gbAlerted[key] = true; _gbAlert(di, dscore); }
+                    else if (dscore < thr - 10) { _gbAlerted[key] = false; }   // hysteresis → can re-fire
+                }
             } catch (e) { /* keep last */ }
         }
 
