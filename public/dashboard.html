@@ -1845,6 +1845,32 @@
     </style>
 </head>
 <body>
+    <!-- ===== COMPACT MODE — tighter spacing, more on screen, better space use ===== -->
+    <style id="compactMode">
+      /* outer margins: less vertical gap + use more horizontal width (12px → 8px) */
+      .livebox, .topind-strip, .gblast, .gb-panel, .ftpanel, .actbar,
+      .amihdr, .esstrip, .psstrip, .top4-row { margin:4px 8px 0 !important; }
+      nav { margin:5px 8px 0 !important; padding:5px 10px !important; }
+      /* tighter panel padding */
+      .livebox, .amihdr, .esstrip, .psstrip { padding:6px 11px !important; }
+      .topind-strip { padding:4px 11px !important; }
+      .gblast   { padding:7px 12px !important; }
+      .gb-panel { padding:8px 12px !important; }
+      .ftpanel  { padding:7px 12px !important; }
+      .actbar   { padding:7px 12px !important; }
+      .top4-row { gap:7px !important; }
+      .main-grid { gap:6px !important; padding:4px 8px !important; margin-top:4px !important; }
+      .col { gap:5px !important; }
+      .card, .an-panel, .signal-card, .levels-sheet, .chart-panel { padding:7px 9px !important; }
+      /* tighten inner rows */
+      .tis-cell { padding:1px 10px !important; }
+      .topind-strip.dual { gap:4px !important; }
+      .topind-strip.dual .tis-row + .tis-row { padding-top:4px !important; }
+      #mcLayers { line-height:1.42 !important; }
+      .ft-stats { gap:4px 14px !important; }
+      .gb-bar-row { margin-bottom:1px !important; }
+      .ab-card { padding:7px 10px !important; }
+    </style>
 
     <!-- ===== TOP BAR ===== -->
     <div class="top-bar">
