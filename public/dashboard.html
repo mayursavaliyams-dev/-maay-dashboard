@@ -1896,6 +1896,37 @@
       #mcLayers { font-size:0.54rem !important; line-height:1.3 !important; }
       /* generic cards a touch tighter */
       .max-levels-card, .dual-levels-card, .hl-panel { padding:7px 10px !important; }
+
+      /* ═══════════ ULTRA-DENSE — terminal mode (max data, no decorative whitespace) ═══════════ */
+      /* TABLES: tight rows everywhere (option chain, watchlist, levels, strike-pair, backtest…) */
+      table { border-collapse:collapse !important; }
+      th, td { padding:2px 5px !important; font-size:11px !important; line-height:1.15 !important; }
+      thead th { font-size:9.5px !important; letter-spacing:.2px !important; }
+      #wl-body td, #wl-body th, .oc-table td, .oc-table th, .levels-table td, .levels-table th { padding:2px 5px !important; }
+      /* PANELS: minimal padding, thin 1px separators instead of whitespace */
+      .card, .an-panel, .signal-card, .levels-sheet, .chart-panel, .ftpanel, .actbar, .amihdr,
+      .esstrip, .psstrip, .gblast, .gb-panel, .livebox, .topind-strip, .max-levels-card,
+      .dual-levels-card, .hl-panel, .mxl-panel, .dlv-panel { padding:4px 7px !important; }
+      /* OUTER margins minimal */
+      .livebox, .topind-strip, .gblast, .gb-panel, .ftpanel, .actbar, .amihdr, .esstrip,
+      .psstrip, .top4-row { margin:3px 8px 0 !important; }
+      .main-grid { gap:5px !important; padding:3px 8px !important; margin-top:3px !important; }
+      .col { gap:4px !important; }
+      /* HEADERS thin */
+      .ab-head, .ft-head, .gb-hdr, .mxl-hdr, .dlv-hdr, .levels-sheet-head, .chart-hdr { margin-bottom:2px !important; }
+      /* BIG NUMBERS → terminal size */
+      .ab-strike { font-size:0.74rem !important; }
+      .signal-text { font-size:1rem !important; line-height:1 !important; }
+      .sc-pct { font-size:1rem !important; }
+      .gb-score-ring { width:38px !important; height:38px !important; font-size:0.78rem !important; }
+      .ft-stats .v { font-size:0.8rem !important; }
+      .tis-val { font-size:0.78rem !important; }
+      /* TIGHT line-height on data rows */
+      .tis-cell, .dlv-row, .mc-row, .level-name, .level-value, .level-note, .gb-bar-row, .ft-stats .s,
+      .dlv-rows, .ab-card, .nb-msg { line-height:1.12 !important; }
+      /* NAV ultra-thin */
+      nav { padding:3px 8px !important; gap:2px !important; }
+      nav a { padding:2px 7px !important; font-size:0.64rem !important; }
     </style>
 
     <!-- ===== TOP BAR ===== -->
