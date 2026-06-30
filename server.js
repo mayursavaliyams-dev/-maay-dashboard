@@ -4783,6 +4783,48 @@ app.get('/api/selftest', async (req, res) => {
   res.json({ ok: summary.fail === 0, checkedAt: new Date().toISOString(), durationMs: Date.now() - t0, summary, checks: results });
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// NEWS INTELLIGENCE + EVENT/MACRO ENGINE — news-engine.js + event-engine.js
+// RSS → dedup → sentiment → stocks/sectors → scores; India VIX (live) + FII/DII +
+// event calendar → Event Risk Score. Graceful when sources are down / no AI key.
+// ════════════════════════════════════════════════════════════════════════════
+const { NewsEngine } = require('./news-engine');
+const { EventEngine } = require('./event-engine');
+const newsEngine = new NewsEngine();
+const eventEngine = new EventEngine();
+setTimeout(() => newsEngine.refresh().then(r => console.log(`[news] initial refresh: +${r.added}/${r.total}`)).catch(() => {}), 4000);
+setInterval(() => newsEngine.refresh().catch(() => {}), Math.max(60, Number(process.env.NEWS_REFRESH_SEC || 300)) * 1000);
+
+app.get('/api/news', (req, res) => {
+  const { sector, stock, sentiment, limit } = req.query;
+  res.json({ ok: true, ...newsEngine.status(), articles: newsEngine.recent(parseInt(limit, 10) || 50, { sector, stock, sentiment }) });
+});
+app.get('/api/news/status', (req, res) => res.json(newsEngine.status()));
+app.post('/api/news/refresh', async (req, res) => { try { res.json({ ok: true, ...(await newsEngine.refresh()) }); } catch (e) { res.status(500).json({ ok: false, error: e.message }); } });
+app.get('/api/news/impact', (req, res) => res.json({ ok: true, articles: newsEngine.recent(200).slice().sort((a, b) => b.impactScore - a.impactScore).slice(0, parseInt(req.query.limit, 10) || 15) }));
+app.get('/api/market-sentiment', (req, res) => res.json({ ok: true, ...newsEngine.marketSentiment(parseInt(req.query.windowH, 10) || 12) }));
+app.get('/api/sector-sentiment', (req, res) => res.json({ ok: true, sectors: newsEngine.sectorSentiment(parseInt(req.query.windowH, 10) || 24) }));
+app.get('/api/vix', async (req, res) => res.json({ ok: true, ...(await eventEngine.getVix()) }));
+app.get('/api/fii-dii', (req, res) => res.json({ ok: true, latest: eventEngine.fiiDiiLatest(), history: eventEngine.fiiDii.slice(0, 30) }));
+app.post('/api/fii-dii', (req, res) => res.json({ ok: true, ...eventEngine.ingestFiiDii(req.body || {}) }));
+app.get('/api/events', (req, res) => res.json({ ok: true, upcoming: eventEngine.upcoming(parseInt(req.query.days, 10) || 14), total: eventEngine.events.length }));
+app.post('/api/events', (req, res) => { const b = req.body || {}; res.json({ ok: true, ...eventEngine.ingestEvents(b.events || b, !!b.replace) }); });
+app.get('/api/event-risk', async (req, res) => res.json({ ok: true, ...(await eventEngine.eventRiskScore(parseInt(req.query.days, 10) || 5)) }));
+app.get('/api/intel', async (req, res) => {
+  try {
+    res.json({
+      ok: true, generatedAt: new Date().toISOString(),
+      marketSentiment: newsEngine.marketSentiment(12),
+      sectorSentiment: newsEngine.sectorSentiment(24),
+      eventRisk: await eventEngine.eventRiskScore(5),
+      vix: await eventEngine.getVix(),
+      fiiDii: eventEngine.fiiDiiLatest(),
+      topNews: newsEngine.recent(200).slice().sort((a, b) => b.impactScore - a.impactScore).slice(0, 8),
+      news: newsEngine.status(),
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // ==================== DHAN CLIENT STATS ====================
 // Exposes in-flight coalescing / cache / rate-limit counters for observability.
 app.get('/api/dhan-stats', (req, res) => {
