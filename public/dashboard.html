@@ -1927,6 +1927,31 @@
       /* NAV ultra-thin */
       nav { padding:3px 8px !important; gap:2px !important; }
       nav a { padding:2px 7px !important; font-size:0.64rem !important; }
+
+      /* ═══════════ HFT MODE — absolute minimum (aggressive) ═══════════ */
+      /* tables: near-zero cell padding, 10px, line-height 1 */
+      th, td { padding:1px 4px !important; font-size:10px !important; line-height:1 !important; }
+      thead th { font-size:9px !important; }
+      /* panels: minimal padding + 1px-border separation, tiny margins */
+      .card, .an-panel, .signal-card, .levels-sheet, .chart-panel, .ftpanel, .actbar, .amihdr,
+      .esstrip, .psstrip, .gblast, .gb-panel, .livebox, .topind-strip, .max-levels-card,
+      .dual-levels-card, .hl-panel, .mxl-panel, .dlv-panel { padding:3px 6px !important; margin:2px 7px 0 !important; }
+      .main-grid { gap:4px !important; padding:2px 7px !important; margin-top:2px !important; }
+      .col { gap:3px !important; }
+      /* buttons / tabs extremely thin */
+      .hk-open-btn, .tj-open-btn, .mute-btn, button.pill, .inst-tab, .st-run, .orb-btn { padding:2px 7px !important; font-size:0.6rem !important; }
+      nav a { padding:1px 6px !important; font-size:0.6rem !important; }
+      /* micro typography on data points */
+      .tis-val { font-size:0.72rem !important; } .tis-lab { font-size:0.46rem !important; }
+      .ab-strike { font-size:0.7rem !important; }
+      .ft-stats .v { font-size:0.74rem !important; } .ft-stats .l { font-size:0.48rem !important; }
+      .gb-bar-row { font-size:0.56rem !important; } .gb-m-val { font-size:0.68rem !important; } .gb-m-lbl { font-size:0.46rem !important; }
+      .gb-desc { font-size:0.56rem !important; padding:3px 7px !important; }
+      .gb-score-ring { width:34px !important; height:34px !important; font-size:0.7rem !important; }
+      .level-name, .level-value, .level-note { font-size:10px !important; }
+      .dlv-k, .dlv-v, .mc-l, .mc-nf, .mc-sx { font-size:0.56rem !important; }
+      /* tight line-height inside every panel (leading-none-ish) */
+      .card *, .gb-panel *, .ftpanel *, .actbar *, .topind-strip *, .levels-sheet *, .dual-levels-card * { line-height:1.08 !important; }
     </style>
 
     <!-- ===== TOP BAR ===== -->
