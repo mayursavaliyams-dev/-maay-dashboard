@@ -1952,6 +1952,29 @@
       .dlv-k, .dlv-v, .mc-l, .mc-nf, .mc-sx { font-size:0.56rem !important; }
       /* tight line-height inside every panel (leading-none-ish) */
       .card *, .gb-panel *, .ftpanel *, .actbar *, .topind-strip *, .levels-sheet *, .dual-levels-card * { line-height:1.08 !important; }
+
+      /* ═══════════ ZERO-SPACE — every pixel (max density, overlap-safe 1px floor) ═══════════ */
+      .main-grid *, .top4-row *, .ftpanel *, .actbar *, .gb-panel *, .topind-strip *, .amihdr *, .esstrip *, .psstrip * { line-height:1 !important; }
+      /* tables: ~zero cell padding, 9.5px, thin rows */
+      th, td { padding:1px 2px !important; font-size:9.5px !important; line-height:1 !important; }
+      thead th { font-size:8.5px !important; }
+      tr { height:auto !important; }
+      /* panels: 1px margins, 2px padding, 1px-border separation */
+      .card, .an-panel, .signal-card, .levels-sheet, .chart-panel, .ftpanel, .actbar, .amihdr,
+      .esstrip, .psstrip, .gblast, .gb-panel, .livebox, .topind-strip, .max-levels-card,
+      .dual-levels-card, .hl-panel, .mxl-panel, .dlv-panel { padding:2px 5px !important; margin:1px 6px 0 !important; }
+      .main-grid { gap:3px !important; padding:1px 6px !important; margin-top:1px !important; }
+      .col { gap:2px !important; }
+      /* paper-thin tabs / nav / buttons (py-0) */
+      nav { padding:1px 6px !important; gap:1px !important; } nav a { padding:1px 6px !important; font-size:0.58rem !important; }
+      .inst-tab, .hk-open-btn, .tj-open-btn, .mute-btn, button.pill, .st-run, .orb-btn { padding:1px 6px !important; font-size:0.58rem !important; }
+      .top-bar { padding:3px 8px !important; }
+      /* micro data */
+      .tis-cell { padding:0 7px !important; } .tis-lab { font-size:0.44rem !important; } .tis-val { font-size:0.68rem !important; }
+      .gb-bar-row { font-size:0.52rem !important; } .gb-bar-track { height:5px !important; }
+      .level-name, .level-value, .level-note { font-size:9.5px !important; padding:1px 4px !important; }
+      .ft-stats .s { padding:1px 9px !important; } .ft-stats .v { font-size:0.72rem !important; }
+      .ab-head, .ft-head, .gb-hdr, .dlv-hdr, .mxl-hdr, .levels-sheet-head, .chart-hdr { margin:0 0 1px !important; }
     </style>
 
     <!-- ===== TOP BAR ===== -->
