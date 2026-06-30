@@ -4544,6 +4544,67 @@ app.get('/api/pattern-backtest', async (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// OPTION-BUYING BACKTEST — powers the dashboard "Backtest" panel.
+// Real NSE bhavcopy (bt-data/bhav, 600 days) via bt-real.js: gap-and-go → deep-OTM
+// → 5x target / trail / 5% SL, evaluated on real daily option O/H/L/C.
+//   GET  /api/backtest/real    — saved result + multiplier stats (2x/5x/10x/50x)
+//   POST /api/backtest/run     — re-run bt-real.js over the bhavcopy
+//   GET  /api/backtest/status  — is a run in progress
+// ════════════════════════════════════════════════════════════════════════════
+const _btFs = require('fs'), _btPath = require('path');
+const _btResultFile = _btPath.join(__dirname, 'bt-data', 'result-real.json');
+const _btState = { running: false, error: null, startedAt: null };
+
+app.get('/api/backtest/real', (req, res) => {
+  try {
+    if (!_btFs.existsSync(_btResultFile)) return res.json({ available: false });
+    const trades = JSON.parse(_btFs.readFileSync(_btResultFile, 'utf8')) || [];
+    if (!Array.isArray(trades) || !trades.length) return res.json({ available: false });
+    const n = trades.length;
+    const wins = trades.filter(t => (+t.pnl || 0) > 0).length;
+    const mults = trades.map(t => +t.mult || 0);
+    const byYear = {};
+    for (const t of trades) {
+      const yr = (String(t.date).match(/20\d{2}/) || ['?'])[0];
+      const y = byYear[yr] || (byYear[yr] = { trades: 0, wins: 0, totalPnl: 0 });
+      y.trades++; if ((+t.pnl || 0) > 0) y.wins++;
+      y.totalPnl += ((+t.mult || 0) - 1) * 100;   // per-trade return %, so the panel's avg reads as %
+    }
+    const stats = {
+      totalTrades: n,
+      winRate: +(wins / n * 100).toFixed(1),
+      avgMultiplier: +(mults.reduce((a, b) => a + b, 0) / n).toFixed(2),
+      maxMultiplier: +Math.max(...mults).toFixed(2),
+      hit2x:  mults.filter(m => m >= 2).length,
+      hit5x:  mults.filter(m => m >= 5).length,
+      hit10x: mults.filter(m => m >= 10).length,
+      hit50x: mults.filter(m => m >= 50).length,
+      byYear,
+    };
+    res.json({ available: true, dataSource: 'NSE bhavcopy · real premium', stats,
+      generatedAt: _btFs.statSync(_btResultFile).mtime.toISOString(), totalExpiries: n });
+  } catch (e) { res.json({ available: false, error: e.message }); }
+});
+
+app.get('/api/backtest/status', (req, res) => res.json({ running: _btState.running, error: _btState.error, startedAt: _btState.startedAt }));
+
+app.post('/api/backtest/run', (req, res) => {
+  if (_btState.running) return res.json({ message: 'Backtest already running…' });
+  const bhavDir = _btPath.join(__dirname, 'bt-data', 'bhav');
+  if (!_btFs.existsSync(bhavDir) || !_btFs.readdirSync(bhavDir).some(f => f.startsWith('nifty-')))
+    return res.status(400).json({ error: 'No bhavcopy data in bt-data/bhav — fetch it first (bt-bhav-fetch.js).' });
+  _btState.running = true; _btState.error = null; _btState.startedAt = new Date().toISOString();
+  let errBuf = '';
+  try {
+    const child = require('child_process').spawn(process.execPath, ['bt-real.js'], { cwd: __dirname });
+    child.stderr.on('data', d => { errBuf += d.toString(); });
+    child.on('close', code => { _btState.running = false; if (code !== 0) _btState.error = errBuf.slice(0, 400) || ('exit ' + code); });
+    child.on('error', e => { _btState.running = false; _btState.error = e.message; });
+    res.json({ message: 'Backtest started — replaying 600 days of NSE bhavcopy (~30-60s)…' });
+  } catch (e) { _btState.running = false; _btState.error = e.message; res.status(500).json({ error: e.message }); }
+});
+
 // ==================== DHAN CLIENT STATS ====================
 // Exposes in-flight coalescing / cache / rate-limit counters for observability.
 app.get('/api/dhan-stats', (req, res) => {

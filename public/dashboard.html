@@ -2059,13 +2059,20 @@
       <a class="ps-all" href="/pattern-signals.html">view all →</a>
     </div>
 
-    <!-- ===== MAIN GRID ===== -->
-    <div class="main-grid">
-
-        <!-- ===== LEFT COLUMN ===== -->
-        <div class="col col-scroll">
-
-            <!-- Multi-Confirmation Strategy Panel (ported from Pine F&O strategy) — pinned to top -->
+    <!-- ===== TOP 4-PANEL ROW — Multi-Confirm · ORB Signal · Intraday Levels · Chart (pinned to top) ===== -->
+    <style>
+      .top4-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:6px 12px 0; align-items:stretch; }
+      .top4-row > *{ min-width:0; margin:0 !important; }
+      @media (max-width:1200px){ .top4-row{ grid-template-columns:1fr 1fr; } }
+      @media (max-width:640px){ .top4-row{ grid-template-columns:1fr; } }
+    </style>
+    <style>
+              #mcLayers .mc-row{display:flex;justify-content:space-between;}
+              #mcLayers .mc-row span{font-weight:700;}
+              .mc-ok{color:#34d399!important;} .mc-no{color:#6b7280!important;} .mc-warn{color:#fbbf24!important;}
+            </style>
+    <div class="top4-row">
+<!-- Multi-Confirmation Strategy Panel (ported from Pine F&O strategy) — pinned to top -->
             <div class="card" id="mcPanel" style="padding:8px 10px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                     <div style="font-size:0.6rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">🎯 Multi-Confirm</div>
@@ -2093,11 +2100,6 @@
                 </div>
                 <div style="font-size:0.5rem;color:#4b5563;margin-top:4px;">Read-only confirmation read-out · not auto-trading</div>
             </div>
-            <style>
-              #mcLayers .mc-row{display:flex;justify-content:space-between;}
-              #mcLayers .mc-row span{font-weight:700;}
-              .mc-ok{color:#34d399!important;} .mc-no{color:#6b7280!important;} .mc-warn{color:#fbbf24!important;}
-            </style>
 
             <!-- Signal -->
             <div class="signal-card" id="signalCard">
@@ -2117,6 +2119,85 @@
                     <span class="target-val" id="targetInfo">Target: --</span>
                 </div>
             </div>
+<!-- Intraday Levels Sheet -->
+            <div class="levels-sheet">
+                <div class="levels-sheet-head">
+                    <span class="levels-sheet-title">Intraday Levels (active: <span id="lvsActiveLabel">--</span>)</span>
+                    <span class="levels-sheet-sub">live sheet</span>
+                </div>
+                <table class="levels-table">
+                    <thead>
+                        <tr>
+                            <th>Level</th>
+                            <th>Value</th>
+                            <th>Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="level-name">Spot</td>
+                            <td class="level-value v-yellow" id="levelSpot">--</td>
+                            <td class="level-note" id="levelBias">Waiting</td>
+                        </tr>
+                        <tr>
+                            <td class="level-name">ORB High</td>
+                            <td class="level-value v-green" id="orbHigh">--</td>
+                            <td class="level-note" id="levelOrbHighNote">Upper breakout line</td>
+                        </tr>
+                        <tr>
+                            <td class="level-name">ORB Low</td>
+                            <td class="level-value v-red" id="orbLow">--</td>
+                            <td class="level-note" id="levelOrbLowNote">Lower breakdown line</td>
+                        </tr>
+                        <tr>
+                            <td class="level-name">VWAP</td>
+                            <td class="level-value v-blue" id="vwap">--</td>
+                            <td class="level-note" id="levelBreakout">Neutral vs VWAP</td>
+                        </tr>
+                        <tr>
+                            <td class="level-name">Day High</td>
+                            <td class="level-value v-green" id="dayHigh">--</td>
+                            <td class="level-note">Session extreme high</td>
+                        </tr>
+                        <tr>
+                            <td class="level-name">Day Low</td>
+                            <td class="level-value v-red" id="dayLow">--</td>
+                            <td class="level-note">Session extreme low</td>
+                        </tr>
+                        <tr>
+                            <td class="level-name">Range %</td>
+                            <td class="level-value v-purple" id="dayRangePct">--</td>
+                            <td class="level-note" id="trend">No trend yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Intraday Chart -->
+            <div class="chart-panel">
+                <div class="chart-hdr">
+                    <span class="chart-title" id="chartTitle">📈 Intraday · SENSEX</span>
+                    <span class="chart-info"><span id="chartBarCount">0</span> ticks · last <b id="chartLastPrice">--</b></span>
+                </div>
+                <div class="chart-svg-wrap">
+                    <svg id="chartSvg" viewBox="0 0 200 100" preserveAspectRatio="none"></svg>
+                </div>
+                <div class="chart-legend">
+                    <span><i class="orbh"></i>ORB H</span>
+                    <span><i class="orbl"></i>ORB L</span>
+                    <span><i class="vwap"></i>VWAP</span>
+                    <span id="chartEntryLegend" style="display:none;"><i class="entry"></i>Entry</span>
+                </div>
+            </div>
+    </div>
+
+    <!-- ===== MAIN GRID ===== -->
+    <div class="main-grid">
+
+        <!-- ===== LEFT COLUMN ===== -->
+        <div class="col col-scroll">
+
+            <!-- Multi-Confirm + ORB Signal moved to top row (top4-row) -->
 
             <!-- ===== DUAL INTRADAY LEVELS (SENSEX + NIFTY side by side) ===== -->
             <div class="dual-levels-card">
@@ -2276,76 +2357,7 @@
                 </div>
             </div>
 
-            <!-- Intraday Levels Sheet -->
-            <div class="levels-sheet">
-                <div class="levels-sheet-head">
-                    <span class="levels-sheet-title">Intraday Levels (active: <span id="lvsActiveLabel">--</span>)</span>
-                    <span class="levels-sheet-sub">live sheet</span>
-                </div>
-                <table class="levels-table">
-                    <thead>
-                        <tr>
-                            <th>Level</th>
-                            <th>Value</th>
-                            <th>Note</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="level-name">Spot</td>
-                            <td class="level-value v-yellow" id="levelSpot">--</td>
-                            <td class="level-note" id="levelBias">Waiting</td>
-                        </tr>
-                        <tr>
-                            <td class="level-name">ORB High</td>
-                            <td class="level-value v-green" id="orbHigh">--</td>
-                            <td class="level-note" id="levelOrbHighNote">Upper breakout line</td>
-                        </tr>
-                        <tr>
-                            <td class="level-name">ORB Low</td>
-                            <td class="level-value v-red" id="orbLow">--</td>
-                            <td class="level-note" id="levelOrbLowNote">Lower breakdown line</td>
-                        </tr>
-                        <tr>
-                            <td class="level-name">VWAP</td>
-                            <td class="level-value v-blue" id="vwap">--</td>
-                            <td class="level-note" id="levelBreakout">Neutral vs VWAP</td>
-                        </tr>
-                        <tr>
-                            <td class="level-name">Day High</td>
-                            <td class="level-value v-green" id="dayHigh">--</td>
-                            <td class="level-note">Session extreme high</td>
-                        </tr>
-                        <tr>
-                            <td class="level-name">Day Low</td>
-                            <td class="level-value v-red" id="dayLow">--</td>
-                            <td class="level-note">Session extreme low</td>
-                        </tr>
-                        <tr>
-                            <td class="level-name">Range %</td>
-                            <td class="level-value v-purple" id="dayRangePct">--</td>
-                            <td class="level-note" id="trend">No trend yet</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Intraday Chart -->
-            <div class="chart-panel">
-                <div class="chart-hdr">
-                    <span class="chart-title" id="chartTitle">📈 Intraday · SENSEX</span>
-                    <span class="chart-info"><span id="chartBarCount">0</span> ticks · last <b id="chartLastPrice">--</b></span>
-                </div>
-                <div class="chart-svg-wrap">
-                    <svg id="chartSvg" viewBox="0 0 200 100" preserveAspectRatio="none"></svg>
-                </div>
-                <div class="chart-legend">
-                    <span><i class="orbh"></i>ORB H</span>
-                    <span><i class="orbl"></i>ORB L</span>
-                    <span><i class="vwap"></i>VWAP</span>
-                    <span id="chartEntryLegend" style="display:none;"><i class="entry"></i>Entry</span>
-                </div>
-            </div>
+            <!-- Intraday Levels Sheet + Chart moved to top row (top4-row) -->
 
             <!-- HIGH/LOW MAPPING RECORD -->
             <div class="hl-panel hl-panel-large" id="hlPanel">
