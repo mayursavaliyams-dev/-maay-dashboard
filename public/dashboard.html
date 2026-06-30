@@ -8172,8 +8172,12 @@
       .nb-x{ cursor:pointer; color:#8b97a8; font-size:1.15rem; padding:0 4px; }
       .nb-x:hover{ color:#e5e7eb; }
       .nb-list{ flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:7px; }
-      .nb-item{ display:flex; gap:9px; padding:9px 10px; border-radius:9px; background:rgba(255,255,255,.03); border-left:3px solid #475569; }
+      .nb-item{ position:relative; display:flex; gap:9px; padding:9px 10px; border-radius:9px; background:rgba(255,255,255,.03); border-left:3px solid #475569; }
       .nb-item.error{ border-left-color:#f7567c; } .nb-item.success{ border-left-color:#22d39a; } .nb-item.warning{ border-left-color:#fbbf24; } .nb-item.info{ border-left-color:#7dd3fc; }
+      .nb-item.clk{ cursor:pointer; transition:background .12s; }
+      .nb-item.clk:hover{ background:rgba(125,211,252,.08); }
+      .nb-go{ position:absolute; top:7px; right:9px; font-size:0.6rem; color:#5b6576; }
+      .nb-item.clk:hover .nb-go{ color:#7dd3fc; }
       .nb-ico{ font-size:0.8rem; line-height:1.4; }
       .nb-body{ flex:1; min-width:0; }
       .nb-msg{ font-size:0.66rem; color:#e6edf6; line-height:1.4; word-break:break-word; }
@@ -8212,6 +8216,27 @@
       window.filterNotifs = function(){ const el=document.getElementById('nbSearch'); _q=(el?el.value:'').trim().toLowerCase(); const w=document.getElementById('nbSearchWrap'); if(w) w.classList.toggle('has', !!_q); render(); };
       window.clearNotifSearch = function(){ const el=document.getElementById('nbSearch'); if(el) el.value=''; _q=''; const w=document.getElementById('nbSearchWrap'); if(w) w.classList.remove('has'); render(); };
 
+      // ── click a notification → land on the page it belongs to ──
+      let _shown = [];
+      function notifLink(n){
+        const m = String(n.message || ''), ml = m.toLowerCase();
+        if(ml.includes('self-test')) return { action:'selftest' };
+        if(ml.includes('gamma blast') || ml.includes('blast ')) return { scroll:'gblastPanel' };
+        const sm = m.match(/(NIFTY|SENSEX|BANKNIFTY)\s+(\d{3,6})\s*(CE|PE)/i);   // e.g. "NIFTY 23900PE"
+        if(sm) return { url:`/strike-history.html?inst=${sm[1].toUpperCase()}&strike=${sm[2]}&type=${sm[3].toUpperCase()}` };
+        if(ml.includes('pattern')) return { url:'/pattern-signals.html' };
+        if(ml.includes('take_profit') || ml.includes('trade')) return { url:'/trade.html' };
+        if(ml.includes('ami')) return { url:'/ami-heatmap.html' };
+        return null;
+      }
+      window.openNotif = function(i){
+        const n=_shown[i]; if(!n) return;
+        const lk=notifLink(n); if(!lk) return;
+        if(lk.action==='selftest'){ if(window.toggleNotifBar) window.toggleNotifBar(); if(window.openSelfTest) window.openSelfTest(); return; }
+        if(lk.scroll){ if(window.toggleNotifBar) window.toggleNotifBar(); const el=document.getElementById(lk.scroll); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+        if(lk.url){ window.location.href=lk.url; }
+      };
+
       // ── live spot per index — used to VERIFY whether each directional notification
       //    turned out correct (predicted direction vs actual move). NIFTY/SENSEX read
       //    from the top bar; BANKNIFTY fetched. Settles at market close. ──
@@ -8237,11 +8262,14 @@
       function render(){
         const list=document.getElementById('nbList');
         const shown = _q ? _notifs.filter(n => String(n.message).toLowerCase().includes(_q)) : _notifs;
+        _shown = shown;
         if(list) list.innerHTML = shown.length
-          ? shown.map(n=>{
+          ? shown.map((n,i)=>{
               const v = verdict(n);
               const vb = v ? `<span class="nb-vd ${v.st}">${v.st==='correct'?'✓ right':v.st==='wrong'?'✗ wrong':'⏳ flat'} ${v.mv>=0?'+':''}${v.mv}%</span>` : '';
-              return `<div class="nb-item ${n.type||'info'}"><span class="nb-ico">${ico(n.type)}</span><div class="nb-body"><div class="nb-msg">${n.message}</div><div class="nb-time">${ago(n.t)}${vb}</div></div></div>`;
+              const hasLink = !!notifLink(n);
+              const arrow = hasLink ? '<span class="nb-go">↗</span>' : '';
+              return `<div class="nb-item ${n.type||'info'}${hasLink?' clk':''}" onclick="window.openNotif(${i})">${arrow}<span class="nb-ico">${ico(n.type)}</span><div class="nb-body"><div class="nb-msg">${n.message}</div><div class="nb-time">${ago(n.t)}${vb}</div></div></div>`;
             }).join('')
           : `<div class="nb-empty">${_q ? 'No notifications match “'+_q+'”.' : 'No notifications yet — alerts (gamma blast, signals, self-test…) appear here.'}</div>`;
         const ct=document.getElementById('nbCount'); if(ct) ct.textContent = _q ? `${shown.length}/${_notifs.length}` : (_notifs.length?String(_notifs.length):'');
