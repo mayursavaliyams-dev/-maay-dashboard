@@ -8152,6 +8152,12 @@
       .nb-msg{ font-size:0.66rem; color:#e6edf6; line-height:1.4; word-break:break-word; }
       .nb-time{ font-size:0.52rem; color:#6b7280; margin-top:3px; }
       .nb-empty{ color:#5b6576; font-size:0.7rem; font-style:italic; text-align:center; padding:24px 10px; line-height:1.5; }
+      .nb-search{ padding:8px 12px; border-bottom:1px solid #1a2435; position:relative; }
+      .nb-search input{ width:100%; background:#0c1626; border:1px solid #21314a; border-radius:8px; color:#e6edf6; font-size:0.66rem; padding:7px 28px 7px 10px; outline:none; }
+      .nb-search input:focus{ border-color:#3b6ea5; }
+      .nb-search input::placeholder{ color:#5b6576; }
+      .nb-search .nb-sx{ position:absolute; right:20px; top:50%; transform:translateY(-50%); cursor:pointer; color:#6b7280; font-size:0.8rem; display:none; }
+      .nb-search.has .nb-sx{ display:block; }
       .nb-acc{ padding:7px 16px; font-size:0.62rem; color:#9fb0c8; border-bottom:1px solid #1a2435; }
       .nb-acc:empty{ display:none; }
       .nb-vd{ font-size:0.5rem; font-weight:800; margin-left:8px; padding:1px 6px; border-radius:4px; }
@@ -8164,14 +8170,20 @@
         <span class="nb-x" onclick="toggleNotifBar()" title="close">✕</span>
       </div>
       <div class="nb-acc" id="nbAcc" title="directional notifications that moved the predicted way (live until market close)"></div>
+      <div class="nb-search" id="nbSearchWrap">
+        <input type="text" id="nbSearch" placeholder="🔍 search notifications (NIFTY, BULLISH, gamma…)" oninput="window.filterNotifs && window.filterNotifs()">
+        <span class="nb-sx" onclick="window.clearNotifSearch && window.clearNotifSearch()" title="clear">✕</span>
+      </div>
       <div class="nb-list" id="nbList"><div class="nb-empty">No notifications yet — alerts (gamma blast, signals, self-test…) appear here.</div></div>
     </div>
     <script>
     (function(){
       const API = (typeof API_BASE !== 'undefined') ? API_BASE : '';
-      let _notifs = [], _unread = 0;
+      let _notifs = [], _unread = 0, _q = '';   // _q = search filter
       try { _notifs = JSON.parse(localStorage.getItem('ag_notifs') || '[]') || []; } catch (_) { _notifs = []; }
       function save(){ try{ localStorage.setItem('ag_notifs', JSON.stringify(_notifs)); }catch(_){} }
+      window.filterNotifs = function(){ const el=document.getElementById('nbSearch'); _q=(el?el.value:'').trim().toLowerCase(); const w=document.getElementById('nbSearchWrap'); if(w) w.classList.toggle('has', !!_q); render(); };
+      window.clearNotifSearch = function(){ const el=document.getElementById('nbSearch'); if(el) el.value=''; _q=''; const w=document.getElementById('nbSearchWrap'); if(w) w.classList.remove('has'); render(); };
 
       // ── live spot per index — used to VERIFY whether each directional notification
       //    turned out correct (predicted direction vs actual move). NIFTY/SENSEX read
@@ -8197,14 +8209,15 @@
       }
       function render(){
         const list=document.getElementById('nbList');
-        if(list) list.innerHTML = _notifs.length
-          ? _notifs.map(n=>{
+        const shown = _q ? _notifs.filter(n => String(n.message).toLowerCase().includes(_q)) : _notifs;
+        if(list) list.innerHTML = shown.length
+          ? shown.map(n=>{
               const v = verdict(n);
               const vb = v ? `<span class="nb-vd ${v.st}">${v.st==='correct'?'✓ right':v.st==='wrong'?'✗ wrong':'⏳ flat'} ${v.mv>=0?'+':''}${v.mv}%</span>` : '';
               return `<div class="nb-item ${n.type||'info'}"><span class="nb-ico">${ico(n.type)}</span><div class="nb-body"><div class="nb-msg">${n.message}</div><div class="nb-time">${ago(n.t)}${vb}</div></div></div>`;
             }).join('')
-          : '<div class="nb-empty">No notifications yet — alerts (gamma blast, signals, self-test…) appear here.</div>';
-        const ct=document.getElementById('nbCount'); if(ct) ct.textContent=_notifs.length?String(_notifs.length):'';
+          : `<div class="nb-empty">${_q ? 'No notifications match “'+_q+'”.' : 'No notifications yet — alerts (gamma blast, signals, self-test…) appear here.'}</div>`;
+        const ct=document.getElementById('nbCount'); if(ct) ct.textContent = _q ? `${shown.length}/${_notifs.length}` : (_notifs.length?String(_notifs.length):'');
         const b=document.getElementById('notifBadge'); if(b){ if(_unread>0){ b.style.display='flex'; b.textContent=_unread>99?'99+':String(_unread); } else b.style.display='none'; }
         // accuracy summary over TODAY's directional notifications
         const acc=document.getElementById('nbAcc');
