@@ -1870,6 +1870,10 @@
       .ft-stats { gap:4px 14px !important; }
       .gb-bar-row { margin-bottom:1px !important; }
       .ab-card { padding:7px 10px !important; }
+      /* gamma greek bars: lay out in columns + keep the value next to the bar (no far-right spread) */
+      .gb-bars { display:grid !important; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)) !important; gap:1px 22px !important; }
+      .gb-bars .gb-bar-track { max-width:170px !important; }
+      .gb-metrics { grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)) !important; }
     </style>
 
     <!-- ===== TOP BAR ===== -->
@@ -2042,7 +2046,7 @@
                 <div class="gb-desc" id="gbDesc" style="--blast-color:#374151;">Calculating...</div>
 
                 <!-- Rank bars -->
-                <div style="margin-bottom:4px;">
+                <div class="gb-bars" style="margin-bottom:4px;">
                     <div class="gb-bar-row"><span class="gb-bar-lbl">Gamma Power</span><div class="gb-bar-track"><div class="gb-bar-fill gamma" id="gbBarGamma" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsGamma">0/25</span></div>
                     <div class="gb-bar-row"><span class="gb-bar-lbl">Delta Spot</span><div class="gb-bar-track"><div class="gb-bar-fill delta" id="gbBarDelta" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsDelta">0/20</span></div>
                     <div class="gb-bar-row"><span class="gb-bar-lbl">Theta Accel</span><div class="gb-bar-track"><div class="gb-bar-fill theta" id="gbBarTheta" style="width:0%"></div></div><span class="gb-bar-pts" id="gbPtsTheta">0/20</span></div>
