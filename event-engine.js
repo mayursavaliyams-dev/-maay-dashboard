@@ -31,6 +31,23 @@ class EventEngine {
     this.events = readJson(EVENTS_FILE, []);             // [{date,type,title,impact?,symbol?}]
     this.fiiDii = readJson(FIIDII_FILE, []);             // [{date, cash:{fii,dii}, fno:{fiiIndexFut,...}}]
     this._vix = { value: 0, change: 0, changePct: 0, at: 0 };
+    this._vixHist = null; this._vixHistAt = 0;
+  }
+
+  // ── India VIX daily history (for IV Rank/Percentile) — cached ~6h ──
+  async getVixHistory(days = 365) {
+    if (this._vixHist && this._vixHist.length >= 20 && Date.now() - this._vixHistAt < 6 * 3600e3) return this._vixHist;
+    try {
+      const mod = require('yahoo-finance2');
+      const YF = mod.default || mod;
+      const yf = (typeof YF === 'function') ? new YF() : YF;
+      try { yf.suppressNotices && yf.suppressNotices(['yahooSurvey', 'ripHistorical']); } catch (_) {}
+      const period1 = new Date(Date.now() - days * 86400000);
+      const r = await yf.chart(process.env.VIX_SYMBOL || '^INDIAVIX', { period1, interval: '1d' });
+      const closes = ((r && r.quotes) || []).map(q => Number(q.close)).filter(v => isFinite(v) && v > 0);
+      if (closes.length >= 20) { this._vixHist = closes; this._vixHistAt = Date.now(); }
+    } catch (_) {}
+    return this._vixHist || [];
   }
 
   // ── India VIX (Yahoo ^INDIAVIX) ──

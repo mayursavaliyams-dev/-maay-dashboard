@@ -20,6 +20,7 @@ const confluenceLearner = new ConfluenceLearner();
 const signalEngine = require("./signal-engine");
 const candlestickPatterns = require("./candlestick-patterns");
 const smartMoney = require("./smart-money");
+const volContext = require("./vol-context");
 const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
 const SimpleDB = require("./database");
@@ -5056,6 +5057,43 @@ app.post('/api/master-signal/outcome', (req, res) => {
       : confluenceLearner.learn(b);
     if (out.error) return res.status(400).json({ ok: false, ...out });
     res.json({ ok: true, ...out });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// MODULE 3 (vol slice) — VOLATILITY CONTEXT: IV Rank/Percentile · Expected Move ·
+// GEX-lite (call/put walls + gamma flip). Index-only, honest framing (GEX = regime
+// gauge, not a predictor; sign is an assumption). IVP feeds the selling edge.
+//   GET /api/vol-context/:inst(nifty|sensex)
+// ════════════════════════════════════════════════════════════════════════════
+app.get('/api/vol-context/:inst(nifty|sensex)', async (req, res) => {
+  try {
+    const inst = req.params.inst.toUpperCase();
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const strikes = (chain && chain.strikes) || [];
+    const atm = Number(chain && chain.atmStrike) || 0;
+    const rows = strikes.map(s => ({ strike: Number(s.strike), ce: { oi: Number(s.ce?.oi || 0), ltp: Number(s.ce?.ltp || 0) }, pe: { oi: Number(s.pe?.oi || 0), ltp: Number(s.pe?.ltp || 0) } }));
+    const atmRow = rows.find(r => r.strike === atm);
+    const atmStraddle = atmRow ? atmRow.ce.ltp + atmRow.pe.ltp : 0;
+
+    const vix = await eventEngine.getVix();
+    const vixHistory = await eventEngine.getVixHistory(365);
+
+    // days to expiry from the gamma-blast detector (falls back to 3)
+    let dteDays = 3;
+    try {
+      const exp = (gammaBlastEngine.status().detect || {})[inst]?.expiry;
+      if (exp) dteDays = Math.max(0.5, (Date.parse(exp + 'T15:30:00+05:30') - Date.now()) / 86400000);
+    } catch (_) {}
+
+    const out = volContext.analyze({
+      currentVix: vix.value, vixHistory, spot, atmStraddle,
+      ivPct: vix.value || null, dteDays, rows, lotSize: (PS_INSTS[inst] && PS_INSTS[inst].lot) || 1,
+    });
+    res.json({ ok: true, instrument: inst, spot: Math.round(spot), atmStrike: atm, dteDays: +dteDays.toFixed(1),
+      vix: { value: vix.value, regime: vix.regime }, generatedAt: new Date().toISOString(), ...out });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
