@@ -130,7 +130,7 @@ if (auth.ENABLED) {
 
 // Lightweight liveness probe for Docker/K8s/Nginx (public, no data fetch).
 const _bootAt = Date.now();
-app.get('/healthz', (req, res) => res.json({ status: 'ok', uptimeSec: Math.round((Date.now() - _bootAt) / 1000), authEnabled: auth.ENABLED, ts: new Date().toISOString() }));
+app.get('/healthz', (req, res) => res.json({ status: 'ok', bootId: _bootAt, uptimeSec: Math.round((Date.now() - _bootAt) / 1000), authEnabled: auth.ENABLED, ts: new Date().toISOString() }));
 
 app.use(express.static("public", {
   index: "dashboard.html",

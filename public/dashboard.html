@@ -3889,6 +3889,37 @@
         loadAIIntel();
         setInterval(loadAIIntel, 15000);
 
+        // ==================== BUILD FRESHNESS — permanent stale-cache fix ====================
+        // The server stamps a bootId (its start time). This tab records it; if the server
+        // restarts with new code the bootId changes → the tab is stale → it auto-reloads to
+        // fresh HTML (server sends no-store). A tiny badge shows the live build so you can
+        // always SEE you're on the latest — no more "old UI?" confusion, no manual refresh.
+        (function () {
+            let _bootId = null;
+            const badge = document.createElement('div');
+            badge.id = 'buildBadge';
+            badge.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(15,23,42,.78);border:1px solid #1f2937;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace;letter-spacing:.3px';
+            badge.textContent = '● build …';
+            (document.body || document.documentElement).appendChild(badge);
+            async function checkBuild() {
+                try {
+                    const h = await fetch('/healthz', { cache: 'no-store' }).then(r => r.json());
+                    if (!h || !h.bootId) return;
+                    if (_bootId === null) { _bootId = h.bootId; }
+                    else if (h.bootId !== _bootId) {
+                        badge.textContent = '⟳ new build — reloading…';
+                        badge.style.color = '#f59e0b';
+                        setTimeout(() => location.reload(), 900);
+                        return;
+                    }
+                    badge.textContent = '● build ' + new Date(h.bootId).toLocaleTimeString();
+                    badge.style.color = '#22c55e';
+                } catch (_) {}
+            }
+            checkBuild();
+            setInterval(checkBuild, 12000);
+        })();
+
         // ==================== PINE → JS CONVERTER ====================
         async function loadPineStatus() {
             try {
