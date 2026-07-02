@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 Signal Engines · Antigravity Pro</title>
+<style>
+  :root{ --bg:#070b12; --panel:#0c131f; --panel2:#0e1726; --border:#1b2942; --muted:#7c8aa0; --green:#22d39a; --red:#f7567c; --amber:#fcd34d; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:#e6edf6; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap{ padding:0 14px 30px; max-width:1600px; margin:0 auto; }
+  .topbar{ padding:10px 4px 6px; display:flex; align-items:center; gap:12px; }
+  .brand{ font-size:1rem; font-weight:800; color:#7aa2ff; }
+  nav{ display:flex; gap:4px; padding:4px 2px 10px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:14px; }
+  nav a{ color:#9fb0c8; text-decoration:none; font-size:0.7rem; font-weight:700; padding:3px 9px; border-radius:7px; }
+  nav a:hover{ background:rgba(122,162,255,.14); color:#cfe0ff; }
+  nav a.active{ background:rgba(122,162,255,.18); color:#cfe0ff; }
+  .hd{ display:flex; align-items:baseline; gap:12px; margin:4px 2px 16px; flex-wrap:wrap; }
+  .hd h1{ font-size:1.15rem; margin:0; }
+  .hd .sub{ font-size:0.7rem; color:var(--muted); }
+  .grid4{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media(max-width:1100px){ .grid4{ grid-template-columns:1fr; } }
+  .pane{ background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .pane-hd{ display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border); }
+  .pane-hd .ic{ font-size:1rem; }
+  .pane-hd h2{ font-size:0.92rem; margin:0; font-weight:800; }
+  .pane-hd .desc{ font-size:0.6rem; color:var(--muted); }
+  .pane-hd .upd{ margin-left:auto; font-size:0.58rem; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); }
+  table{ width:100%; border-collapse:collapse; font-size:0.74rem; }
+  th{ text-align:left; color:#7c8aa0; font-weight:700; font-size:0.58rem; text-transform:uppercase; letter-spacing:.5px; padding:9px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  td{ padding:10px 14px; border-bottom:1px solid #111a28; font-variant-numeric:tabular-nums; vertical-align:middle; }
+  tr:last-child td{ border-bottom:0; }
+  tr:hover td{ background:rgba(255,255,255,.02); }
+  .sym{ font-weight:800; }
+  .sym.nifty{ color:#f59e0b; } .sym.sensex{ color:#38bdf8; } .sym.banknifty{ color:#a78bfa; }
+  .strike{ font-weight:800; font-size:0.82rem; }
+  .opt{ font-size:0.62rem; color:#9fb0c8; }
+  .px{ color:#9fe6c4; font-weight:700; }
+  .pill{ font-size:0.56rem; font-weight:800; padding:2px 9px; border-radius:999px; white-space:nowrap; }
+  .bull{ background:#0d2a1a; color:var(--green); } .bear{ background:#2a0f17; color:var(--red); } .neu{ background:#1f2937; color:#9ca3af; }
+  .tag-confirmed{ background:#06281c; color:var(--green); } .tag-early{ background:#3a2d10; color:var(--amber); } .tag-divergent{ background:#241016; color:var(--red); }
+  .buy{ color:var(--green); font-weight:800; } .sell{ color:var(--red); font-weight:800; }
+  .muted{ color:var(--muted); } .up{ color:var(--green); } .dn{ color:var(--red); }
+  .empty{ padding:26px; text-align:center; color:var(--muted); font-size:0.72rem; font-style:italic; }
+  .note{ font-size:0.6rem; color:#6b7787; margin:16px 2px 0; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
+  <nav>
+    <a href="/">Command</a>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/pattern-signals.html">Patterns</a>
+    <a href="/signals4.html" class="active">4 Engines</a>
+  </nav>
+  <div class="hd">
+    <h1>⚡ 4 Signal Engines</h1>
+    <span class="sub">Pattern × Candle · OI Build-up · Early H/L break · ORB — live, auto-refresh · <b>paper / educational, not advice</b></span>
+  </div>
+
+  <div class="grid4">
+    <!-- 1. Pattern -->
+    <section class="pane">
+      <div class="pane-hd"><span class="ic">🕯️</span><div><h2>Candlestick Pattern</h2><div class="desc">pattern × OI × momentum × trend → strike</div></div><div class="upd"><span class="dot"></span><span id="updPattern">—</span></div></div>
+      <table><thead><tr><th>Symbol</th><th>Pattern</th><th>TF</th><th>Bias</th><th>Conf</th><th>BUY</th><th>SELL</th></tr></thead><tbody id="tbPattern"><tr><td colspan="7" class="empty">loading…</td></tr></tbody></table>
+    </section>
+
+    <!-- 2. OI build-up -->
+    <section class="pane">
+      <div class="pane-hd"><span class="ic">📊</span><div><h2>OI Build-up</h2><div class="desc">fresh ΔOI → support / resistance strikes</div></div><div class="upd"><span class="dot"></span><span id="updOI">—</span></div></div>
+      <table><thead><tr><th>Symbol</th><th>Strike</th><th>Build-up</th><th>Bias</th><th>ΔOI</th><th>Action</th></tr></thead><tbody id="tbOI"><tr><td colspan="6" class="empty">loading…</td></tr></tbody></table>
+    </section>
+
+    <!-- 3. Early H/L break -->
+    <section class="pane">
+      <div class="pane-hd"><span class="ic">⚡</span><div><h2>Early Signals</h2><div class="desc">option H/L break — leads the candle</div></div><div class="upd"><span class="dot"></span><span id="updEarly">—</span></div></div>
+      <table><thead><tr><th>Symbol</th><th>Strike</th><th>Break</th><th>Tag</th><th>Move</th><th>Action</th></tr></thead><tbody id="tbEarly"><tr><td colspan="6" class="empty">loading…</td></tr></tbody></table>
+    </section>
+
+    <!-- 4. ORB -->
+    <section class="pane">
+      <div class="pane-hd"><span class="ic">📐</span><div><h2>ORB Breakout + Retest</h2><div class="desc">first-3m range → break → retest → strike</div></div><div class="upd"><span class="dot"></span><span id="updORB">—</span></div></div>
+      <table><thead><tr><th>Symbol</th><th>ORB H/L</th><th>Breakout</th><th>Retest</th><th>Strike</th><th>SL / TP</th></tr></thead><tbody id="tbORB"><tr><td colspan="6" class="empty">loading…</td></tr></tbody></table>
+    </section>
+  </div>
+  <div class="note">All four read the same live Upstox feed. Strikes are ATM-referenced. BUY leg = directional option (theta-risk); SELL leg = premium credit with the same bias. Educational only — not investment advice.</div>
+</div>
+
+<script>
+const money = v => '₹' + Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const symCls = s => (s || '').toLowerCase();
+const biasPill = b => `<span class="pill ${b === 'BULLISH' ? 'bull' : b === 'BEARISH' ? 'bear' : 'neu'}">${b || '—'}</span>`;
+const lakh = v => { const n = Math.abs(Number(v || 0)); return n >= 1e5 ? (v / 1e5).toFixed(1) + 'L' : n >= 1e3 ? (v / 1e3).toFixed(0) + 'k' : String(Math.round(v)); };
+const now = () => new Date().toLocaleTimeString('en-IN');
+const stamp = id => { const e = document.getElementById(id); if (e) e.textContent = now(); };
+const rows = (tb, html, cols) => { const el = document.getElementById(tb); el.innerHTML = html || `<tr><td colspan="${cols}" class="empty">no signals right now</td></tr>`; };
+
+async function jget(u) { try { const r = await fetch(u, { cache: 'no-store' }); return await r.json(); } catch (_) { return null; } }
+
+async function loadPattern() {
+  const d = await jget('/api/pattern-signals?inst=ALL&tf=5,15,60');
+  if (!d || !d.ok) return rows('tbPattern', '', 7);
+  const html = (d.signals || []).slice(0, 12).map(s => {
+    const b = s.confluence || {}; const buy = s.reco && s.reco.buy, sell = s.reco && s.reco.sell;
+    return `<tr>
+      <td class="sym ${symCls(s.inst)}">${s.inst}</td>
+      <td>${s.pattern.name} <span class="pill ${s.pattern.sentiment === 'Bullish' ? 'bull' : s.pattern.sentiment === 'Bearish' ? 'bear' : 'neu'}">${s.pattern.sentiment}</span></td>
+      <td class="muted">${s.tfLabel}</td>
+      <td>${biasPill(b.bias)}</td>
+      <td>${b.confidence || 0}% <span class="muted">${b.conviction || ''}</span></td>
+      <td>${buy ? `<span class="buy">${buy.strike} ${buy.type}</span> <span class="px">${money(buy.ltp)}</span>` : '—'}</td>
+      <td>${sell ? `<span class="sell">${sell.strike} ${sell.type}</span> <span class="muted">${money(sell.ltp)}</span>` : '—'}</td>
+    </tr>`;
+  }).join('');
+  rows('tbPattern', html, 7); stamp('updPattern');
+}
+
+async function loadOI() {
+  const insts = ['NIFTY', 'SENSEX', 'BANKNIFTY'];
+  const res = await Promise.all(insts.map(i => jget('/api/oi-signals?inst=' + i)));
+  let out = [];
+  res.forEach((d, idx) => {
+    if (!d || !d.ok) return;
+    const inst = insts[idx];
+    const top = [...(d.buy || []).slice(0, 2), ...(d.sell || []).slice(0, 2)].sort((a, b) => b.strength - a.strength).slice(0, 3);
+    top.forEach(r => out.push({ inst, ...r }));
+  });
+  out.sort((a, b) => b.strength - a.strength);
+  const html = out.slice(0, 12).map(r => `<tr>
+    <td class="sym ${symCls(r.inst)}">${r.inst}</td>
+    <td><span class="strike">${r.strike}</span> <span class="opt">${r.type}</span></td>
+    <td>${r.buildup}</td>
+    <td>${biasPill(r.dir > 0 ? 'BULLISH' : r.dir < 0 ? 'BEARISH' : 'NEUTRAL')}</td>
+    <td class="${r.dir > 0 ? 'up' : 'dn'}">${lakh(r.oiChg)}</td>
+    <td class="muted" style="font-size:0.66rem">${r.action}</td>
+  </tr>`).join('');
+  rows('tbOI', html, 6); stamp('updOI');
+}
+
+async function loadEarly() {
+  const d = await jget('/api/early-signals');
+  if (!d || !d.ok) return rows('tbEarly', '', 6);
+  const html = (d.signals || []).slice(0, 12).map(s => `<tr>
+    <td class="sym ${symCls(s.inst)}">${s.inst}</td>
+    <td><span class="strike">${s.strike}</span> <span class="opt">${s.type}</span></td>
+    <td>${s.type} ${s.kind === 'HIGH' ? '↑ new high' : '↓ new low'}</td>
+    <td><span class="pill tag-${(s.status || 'early').toLowerCase()}">${s.status}</span></td>
+    <td class="${s.dir > 0 ? 'up' : 'dn'}">${s.movePct >= 0 ? '+' : ''}${s.movePct}%</td>
+    <td class="${s.dir > 0 ? 'buy' : 'sell'}">${s.action || '—'}</td>
+  </tr>`).join('');
+  rows('tbEarly', html, 6); stamp('updEarly');
+}
+
+async function loadORB() {
+  const d = await jget('/api/orb-signals?inst=ALL&orbMin=3');
+  if (!d || !d.ok) return rows('tbORB', '', 6);
+  const html = (d.today || []).map(t => {
+    const bk = t.breakout ? `<span class="pill ${t.breakout.dir > 0 ? 'bull' : 'bear'}">${t.breakout.type}</span> @ ${(+t.breakout.price).toLocaleString('en-IN')}` : '<span class="muted">ranging</span>';
+    const rt = t.retest ? (t.retest.held ? '<span class="pill tag-confirmed">held</span>' : '<span class="pill tag-divergent">failed</span>') : (t.breakout ? '<span class="muted">awaiting</span>' : '—');
+    const strike = (t.breakout && t.strike) ? `<span class="${t.breakout.dir > 0 ? 'buy' : 'sell'}">${t.strike} ${t.optType === 'CALL' ? 'CE' : 'PE'}</span>` : '—';
+    return `<tr>
+      <td class="sym ${symCls(t.inst)}">${t.inst}</td>
+      <td class="muted">${t.orb ? `${(+t.orb.high).toLocaleString('en-IN')} / ${(+t.orb.low).toLocaleString('en-IN')}` : (t.ready ? '—' : 'forming')}</td>
+      <td>${bk}</td><td>${rt}</td><td>${strike}</td>
+      <td class="muted">${(t.sl != null && t.tp != null) ? `${t.sl} / ${t.tp}` : '—'}</td>
+    </tr>`;
+  }).join('');
+  rows('tbORB', html, 6); stamp('updORB');
+}
+
+function loadAll() { loadPattern(); loadOI(); loadEarly(); loadORB(); }
+loadAll();
+setInterval(loadAll, 12000);
+
+// build-freshness badge (auto-reload on server restart) — same guard as dashboard
+(function () {
+  let bid = null;
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(15,23,42,.78);border:1px solid #1f2937;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace';
+  (document.body || document.documentElement).appendChild(b);
+  async function chk() {
+    try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
+      if (bid === null) bid = h.bootId; else if (h.bootId !== bid) { b.textContent = '⟳ new build…'; setTimeout(() => location.reload(), 900); return; }
+      b.textContent = '● build ' + new Date(h.bootId).toLocaleTimeString(); b.style.color = '#22c55e';
+    } catch (_) {}
+  }
+  chk(); setInterval(chk, 12000);
+})();
+</script>
+</body>
+</html>
