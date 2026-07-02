@@ -1563,6 +1563,17 @@
         .gb-range-mid { font-size:0.56rem; color:#6b7280; text-transform:uppercase; letter-spacing:.2px; }
         .gb-range-meta { font-size:0.56rem; color:#6b7280; margin-top:4px; text-align:right; }
         .gb-ts { font-size:0.6rem; color:#374151; text-align:center; margin-top:4px; }
+        .gb-blastref { background:#0b1120; border:1px solid #1f2937; border-radius:8px; padding:6px 8px; margin-top:6px; }
+        .gb-blastref-hd { font-size:0.6rem; font-weight:700; color:#f59e0b; text-transform:uppercase; letter-spacing:.3px; margin-bottom:5px; }
+        .gb-blastref-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:4px; }
+        .gb-bref { background:#111827; border-radius:6px; padding:4px 6px; display:flex; flex-direction:column; gap:1px; position:relative; padding-left:22px; }
+        .gb-bref b { font-size:0.64rem; color:#e5e7eb; font-weight:700; }
+        .gb-bref small { font-size:0.56rem; color:#6b7280; line-height:1.25; }
+        .gb-bref-tick { position:absolute; left:6px; top:5px; font-size:0.66rem; font-weight:700; color:#4b5563; }
+        .gb-bref.met { border:1px solid rgba(34,197,94,.35); }
+        .gb-bref.met .gb-bref-tick { color:#22c55e; }
+        .gb-bref.met b { color:#86efac; }
+        .gb-blastref-live { font-size:0.56rem; color:#64748b; margin-top:5px; line-height:1.35; border-top:1px dashed #1f2937; padding-top:4px; }
 
         /* hidden ladder for JS compat */
         #gbLadderBody { display:none; }
@@ -2165,6 +2176,20 @@
                     <div class="gb-m"><div class="gb-m-lbl">Γ/Δ</div><div class="gb-m-val" id="gbmGperD">--</div></div>
                     <div class="gb-m"><div class="gb-m-lbl">GTR</div><div class="gb-m-val" id="gbmGTR">--</div></div>
                     <div class="gb-m"><div class="gb-m-lbl">IV</div><div class="gb-m-val" id="gbmIV">--</div></div>
+                </div>
+
+                <!-- Blast-ready reference: what each gauge should read when a blast is loading -->
+                <div class="gb-blastref">
+                    <div class="gb-blastref-hd">⚡ BLAST-READY TARGETS — values needed when a gamma blast fires</div>
+                    <div class="gb-blastref-grid">
+                        <div class="gb-bref" id="gbRefGamma"><span class="gb-bref-tick">✗</span><b>Gamma Power ≥ 20/25</b><small>ATM Γ ≥ ~2.5× baseline — expiry-day gamma spike (Γ ≳ 0.001+)</small></div>
+                        <div class="gb-bref" id="gbRefDelta"><span class="gb-bref-tick">✗</span><b>Delta Spot ≥ 16/20</b><small>ATM delta 0.45–0.55 — spot sitting ON the strike</small></div>
+                        <div class="gb-bref" id="gbRefTheta"><span class="gb-bref-tick">✗</span><b>Theta Accel ≥ 14/20</b><small>decay ≥ 7%/day of premium — expiry pressure loaded</small></div>
+                        <div class="gb-bref" id="gbRefVega"><span class="gb-bref-tick">✗</span><b>Vega Edge ≥ 12/15</b><small>ATM IV &lt; 18% — cheap premium blasts hardest (skip if IV &gt; 22%)</small></div>
+                        <div class="gb-bref" id="gbRefGTR"><span class="gb-bref-tick">✗</span><b>GTR ≥ 16/20</b><small>Γ/Θ ≥ 0.032 — gamma fuel dominates theta cost</small></div>
+                        <div class="gb-bref" id="gbRefTotal"><span class="gb-bref-tick">✗</span><b>Rank ≥ 60 · Score ≥ 55</b><small>55+ HIGH · 75+ EXTREME · 90+ NUCLEAR</small></div>
+                    </div>
+                    <div class="gb-blastref-live">LIVE TRIGGER (all-of): expiry day (0 DTE) · spot within 0.15% of strike · ATM premium +8%/min for 3 min · index pop ≥0.12% out of a ≤0.20% tight 15-min range · volume ≥2.5× avg · ΔOI ≥10%</div>
                 </div>
 
                 <div class="gb-ranges" id="gbRanges">
@@ -6540,6 +6565,16 @@
             }
             document.getElementById('gbRankTotal').textContent = d.greekRank.total + '/100';
 
+            // Blast-ready targets: tick each condition the live reading already meets
+            if (bk.gammaPower) {
+                setBlastRef('gbRefGamma', bk.gammaPower.score >= 20);
+                setBlastRef('gbRefDelta', bk.deltaSweetSpot.score >= 16);
+                setBlastRef('gbRefTheta', bk.thetaAccel.score >= 14);
+                setBlastRef('gbRefVega',  bk.vegaEdge.score >= 12);
+                setBlastRef('gbRefGTR',   bk.gtrRatio.score >= 16);
+                setBlastRef('gbRefTotal', d.greekRank.total >= 60 && d.blastScore >= 55);
+            }
+
             // Metrics
             const m = d.metrics;
             document.getElementById('gbmGamma').textContent = m.atmGamma;
@@ -6579,6 +6614,13 @@
             // Timestamp
             document.getElementById('gbTimestamp').textContent =
                 `Updated: ${new Date(d.alert.timestamp).toLocaleTimeString()} | Spot→ATM: ${m.spotToATMPct}%`;
+        }
+
+        function setBlastRef(id, met) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.toggle('met', !!met);
+            el.querySelector('.gb-bref-tick').textContent = met ? '✓' : '✗';
         }
 
         function setRankBar(name, score, max) {
