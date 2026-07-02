@@ -5227,13 +5227,24 @@ app.post('/api/agents/enable', (req, res) => {
   res.json({ ok: true, enabled });
 });
 
+// closed agent trades teach the confluence learner (credit assignment on the
+// entry-time factor snapshot) — the self-improving loop toward profitability.
+agentsEngine.onLearn = t => { try { confluenceLearner.learn(t); } catch (_) {} };
+
 async function agentsTick() {
   if (!agentsEngine.enabled) return;
   try {
     const session = getMarketSession();
-    const deps = { newsItems: newsEngine.items, masters: {}, chains: {}, inMarketHours: session.inMarketHours };
+    const deps = { newsItems: newsEngine.items, masters: {}, chains: {}, expiries: {}, inMarketHours: session.inMarketHours };
     try { deps.vix = await eventEngine.getVix(); } catch (_) {}
     try { deps.eventRisk = (await eventEngine.eventRiskScore(5)).score; } catch (_) {}
+    // IVP of India VIX vs its 1y range — gates the selling play (sell only rich premium)
+    try {
+      const hist = await eventEngine.getVixHistory(365);
+      const ivp = volContext.ivRankPercentile(deps.vix?.value, hist);
+      if (ivp.available) deps.ivp = ivp.ivPercentile;
+    } catch (_) {}
+    try { const det = gammaBlastEngine.status().detect || {}; for (const i of ['NIFTY', 'SENSEX']) deps.expiries[i] = det[i]?.expiry || null; } catch (_) {}
     // masters (and their chains) only when the market is open — outside hours the
     // pipeline still runs news → impact so the dashboard stays informative.
     if (session.inMarketHours) {
@@ -5241,13 +5252,17 @@ async function agentsTick() {
         try {
           const ms = await gatherMasterSignal(inst, { track: false });   // don't pollute the learner
           deps.masters[inst] = ms;
-          if (ms._chain) deps.chains[inst] = { atm: ms._chain.atm, rows: ms._chain.strikes };
+          if (ms._chain) deps.chains[inst] = { atm: ms._chain.atm, rows: ms._chain.strikes, step: ms._chain.step };
         } catch (_) {}
       }
     }
     const out = agentsEngine.tick(deps);
     for (const a of out.actions || []) {
-      console.log(`[agents] ${a.action} ${a.inst} ${a.side} ${a.strike} @ ${a.action === 'OPEN' ? a.entry : a.exit}${a.reason ? ' (' + a.reason + ')' : ''}${a.pnl != null ? ' pnl ₹' + a.pnl : ''} [PAPER]`);
+      if (a.strategy === 'IRON_CONDOR') {
+        console.log(`[agents] ${a.action} ${a.inst} IRON_CONDOR ${a.shorts || ''} credit ${a.credit ?? ''}${a.reason ? ' (' + a.reason + ')' : ''}${a.pnl != null ? ' pnl ₹' + a.pnl : ''} [PAPER]`);
+      } else {
+        console.log(`[agents] ${a.action} ${a.inst} ${a.side} ${a.strike} @ ${a.action === 'OPEN' ? a.entry : a.exit}${a.reason ? ' (' + a.reason + ')' : ''}${a.pnl != null ? ' pnl ₹' + a.pnl : ''} [PAPER]`);
+      }
     }
   } catch (e) { console.warn('[agents] tick failed:', e.message); }
 }

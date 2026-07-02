@@ -31,6 +31,30 @@ index when everything lines up, booking profit at target.
    (give-back 15pts), hard square-off 15:15. P&L net of real round-trip charges
    (charges.js). Ledger: `data/ai-agents-trades.json`.
 
+## v2 — Profit Moves (the validated edge wired in)
+
+The executor now runs TWO plays, and the profitable one leads:
+
+- **RANGE CONDOR (the edge)** — defined-risk iron condor (shorts ATM±2 strikes,
+  wings ±4), the structure the 600-day backtest validated (81% win, capped
+  tail). Gated by its own transparent `rangeGate`: NO directional signal (quiet
+  market), **IVP ≥ 50** (sell only rich premium — the Tier-1 filter that ~doubled
+  net/trade in backtest), event-risk < 50, VIX < 20, 1/day/inst. Managed by
+  credit capture: book at 50% of credit, stop if cost-to-close ≥ 1.6× credit,
+  close on expiry day. Multi-day hold — open positions persist to
+  `data/ai-agents-open.json` and survive restarts.
+- **DIR BUY (rare)** — unchanged high bar (prob ≥ 65%) plus a new IVP ≤ 70
+  check: never buy rich premium (the classic retail bleed).
+- **Self-learning loop** — every closed directional trade teaches
+  confluence-learner (entry-time factor snapshot → WIN/LOSS credit assignment),
+  so the 11-factor weights adapt from the agents' own outcomes.
+
+IVP source: India VIX vs its 1y range (`volContext.ivRankPercentile` over
+`eventEngine.getVixHistory`). Extra env knobs: `AGENTS_SELL_ENABLED` (true),
+`AGENTS_SELL_TP` 50, `AGENTS_SELL_STOP` 1.6, `AGENTS_SHORT_STEPS` 2,
+`AGENTS_WING_STEPS` 4, `AGENTS_IVP_MIN_SELL` 50, `AGENTS_IVP_MAX_BUY` 70,
+`AGENTS_MAX_SELL_TRADES` 1.
+
 ## Honest by design
 
 - 100% paper — no live order path exists in this engine.

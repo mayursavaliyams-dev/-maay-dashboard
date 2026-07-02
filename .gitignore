@@ -61,4 +61,5 @@ data/events.json
 data/fii-dii.json
 data/gamma-blast-trades.json
 data/ai-agents-trades.json
+data/ai-agents-open.json
 data/watchdog.ps1

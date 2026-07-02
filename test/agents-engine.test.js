@@ -69,7 +69,7 @@ const item = (over = {}) => ({
   ok(ag.riskGate({ ...base, hasOpen: true }).go === false, 'open position → NO-GO (one at a time)');
   ok(ag.riskGate({ ...base, dailyLossHit: true }).go === false, 'daily loss cap → NO-GO');
   ok(ag.riskGate({ ...base, pastSquareOff: true }).go === false, 'past last-entry time → NO-GO');
-  ok(ag.riskGate(base).checks.length === 9, 'all 9 checks reported (transparent gate)');
+  ok(ag.riskGate(base).checks.length === 10, 'all 10 checks reported (transparent gate)');
 }
 
 // ── 5. Executor: paper book entry/exit ──
@@ -97,6 +97,82 @@ const item = (over = {}) => ({
   const st = eng.status();
   ok(st.mode === 'PAPER' && /paper/i.test(st.disclaimer), 'status declares PAPER + disclaimer');
   ok(st.allTime.trades === 2, 'all-time trade ledger counts both');
+}
+
+// ── 6. Range gate: the selling-edge conditions ──
+{
+  const base = { inMarketHours: true, directionalGo: false, decision: 'HOLD', probability: 52, dirMinProb: 65,
+    ivp: 62, ivpMin: 50, eventRisk: 10, vix: 13, maxSell: 1, sellsToday: 0, hasOpenCondor: false,
+    dailyLossHit: false, pastLastEntry: false, lots: 1 };
+  ok(ag.rangeGate(base).go === true, 'quiet market + rich IVP → condor GO');
+  ok(ag.rangeGate({ ...base, ivp: 40 }).go === false, 'IVP below 50 → no selling (cheap premium)');
+  ok(ag.rangeGate({ ...base, ivp: null }).go === false, 'IVP unavailable → no selling (honest)');
+  ok(ag.rangeGate({ ...base, directionalGo: true }).go === false, 'directional play has priority');
+  ok(ag.rangeGate({ ...base, eventRisk: 60 }).go === false, 'event risk ≥50 → no condor into events');
+  ok(ag.rangeGate({ ...base, vix: 23 }).go === false, 'VIX panic → no selling');
+  ok(ag.rangeGate({ ...base, hasOpenCondor: true }).go === false, 'one condor at a time');
+}
+
+// ── 6b. buy gate refuses rich premium ──
+{
+  const base = { inMarketHours: true, decision: 'BUY', probability: 70, minProb: 65, vixExtreme: false,
+    eventRisk: 20, ivp: 80, ivpMaxBuy: 70, maxTrades: 3, tradesToday: 0, hasOpen: false,
+    dailyLossHit: false, pastSquareOff: false, lots: 1 };
+  ok(ag.riskGate(base).go === false, 'IVP 80 → buying rich premium blocked');
+  ok(ag.riskGate({ ...base, ivp: 40 }).go === true, 'IVP 40 → buying cheap premium allowed');
+  ok(ag.riskGate({ ...base, ivp: null }).go === true, 'IVP n/a → buy gate unchanged (no false block)');
+}
+
+// ── 7. Executor: condor entry / theta-target / stop ──
+{
+  const eng = new ag.AgentsEngine({ enabled: 'true' });
+  eng._tradesFile = require('path').join(require('os').tmpdir(), 'agents-test-trades2.json');
+  eng._openFile = require('path').join(require('os').tmpdir(), 'agents-test-open2.json');
+  eng._allTrades = [];
+  const mkChain = (sce, spe, wce, wpe) => ({ atm: 24000, step: 50, rows: [
+    { strike: 24100, ce: { ltp: sce } }, { strike: 23900, pe: { ltp: spe } },
+    { strike: 24200, ce: { ltp: wce } }, { strike: 23800, pe: { ltp: wpe } },
+  ]});
+  const chain = mkChain(60, 55, 25, 22);
+  const open = eng._enterCondor('NIFTY', chain, '2026-07-02', 600, { ivp: 62, expiry: '2026-07-09' });
+  ok(open && open.strategy === 'IRON_CONDOR', 'condor opened');
+  ok(open.credit === 68, 'credit = 60+55-25-22 = 68');
+  const pos = eng._openCondor.get('NIFTY');
+  ok(pos.legs.shortCE.strike === 24100 && pos.legs.wingCE.strike === 24200, 'shorts ATM±2 steps, wings ±4');
+  ok(pos.maxLossDefined > 0, 'defined max loss computed (wings cap the tail)');
+  // theta decays the structure: cost-to-close falls to 30 (>50% captured)
+  const hold = eng._manageCondor('NIFTY', pos, mkChain(30, 25, 12, 9), '2026-07-03', 600);
+  ok(hold && hold.reason === 'TARGET', '≥50% credit captured → profit booked');
+  ok(hold.pnl > 0 && hold.charges > 0, `condor P&L net of 4-leg charges (₹${hold.pnl})`);
+  // stop path: structure blows out to 1.7× credit
+  eng._enterCondor('SENSEX', { atm: 77000, step: 100, rows: [
+    { strike: 77200, ce: { ltp: 90 } }, { strike: 76800, pe: { ltp: 85 } },
+    { strike: 77400, ce: { ltp: 40 } }, { strike: 76600, pe: { ltp: 35 } },
+  ]}, '2026-07-02', 600, {});
+  const spos = eng._openCondor.get('SENSEX');
+  const stopped = eng._manageCondor('SENSEX', spos, { atm: 77000, step: 100, rows: [
+    { strike: 77200, ce: { ltp: 250 } }, { strike: 76800, pe: { ltp: 15 } },
+    { strike: 77400, ce: { ltp: 90 } }, { strike: 76600, pe: { ltp: 5 } },
+  ]}, '2026-07-02', 650);
+  ok(stopped && stopped.reason === 'STOP_LOSS' && stopped.pnl < 0, 'cost ≥1.6× credit → stopped (defined risk)');
+  const st = eng.status();
+  ok(st.allTime.condor.trades === 2, 'condor bucket tracked separately in stats');
+}
+
+// ── 8. learner feedback fires on directional close ──
+{
+  const eng = new ag.AgentsEngine({ enabled: 'true' });
+  eng._tradesFile = require('path').join(require('os').tmpdir(), 'agents-test-trades3.json');
+  eng._openFile = require('path').join(require('os').tmpdir(), 'agents-test-open3.json');
+  eng._allTrades = [];
+  let taught = null;
+  eng.onLearn = t => { taught = t; };
+  const chain = { atm: 24000, rows: [{ strike: 24000, ce: { ltp: 100 }, pe: { ltp: 95 } }] };
+  eng._enter('NIFTY', { decision: 'BUY', probability: 72 }, chain, 600, { trend: 60, oi: 40 });
+  eng._manage('NIFTY', eng._open.get('NIFTY'), { atm: 24000, rows: [{ strike: 24000, ce: { ltp: 145 }, pe: { ltp: 60 } }] }, 610);
+  ok(taught && taught.result === 'WIN' && taught.factors.trend === 60, 'closed trade teaches the learner (factors + result)');
+  ok(ag.snapshotFactors({ a: { score: 5 }, b: { available: false, score: 9 }, c: { kind: 'risk', score: 3 } }).a === 5
+     && !('b' in ag.snapshotFactors({ b: { available: false, score: 9 } })), 'factor snapshot keeps only live directional legs');
 }
 
 // ── disabled engine does nothing ──

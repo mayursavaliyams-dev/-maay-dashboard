@@ -159,8 +159,8 @@ async function load() {
     if (k==='news') { const o=a.output||{}; body = `${o.events??0} deal events (24h)` + (o.latest?`<br><span style="color:#94a3b8">${(o.latest.title||'').slice(0,70)}…</span>`:''); }
     if (k==='impact') { const o=a.output||{}; body = `${o.withStocks??0} events hit named stocks<br>index bias: NIFTY <b>${o.indexBias?.NIFTY??0}</b> · SENSEX <b>${o.indexBias?.SENSEX??0}</b>`; }
     if (k==='signal') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const s=o[x]||{};return `${x}: <b>${s.decision||'—'}</b> ${s.probability!=null?s.probability+'%':''}`;}).join('<br>'); }
-    if (k==='risk') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const g=o[x]||{};const p=(g.checks||[]).filter(c=>c.pass).length;return `${x}: <b class="${g.go?'up':'flat'}">${g.go?'GO':'NO-GO'}</b> (${p}/${(g.checks||[]).length} checks)`;}).join('<br>'); }
-    if (k==='executor') { const o=a.output||{}; body = `${(o.open||[]).length} open · ${(o.closedToday||[]).length} closed today<br>day P&L <b>${inr(o.dayPnl||0)}</b>`; }
+    if (k==='risk') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const g=o[x]||{};const s=(o.sell||{})[x]||{};return `${x}: buy <b class="${g.go?'up':'flat'}">${g.go?'GO':'NO'}</b> · condor <b class="${s.go?'up':'flat'}">${s.go?'GO':'NO'}</b>`;}).join('<br>') + `<br><span style="color:#94a3b8">IVP ${o.ivp!=null?o.ivp+'%':'n/a'} ${o.ivp>=50?'(sell zone)':o.ivp!=null?'(cheap — no sell)':''}</span>`; }
+    if (k==='executor') { const o=a.output||{}; const nOpen=(o.open||[]).length+(o.condors||[]).length; body = `${nOpen} open (${(o.condors||[]).length} condor) · ${(o.closedToday||[]).length} closed<br>day P&L <b>${inr(o.dayPnl||0)}</b>`; }
     return `<div class="agent">
       <div class="hdr"><span class="emoji">${a.emoji}</span><div><div class="nm">${a.name}</div><div class="role">${a.role}</div></div><span class="st ${ST_CLASS(a.state)}">${a.state}</span></div>
       <div class="body">${body}</div>
@@ -195,34 +195,48 @@ async function load() {
     </div>`;
   }).join('');
 
-  // risk gate
+  // risk gate — directional (buy) + condor (sell) per instrument
   const rk = d.agents.risk?.output || {};
-  document.getElementById('riskBox').innerHTML = ['NIFTY','SENSEX'].map(x => {
-    const g = rk[x] || {};
-    return `<div style="margin-bottom:8px;">
-      <div style="font-size:0.68rem;font-weight:800;margin-bottom:2px;">${x} — <span class="${g.go?'up':'flat'}">${g.go?'✅ GO':'⛔ NO-GO'}</span></div>
+  const renderGate = (title, g) => `<div style="margin-bottom:8px;">
+      <div style="font-size:0.68rem;font-weight:800;margin-bottom:2px;">${title} — <span class="${g.go?'up':'flat'}">${g.go?'✅ GO':'⛔ NO-GO'}</span></div>
       ${(g.checks||[]).map(c=>`<div class="chk"><span class="${c.pass?'t':'f'}">${c.pass?'✓':'✗'}</span><span>${c.name}</span><span style="color:#64748b;margin-left:auto;">${c.note||''}</span></div>`).join('')}
     </div>`;
-  }).join('');
+  document.getElementById('riskBox').innerHTML = ['NIFTY','SENSEX'].map(x =>
+    renderGate(`${x} · BUY play`, rk[x] || {}) + renderGate(`${x} · CONDOR play (the edge)`, (rk.sell||{})[x] || {})
+  ).join('');
 
-  // trades: open + recent closed
+  // trades: open directional + open condors + recent closed
   const ex = d.agents.executor?.output || {};
   const open = (ex.open||[]).map(t => `<tr>
       <td><b>${t.inst}</b></td><td>${t.strike} ${t.side}</td>
       <td>₹${t.entry} → ₹${t.last} <span style="color:#64748b">(open)</span></td>
       <td class="${(t.last-t.entry)>=0?'up':'dn'}">${inr((t.last-t.entry)*t.qty*t.lot)}</td>
-      <td class="params">prob ${t.probability}%${t.newsAligned?' · news✓':''}</td>
+      <td class="params">BUY play · prob ${t.probability}%${t.newsAligned?' · news✓':''}</td>
     </tr>`);
-  const closed = (ex.closedToday||[]).slice(-8).reverse().map(t => `<tr>
+  const openCondors = (ex.condors||[]).map(t => `<tr>
+      <td><b>${t.inst}</b></td><td>🦅 IC ${t.legs?.shortPE?.strike}/${t.legs?.shortCE?.strike}</td>
+      <td>credit ₹${t.credit} → cost ₹${t.lastCost} <span style="color:#64748b">(open)</span></td>
+      <td class="${(t.credit-t.lastCost)>=0?'up':'dn'}">${inr((t.credit-t.lastCost)*t.qty*t.lot)}</td>
+      <td class="params">CONDOR (edge) · wings ${t.legs?.wingPE?.strike}/${t.legs?.wingCE?.strike} · IVP ${t.ivpAtEntry??'—'}</td>
+    </tr>`);
+  const closed = (ex.closedToday||[]).slice(-8).reverse().map(t => t.kind==='CONDOR' ? `<tr>
+      <td><b>${t.inst}</b></td><td>🦅 IC ${t.legs?.shortPE?.strike}/${t.legs?.shortCE?.strike}</td>
+      <td>credit ₹${t.credit} → ₹${t.exitCost}</td>
+      <td class="${t.pnl>=0?'up':'dn'}">${inr(t.pnl)}</td>
+      <td class="params">${t.reason} · charges ₹${t.charges}</td>
+    </tr>` : `<tr>
       <td><b>${t.inst}</b></td><td>${t.strike} ${t.side}</td>
       <td>₹${t.entry} → ₹${t.exit}</td>
       <td class="${t.pnl>=0?'up':'dn'}">${inr(t.pnl)}</td>
       <td class="params">${t.reason} · charges ₹${t.charges}</td>
     </tr>`);
-  const rows = [...open, ...closed];
-  document.getElementById('tbTrades').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="5" class="empty">no trades yet — waits for a ≥' + (d.config?.minProb ?? 65) + '% GO</td></tr>';
+  const rowsAll = [...open, ...openCondors, ...closed];
+  document.getElementById('tbTrades').innerHTML = rowsAll.length ? rowsAll.join('') : '<tr><td colspan="5" class="empty">no trades yet — BUY needs ≥' + (d.config?.minProb ?? 65) + '% · CONDOR needs IVP ≥' + (d.config?.ivpMinSell ?? 50) + '</td></tr>';
   const at = d.allTime || {};
-  document.getElementById('allTime').textContent = at.trades ? `— all-time: ${at.trades} trades · ${at.winRate??'—'}% win · net ${inr(at.netPnl||0)}` : '— all-time: no trades yet';
+  const dirS = at.directional || {}, conS = at.condor || {};
+  document.getElementById('allTime').textContent = at.trades
+    ? `— all-time: ${at.trades} trades · ${at.winRate??'—'}% win · net ${inr(at.netPnl||0)} (buy ${dirS.trades||0}: ${inr(dirS.netPnl||0)} · condor ${conS.trades||0}: ${inr(conS.netPnl||0)})`
+    : '— all-time: no trades yet';
 }
 
 async function toggleAgents() {
