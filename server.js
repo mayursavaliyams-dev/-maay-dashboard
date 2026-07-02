@@ -23,6 +23,7 @@ const confirmedTracker = new confirmedSignals.ConfirmedTracker({ horizonMin: Num
 const candlestickPatterns = require("./candlestick-patterns");
 const smartMoney = require("./smart-money");
 const volContext = require("./vol-context");
+const payoffEngine = require("./payoff-engine");
 const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
 const SimpleDB = require("./database");
@@ -5121,6 +5122,67 @@ app.get('/api/signal/:inst(nifty|sensex)', async (req, res) => {
       lotSize: (PS_INSTS[inst] && PS_INSTS[inst].lot) || null, isExpiry,
     });
     res.json({ ok: true, generatedAt: ms.generatedAt, signalId: ms.signalId, ...plan });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PAYOFF BUILDER — multi-leg strategy → expiry payoff curve, breakevens, max
+// P/L, PoP (lognormal), combined BS Greeks, margin estimate. Pure math in
+// payoff-engine.js; these routes only supply live spot/chain context.
+// ════════════════════════════════════════════════════════════════════════════
+
+// DTE for an instrument from the gamma-blast detector's known expiry (fallback 3d)
+function payoffDteDays(inst) {
+  try {
+    const exp = (gammaBlastEngine.status().detect || {})[inst]?.expiry;
+    if (exp) return Math.max(0.5, (Date.parse(exp + 'T15:30:00+05:30') - Date.now()) / 86400000);
+  } catch (_) {}
+  return 3;
+}
+
+// Prefill for the builder UI: spot, ATM, step, lot size, DTE + nearby strikes
+// with live CE/PE premium & IV so legs auto-fill from the chain.
+app.get('/api/strategy/payoff/prefill', async (req, res) => {
+  try {
+    const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+    const depth = Math.min(12, Math.max(2, parseInt(req.query.depth) || 8));
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const step = meta.step;
+    const atm = Math.round(spot / step) * step;
+    const strikes = [];
+    for (let o = -depth; o <= depth; o++) {
+      const k = atm + o * step;
+      const row = (chain.strikes || []).find(r => r.strike === k);
+      strikes.push({
+        strike: k, isATM: k === atm,
+        ce: row?.ce ? { ltp: +Number(row.ce.ltp || 0).toFixed(2), iv: +Number(row.ce.iv || 0).toFixed(2) } : null,
+        pe: row?.pe ? { ltp: +Number(row.pe.ltp || 0).toFixed(2), iv: +Number(row.pe.iv || 0).toFixed(2) } : null,
+      });
+    }
+    res.json({ ok: true, inst, spot: +spot.toFixed(2), atm, step,
+      lotSize: meta.lotSize || (PS_INSTS[inst] && PS_INSTS[inst].lot) || 1,
+      dteDays: +payoffDteDays(inst).toFixed(1), strikes, ts: Date.now() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Compute payoff for user-built legs. Body: { legs:[{type,side,strike,premium,lots,iv?}],
+// inst?, spot?, dteDays?, lotSize? } — spot/lotSize/dte auto-fill from inst when omitted.
+app.post('/api/strategy/payoff', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const inst = String(b.inst || 'NIFTY').toUpperCase();
+    const meta = getInstrumentMeta(inst);
+    let spot = Number(b.spot) || 0;
+    if (!spot) { try { spot = await meta.priceGetter(); } catch (_) {} }
+    const out = payoffEngine.buildPayoff(b.legs, {
+      spot,
+      dteDays: Number(b.dteDays) || payoffDteDays(inst),
+      lotSize: Number(b.lotSize) || meta.lotSize || 1,
+      ivPct: Number(b.ivPct) || undefined,
+    });
+    res.json({ ok: out.available !== false, inst, ...out });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

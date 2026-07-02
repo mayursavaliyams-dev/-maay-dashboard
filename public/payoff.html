@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payoff Builder · Antigravity Pro</title>
+<style>
+  :root{ --bg:#070b12; --panel:#0c131f; --panel2:#0e1726; --border:#1b2942; --muted:#7c8aa0; --green:#22d39a; --red:#f7567c; --amber:#fcd34d; --blue:#7aa2ff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:#e6edf6; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap{ padding:0 14px 30px; max-width:1500px; margin:0 auto; }
+  .topbar{ padding:10px 4px 6px; display:flex; align-items:center; gap:12px; }
+  .brand{ font-size:1rem; font-weight:800; color:var(--blue); }
+  nav{ display:flex; gap:4px; padding:4px 2px 10px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:14px; }
+  nav a{ color:#9fb0c8; text-decoration:none; font-size:0.7rem; font-weight:700; padding:3px 9px; border-radius:7px; }
+  nav a:hover{ background:rgba(122,162,255,.14); color:#cfe0ff; }
+  nav a.active{ background:rgba(122,162,255,.18); color:#cfe0ff; }
+  .hd{ display:flex; align-items:baseline; gap:12px; margin:4px 2px 14px; flex-wrap:wrap; }
+  .hd h1{ font-size:1.15rem; margin:0; }
+  .hd .sub{ font-size:0.7rem; color:var(--muted); }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .seg{ display:flex; gap:4px; background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:3px; }
+  .seg button{ background:none; border:0; color:#9fb0c8; font-size:0.7rem; font-weight:800; padding:4px 12px; border-radius:7px; cursor:pointer; }
+  .seg button.on{ background:rgba(122,162,255,.2); color:#cfe0ff; }
+  .tmpl{ background:var(--panel2); border:1px solid var(--border); color:#cfe0ff; font-size:0.66rem; font-weight:700; padding:5px 10px; border-radius:8px; cursor:pointer; }
+  .tmpl:hover{ border-color:var(--blue); }
+  .ctx{ font-size:0.66rem; color:var(--muted); margin-left:auto; }
+  .ctx b{ color:#e6edf6; }
+  .grid{ display:grid; grid-template-columns:minmax(380px,4fr) minmax(420px,5fr); gap:14px; }
+  @media(max-width:1050px){ .grid{ grid-template-columns:1fr; } }
+  .pane{ background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .pane-hd{ display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); font-size:0.85rem; font-weight:800; }
+  .pane-hd small{ font-weight:400; color:var(--muted); font-size:0.6rem; }
+  table{ width:100%; border-collapse:collapse; font-size:0.72rem; }
+  th{ text-align:left; color:#7c8aa0; font-weight:700; font-size:0.56rem; text-transform:uppercase; letter-spacing:.5px; padding:7px 10px; border-bottom:1px solid var(--border); }
+  td{ padding:6px 10px; border-bottom:1px solid #111a28; }
+  select,input{ background:#0a111d; border:1px solid var(--border); color:#e6edf6; border-radius:6px; padding:4px 6px; font-size:0.7rem; width:100%; font-variant-numeric:tabular-nums; }
+  input[type=number]{ -moz-appearance:textfield; }
+  .side-buy{ color:var(--green); font-weight:800; } .side-sell{ color:var(--red); font-weight:800; }
+  .del{ background:none; border:0; color:#64748b; cursor:pointer; font-size:0.8rem; }
+  .del:hover{ color:var(--red); }
+  .addleg{ margin:10px 12px 12px; background:rgba(122,162,255,.1); border:1px dashed #2a3f66; color:#cfe0ff; font-size:0.68rem; font-weight:700; padding:6px 12px; border-radius:8px; cursor:pointer; }
+  .metrics{ display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:6px; padding:12px; }
+  .met{ background:var(--panel2); border-radius:9px; padding:7px 9px; }
+  .met .l{ font-size:0.54rem; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; }
+  .met .v{ font-size:0.86rem; font-weight:800; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .v.pos{ color:var(--green); } .v.neg{ color:var(--red); } .v.warn{ color:var(--amber); font-size:0.66rem; }
+  .warn-banner{ margin:0 12px 10px; background:#2a0f17; border:1px solid #7f1d1d; color:#fca5a5; font-size:0.64rem; font-weight:700; padding:7px 10px; border-radius:8px; display:none; }
+  canvas{ width:100%; height:340px; display:block; }
+  .chart-wrap{ padding:8px 10px 4px; }
+  .note{ font-size:0.58rem; color:#6b7787; margin:6px 14px 12px; line-height:1.5; }
+  .greeks{ display:flex; gap:6px; padding:0 12px 12px; flex-wrap:wrap; }
+  .gk{ background:var(--panel2); border-radius:8px; padding:5px 10px; font-size:0.66rem; }
+  .gk b{ color:var(--blue); margin-right:5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
+  <nav>
+    <a href="/">Command</a>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/pattern-signals.html">Patterns</a>
+    <a href="/signals4.html">4 Engines</a>
+    <a href="/payoff.html" class="active">Payoff</a>
+  </nav>
+  <div class="hd">
+    <h1>📐 Payoff Builder</h1>
+    <span class="sub">multi-leg strategy → expiry payoff, breakevens, PoP, Greeks · premiums auto-fill from the live chain · <b>educational, not advice</b></span>
+  </div>
+
+  <div class="row">
+    <div class="seg" id="instSeg">
+      <button data-inst="NIFTY" class="on">NIFTY</button>
+      <button data-inst="SENSEX">SENSEX</button>
+      <button data-inst="BANKNIFTY">BANKNIFTY</button>
+    </div>
+    <button class="tmpl" onclick="applyTemplate('short_strangle')">Short Strangle</button>
+    <button class="tmpl" onclick="applyTemplate('iron_condor')">Iron Condor</button>
+    <button class="tmpl" onclick="applyTemplate('short_straddle')">Short Straddle</button>
+    <button class="tmpl" onclick="applyTemplate('long_straddle')">Long Straddle</button>
+    <button class="tmpl" onclick="applyTemplate('bull_call')">Bull Call Spread</button>
+    <button class="tmpl" onclick="applyTemplate('bear_put')">Bear Put Spread</button>
+    <span class="ctx" id="ctx">loading chain…</span>
+  </div>
+
+  <div class="grid">
+    <section class="pane">
+      <div class="pane-hd">🧩 Legs <small>— premium/IV pulled live; edit anything, curve recomputes</small></div>
+      <table>
+        <thead><tr><th>Side</th><th>Type</th><th>Strike</th><th>Premium</th><th>Lots</th><th>IV%</th><th></th></tr></thead>
+        <tbody id="legsBody"></tbody>
+      </table>
+      <button class="addleg" onclick="addLeg()">＋ Add leg</button>
+      <div class="warn-banner" id="warnBanner">⚠️ UNBOUNDED RISK — naked short leg(s): loss is not capped. Hedge with a bought wing (condor) to define risk.</div>
+      <div class="metrics" id="metrics"></div>
+      <div class="greeks" id="greeks"></div>
+      <div class="note" id="noteLine">PoP is a lognormal estimate at expiry, not a guarantee. Greeks are Black-Scholes. Margin is an estimate — broker SPAN differs.</div>
+    </section>
+
+    <section class="pane">
+      <div class="pane-hd">📈 Expiry Payoff <small id="chartSub">— P/L vs underlying at expiry</small></div>
+      <div class="chart-wrap"><canvas id="chart" width="900" height="480"></canvas></div>
+      <div class="note">Green = profit zone · red = loss zone · dashed = current spot · ◆ = breakeven. Curve spans ±35% of spot.</div>
+    </section>
+  </div>
+</div>
+
+<script>
+const API = '';
+let INST = 'NIFTY';
+let PREFILL = null;          // { spot, atm, step, lotSize, dteDays, strikes[] }
+let legs = [];               // { side, type, strike, premium, lots, iv }
+let lastResult = null;
+let computeTimer = null;
+
+// ── prefill (spot/ATM/step/lot/DTE + strike ladder with live prem/iv) ──
+async function loadPrefill(keepLegs) {
+  try {
+    const r = await (await fetch(`${API}/api/strategy/payoff/prefill?inst=${INST}&depth=10`, { cache: 'no-store' })).json();
+    if (!r.ok) throw new Error(r.error || 'prefill failed');
+    PREFILL = r;
+    document.getElementById('ctx').innerHTML =
+      `<b>${r.inst}</b> spot <b>${r.spot.toLocaleString('en-IN')}</b> · ATM <b>${r.atm}</b> · lot <b>${r.lotSize}</b> · DTE <b>${r.dteDays}d</b>`;
+    if (!keepLegs || !legs.length) applyTemplate('short_strangle', true);
+    else { renderLegs(); scheduleCompute(); }
+  } catch (e) {
+    document.getElementById('ctx').textContent = '⚠️ chain unavailable — enter legs manually (market hours?)';
+    if (!PREFILL) { PREFILL = { spot: 0, atm: 0, step: 50, lotSize: 65, dteDays: 3, strikes: [] }; renderLegs(); }
+  }
+}
+
+function chainPrem(strike, type) {
+  const row = (PREFILL.strikes || []).find(s => s.strike === strike);
+  const leg = row && (type === 'CE' ? row.ce : row.pe);
+  return leg ? { premium: leg.ltp || 0, iv: leg.iv || 0 } : { premium: 0, iv: 0 };
+}
+
+function mkLeg(side, type, offsetSteps, lots) {
+  const strike = PREFILL.atm + offsetSteps * PREFILL.step;
+  const c = chainPrem(strike, type);
+  return { side, type, strike, premium: c.premium, lots: lots || 1, iv: c.iv };
+}
+
+// ── strategy templates (offsets in strike-steps from ATM) ──
+function applyTemplate(name, silent) {
+  if (!PREFILL || !PREFILL.atm) return;
+  const T = {
+    short_strangle: () => [mkLeg('SELL','CE', 4), mkLeg('SELL','PE',-4)],
+    iron_condor:    () => [mkLeg('SELL','CE', 4), mkLeg('SELL','PE',-4), mkLeg('BUY','CE', 8), mkLeg('BUY','PE',-8)],
+    short_straddle: () => [mkLeg('SELL','CE', 0), mkLeg('SELL','PE', 0)],
+    long_straddle:  () => [mkLeg('BUY','CE', 0), mkLeg('BUY','PE', 0)],
+    bull_call:      () => [mkLeg('BUY','CE', 0), mkLeg('SELL','CE', 4)],
+    bear_put:       () => [mkLeg('BUY','PE', 0), mkLeg('SELL','PE',-4)],
+  };
+  if (T[name]) { legs = T[name](); renderLegs(); scheduleCompute(); }
+}
+
+function addLeg() {
+  if (!PREFILL) return;
+  legs.push(mkLeg('BUY', 'CE', 0));
+  renderLegs(); scheduleCompute();
+}
+
+function removeLeg(i) { legs.splice(i, 1); renderLegs(); scheduleCompute(); }
+
+function legChanged(i, field, val) {
+  const l = legs[i]; if (!l) return;
+  if (field === 'strike') {
+    l.strike = +val;
+    const c = chainPrem(l.strike, l.type);
+    if (c.premium) { l.premium = c.premium; l.iv = c.iv; }
+  } else if (field === 'type') {
+    l.type = val;
+    const c = chainPrem(l.strike, l.type);
+    if (c.premium) { l.premium = c.premium; l.iv = c.iv; }
+  } else if (field === 'side') l.side = val;
+  else if (field === 'premium') l.premium = +val;
+  else if (field === 'lots') l.lots = Math.max(1, +val || 1);
+  else if (field === 'iv') l.iv = +val;
+  renderLegs(); scheduleCompute();
+}
+
+function strikeOptions(sel) {
+  const ks = (PREFILL.strikes || []).map(s => s.strike);
+  if (!ks.length) return `<option value="${sel}">${sel}</option>`;
+  if (!ks.includes(sel)) ks.push(sel), ks.sort((a,b)=>a-b);
+  return ks.map(k => `<option value="${k}" ${k===sel?'selected':''}>${k}${k===PREFILL.atm?' ★':''}</option>`).join('');
+}
+
+function renderLegs() {
+  document.getElementById('legsBody').innerHTML = legs.map((l, i) => `
+    <tr>
+      <td><select class="${l.side==='BUY'?'side-buy':'side-sell'}" onchange="legChanged(${i},'side',this.value)">
+        <option ${l.side==='BUY'?'selected':''}>BUY</option><option ${l.side==='SELL'?'selected':''}>SELL</option></select></td>
+      <td><select onchange="legChanged(${i},'type',this.value)">
+        <option ${l.type==='CE'?'selected':''}>CE</option><option ${l.type==='PE'?'selected':''}>PE</option></select></td>
+      <td><select onchange="legChanged(${i},'strike',this.value)">${strikeOptions(l.strike)}</select></td>
+      <td><input type="number" step="0.05" value="${l.premium}" onchange="legChanged(${i},'premium',this.value)"></td>
+      <td><input type="number" min="1" step="1" value="${l.lots}" style="width:52px" onchange="legChanged(${i},'lots',this.value)"></td>
+      <td><input type="number" step="0.1" value="${l.iv||''}" placeholder="—" style="width:58px" onchange="legChanged(${i},'iv',this.value)"></td>
+      <td><button class="del" onclick="removeLeg(${i})">✕</button></td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#7c8aa0;padding:18px;font-style:italic">pick a template or add a leg</td></tr>';
+}
+
+// ── compute (debounced POST) ──
+function scheduleCompute() { clearTimeout(computeTimer); computeTimer = setTimeout(compute, 250); }
+
+async function compute() {
+  if (!legs.length || !PREFILL) { renderMetrics(null); drawChart(null); return; }
+  try {
+    const r = await (await fetch(`${API}/api/strategy/payoff`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inst: INST, legs, spot: PREFILL.spot || undefined, dteDays: PREFILL.dteDays, lotSize: PREFILL.lotSize }),
+    })).json();
+    lastResult = r;
+    renderMetrics(r); drawChart(r);
+  } catch (e) { console.error('payoff compute failed', e); }
+}
+
+const inr = v => (v < 0 ? '-' : '') + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+
+function renderMetrics(r) {
+  const M = document.getElementById('metrics'), G = document.getElementById('greeks'), W = document.getElementById('warnBanner');
+  if (!r || !r.available) { M.innerHTML = ''; G.innerHTML = ''; W.style.display = 'none'; return; }
+  const naked = r.unbounded && (r.unbounded.upside || r.unbounded.downside);
+  W.style.display = naked ? 'block' : 'none';
+  M.innerHTML = `
+    <div class="met"><div class="l">Net ${r.netType}</div><div class="v ${r.netCredit>=0?'pos':'neg'}">${inr(r.netCredit)}</div></div>
+    <div class="met"><div class="l">Max Profit</div><div class="v pos">${typeof r.maxProfitLabel==='number'?inr(r.maxProfitLabel):inr(r.maxProfit)}</div></div>
+    <div class="met"><div class="l">Max Loss</div><div class="v ${naked?'warn':'neg'}">${naked?'UNBOUNDED':inr(-Math.abs(r.maxLoss))}</div></div>
+    <div class="met"><div class="l">Prob. of Profit</div><div class="v ${r.probabilityOfProfit>=60?'pos':r.probabilityOfProfit>=40?'':'neg'}">${r.probabilityOfProfit}%</div></div>
+    <div class="met"><div class="l">Breakeven${r.breakevens.length>1?'s':''}</div><div class="v" style="font-size:0.7rem">${r.breakevens.map(b=>b.toLocaleString('en-IN')).join(' · ')||'—'}</div></div>
+    <div class="met"><div class="l">Risk : Reward</div><div class="v">${r.riskReward!=null?('1 : '+r.riskReward):'—'}</div></div>
+    <div class="met"><div class="l">Margin est.</div><div class="v">${inr(r.marginEst)}</div></div>`;
+  const g = r.greeks || {};
+  G.innerHTML = `<span class="gk"><b>Δ</b>${g.delta}</span><span class="gk"><b>Γ</b>${g.gamma}</span>
+    <span class="gk"><b>Θ</b>${inr(g.theta)}/day</span><span class="gk"><b>V</b>${inr(g.vega)}/1% IV</span>`;
+}
+
+// ── chart ──
+function drawChart(r) {
+  const cv = document.getElementById('chart'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height, padL = 70, padR = 16, padT = 16, padB = 34;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0c131f'; ctx.fillRect(0, 0, W, H);
+  if (!r || !r.available || !r.curve || !r.curve.length) {
+    ctx.fillStyle = '#7c8aa0'; ctx.font = '13px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('add legs to see the payoff curve', W/2, H/2); return;
+  }
+  const pts = r.curve;
+  const xs = pts.map(p => p.spot), ys = pts.map(p => p.payoff);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  let yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const yPadAmt = Math.max((yMax - yMin) * 0.08, 1); yMin -= yPadAmt; yMax += yPadAmt;
+  const X = v => padL + (v - xMin) / (xMax - xMin) * (W - padL - padR);
+  const Y = v => padT + (yMax - v) / (yMax - yMin) * (H - padT - padB);
+
+  // grid + y labels
+  ctx.strokeStyle = '#14203a'; ctx.fillStyle = '#64748b'; ctx.font = '10px system-ui'; ctx.textAlign = 'right'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const v = yMin + (yMax - yMin) * i / 4, y = Y(v);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillText(inr(v), padL - 6, y + 3);
+  }
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 6; i++) {
+    const v = xMin + (xMax - xMin) * i / 6;
+    ctx.fillText(Math.round(v).toLocaleString('en-IN'), X(v), H - padB + 16);
+  }
+
+  // profit/loss fill vs zero line
+  const y0 = Y(0);
+  ctx.beginPath(); ctx.moveTo(X(xs[0]), y0);
+  pts.forEach(p => ctx.lineTo(X(p.spot), Y(p.payoff)));
+  ctx.lineTo(X(xs[xs.length-1]), y0); ctx.closePath();
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = 'rgba(34,211,154,.16)'; ctx.fillRect(padL, padT, W - padL - padR, y0 - padT);
+  ctx.fillStyle = 'rgba(247,86,124,.14)'; ctx.fillRect(padL, y0, W - padL - padR, H - padB - y0);
+  ctx.restore();
+
+  // zero line
+  ctx.strokeStyle = '#334155'; ctx.beginPath(); ctx.moveTo(padL, y0); ctx.lineTo(W - padR, y0); ctx.stroke();
+
+  // payoff line
+  ctx.strokeStyle = '#7aa2ff'; ctx.lineWidth = 2; ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(X(p.spot), Y(p.payoff)) : ctx.moveTo(X(p.spot), Y(p.payoff)));
+  ctx.stroke();
+
+  // spot marker
+  if (r.spot >= xMin && r.spot <= xMax) {
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = '#fcd34d'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(X(r.spot), padT); ctx.lineTo(X(r.spot), H - padB); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fcd34d'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('spot ' + Math.round(r.spot).toLocaleString('en-IN'), X(r.spot), padT + 10);
+  }
+
+  // breakevens
+  ctx.fillStyle = '#e6edf6';
+  (r.breakevens || []).forEach(b => {
+    if (b < xMin || b > xMax) return;
+    const x = X(b);
+    ctx.beginPath(); ctx.moveTo(x, y0 - 5); ctx.lineTo(x + 5, y0); ctx.lineTo(x, y0 + 5); ctx.lineTo(x - 5, y0); ctx.closePath(); ctx.fill();
+    ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(Math.round(b).toLocaleString('en-IN'), x, y0 - 9);
+  });
+}
+
+// ── instrument switch ──
+document.getElementById('instSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#instSeg button').forEach(x => x.classList.toggle('on', x === b));
+  INST = b.dataset.inst;
+  loadPrefill(false);
+});
+
+loadPrefill(false);
+setInterval(() => loadPrefill(true), 60000);   // refresh chain premiums each minute, keep user's legs
+
+// build-freshness badge (auto-reload on server restart) — same guard as dashboard
+(function () {
+  let bid = null;
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(15,23,42,.78);border:1px solid #1f2937;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace';
+  (document.body || document.documentElement).appendChild(b);
+  async function chk() {
+    try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
+      if (bid === null) bid = h.bootId; else if (h.bootId !== bid) { b.textContent = '⟳ new build…'; setTimeout(() => location.reload(), 900); return; }
+      b.textContent = '● build ' + new Date(h.bootId).toLocaleTimeString(); b.style.color = '#22c55e';
+    } catch (_) {}
+  }
+  chk(); setInterval(chk, 12000);
+})();
+</script>
+</body>
+</html>
