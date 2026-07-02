@@ -3164,7 +3164,8 @@ app.post('/api/engine/halt-all', (req, res) => {
   if (afternoonEngine) afternoonEngine.setAutoEnabled(false);
   if (niftyAfternoonEngine) niftyAfternoonEngine.setAutoEnabled(false);
   // Persist OFF — a halt must NOT resurrect as AUTO ON after a restart.
-  _persistEngineOverride({ SENSEX_DIRECTIONAL_AUTO: false, NIFTY_DIRECTIONAL_AUTO: false });
+  _persistEngineOverride({ SENSEX_DIRECTIONAL_AUTO: false, NIFTY_DIRECTIONAL_AUTO: false,
+    SENSEX_AFTERNOON_AUTO: false, NIFTY_AFTERNOON_AUTO: false });
   console.warn('[engine] 🛑 HALT-ALL triggered by operator — all engines paused (morning + afternoon)');
   res.json({
     ok: true,
@@ -3438,7 +3439,7 @@ bounceEngine.onTrade = (event, d) => {
   }
 };
 app.get('/api/bounce/status', (req, res) => res.json(bounceEngine.status()));
-app.post('/api/bounce/enable', (req, res) => { bounceEngine.enabled = req.body?.enabled !== false; res.json({ ok: true, enabled: bounceEngine.enabled }); });
+app.post('/api/bounce/enable', (req, res) => { bounceEngine.enabled = req.body?.enabled !== false; _persistEngineOverride({ BOUNCE_ENGINE_ENABLED: bounceEngine.enabled }); res.json({ ok: true, enabled: bounceEngine.enabled }); });
 
 // ==================== STRANGLE ENGINE (premium selling, PAPER) ====================
 // Validated SHORT_STRANGLE from bt-strategies.js: 89% win / +₹53k / 4.3% DD on
@@ -3502,6 +3503,7 @@ app.post('/api/afternoon/auto', (req, res) => {
   const { enabled } = req.body;
   const eng = inst === 'NIFTY' ? niftyAfternoonEngine : afternoonEngine;
   eng.setAutoEnabled(!!enabled);
+  _persistEngineOverride({ [inst === 'NIFTY' ? 'NIFTY_AFTERNOON_AUTO' : 'SENSEX_AFTERNOON_AUTO']: !!enabled });
   res.json({ ok: true, instrument: inst, autoEnabled: !!enabled });
 });
 
@@ -6295,6 +6297,9 @@ app.listen(PORT, '0.0.0.0', async () => {
     if (typeof _cfgOverrides?.STRANGLE_ENGINE_ENABLED === 'boolean') strangleEngine.enabled = _cfgOverrides.STRANGLE_ENGINE_ENABLED;
     if (typeof _cfgOverrides?.GAMMA_BLAST_ENGINE_ENABLED === 'boolean') gammaBlastEngine.enabled = _cfgOverrides.GAMMA_BLAST_ENGINE_ENABLED;
     if (typeof _cfgOverrides?.AI_AGENTS_ENABLED === 'boolean') agentsEngine.enabled = _cfgOverrides.AI_AGENTS_ENABLED;
+    if (typeof _cfgOverrides?.BOUNCE_ENGINE_ENABLED === 'boolean') bounceEngine.enabled = _cfgOverrides.BOUNCE_ENGINE_ENABLED;
+    if (typeof _cfgOverrides?.SENSEX_AFTERNOON_AUTO === 'boolean' && afternoonEngine?.setAutoEnabled) afternoonEngine.setAutoEnabled(_cfgOverrides.SENSEX_AFTERNOON_AUTO);
+    if (typeof _cfgOverrides?.NIFTY_AFTERNOON_AUTO === 'boolean' && niftyAfternoonEngine?.setAutoEnabled) niftyAfternoonEngine.setAutoEnabled(_cfgOverrides.NIFTY_AFTERNOON_AUTO);
     // Both directions honored: AUTO ON persists across restarts too (user ask),
     // not just OFF. Trade mode is NOT persisted — every boot starts in paper
     // unless env says otherwise, so a restored AUTO ON can never re-arm LIVE.
