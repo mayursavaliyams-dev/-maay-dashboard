@@ -3055,6 +3055,7 @@ engine.restoreEquity();
 app.post('/api/engine/auto', (req, res) => {
   const { enabled } = req.body;
   engine.setAutoEnabled(!!enabled);
+  _persistEngineOverride({ SENSEX_DIRECTIONAL_AUTO: !!enabled });   // survives restarts
   res.json({ ok: true, autoEnabled: !!enabled });
 });
 
@@ -3160,6 +3161,8 @@ app.post('/api/engine/halt-all', (req, res) => {
   niftyEngine.setAutoEnabled(false);
   if (afternoonEngine) afternoonEngine.setAutoEnabled(false);
   if (niftyAfternoonEngine) niftyAfternoonEngine.setAutoEnabled(false);
+  // Persist OFF — a halt must NOT resurrect as AUTO ON after a restart.
+  _persistEngineOverride({ SENSEX_DIRECTIONAL_AUTO: false, NIFTY_DIRECTIONAL_AUTO: false });
   console.warn('[engine] 🛑 HALT-ALL triggered by operator — all engines paused (morning + afternoon)');
   res.json({
     ok: true,
@@ -3289,6 +3292,7 @@ async function exitAmiPosition(signal, { allowLive = false } = {}) {
 app.post('/api/nifty/engine/auto', (req, res) => {
   const { enabled } = req.body;
   niftyEngine.setAutoEnabled(!!enabled);
+  _persistEngineOverride({ NIFTY_DIRECTIONAL_AUTO: !!enabled });    // survives restarts
   res.json({ ok: true, autoEnabled: !!enabled });
 });
 
@@ -3566,6 +3570,22 @@ app.post('/api/test-trade', async (req, res) => {
 // Applies to both engines at runtime. Overrides persist to data/config-overrides.json
 // (not to .env, which stays pristine for version control).
 const CONFIG_OVERRIDE_PATH = require('path').join(__dirname, 'data', 'config-overrides.json');
+
+// Merge-persist engine-state keys (auto on/off etc.) so they survive restarts.
+// Hoisted: used by the /auto routes declared above this point.
+function _persistEngineOverride(patch) {
+  try {
+    const fs = require('fs');
+    const dir = require('path').dirname(CONFIG_OVERRIDE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    let existing = {};
+    if (fs.existsSync(CONFIG_OVERRIDE_PATH)) {
+      try { existing = JSON.parse(fs.readFileSync(CONFIG_OVERRIDE_PATH, 'utf8')); } catch (_) {}
+    }
+    fs.writeFileSync(CONFIG_OVERRIDE_PATH, JSON.stringify({ ...existing, ...patch }, null, 2));
+    console.log('[config] persisted engine state:', patch);
+  } catch (err) { console.warn('[config] engine-state persist failed:', err.message); }
+}
 
 function _loadConfigOverrides() {
   try {
@@ -6211,8 +6231,11 @@ app.listen(PORT, '0.0.0.0', async () => {
   try {
     if (typeof _cfgOverrides?.STRANGLE_ENGINE_ENABLED === 'boolean') strangleEngine.enabled = _cfgOverrides.STRANGLE_ENGINE_ENABLED;
     if (typeof _cfgOverrides?.GAMMA_BLAST_ENGINE_ENABLED === 'boolean') gammaBlastEngine.enabled = _cfgOverrides.GAMMA_BLAST_ENGINE_ENABLED;
-    if (_cfgOverrides?.NIFTY_DIRECTIONAL_AUTO === false && niftyEngine?.setAutoEnabled) niftyEngine.setAutoEnabled(false);
-    if (_cfgOverrides?.SENSEX_DIRECTIONAL_AUTO === false && engine?.setAutoEnabled) engine.setAutoEnabled(false);
+    // Both directions honored: AUTO ON persists across restarts too (user ask),
+    // not just OFF. Trade mode is NOT persisted — every boot starts in paper
+    // unless env says otherwise, so a restored AUTO ON can never re-arm LIVE.
+    if (typeof _cfgOverrides?.NIFTY_DIRECTIONAL_AUTO === 'boolean' && niftyEngine?.setAutoEnabled) niftyEngine.setAutoEnabled(_cfgOverrides.NIFTY_DIRECTIONAL_AUTO);
+    if (typeof _cfgOverrides?.SENSEX_DIRECTIONAL_AUTO === 'boolean' && engine?.setAutoEnabled) engine.setAutoEnabled(_cfgOverrides.SENSEX_DIRECTIONAL_AUTO);
     console.log(`[config] engine-state applied → strangle=${strangleEngine.enabled} gammaBlast=${gammaBlastEngine.enabled} niftyAuto=${niftyEngine?.autoEnabled} sensexAuto=${engine?.autoEnabled}`);
   } catch (e) { console.warn('[config] engine-state apply failed:', e.message); }
 });
