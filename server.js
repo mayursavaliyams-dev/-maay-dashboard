@@ -5222,6 +5222,23 @@ app.get('/api/agents/trades', (req, res) => {
   res.json({ ok: true, trades: agentsEngine._allTrades.slice(-limit).reverse() });
 });
 
+// 6th agent — Stock Analyst: ask about ANY stock → live quote + news + deal
+// impacts fused into a probability verdict (parameters disclosed).
+const stockAnalyst = require('./stock-analyst');
+app.get('/api/agents/stock', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q) return res.status(400).json({ ok: false, error: 'pass ?q=<stock name or symbol>' });
+    const mod = require('yahoo-finance2');
+    const YF = mod.default || mod;
+    const yf = (typeof YF === 'function') ? new YF() : YF;
+    try { yf.suppressNotices && yf.suppressNotices(['yahooSurvey']); } catch (_) {}
+    const out = await stockAnalyst.analyze(q, { newsItems: newsEngine.items, yf });
+    if (out.ok) agentsEngine.noteAnalyst(out);
+    res.status(out.ok ? 200 : 404).json(out);
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 app.post('/api/agents/enable', (req, res) => {
   const enabled = !!(req.body || {}).enabled;
   agentsEngine.enabled = enabled;

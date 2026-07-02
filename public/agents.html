@@ -70,7 +70,7 @@
   .grid2{ display:grid; grid-template-columns:3fr 2fr; gap:12px; }
   @media(max-width:1000px){ .grid2{ grid-template-columns:1fr; } }
 
-  .pipeline{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:10px 12px; }
+  .pipeline{ display:grid; grid-template-columns:repeat(6,1fr); gap:8px; padding:10px 12px; }
   @media(max-width:1100px){ .pipeline{ grid-template-columns:repeat(2,1fr); } }
   @media(max-width:640px){ .pipeline{ grid-template-columns:1fr; } }
   .agent{ background:var(--panel2); border:1px solid #16233c; border-radius:11px; padding:9px 10px; position:relative; }
@@ -101,6 +101,28 @@
   summary .caret{ margin-left:auto; color:#475569; font-size:0.6rem; }
   .gate-body{ padding:0 14px 10px; }
   .note{ font-size:0.58rem; color:#6b7787; margin:12px 2px 0; line-height:1.5; }
+
+  /* stock analyst */
+  .ask-row{ display:flex; gap:8px; padding:12px 14px 4px; }
+  .ask-in{ flex:1; background:#0a111d; border:1px solid var(--border); color:#e6edf6; border-radius:10px; padding:9px 12px; font-size:0.78rem; }
+  .ask-in:focus{ outline:none; border-color:var(--blue); }
+  .ask-btn{ background:linear-gradient(135deg,#3b5bd6,#7aa2ff); border:0; color:#fff; font-weight:900; font-size:0.72rem; padding:9px 20px; border-radius:10px; cursor:pointer; }
+  .ask-btn:disabled{ opacity:.5; }
+  .sa{ padding:10px 14px 14px; }
+  .sa-hd{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .sa-nm{ font-size:1rem; font-weight:900; }
+  .sa-px{ font-size:1.15rem; font-weight:900; font-variant-numeric:tabular-nums; }
+  .sa-chg{ font-size:0.78rem; font-weight:800; }
+  .sa-verdict{ margin-left:auto; text-align:right; }
+  .sa-dir{ font-size:1.05rem; font-weight:900; }
+  .sa-note{ font-size:0.56rem; color:var(--muted); }
+  .sa-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px; margin:10px 0; }
+  .sa-m{ background:var(--panel2); border-radius:9px; padding:6px 9px; }
+  .sa-m .l{ font-size:0.52rem; color:var(--muted); text-transform:uppercase; }
+  .sa-m .v{ font-size:0.76rem; font-weight:800; font-variant-numeric:tabular-nums; }
+  .sa-news{ font-size:0.66rem; line-height:1.5; }
+  .sa-news li{ margin-bottom:4px; color:#cbd5e1; }
+  .sa-err{ padding:12px 14px; color:var(--red); font-size:0.7rem; }
 </style>
 </head>
 <body>
@@ -138,6 +160,17 @@
       <div class="book-h">📈 Open positions</div>
       <div class="poscards" id="posCards"><div class="noopen">loading…</div></div>
     </div>
+  </section>
+
+  <!-- ═══════ 🔎 STOCK ANALYST — ask ANY stock, live verdict ═══════ -->
+  <section class="pane">
+    <div class="pane-hd">🔎 Stock Analyst <small>— koi pan stock puchho → live market + news + probability</small></div>
+    <div class="ask-row">
+      <input id="askInput" class="ask-in" placeholder="e.g. RELIANCE · tata motors · hdfc bank · zomato…"
+             onkeydown="if(event.key==='Enter')askStock()">
+      <button class="ask-btn" id="askBtn" onclick="askStock()">Analyze</button>
+    </div>
+    <div id="askOut"></div>
   </section>
 
   <!-- today's closed trades -->
@@ -184,7 +217,7 @@
 const API = '';
 let ENABLED = null;
 
-const AGENT_ORDER = ['news','impact','signal','risk','executor'];
+const AGENT_ORDER = ['news','impact','signal','risk','executor','analyst'];
 const ST_CLASS = s => s==='GO'||s==='ACTIVE' ? 'active' : s==='IN TRADE' ? 'trade' : '';
 function pillClass(t){ return t.startsWith('M&A')?'p-ma':t.startsWith('ORDER')?'p-ord':t.startsWith('REG')?'p-reg':t.startsWith('CAP')?'p-cap':'p-res'; }
 const fmtT = iso => iso ? new Date(iso).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—';
@@ -303,6 +336,7 @@ async function load() {
     if (k==='signal') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const s=o[x]||{};return `${x} <b>${s.decision||'—'}</b> ${s.probability!=null?s.probability+'%':''}`;}).join(' · '); }
     if (k==='risk') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const g=o[x]||{};const s=(o.sell||{})[x]||{};return `${x}: buy ${g.go?'<b class="up">GO</b>':'NO'} · condor ${s.go?'<b class="up">GO</b>':'NO'}`;}).join('<br>'); }
     if (k==='executor') { const o=a.output||{}; body = `${(o.open||[]).length+(o.condors||[]).length} open · ${(o.closedToday||[]).length} closed · day ${inr(o.dayPnl||0)}`; }
+    if (k==='analyst') { const o=a.output; body = o ? `last: <b>${o.symbol}</b> ₹${o.price} → <b class="${o.direction==='UP'?'up':o.direction==='DOWN'?'dn':'flat'}">${o.direction} ${o.probability}%</b>` : 'ask any stock above ↑'; }
     return `<div class="agent">
       <div class="hdr"><span class="emoji">${a.emoji}</span><span class="nm">${a.name}</span><span class="st ${ST_CLASS(a.state)}">${a.state}</span></div>
       <div class="body">${body}</div>
@@ -351,6 +385,53 @@ async function load() {
   }).join('');
 }
 
+// ── Stock Analyst: ask any stock ──
+async function askStock() {
+  const q = document.getElementById('askInput').value.trim();
+  const out = document.getElementById('askOut');
+  const btn = document.getElementById('askBtn');
+  if (!q) return;
+  btn.disabled = true; btn.textContent = '…';
+  out.innerHTML = '<div class="sa" style="color:var(--muted);font-size:0.7rem;">fetching live market + news for "' + q + '"…</div>';
+  try {
+    const r = await (await fetch(`${API}/api/agents/stock?q=${encodeURIComponent(q)}`, {cache:'no-store'})).json();
+    if (!r.ok) { out.innerHTML = `<div class="sa-err">⚠️ ${r.error || 'lookup failed'}</div>`; return; }
+    const qt = r.quote || {}, v = r.verdict || {}, p = v.params || {};
+    const dirCls = v.direction==='UP'?'up':v.direction==='DOWN'?'dn':'flat';
+    const dirTxt = v.direction==='UP'?'▲ UP':v.direction==='DOWN'?'▼ DOWN':'— NEUTRAL';
+    const fmtCap = c => c ? (c >= 1e12 ? (c/1e12).toFixed(2)+'L Cr' : (c/1e7).toFixed(0).replace(/\B(?=(\d{2})+(?!\d))/g,',')+' Cr') : '—';
+    out.innerHTML = `<div class="sa">
+      <div class="sa-hd">
+        <span class="sa-nm">${qt.name || r.symbol} <span style="color:var(--muted);font-size:0.62rem;">${r.symbol}${r.sector ? ' · '+r.sector : ''}</span></span>
+        <span class="sa-px">₹${(qt.price||0).toLocaleString('en-IN')}</span>
+        <span class="sa-chg ${qt.changePct>=0?'up':'dn'}">${qt.changePct>=0?'+':''}${(qt.changePct||0).toFixed(2)}%</span>
+        <div class="sa-verdict">
+          <div class="sa-dir ${dirCls}">${dirTxt} · ${v.probability}%</div>
+          <div class="sa-note">${v.note||''}</div>
+        </div>
+      </div>
+      <div class="sa-grid">
+        <div class="sa-m"><div class="l">Day range</div><div class="v">${qt.dayLow??'—'} – ${qt.dayHigh??'—'}</div></div>
+        <div class="sa-m"><div class="l">52-week</div><div class="v">${qt.wk52Low??'—'} – ${qt.wk52High??'—'}</div></div>
+        <div class="sa-m"><div class="l">vs 50d avg</div><div class="v">${qt.avg50?((qt.price-qt.avg50)/qt.avg50*100).toFixed(1)+'%':'—'}</div></div>
+        <div class="sa-m"><div class="l">vs 200d avg</div><div class="v">${qt.avg200?((qt.price-qt.avg200)/qt.avg200*100).toFixed(1)+'%':'—'}</div></div>
+        <div class="sa-m"><div class="l">Mkt cap</div><div class="v">₹${fmtCap(qt.marketCap)}</div></div>
+        <div class="sa-m"><div class="l">P/E</div><div class="v">${qt.pe?qt.pe.toFixed(1):'—'}</div></div>
+        <div class="sa-m"><div class="l">News (48h)</div><div class="v">${r.news?.articles||0} · ${r.news?.label||'—'}</div></div>
+        <div class="sa-m"><div class="l">Deal events</div><div class="v">${(r.dealImpacts||[]).length}</div></div>
+      </div>
+      <div class="params" style="margin-bottom:8px;">verdict parameters: momentum ${p.momentumScore} · news ${p.newsScore} (${p.newsArticles} arts) · deals ${p.dealScore} (${p.dealEvents}) · sources agree: ${p.sourcesAgree?'YES ✓':'no'}</div>
+      ${(r.dealImpacts||[]).length ? `<div class="book-h">🎯 Deal events on this stock</div><ul class="sa-news">` +
+        r.dealImpacts.map(d=>`<li><span class="pill ${pillClass(d.type||'')}">${d.type}</span> ${d.title} → <b class="${d.direction==='UP'?'up':d.direction==='DOWN'?'dn':'flat'}">${d.direction} ${d.probability}%</b></li>`).join('') + '</ul>' : ''}
+      ${(r.headlines||[]).length ? `<div class="book-h">📰 Latest headlines</div><ul class="sa-news">` +
+        r.headlines.map(h=>`<li>${h.title} <span style="color:#64748b">· ${h.source} · ${h.sentiment}</span></li>`).join('') + '</ul>'
+        : '<div class="params">no headlines for this stock in the last 48h — verdict is market-data only</div>'}
+      <div class="params" style="margin-top:8px;">${r.disclaimer||''}</div>
+    </div>`;
+  } catch(e) { out.innerHTML = `<div class="sa-err">⚠️ ${e.message}</div>`; }
+  finally { btn.disabled = false; btn.textContent = 'Analyze'; }
+}
+
 async function toggleAgents() {
   try {
     await fetch(`${API}/api/agents/enable`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ enabled: !ENABLED }) });
@@ -360,6 +441,10 @@ async function toggleAgents() {
 
 load();
 setInterval(load, 10000);
+
+// deep-link: /agents.html?q=reliance auto-runs the Stock Analyst
+(function(){ const uq = new URLSearchParams(location.search).get('q');
+  if (uq) { document.getElementById('askInput').value = uq; askStock(); } })();
 
 // build-freshness badge (auto-reload on server restart) — same guard as dashboard
 (function () {

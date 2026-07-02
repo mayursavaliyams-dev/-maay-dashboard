@@ -234,7 +234,19 @@ class AgentsEngine {
       signal: mk('signal', '🧠', 'Signal Agent', '11-factor master verdict × news bias'),
       risk: mk('risk', '🛡️', 'Risk Manager', 'GO/NO-GO gate, sizing, loss caps'),
       executor: mk('executor', '⚡', 'Executor', 'PAPER entries + profit booking'),
+      analyst: mk('analyst', '🔎', 'Stock Analyst', 'ask any stock → live market + news verdict'),
     };
+    this.agents.analyst.state = 'ON-DEMAND';
+  }
+
+  // stamp the on-demand Stock Analyst card after each query (server calls this)
+  noteAnalyst(out) {
+    if (!out || !out.ok) return;
+    this._stamp('analyst', 'ACTIVE', {
+      symbol: out.symbol, price: out.quote?.price, changePct: out.quote?.changePct,
+      direction: out.verdict?.direction, probability: out.verdict?.probability,
+      articles: out.news?.articles ?? 0,
+    });
   }
 
   _loadTrades() { try { return JSON.parse(require('fs').readFileSync(this._tradesFile, 'utf8')) || []; } catch { return []; } }

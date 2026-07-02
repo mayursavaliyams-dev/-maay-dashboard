@@ -55,6 +55,20 @@ IVP source: India VIX vs its 1y range (`volContext.ivRankPercentile` over
 `AGENTS_WING_STEPS` 4, `AGENTS_IVP_MIN_SELL` 50, `AGENTS_IVP_MAX_BUY` 70,
 `AGENTS_MAX_SELL_TRADES` 1.
 
+## 6th agent — 🔎 Stock Analyst (on-demand, any stock)
+
+`GET /api/agents/stock?q=<name or symbol>` (UI: search box on /agents.html, deep
+link `?q=`). Resolves via the local NIFTY dictionary first, then yahoo search
+for ANY listed stock — and if a dictionary symbol is dead (rename/demerger,
+e.g. TATAMOTORS→TMPV on 2026-07-02) it re-resolves automatically. Fuses three
+live sources into one verdict with disclosed parameters: market momentum (day
+move + price vs 50d/200d averages), 48h news sentiment (impact×recency
+weighted), and deal-class events (impact probabilities). Direction UP/DOWN/
+NEUTRAL + probability 5–90%; +6 points only when momentum and news CONFIRM
+each other, capped low when neutral, honestly labelled "market data only" when
+there is no news. 30s cache per symbol. `stock-analyst.js` pure parts have a
+20-assertion suite (`test/stock-analyst.test.js`).
+
 ## Honest by design
 
 - 100% paper — no live order path exists in this engine.
