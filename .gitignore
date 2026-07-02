@@ -52,3 +52,13 @@ bt-data/banknifty-1min.json
 bt-data/nifty-1min.json
 data/ami-signals-all.json
 data/strangle-trades.json
+
+# runtime engine ledgers / feeds / local ops scripts (regenerated live)
+data/news/
+data/confirmed-signals.json
+data/confluence-weights.json
+data/events.json
+data/fii-dii.json
+data/gamma-blast-trades.json
+data/ai-agents-trades.json
+data/watchdog.ps1

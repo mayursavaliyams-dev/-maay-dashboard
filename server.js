@@ -24,6 +24,8 @@ const candlestickPatterns = require("./candlestick-patterns");
 const smartMoney = require("./smart-money");
 const volContext = require("./vol-context");
 const payoffEngine = require("./payoff-engine");
+const { AgentsEngine } = require("./agents-engine");
+const agentsEngine = new AgentsEngine();
 const pineConverter = require("./pine-converter");
 const OptionAnalyzer = require("./option-analyzer");
 const SimpleDB = require("./database");
@@ -5207,6 +5209,52 @@ app.post('/api/strategy/payoff', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// AI AGENTS — 5-agent pipeline: News Scout → Impact Analyst → Signal Agent →
+// Risk Manager → Executor (PAPER auto-trader). Pure pipeline in agents-engine.js;
+// this block only feeds live deps on a 45s cadence and exposes status/control.
+// ════════════════════════════════════════════════════════════════════════════
+app.get('/api/agents', (req, res) => res.json({ ok: true, ...agentsEngine.status() }));
+
+app.get('/api/agents/trades', (req, res) => {
+  const limit = Math.min(500, Math.max(1, parseInt(req.query.limit) || 100));
+  res.json({ ok: true, trades: agentsEngine._allTrades.slice(-limit).reverse() });
+});
+
+app.post('/api/agents/enable', (req, res) => {
+  const enabled = !!(req.body || {}).enabled;
+  agentsEngine.enabled = enabled;
+  _persistEngineOverride({ AI_AGENTS_ENABLED: enabled });
+  res.json({ ok: true, enabled });
+});
+
+async function agentsTick() {
+  if (!agentsEngine.enabled) return;
+  try {
+    const session = getMarketSession();
+    const deps = { newsItems: newsEngine.items, masters: {}, chains: {}, inMarketHours: session.inMarketHours };
+    try { deps.vix = await eventEngine.getVix(); } catch (_) {}
+    try { deps.eventRisk = (await eventEngine.eventRiskScore(5)).score; } catch (_) {}
+    // masters (and their chains) only when the market is open — outside hours the
+    // pipeline still runs news → impact so the dashboard stays informative.
+    if (session.inMarketHours) {
+      for (const inst of ['NIFTY', 'SENSEX']) {
+        try {
+          const ms = await gatherMasterSignal(inst, { track: false });   // don't pollute the learner
+          deps.masters[inst] = ms;
+          if (ms._chain) deps.chains[inst] = { atm: ms._chain.atm, rows: ms._chain.strikes };
+        } catch (_) {}
+      }
+    }
+    const out = agentsEngine.tick(deps);
+    for (const a of out.actions || []) {
+      console.log(`[agents] ${a.action} ${a.inst} ${a.side} ${a.strike} @ ${a.action === 'OPEN' ? a.entry : a.exit}${a.reason ? ' (' + a.reason + ')' : ''}${a.pnl != null ? ' pnl ₹' + a.pnl : ''} [PAPER]`);
+    }
+  } catch (e) { console.warn('[agents] tick failed:', e.message); }
+}
+setInterval(agentsTick, 45000);
+setTimeout(agentsTick, 12000);   // first pass shortly after boot
+
+// ════════════════════════════════════════════════════════════════════════════
 // CONFIRMED SIGNALS + ACCURACY — cut false signals: only fire when ≥3 of the 4
 // engines (Pattern · OI · Early · ORB) agree on ONE direction with none opposing.
 // Every confirmed signal is tracked and resolved vs the real index move → live
@@ -6231,6 +6279,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   try {
     if (typeof _cfgOverrides?.STRANGLE_ENGINE_ENABLED === 'boolean') strangleEngine.enabled = _cfgOverrides.STRANGLE_ENGINE_ENABLED;
     if (typeof _cfgOverrides?.GAMMA_BLAST_ENGINE_ENABLED === 'boolean') gammaBlastEngine.enabled = _cfgOverrides.GAMMA_BLAST_ENGINE_ENABLED;
+    if (typeof _cfgOverrides?.AI_AGENTS_ENABLED === 'boolean') agentsEngine.enabled = _cfgOverrides.AI_AGENTS_ENABLED;
     // Both directions honored: AUTO ON persists across restarts too (user ask),
     // not just OFF. Trade mode is NOT persisted — every boot starts in paper
     // unless env says otherwise, so a restored AUTO ON can never re-arm LIVE.

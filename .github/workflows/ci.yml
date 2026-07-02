@@ -17,14 +17,14 @@ jobs:
 
       - name: Syntax-check core modules
         run: |
-          node -e "['server.js','auth.js','candlestick-patterns.js','multiconfirm.js','master-confluence.js','confluence-learner.js','smart-money.js','signal-engine.js','backtest-report.js','vol-context.js','confirmed-signals.js','payoff-engine.js','news-engine.js','event-engine.js','amibroker-bridge.js','gamma-blast-engine.js','gamma-blast-detect.js','gamma-blast-params.js','option-analyzer.js','redis-store.js'].forEach(f=>require('child_process').execSync('node -c '+f,{stdio:'inherit'}))"
+          node -e "['server.js','auth.js','candlestick-patterns.js','multiconfirm.js','master-confluence.js','confluence-learner.js','smart-money.js','signal-engine.js','backtest-report.js','vol-context.js','confirmed-signals.js','payoff-engine.js','agents-engine.js','news-engine.js','event-engine.js','amibroker-bridge.js','gamma-blast-engine.js','gamma-blast-detect.js','gamma-blast-params.js','option-analyzer.js','redis-store.js'].forEach(f=>require('child_process').execSync('node -c '+f,{stdio:'inherit'}))"
 
       - name: Unit test suites
         run: npm test
 
       - name: Validate dashboard inline scripts
         run: |
-          node -e "const fs=require('fs'),vm=require('vm');let bad=0;for(const f of ['dashboard','login','pattern-signals','oi','ami-heatmap','signals4','payoff']){const p='public/'+f+'.html';if(!fs.existsSync(p))continue;const h=fs.readFileSync(p,'utf8');for(const m of h.matchAll(/<script>([\s\S]*?)<\/script>/g)){try{new vm.Script(m[1])}catch(e){console.error(f,e.message);bad++}}}process.exit(bad?1:0)"
+          node -e "const fs=require('fs'),vm=require('vm');let bad=0;for(const f of ['dashboard','login','pattern-signals','oi','ami-heatmap','signals4','payoff','agents']){const p='public/'+f+'.html';if(!fs.existsSync(p))continue;const h=fs.readFileSync(p,'utf8');for(const m of h.matchAll(/<script>([\s\S]*?)<\/script>/g)){try{new vm.Script(m[1])}catch(e){console.error(f,e.message);bad++}}}process.exit(bad?1:0)"
 
       - name: Auth unit test
         env:
