@@ -284,9 +284,15 @@ function renderCards(signals){
           <div class="c-pat ${senCls(s.pattern.sentiment)}">${s.pattern.name} · ${s.pattern.sentiment}${s.pattern.forming?' (forming)':''}</div>
         </div>
         <div class="c-px">
-          <div class="c-ltp">${(+s.spot).toLocaleString('en-IN')}</div>
-          <div class="c-chg ${up?'up':'dn'}">${up?'▲':'▼'} ${s.changeAbs>=0?'+':''}${s.changeAbs} (${s.changePct>=0?'+':''}${s.changePct}%)</div>
-          <div class="c-tf">${s.tfLabel} · ${timeAgo(s.barTime)}</div>
+          ${s.reco && s.reco.buy ? `
+            <div class="c-ltp">${s.reco.buy.strike} <span style="font-size:0.68rem;font-weight:700">${s.reco.buy.type}</span></div>
+            <div class="c-chg" style="color:#9fe6c4">@ ${money(s.reco.buy.ltp)}</div>
+            <div class="c-tf" style="color:var(--muted)">${s.instLabel} ${(+s.spot).toLocaleString('en-IN')} · ${timeAgo(s.barTime)}</div>
+          ` : `
+            <div class="c-ltp">${(+s.spot).toLocaleString('en-IN')}</div>
+            <div class="c-chg ${up?'up':'dn'}">${up?'▲':'▼'} ${s.changeAbs>=0?'+':''}${s.changeAbs} (${s.changePct>=0?'+':''}${s.changePct}%)</div>
+            <div class="c-tf">${s.tfLabel} · ${timeAgo(s.barTime)}</div>
+          `}
         </div>
       </div>
       <div class="v-row">
