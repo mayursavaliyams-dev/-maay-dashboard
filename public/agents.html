@@ -8,62 +8,99 @@
   :root{ --bg:#070b12; --panel:#0c131f; --panel2:#0e1726; --border:#1b2942; --muted:#7c8aa0; --green:#22d39a; --red:#f7567c; --amber:#fcd34d; --blue:#7aa2ff; --violet:#a78bfa; }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--bg); color:#e6edf6; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  .wrap{ padding:0 14px 30px; max-width:1600px; margin:0 auto; }
+  .wrap{ padding:0 14px 30px; max-width:1500px; margin:0 auto; }
   .topbar{ padding:10px 4px 6px; display:flex; align-items:center; gap:12px; }
   .brand{ font-size:1rem; font-weight:800; color:var(--blue); }
   nav{ display:flex; gap:4px; padding:4px 2px 10px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:14px; }
   nav a{ color:#9fb0c8; text-decoration:none; font-size:0.7rem; font-weight:700; padding:3px 9px; border-radius:7px; }
   nav a:hover{ background:rgba(122,162,255,.14); color:#cfe0ff; }
   nav a.active{ background:rgba(122,162,255,.18); color:#cfe0ff; }
-  .hd{ display:flex; align-items:center; gap:12px; margin:4px 2px 12px; flex-wrap:wrap; }
-  .hd h1{ font-size:1.15rem; margin:0; }
-  .hd .sub{ font-size:0.68rem; color:var(--muted); }
+
+  /* ── USER-FIRST HERO ─────────────────────────────────────── */
+  .hero{ background:linear-gradient(135deg,#0c131f,#101b30); border:1px solid #22355c; border-radius:16px; padding:14px 16px 12px; margin-bottom:12px; }
+  .hero-top{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .hero-title{ font-size:1.05rem; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .v2{ font-size:0.52rem; font-weight:900; background:var(--violet); color:#0b0517; border-radius:5px; padding:2px 6px; letter-spacing:.5px; }
+  .paper-badge{ font-size:0.6rem; font-weight:800; padding:2px 10px; border-radius:999px; background:#3a2d10; color:var(--amber); }
   .toggle{ margin-left:auto; display:flex; align-items:center; gap:8px; }
-  .tog-btn{ padding:4px 14px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:#9fb0c8; font-size:0.7rem; font-weight:800; cursor:pointer; }
-  .tog-btn.on{ border-color:#1c5a38; color:var(--green); background:rgba(34,211,154,.08); }
-  .paper-badge{ font-size:0.62rem; font-weight:800; padding:2px 10px; border-radius:999px; background:#3a2d10; color:var(--amber); }
-  .pnl-chip{ font-size:0.72rem; font-weight:800; padding:3px 12px; border-radius:8px; background:var(--panel); border:1px solid var(--border); }
+  .tog-btn{ padding:5px 16px; border-radius:9px; border:1px solid var(--border); background:var(--panel); color:#9fb0c8; font-size:0.72rem; font-weight:800; cursor:pointer; }
+  .tog-btn.on{ border-color:#1c5a38; color:var(--green); background:rgba(34,211,154,.1); }
+  .stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; margin-top:12px; }
+  .stat{ background:rgba(7,11,18,.55); border:1px solid #1b2a42; border-radius:12px; padding:9px 12px; }
+  .stat .l{ font-size:0.56rem; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  .stat .v{ font-size:1.25rem; font-weight:900; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .stat .s{ font-size:0.56rem; color:#64748b; margin-top:1px; }
+  .up{ color:var(--green); } .dn{ color:var(--red); } .flat{ color:#9ca3af; }
 
-  .pipeline{ display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; margin-bottom:14px; }
-  @media(max-width:1200px){ .pipeline{ grid-template-columns:repeat(2,1fr); } }
-  @media(max-width:640px){ .pipeline{ grid-template-columns:1fr; } }
-  .agent{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px; position:relative; min-height:110px; }
-  .agent .hdr{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-  .agent .emoji{ font-size:1.15rem; }
-  .agent .nm{ font-size:0.8rem; font-weight:800; }
-  .agent .role{ font-size:0.56rem; color:var(--muted); line-height:1.3; }
-  .agent .st{ margin-left:auto; font-size:0.56rem; font-weight:800; padding:2px 8px; border-radius:999px; background:#1f2937; color:#9ca3af; white-space:nowrap; }
-  .agent .st.active{ background:#06281c; color:var(--green); }
-  .agent .st.go{ background:#06281c; color:var(--green); }
-  .agent .st.trade{ background:#3a2d10; color:var(--amber); }
-  .agent .body{ font-size:0.66rem; color:#cbd5e1; line-height:1.45; }
-  .agent .arrow{ position:absolute; right:-13px; top:45%; color:#334155; font-size:0.9rem; z-index:2; }
-  @media(max-width:1200px){ .agent .arrow{ display:none; } }
+  /* next action strip — plain-language why/when */
+  .next{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  @media(max-width:800px){ .next{ grid-template-columns:1fr; } }
+  .next-card{ background:rgba(7,11,18,.55); border:1px solid #1f2f52; border-radius:12px; padding:9px 12px; }
+  .next-card .in{ font-size:0.66rem; font-weight:900; margin-bottom:3px; display:flex; gap:8px; align-items:center; }
+  .next-card .line{ font-size:0.68rem; line-height:1.5; color:#cbd5e1; }
+  .next-card .line b{ font-weight:800; }
+  .go-chip{ font-size:0.54rem; font-weight:900; padding:1px 8px; border-radius:999px; }
+  .go-chip.go{ background:#06281c; color:var(--green); } .go-chip.no{ background:#1f2937; color:#9ca3af; }
 
-  .grid2{ display:grid; grid-template-columns:3fr 2fr; gap:14px; }
-  @media(max-width:1000px){ .grid2{ grid-template-columns:1fr; } }
-  .pane{ background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:14px; }
-  .pane-hd{ display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); font-size:0.82rem; font-weight:800; }
-  .pane-hd small{ font-weight:400; color:var(--muted); font-size:0.58rem; }
+  /* open positions — big cards with progress to target */
+  .book{ margin-top:10px; }
+  .book-h{ font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:8px 2px 6px; }
+  .poscards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:8px; }
+  .pos{ background:rgba(7,11,18,.6); border:1px solid #1f2f52; border-radius:12px; padding:10px 12px; }
+  .pos .r1{ display:flex; align-items:baseline; gap:8px; }
+  .pos .nm{ font-weight:900; font-size:0.8rem; }
+  .pos .pnl{ margin-left:auto; font-weight:900; font-size:0.95rem; font-variant-numeric:tabular-nums; }
+  .pos .meta{ font-size:0.6rem; color:var(--muted); margin:3px 0 6px; }
+  .bar{ height:7px; background:#111a2c; border-radius:99px; overflow:hidden; }
+  .bar i{ display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#22d39a,#7aa2ff); }
+  .bar-lbl{ display:flex; justify-content:space-between; font-size:0.54rem; color:#64748b; margin-top:3px; }
+  .noopen{ font-size:0.68rem; color:var(--muted); font-style:italic; padding:8px 2px; }
+
+  /* today's trades */
   table{ width:100%; border-collapse:collapse; font-size:0.7rem; }
   th{ text-align:left; color:#7c8aa0; font-weight:700; font-size:0.55rem; text-transform:uppercase; letter-spacing:.5px; padding:7px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
   td{ padding:7px 12px; border-bottom:1px solid #111a28; vertical-align:top; font-variant-numeric:tabular-nums; }
   tr:last-child td{ border-bottom:0; }
-  .empty{ padding:22px; text-align:center; color:var(--muted); font-size:0.7rem; font-style:italic; }
-  .up{ color:var(--green); font-weight:800; } .dn{ color:var(--red); font-weight:800; } .flat{ color:#9ca3af; }
-  .prob{ font-weight:800; }
+  .empty{ padding:18px; text-align:center; color:var(--muted); font-size:0.68rem; font-style:italic; }
+
+  /* ── LOWER PANELS (engine internals) ─────────────────────── */
+  .pane{ background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:12px; }
+  .pane-hd{ display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); font-size:0.8rem; font-weight:800; }
+  .pane-hd small{ font-weight:400; color:var(--muted); font-size:0.58rem; }
+  .grid2{ display:grid; grid-template-columns:3fr 2fr; gap:12px; }
+  @media(max-width:1000px){ .grid2{ grid-template-columns:1fr; } }
+
+  .pipeline{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:10px 12px; }
+  @media(max-width:1100px){ .pipeline{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:640px){ .pipeline{ grid-template-columns:1fr; } }
+  .agent{ background:var(--panel2); border:1px solid #16233c; border-radius:11px; padding:9px 10px; position:relative; }
+  .agent .hdr{ display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+  .agent .emoji{ font-size:0.95rem; }
+  .agent .nm{ font-size:0.68rem; font-weight:800; }
+  .agent .st{ margin-left:auto; font-size:0.5rem; font-weight:800; padding:1px 7px; border-radius:999px; background:#1f2937; color:#9ca3af; white-space:nowrap; }
+  .agent .st.active,.agent .st.go{ background:#06281c; color:var(--green); }
+  .agent .st.trade{ background:#3a2d10; color:var(--amber); }
+  .agent .body{ font-size:0.58rem; color:#a8b6c9; line-height:1.45; }
+
   .pill{ font-size:0.54rem; font-weight:800; padding:1px 8px; border-radius:999px; white-space:nowrap; }
   .p-ma{ background:#231536; color:var(--violet); } .p-ord{ background:#0d2a1a; color:var(--green); }
   .p-reg{ background:#2d1d10; color:#fb923c; } .p-cap{ background:#102a3a; color:#38bdf8; } .p-res{ background:#1f2937; color:#9ca3af; }
   .params{ font-size:0.56rem; color:#64748b; }
-  .chk{ display:flex; gap:6px; align-items:center; font-size:0.64rem; padding:2px 0; }
-  .chk .t{ color:var(--green); } .chk .f{ color:var(--red); }
-  .note{ font-size:0.58rem; color:#6b7787; margin:14px 2px 0; line-height:1.5; }
+  .prob{ font-weight:800; }
   .sigrow{ display:flex; gap:10px; flex-wrap:wrap; padding:10px 14px; }
-  .sigcard{ flex:1; min-width:220px; background:var(--panel2); border-radius:10px; padding:10px 12px; }
-  .sigcard .in{ font-size:0.66rem; font-weight:800; }
-  .sigcard .dec{ font-size:1rem; font-weight:900; margin:2px 0; }
-  .sigcard .meta{ font-size:0.58rem; color:var(--muted); line-height:1.4; }
+  .sigcard{ flex:1; min-width:200px; background:var(--panel2); border-radius:10px; padding:9px 12px; }
+  .sigcard .in{ font-size:0.64rem; font-weight:800; }
+  .sigcard .dec{ font-size:0.95rem; font-weight:900; margin:2px 0; }
+  .sigcard .meta{ font-size:0.56rem; color:var(--muted); line-height:1.4; }
+  .chk{ display:flex; gap:6px; align-items:center; font-size:0.62rem; padding:1px 0; }
+  .chk .t{ color:var(--green); } .chk .f{ color:var(--red); }
+  details{ border-bottom:1px solid #111a28; }
+  details:last-child{ border-bottom:0; }
+  summary{ cursor:pointer; padding:9px 14px; font-size:0.68rem; font-weight:800; list-style:none; display:flex; align-items:center; gap:8px; }
+  summary::-webkit-details-marker{ display:none; }
+  summary .caret{ margin-left:auto; color:#475569; font-size:0.6rem; }
+  .gate-body{ padding:0 14px 10px; }
+  .note{ font-size:0.58rem; color:#6b7787; margin:12px 2px 0; line-height:1.5; }
 </style>
 </head>
 <body>
@@ -77,22 +114,49 @@
     <a href="/payoff.html">Payoff</a>
     <a href="/agents.html" class="active">AI Agents</a>
   </nav>
-  <div class="hd">
-    <h1>🤖 AI Agents</h1>
-    <span class="sub">News → Impact → Signal → Risk → Execute · deal-driven probabilities with parameters · auto paper-trading</span>
-    <div class="toggle">
-      <span class="pnl-chip" id="dayPnl">day P&L —</span>
-      <span class="paper-badge">PAPER</span>
-      <button class="tog-btn" id="togBtn" onclick="toggleAgents()">…</button>
-    </div>
-  </div>
 
-  <!-- 5-agent pipeline -->
-  <div class="pipeline" id="pipeline"></div>
+  <!-- ═══════ 1. USER-FIRST HERO — your money, your trades, what happens next ═══════ -->
+  <section class="hero">
+    <div class="hero-top">
+      <span class="hero-title">🤖 AI Agents <span class="v2">V2</span></span>
+      <span class="paper-badge">PAPER</span>
+      <div class="toggle"><button class="tog-btn" id="togBtn" onclick="toggleAgents()">…</button></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="l">Today P&L</div><div class="v" id="stDay">—</div><div class="s" id="stDayS">&nbsp;</div></div>
+      <div class="stat"><div class="l">All-time Net</div><div class="v" id="stNet">—</div><div class="s" id="stNetS">&nbsp;</div></div>
+      <div class="stat"><div class="l">Win Rate</div><div class="v" id="stWin">—</div><div class="s" id="stWinS">&nbsp;</div></div>
+      <div class="stat"><div class="l">Open Positions</div><div class="v" id="stOpen">—</div><div class="s" id="stOpenS">&nbsp;</div></div>
+    </div>
+
+    <!-- what happens next, in plain language -->
+    <div class="next" id="nextRow"></div>
+
+    <!-- open positions with progress to target -->
+    <div class="book">
+      <div class="book-h">📈 Open positions</div>
+      <div class="poscards" id="posCards"><div class="noopen">loading…</div></div>
+    </div>
+  </section>
+
+  <!-- today's closed trades -->
+  <section class="pane">
+    <div class="pane-hd">✅ Today's trades <small id="allTime">—</small></div>
+    <table>
+      <thead><tr><th>Inst</th><th>Play</th><th>Entry→Exit</th><th>P&L</th><th>Why closed</th></tr></thead>
+      <tbody id="tbToday"><tr><td colspan="5" class="empty">no closed trades yet today</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- ═══════ 2. ENGINE ROOM — internals, below the fold ═══════ -->
+  <section class="pane">
+    <div class="pane-hd">⚙️ Engine room <small>— 5-agent pipeline · News → Impact → Signal → Risk → Execute</small></div>
+    <div class="pipeline" id="pipeline"></div>
+  </section>
 
   <div class="grid2">
     <div>
-      <!-- Impact table: the "which stock, what probability, which parameters" ask -->
       <section class="pane">
         <div class="pane-hd">🎯 Deal Impact Radar <small>— stock ni upar probability, parameters saathe</small></div>
         <table>
@@ -100,33 +164,20 @@
           <tbody id="tbImpact"><tr><td colspan="6" class="empty">scanning news…</td></tr></tbody>
         </table>
       </section>
-
-      <!-- Signal fusion -->
       <section class="pane">
         <div class="pane-hd">🧠 Signal Fusion <small>— 11-factor master × news bias</small></div>
         <div class="sigrow" id="sigRow"><div class="empty">loading…</div></div>
       </section>
     </div>
-
     <div>
-      <!-- Risk gate -->
       <section class="pane">
-        <div class="pane-hd">🛡️ Risk Gate <small>— every check disclosed</small></div>
-        <div style="padding:8px 14px;" id="riskBox"><div class="empty">loading…</div></div>
-      </section>
-
-      <!-- Executor book -->
-      <section class="pane">
-        <div class="pane-hd">⚡ Executor · Paper Book <small id="allTime">—</small></div>
-        <table>
-          <thead><tr><th>Inst</th><th>Leg</th><th>Entry→Now/Exit</th><th>P&L</th><th>Why</th></tr></thead>
-          <tbody id="tbTrades"><tr><td colspan="5" class="empty">no trades yet — waits for a ≥65% GO</td></tr></tbody>
-        </table>
+        <div class="pane-hd">🛡️ Risk Gates <small>— every check disclosed (tap to expand)</small></div>
+        <div id="riskBox"><div class="empty">loading…</div></div>
       </section>
     </div>
   </div>
 
-  <div class="note" id="disclaimer">Paper auto-trading only. Impact probability is a disclosed-parameter heuristic, not a promise. Educational, not advice.</div>
+  <div class="note" id="disclaimer">Paper auto-trading. Impact probability is a disclosed-parameter heuristic, not a promise. Educational, not advice.</div>
 </div>
 
 <script>
@@ -135,10 +186,32 @@ let ENABLED = null;
 
 const AGENT_ORDER = ['news','impact','signal','risk','executor'];
 const ST_CLASS = s => s==='GO'||s==='ACTIVE' ? 'active' : s==='IN TRADE' ? 'trade' : '';
-
 function pillClass(t){ return t.startsWith('M&A')?'p-ma':t.startsWith('ORDER')?'p-ord':t.startsWith('REG')?'p-reg':t.startsWith('CAP')?'p-cap':'p-res'; }
 const fmtT = iso => iso ? new Date(iso).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—';
 const inr = v => (v<0?'-':'+') + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+const clampPct = v => Math.max(0, Math.min(100, v));
+
+// plain-language reason: the FIRST failing check of a gate
+function blocker(g) {
+  if (!g || !g.checks) return { go:false, line:'waiting for first pipeline run…' };
+  if (g.go) return { go:true, line:'<b>GO</b> — entry on the next 45s tick' };
+  const f = g.checks.find(c => !c.pass);
+  if (!f) return { go:false, line:'holding' };
+  const friendly = {
+    'Market hours': 'market closed — resumes <b>9:15 AM</b>',
+    'Signal fired': 'no directional signal yet (HOLD)',
+    'No directional trade': 'directional signal active — condor stands aside',
+    'Event risk': 'event risk elevated — standing down',
+    'Event risk < 50': 'event risk elevated — standing down',
+    'Daily loss cap': 'daily loss cap hit — done for today',
+    'Square-off window': 'past entry cutoff — fresh entries tomorrow 9:15',
+    'Entry window': 'past entry cutoff — fresh entries tomorrow 9:15',
+    'No open position': 'already in a trade — managing it',
+    'No open condor': 'condor already open — managing it',
+  };
+  const key = Object.keys(friendly).find(k => f.name.startsWith(k));
+  return { go:false, line: (key ? friendly[key] : `waiting: <b>${f.name}</b> (${f.note||''})`) };
+}
 
 async function load() {
   let d;
@@ -148,33 +221,101 @@ async function load() {
   const tog = document.getElementById('togBtn');
   tog.textContent = d.enabled ? '● AGENTS ON' : '○ AGENTS OFF';
   tog.className = 'tog-btn' + (d.enabled ? ' on' : '');
-  document.getElementById('dayPnl').textContent = 'day P&L ' + inr(d.dayPnl || 0);
-  document.getElementById('dayPnl').style.color = (d.dayPnl||0) >= 0 ? 'var(--green)' : 'var(--red)';
   if (d.disclaimer) document.getElementById('disclaimer').textContent = d.disclaimer;
 
-  // pipeline cards
-  document.getElementById('pipeline').innerHTML = AGENT_ORDER.map((k,i) => {
-    const a = d.agents[k]; if (!a) return '';
-    let body = '';
-    if (k==='news') { const o=a.output||{}; body = `${o.events??0} deal events (24h)` + (o.latest?`<br><span style="color:#94a3b8">${(o.latest.title||'').slice(0,70)}…</span>`:''); }
-    if (k==='impact') { const o=a.output||{}; body = `${o.withStocks??0} events hit named stocks<br>index bias: NIFTY <b>${o.indexBias?.NIFTY??0}</b> · SENSEX <b>${o.indexBias?.SENSEX??0}</b>`; }
-    if (k==='signal') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const s=o[x]||{};return `${x}: <b>${s.decision||'—'}</b> ${s.probability!=null?s.probability+'%':''}`;}).join('<br>'); }
-    if (k==='risk') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const g=o[x]||{};const s=(o.sell||{})[x]||{};return `${x}: buy <b class="${g.go?'up':'flat'}">${g.go?'GO':'NO'}</b> · condor <b class="${s.go?'up':'flat'}">${s.go?'GO':'NO'}</b>`;}).join('<br>') + `<br><span style="color:#94a3b8">IVP ${o.ivp!=null?o.ivp+'%':'n/a'} ${o.ivp>=50?'(sell zone)':o.ivp!=null?'(cheap — no sell)':''}</span>`; }
-    if (k==='executor') { const o=a.output||{}; const nOpen=(o.open||[]).length+(o.condors||[]).length; body = `${nOpen} open (${(o.condors||[]).length} condor) · ${(o.closedToday||[]).length} closed<br>day P&L <b>${inr(o.dayPnl||0)}</b>`; }
-    return `<div class="agent">
-      <div class="hdr"><span class="emoji">${a.emoji}</span><div><div class="nm">${a.name}</div><div class="role">${a.role}</div></div><span class="st ${ST_CLASS(a.state)}">${a.state}</span></div>
-      <div class="body">${body}</div>
-      <div style="font-size:0.5rem;color:#475569;margin-top:6px;">last run ${fmtT(a.lastRun)}</div>
-      ${i<4?'<span class="arrow">➤</span>':''}
+  // ── hero stats ──
+  const at = d.allTime || {}, dirS = at.directional || {}, conS = at.condor || {};
+  const day = d.dayPnl || 0;
+  const stDay = document.getElementById('stDay');
+  stDay.textContent = inr(day); stDay.className = 'v ' + (day>=0?'up':'dn');
+  document.getElementById('stDayS').textContent = `${(d.closedToday||[]).length} closed today`;
+  const stNet = document.getElementById('stNet');
+  stNet.textContent = inr(at.netPnl||0); stNet.className = 'v ' + ((at.netPnl||0)>=0?'up':'dn');
+  document.getElementById('stNetS').textContent = `${at.trades||0} trades all-time`;
+  document.getElementById('stWin').textContent = at.winRate!=null ? at.winRate+'%' : '—';
+  document.getElementById('stWinS').textContent = `buy ${dirS.trades||0} · condor ${conS.trades||0}`;
+  const nOpen = (d.open||[]).length + (d.condors||[]).length;
+  document.getElementById('stOpen').textContent = nOpen;
+  document.getElementById('stOpenS').textContent = nOpen ? `${(d.condors||[]).length} condor · ${(d.open||[]).length} buy` : 'book flat';
+
+  // ── next action (plain language, per index — the best of the two plays) ──
+  const rk = d.agents.risk?.output || {};
+  document.getElementById('nextRow').innerHTML = ['NIFTY','SENSEX'].map(x => {
+    const buy = blocker(rk[x]), sell = blocker((rk.sell||{})[x]);
+    const ivpTxt = rk.ivp!=null ? ` · IVP <b>${rk.ivp}%</b> ${rk.ivp>=50?'(sell zone ✓)':'(cheap)'}` : '';
+    return `<div class="next-card">
+      <div class="in">${x} <span class="go-chip ${buy.go||sell.go?'go':'no'}">${buy.go||sell.go?'READY':'WAITING'}</span></div>
+      <div class="line">🦅 Condor: ${sell.line}${ivpTxt}<br>🎯 Buy: ${buy.line}</div>
     </div>`;
   }).join('');
 
-  // impact table
+  // ── open position cards with progress to target ──
+  const cfg = d.config || {};
+  const cards = [];
+  for (const t of d.condors || []) {
+    const upnl = (t.credit - t.lastCost) * t.qty * t.lot;
+    const captured = t.credit > 0 ? (t.credit - t.lastCost) / t.credit * 100 : 0;
+    const prog = clampPct(captured / (cfg.sellTpPct || 50) * 100);
+    cards.push(`<div class="pos">
+      <div class="r1"><span class="nm">🦅 ${t.inst} Iron Condor</span><span class="pnl ${upnl>=0?'up':'dn'}">${inr(upnl)}</span></div>
+      <div class="meta">shorts ${t.legs?.shortPE?.strike}/${t.legs?.shortCE?.strike} · wings ${t.legs?.wingPE?.strike}/${t.legs?.wingCE?.strike} · credit ₹${t.credit} → cost ₹${t.lastCost} · IVP@entry ${t.ivpAtEntry??'—'}</div>
+      <div class="bar"><i style="width:${prog}%"></i></div>
+      <div class="bar-lbl"><span>${captured.toFixed(0)}% credit captured</span><span>target ${cfg.sellTpPct||50}% → auto book</span></div>
+    </div>`);
+  }
+  for (const t of d.open || []) {
+    const upnl = (t.last - t.entry) * t.qty * t.lot;
+    const chg = (t.last - t.entry) / t.entry * 100;
+    const prog = clampPct(chg / (cfg.tpPct || 40) * 100);
+    cards.push(`<div class="pos">
+      <div class="r1"><span class="nm">🎯 ${t.inst} ${t.strike} ${t.side}</span><span class="pnl ${upnl>=0?'up':'dn'}">${inr(upnl)}</span></div>
+      <div class="meta">entry ₹${t.entry} → now ₹${t.last} (${chg>=0?'+':''}${chg.toFixed(1)}%) · prob ${t.probability}%${t.newsAligned?' · news✓':''}</div>
+      <div class="bar"><i style="width:${prog}%"></i></div>
+      <div class="bar-lbl"><span>SL -${cfg.slPct||20}%</span><span>target +${cfg.tpPct||40}% → auto book</span></div>
+    </div>`);
+  }
+  document.getElementById('posCards').innerHTML = cards.length ? cards.join('')
+    : '<div class="noopen">book flat — agents will enter on the next GO (see WAITING reasons above)</div>';
+
+  // ── today's closed trades ──
+  const closed = (d.closedToday||[]).slice().reverse().map(t => t.kind==='CONDOR' ? `<tr>
+      <td><b>${t.inst}</b></td><td>🦅 Condor ${t.legs?.shortPE?.strike}/${t.legs?.shortCE?.strike}</td>
+      <td>credit ₹${t.credit} → ₹${t.exitCost}</td>
+      <td class="${t.pnl>=0?'up':'dn'}"><b>${inr(t.pnl)}</b></td>
+      <td class="params">${t.reason} · charges ₹${t.charges}</td>
+    </tr>` : `<tr>
+      <td><b>${t.inst}</b></td><td>🎯 ${t.strike} ${t.side}</td>
+      <td>₹${t.entry} → ₹${t.exit}</td>
+      <td class="${t.pnl>=0?'up':'dn'}"><b>${inr(t.pnl)}</b></td>
+      <td class="params">${t.reason} · charges ₹${t.charges}</td>
+    </tr>`);
+  document.getElementById('tbToday').innerHTML = closed.length ? closed.join('')
+    : '<tr><td colspan="5" class="empty">no closed trades yet today</td></tr>';
+  document.getElementById('allTime').textContent =
+    at.trades ? `— all-time: ${at.trades} trades · ${at.winRate??'—'}% win · net ${inr(at.netPnl||0)} (buy ${inr(dirS.netPnl||0)} · condor ${inr(conS.netPnl||0)})` : '— all-time: no trades yet';
+
+  // ── engine room: pipeline cards ──
+  document.getElementById('pipeline').innerHTML = AGENT_ORDER.map(k => {
+    const a = d.agents[k]; if (!a) return '';
+    let body = '';
+    if (k==='news') { const o=a.output||{}; body = `${o.events??0} deal events (24h)` + (o.latest?`<br><span style="color:#8fa0b8">${(o.latest.title||'').slice(0,58)}…</span>`:''); }
+    if (k==='impact') { const o=a.output||{}; body = `${o.withStocks??0} events hit stocks · bias N ${o.indexBias?.NIFTY??0} / S ${o.indexBias?.SENSEX??0}`; }
+    if (k==='signal') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const s=o[x]||{};return `${x} <b>${s.decision||'—'}</b> ${s.probability!=null?s.probability+'%':''}`;}).join(' · '); }
+    if (k==='risk') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const g=o[x]||{};const s=(o.sell||{})[x]||{};return `${x}: buy ${g.go?'<b class="up">GO</b>':'NO'} · condor ${s.go?'<b class="up">GO</b>':'NO'}`;}).join('<br>'); }
+    if (k==='executor') { const o=a.output||{}; body = `${(o.open||[]).length+(o.condors||[]).length} open · ${(o.closedToday||[]).length} closed · day ${inr(o.dayPnl||0)}`; }
+    return `<div class="agent">
+      <div class="hdr"><span class="emoji">${a.emoji}</span><span class="nm">${a.name}</span><span class="st ${ST_CLASS(a.state)}">${a.state}</span></div>
+      <div class="body">${body}</div>
+      <div style="font-size:0.48rem;color:#475569;margin-top:4px;">last run ${fmtT(a.lastRun)}</div>
+    </div>`;
+  }).join('');
+
+  // ── impact radar ──
   const top = (d.agents.impact?.output?.top) || [];
   document.getElementById('tbImpact').innerHTML = top.length ? top.map(e => {
     const p = e.params || {};
     return `<tr>
-      <td style="max-width:260px;">${(e.title||'').slice(0,90)}</td>
+      <td style="max-width:250px;">${(e.title||'').slice(0,88)}</td>
       <td><span class="pill ${pillClass(e.eventType||'')}">${e.eventType||''}</span></td>
       <td><b>${(e.stocks||[]).join(', ')||'—'}</b></td>
       <td class="${e.direction==='UP'?'up':e.direction==='DOWN'?'dn':'flat'}">${e.direction==='UP'?'▲ UP':e.direction==='DOWN'?'▼ DOWN':'— FLAT'}</td>
@@ -183,7 +324,7 @@ async function load() {
     </tr>`;
   }).join('') : '<tr><td colspan="6" class="empty">no deal-class events with named stocks in the last 24h</td></tr>';
 
-  // signal fusion
+  // ── signal fusion ──
   const sig = d.agents.signal?.output || {};
   document.getElementById('sigRow').innerHTML = ['NIFTY','SENSEX'].map(x => {
     const s = sig[x] || {};
@@ -195,48 +336,19 @@ async function load() {
     </div>`;
   }).join('');
 
-  // risk gate — directional (buy) + condor (sell) per instrument
-  const rk = d.agents.risk?.output || {};
-  const renderGate = (title, g) => `<div style="margin-bottom:8px;">
-      <div style="font-size:0.68rem;font-weight:800;margin-bottom:2px;">${title} — <span class="${g.go?'up':'flat'}">${g.go?'✅ GO':'⛔ NO-GO'}</span></div>
-      ${(g.checks||[]).map(c=>`<div class="chk"><span class="${c.pass?'t':'f'}">${c.pass?'✓':'✗'}</span><span>${c.name}</span><span style="color:#64748b;margin-left:auto;">${c.note||''}</span></div>`).join('')}
-    </div>`;
-  document.getElementById('riskBox').innerHTML = ['NIFTY','SENSEX'].map(x =>
-    renderGate(`${x} · BUY play`, rk[x] || {}) + renderGate(`${x} · CONDOR play (the edge)`, (rk.sell||{})[x] || {})
-  ).join('');
-
-  // trades: open directional + open condors + recent closed
-  const ex = d.agents.executor?.output || {};
-  const open = (ex.open||[]).map(t => `<tr>
-      <td><b>${t.inst}</b></td><td>${t.strike} ${t.side}</td>
-      <td>₹${t.entry} → ₹${t.last} <span style="color:#64748b">(open)</span></td>
-      <td class="${(t.last-t.entry)>=0?'up':'dn'}">${inr((t.last-t.entry)*t.qty*t.lot)}</td>
-      <td class="params">BUY play · prob ${t.probability}%${t.newsAligned?' · news✓':''}</td>
-    </tr>`);
-  const openCondors = (ex.condors||[]).map(t => `<tr>
-      <td><b>${t.inst}</b></td><td>🦅 IC ${t.legs?.shortPE?.strike}/${t.legs?.shortCE?.strike}</td>
-      <td>credit ₹${t.credit} → cost ₹${t.lastCost} <span style="color:#64748b">(open)</span></td>
-      <td class="${(t.credit-t.lastCost)>=0?'up':'dn'}">${inr((t.credit-t.lastCost)*t.qty*t.lot)}</td>
-      <td class="params">CONDOR (edge) · wings ${t.legs?.wingPE?.strike}/${t.legs?.wingCE?.strike} · IVP ${t.ivpAtEntry??'—'}</td>
-    </tr>`);
-  const closed = (ex.closedToday||[]).slice(-8).reverse().map(t => t.kind==='CONDOR' ? `<tr>
-      <td><b>${t.inst}</b></td><td>🦅 IC ${t.legs?.shortPE?.strike}/${t.legs?.shortCE?.strike}</td>
-      <td>credit ₹${t.credit} → ₹${t.exitCost}</td>
-      <td class="${t.pnl>=0?'up':'dn'}">${inr(t.pnl)}</td>
-      <td class="params">${t.reason} · charges ₹${t.charges}</td>
-    </tr>` : `<tr>
-      <td><b>${t.inst}</b></td><td>${t.strike} ${t.side}</td>
-      <td>₹${t.entry} → ₹${t.exit}</td>
-      <td class="${t.pnl>=0?'up':'dn'}">${inr(t.pnl)}</td>
-      <td class="params">${t.reason} · charges ₹${t.charges}</td>
-    </tr>`);
-  const rowsAll = [...open, ...openCondors, ...closed];
-  document.getElementById('tbTrades').innerHTML = rowsAll.length ? rowsAll.join('') : '<tr><td colspan="5" class="empty">no trades yet — BUY needs ≥' + (d.config?.minProb ?? 65) + '% · CONDOR needs IVP ≥' + (d.config?.ivpMinSell ?? 50) + '</td></tr>';
-  const at = d.allTime || {};
-  const dirS = at.directional || {}, conS = at.condor || {};
-  document.getElementById('allTime').textContent = at.trades
-    ? `— all-time: ${at.trades} trades · ${at.winRate??'—'}% win · net ${inr(at.netPnl||0)} (buy ${dirS.trades||0}: ${inr(dirS.netPnl||0)} · condor ${conS.trades||0}: ${inr(conS.netPnl||0)})`
-    : '— all-time: no trades yet';
+  // ── risk gates: collapsible detail ──
+  const renderChecks = g => (g.checks||[]).map(c=>`<div class="chk"><span class="${c.pass?'t':'f'}">${c.pass?'✓':'✗'}</span><span>${c.name}</span><span style="color:#64748b;margin-left:auto;">${c.note||''}</span></div>`).join('');
+  document.getElementById('riskBox').innerHTML = ['NIFTY','SENSEX'].map(x => {
+    const g = rk[x] || {}, s = (rk.sell||{})[x] || {};
+    return `<details>
+        <summary>${x} · 🎯 BUY play — <span class="${g.go?'up':'flat'}">${g.go?'✅ GO':'⛔ NO-GO'}</span><span class="caret">▾</span></summary>
+        <div class="gate-body">${renderChecks(g)}</div>
+      </details>
+      <details>
+        <summary>${x} · 🦅 CONDOR play (the edge) — <span class="${s.go?'up':'flat'}">${s.go?'✅ GO':'⛔ NO-GO'}</span><span class="caret">▾</span></summary>
+        <div class="gate-body">${renderChecks(s)}</div>
+      </details>`;
+  }).join('');
 }
 
 async function toggleAgents() {
