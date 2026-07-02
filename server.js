@@ -18,6 +18,8 @@ const masterConfluence = require("./master-confluence");
 const { ConfluenceLearner } = require("./confluence-learner");
 const confluenceLearner = new ConfluenceLearner();
 const signalEngine = require("./signal-engine");
+const confirmedSignals = require("./confirmed-signals");
+const confirmedTracker = new confirmedSignals.ConfirmedTracker({ horizonMin: Number(process.env.CONFIRMED_HORIZON_MIN) || 15, minMovePct: Number(process.env.CONFIRMED_MIN_MOVE_PCT) || 0.1 });
 const candlestickPatterns = require("./candlestick-patterns");
 const smartMoney = require("./smart-money");
 const volContext = require("./vol-context");
@@ -5121,6 +5123,54 @@ app.get('/api/signal/:inst(nifty|sensex)', async (req, res) => {
     res.json({ ok: true, generatedAt: ms.generatedAt, signalId: ms.signalId, ...plan });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// CONFIRMED SIGNALS + ACCURACY — cut false signals: only fire when ≥3 of the 4
+// engines (Pattern · OI · Early · ORB) agree on ONE direction with none opposing.
+// Every confirmed signal is tracked and resolved vs the real index move → live
+// hit-rate. GET /api/confirmed-signals · a 60s tick records + resolves in-market.
+// ════════════════════════════════════════════════════════════════════════════
+async function _cfGather() {
+  const insts = ['NIFTY', 'SENSEX', 'BANKNIFTY'];
+  const base = `http://127.0.0.1:${PORT}`;
+  const j = async u => { try { return await (await fetch(base + u, { headers: { 'cache-control': 'no-store' } })).json(); } catch (_) { return null; } };
+  const [pat, early, orb, ...ois] = await Promise.all([
+    j('/api/pattern-signals?inst=ALL&tf=15,60'),
+    j('/api/early-signals'),
+    j('/api/orb-signals?inst=ALL&orbMin=3'),
+    ...insts.map(i => j('/api/oi-signals?inst=' + i)),
+  ]);
+  return insts.map((inst, idx) => {
+    const ps = ((pat && pat.signals) || []).filter(s => s.inst === inst);
+    const nn = ps.find(s => s.confluence && s.confluence.bias !== 'NEUTRAL');
+    const patternBias = nn ? nn.confluence.bias : 'NEUTRAL';
+    const oi = ois[idx];
+    const oiBias = oi && oi.net ? oi.net.bias : 'NEUTRAL';
+    const spot = oi ? oi.spotPrice : null, atm = oi ? oi.atmStrike : null;
+    const es = ((early && early.signals) || []).filter(s => s.inst === inst);
+    const earlyBias = es.length ? es[0].dirLabel : 'NEUTRAL';
+    const ot = ((orb && orb.today) || []).find(t => t.inst === inst);
+    const orbBias = (ot && ot.ready && ot.breakout) ? (ot.breakout.dir > 0 ? 'BULLISH' : ot.breakout.dir < 0 ? 'BEARISH' : 'NEUTRAL') : 'NEUTRAL';
+    const a = confirmedSignals.agree({ pattern: patternBias, oi: oiBias, early: earlyBias, orb: orbBias });
+    return { inst, spot, atm, strike: atm, ...a };
+  });
+}
+app.get('/api/confirmed-signals', async (req, res) => {
+  try {
+    const signals = await _cfGather();
+    res.json({ ok: true, generatedAt: new Date().toISOString(), signals, tracker: confirmedTracker.status() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+// live record + resolve loop (market hours only)
+setInterval(async () => {
+  try {
+    if (!getMarketSession().inMarketHours) return;
+    const cur = await _cfGather();
+    const spotByInst = {};
+    for (const c of cur) { if (c.spot) spotByInst[c.inst] = c.spot; if (c.confirmed) confirmedTracker.record({ ...c, at: Date.now() }); }
+    confirmedTracker.resolve(spotByInst);
+  } catch (_) {}
+}, 60000);
 
 // ==================== DHAN CLIENT STATS ====================
 // Exposes in-flight coalescing / cache / rate-limit counters for observability.

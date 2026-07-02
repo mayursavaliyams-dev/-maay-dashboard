@@ -60,6 +60,12 @@
     <span class="sub">Pattern × Candle · OI Build-up · Early H/L break · ORB — live, auto-refresh · <b>paper / educational, not advice</b></span>
   </div>
 
+  <!-- ✅ CONFIRMED — the low-false-signal hero: ≥3 engines agree, tracked accuracy -->
+  <section class="pane" style="margin-bottom:16px;border-color:#1c5a38;">
+    <div class="pane-hd" style="background:rgba(34,211,154,.06)"><span class="ic">✅</span><div><h2>CONFIRMED Signals <span style="font-size:0.6rem;color:var(--muted);font-weight:400">— ≥3 of 4 engines agree, none opposing → far fewer, higher-quality</span></h2><div class="desc" id="cfAcc">accuracy: building…</div></div><div class="upd"><span class="dot"></span><span id="updConfirmed">—</span></div></div>
+    <table><thead><tr><th>Symbol</th><th>Direction</th><th>Trade</th><th>Agree</th><th>Which engines</th></tr></thead><tbody id="tbConfirmed"><tr><td colspan="5" class="empty">loading…</td></tr></tbody></table>
+  </section>
+
   <div class="grid4">
     <!-- 1. Pattern -->
     <section class="pane">
@@ -170,7 +176,26 @@ async function loadORB() {
   rows('tbORB', html, 6); stamp('updORB');
 }
 
-function loadAll() { loadPattern(); loadOI(); loadEarly(); loadORB(); }
+async function loadConfirmed() {
+  const d = await jget('/api/confirmed-signals');
+  if (!d || !d.ok) return rows('tbConfirmed', '', 5);
+  const conf = (d.signals || []).filter(s => s.confirmed);
+  const html = conf.map(s => {
+    const trade = `${s.strike} ${s.direction === 'BULLISH' ? 'CE' : 'PE'}`;
+    const eng = Object.entries(s.engines || {}).filter(([k, v]) => v === s.direction).map(([k]) => k).join(' · ');
+    return `<tr>
+      <td class="sym ${symCls(s.inst)}">${s.inst}</td>
+      <td>${biasPill(s.direction)}</td>
+      <td class="${s.direction === 'BULLISH' ? 'buy' : 'sell'}" style="font-size:0.82rem;font-weight:800">${trade}</td>
+      <td><span class="pill tag-confirmed">${s.agreeN}/4</span></td>
+      <td class="muted" style="font-size:0.66rem">${eng}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" class="empty">no confirmed signal now — engines not aligned (this is the point: fewer, cleaner signals)</td></tr>`;
+  document.getElementById('tbConfirmed').innerHTML = html; stamp('updConfirmed');
+  const acc = d.tracker && d.tracker.accuracy, ov = acc && acc.overall, el = document.getElementById('cfAcc');
+  if (el && acc) el.textContent = (ov && ov.decided) ? `live accuracy ${ov.hitRate}% · ${ov.correct}/${ov.decided} resolved (horizon ${acc.horizonMin}m, ≥${acc.minMovePct}% move)` : `accuracy building… ${(d.tracker.pending || []).length} open · resolve in ${acc.horizonMin}m`;
+}
+function loadAll() { loadConfirmed(); loadPattern(); loadOI(); loadEarly(); loadORB(); }
 loadAll();
 setInterval(loadAll, 12000);
 

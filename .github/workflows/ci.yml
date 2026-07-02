@@ -17,7 +17,7 @@ jobs:
 
       - name: Syntax-check core modules
         run: |
-          node -e "['server.js','auth.js','candlestick-patterns.js','multiconfirm.js','master-confluence.js','confluence-learner.js','smart-money.js','signal-engine.js','backtest-report.js','vol-context.js','news-engine.js','event-engine.js','amibroker-bridge.js','gamma-blast-engine.js','gamma-blast-detect.js','gamma-blast-params.js','option-analyzer.js','redis-store.js'].forEach(f=>require('child_process').execSync('node -c '+f,{stdio:'inherit'}))"
+          node -e "['server.js','auth.js','candlestick-patterns.js','multiconfirm.js','master-confluence.js','confluence-learner.js','smart-money.js','signal-engine.js','backtest-report.js','vol-context.js','confirmed-signals.js','news-engine.js','event-engine.js','amibroker-bridge.js','gamma-blast-engine.js','gamma-blast-detect.js','gamma-blast-params.js','option-analyzer.js','redis-store.js'].forEach(f=>require('child_process').execSync('node -c '+f,{stdio:'inherit'}))"
 
       - name: Unit test suites
         run: npm test
