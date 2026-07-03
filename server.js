@@ -4379,6 +4379,100 @@ async function _psFetchAnalytics(inst) {
   return norm;
 }
 
+// Strike premium chart — intraday OHLC candles of ONE option strike's premium
+// (CE or PE) via Dhan OPTIDX intraday, aggregated to the requested timeframe,
+// with EMA9/EMA21 overlays. Powers the Highcharts panel on strike-history.html
+// so selecting a strike in the bot opens its live premium candle chart.
+//   GET /api/strike-chart?inst=NIFTY&strike=24250&type=CE&tf=5
+function _emaSeries(closes, period) {
+  if (!closes.length) return [];
+  const k = 2 / (period + 1);
+  const out = new Array(closes.length).fill(null);
+  let e = closes[0];
+  out[0] = e;
+  for (let i = 1; i < closes.length; i++) { e = closes[i] * k + e * (1 - k); out[i] = +e.toFixed(2); }
+  // don't plot EMA before it has `period` bars of context (avoids a misleading flat head)
+  for (let i = 0; i < Math.min(period - 1, out.length); i++) out[i] = null;
+  return out;
+}
+// Aggregate a live tick series into fixed-interval OHLC bars (tfMin).
+// Timestamps may arrive in seconds or ms (Redis-restored vs live); normalise to
+// ms, then return bar.t in SECONDS to match candlestick-patterns.aggregate() so
+// the shared `b.t*1000` in the endpoint is correct for both sources.
+function _ticksToBars(ticks, tfMin) {
+  const ms = tfMin * 60000;
+  const byBucket = new Map(); const order = [];
+  for (const tk of ticks || []) {
+    let t = Number(tk.t || tk.at); const p = Number(tk.p);
+    if (!(t > 0) || !(p > 0)) continue;
+    if (t < 1e12) t *= 1000;                       // seconds → ms
+    const b = Math.floor(t / ms) * ms;
+    let bar = byBucket.get(b);
+    if (!bar) { bar = { t: Math.floor(b / 1000), o: p, h: p, l: p, c: p }; byBucket.set(b, bar); order.push(b); }
+    else { bar.h = Math.max(bar.h, p); bar.l = Math.min(bar.l, p); bar.c = p; }
+  }
+  return order.sort((a, b) => a - b).map(b => byBucket.get(b));
+}
+app.get('/api/strike-chart', async (req, res) => {
+  try {
+    const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+    const strike = parseInt(req.query.strike, 10);
+    const type = String(req.query.type || 'CE').toUpperCase();
+    const tf = Math.max(1, Math.min(60, parseInt(req.query.tf) || 5));
+    if (!Number.isFinite(strike)) return res.status(400).json({ ok: false, error: 'strike required' });
+    if (type !== 'CE' && type !== 'PE') return res.status(400).json({ ok: false, error: 'type must be CE or PE' });
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const atm = Math.round(spot / meta.step) * meta.step;
+    const row = (chain.strikes || []).find(r => Number(r.strike) === strike);
+    const leg = row && (type === 'CE' ? row.ce : row.pe);
+    const securityId = leg && leg.securityId;
+    if (!securityId) return res.json({ ok: true, inst, strike, type, atm, candles: [], ema9: [], ema21: [], note: 'no securityId for this leg' });
+
+    const today = _istDateStr();
+    const session = getMarketSession();
+    const istNow = new Date(Date.now() + IST_OFFSET_MIN * 60 * 1000);
+    const endTime = session.afterClose ? '15:30:00' : istNow.toISOString().slice(11, 19);
+
+    // Source 1 — full-day OPTIDX intraday candles (works on Dhan-native builds).
+    let bars = [], source = 'intraday';
+    try {
+      const r = await live.client._post('/v2/charts/intraday', {
+        securityId: String(securityId), exchangeSegment: meta.segment, instrument: 'OPTIDX',
+        interval: '1', oi: false, fromDate: `${today} 09:14:00`, toDate: `${today} ${endTime}`,
+      });
+      const oneMin = { timestamp: r?.timestamp || [], open: r?.open || [], high: r?.high || [], low: r?.low || [], close: r?.close || [], volume: r?.volume || [] };
+      bars = candlestickPatterns.aggregate(oneMin, tf);
+    } catch (_) {}
+    // Source 2 — live tick tracker (Upstox build: option intraday history is
+    // unavailable, but every LTP move is recorded in _optHL.tickPath and persisted
+    // to Redis). Aggregate those ticks into candles so the chart still moves live.
+    if (!bars.length) {
+      const hl = _getOptHL(inst, strike, type);
+      // merge tickPath (live LTP moves) + high/low extremes (restored from Redis
+      // across restarts) into one time-sorted price series → candles from whatever
+      // this feed has recorded today.
+      const merged = [...(hl?.tickPath || []), ...(hl?.highPath || []), ...(hl?.lowPath || [])]
+        .filter(x => x && Number(x.p) > 0)
+        .sort((a, b) => Number(a.t || a.at) - Number(b.t || b.at));
+      bars = _ticksToBars(merged, tf);
+      source = 'live-ticks';
+    }
+
+    const candles = bars.map(b => [b.t * 1000, +b.o.toFixed(2), +b.h.toFixed(2), +b.l.toFixed(2), +b.c.toFixed(2)]);
+    const closes = bars.map(b => +b.c.toFixed(2));
+    const e9 = _emaSeries(closes, 9), e21 = _emaSeries(closes, 21);
+    const ema9 = bars.map((b, i) => [b.t * 1000, e9[i]]);
+    const ema21 = bars.map((b, i) => [b.t * 1000, e21[i]]);
+    const last = bars.length ? bars[bars.length - 1] : null;
+    res.json({ ok: true, inst, strike, type, atm, isATM: strike === atm, tf, source,
+      ltp: +Number(leg.ltp || (last ? last.c : 0)).toFixed(2), oi: Number(leg.oi || 0), iv: +Number(leg.iv || 0).toFixed(2),
+      candles, ema9, ema21, marketStatus: session.status, generatedAt: new Date().toISOString(),
+      note: source === 'live-ticks' ? 'live tick candles (option intraday history unavailable on this feed — builds since last restart)' : undefined });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // Chart feed — candles + per-bar pattern marks + confirmed trade signals, for
 // the Highcharts live chart page (/chart.html). Sliding detectPattern over the
 // aggregated bars marks every closed bar where a real pattern fired (≥55

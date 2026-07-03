@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Strike History</title>
+  <script src="/vendor/highstock.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -68,6 +69,9 @@
       padding: 14px;
     }
     .chart-svg { width: 100%; height: 360px; display: block; }
+    .scseg { display:inline-flex; gap:3px; background:#0b1220; border:1px solid #243041; border-radius:9px; padding:3px; }
+    .scseg button { background:none; border:0; color:#9fb0c8; font-size:0.72rem; font-weight:800; padding:4px 11px; border-radius:6px; cursor:pointer; }
+    .scseg button.on { background:rgba(122,162,255,.2); color:#cfe0ff; }
     .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.82rem; color: #cbd5e1; }
     .legend-item { display: inline-flex; align-items: center; gap: 6px; }
     .legend-swatch { width: 10px; height: 10px; border-radius: 999px; }
@@ -130,6 +134,26 @@
     </section>
 
     <section class="stack">
+      <!-- LIVE premium candles (Highcharts) + EMA — opens for the selected strike -->
+      <article class="chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="chart-title">📊 Live Premium Candles <span id="scLtp" style="font-weight:800"></span></div>
+            <div class="chart-subtitle" id="scSub">Candlestick of this strike's option premium with EMA 9 / EMA 21</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <div class="scseg" id="scType">
+              <button data-v="CE" class="on">CE</button><button data-v="PE">PE</button>
+            </div>
+            <div class="scseg" id="scTf">
+              <button data-v="1">1m</button><button data-v="3">3m</button><button data-v="5" class="on">5m</button><button data-v="15">15m</button>
+            </div>
+          </div>
+        </div>
+        <div id="strikeCandle" style="height:420px;margin-top:12px;border:1px solid #1f2937;border-radius:12px;background:#0b1220"></div>
+        <div id="scEmpty" style="display:none;padding:26px;text-align:center;color:#94a3b8;font-size:0.9rem"></div>
+      </article>
+
       <article class="chart-card">
         <div class="chart-head">
           <div>
@@ -579,6 +603,71 @@
     loadStrikeHistory();
     setInterval(() => loadStrikeHistory(false), 5000);
     setInterval(() => loadStrikeHistory(true),  2000);
+
+    // ───────── LIVE PREMIUM CANDLES (Highcharts + EMA) ─────────
+    let SC_TYPE = (TYPE === 'PE') ? 'PE' : 'CE';   // honour the ?type= the bot passed
+    let SC_TF = 5, scChart = null;
+    // reflect the passed type on the toggle
+    document.querySelectorAll('#scType button').forEach(b => b.classList.toggle('on', b.dataset.v === SC_TYPE));
+
+    function scSeg(id, cb) {
+      document.getElementById(id).addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        document.querySelectorAll('#' + id + ' button').forEach(x => x.classList.toggle('on', x === b));
+        cb(b.dataset.v);
+      });
+    }
+    scSeg('scType', v => { SC_TYPE = v; scLoad(true); });
+    scSeg('scTf', v => { SC_TF = +v; scLoad(true); });
+
+    function scBuild(d) {
+      const col = SC_TYPE === 'CE' ? '#22d39a' : '#f7567c';
+      scChart = Highcharts.stockChart('strikeCandle', {
+        chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' } },
+        time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },
+        rangeSelector: { enabled: false }, scrollbar: { enabled: false }, credits: { enabled: false },
+        navigator: { enabled: true, height: 26, maskFill: 'rgba(122,162,255,.08)' },
+        xAxis: { lineColor: '#243041', tickColor: '#243041', labels: { style: { color: '#94a3b8', fontSize: '10px' } } },
+        yAxis: [{ labels: { style: { color: '#94a3b8', fontSize: '10px' }, align: 'left', x: 4 }, gridLineColor: '#141d2e', opposite: true }],
+        tooltip: { backgroundColor: '#0e1726', borderColor: '#243041', style: { color: '#e6edf6', fontSize: '11px' }, shared: true },
+        legend: { enabled: true, itemStyle: { color: '#9fb0c8', fontSize: '10px' }, itemHoverStyle: { color: '#fff' } },
+        series: [
+          { type: 'candlestick', id: 'prem', name: `${d.strike} ${SC_TYPE}`, data: d.candles,
+            color: '#f7567c', lineColor: '#f7567c', upColor: '#22d39a', upLineColor: '#22d39a',
+            dataGrouping: { enabled: false }, showInLegend: false },
+          { type: 'line', name: 'EMA 9', data: d.ema9, color: '#fcd34d', lineWidth: 1.4, marker: { enabled: false }, dataGrouping: { enabled: false } },
+          { type: 'line', name: 'EMA 21', data: d.ema21, color: '#7aa2ff', lineWidth: 1.4, marker: { enabled: false }, dataGrouping: { enabled: false } },
+        ],
+      });
+    }
+
+    async function scLoad(rebuild) {
+      if (!STRIKE) return;
+      try {
+        const d = await (await fetch(`/api/strike-chart?inst=${INST}&strike=${STRIKE}&type=${SC_TYPE}&tf=${SC_TF}`, { cache: 'no-store' })).json();
+        const empty = document.getElementById('scEmpty'), box = document.getElementById('strikeCandle');
+        document.getElementById('scLtp').textContent = d.ltp ? `· ₹${d.ltp}` : '';
+        document.getElementById('scSub').textContent = d.source === 'live-ticks'
+          ? 'Live premium candles (builds through the session) + EMA 9 / EMA 21'
+          : 'Intraday premium candles + EMA 9 / EMA 21';
+        if (!d.ok || !d.candles || !d.candles.length) {
+          if (scChart) { scChart.destroy(); scChart = null; }
+          box.style.display = 'none'; empty.style.display = 'block';
+          empty.textContent = (d.marketStatus && d.marketStatus !== 'MARKET_OPEN')
+            ? '⏸ Live premium candles build during market hours (9:15 AM – 3:30 PM IST). Nothing to plot right now.'
+            : '⏳ Waiting for the first ticks on this strike…';
+          return;
+        }
+        box.style.display = 'block'; empty.style.display = 'none';
+        if (!scChart || rebuild) { if (scChart) { scChart.destroy(); scChart = null; } scBuild(d); return; }
+        scChart.get('prem').setData(d.candles, false);
+        scChart.series[1].setData(d.ema9, false);
+        scChart.series[2].setData(d.ema21, false);
+        scChart.redraw();
+      } catch (_) {}
+    }
+    scLoad(true);
+    setInterval(() => scLoad(false), 5000);
   </script>
 </body>
 </html>
