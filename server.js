@@ -4379,6 +4379,47 @@ async function _psFetchAnalytics(inst) {
   return norm;
 }
 
+// Chart feed — candles + per-bar pattern marks + confirmed trade signals, for
+// the Highcharts live chart page (/chart.html). Sliding detectPattern over the
+// aggregated bars marks every closed bar where a real pattern fired (≥55
+// strength, non-neutral); confirmed-signals entries become BUY/SELL flags.
+app.get('/api/chart-patterns', async (req, res) => {
+  try {
+    const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+    const tf = Math.max(3, Math.min(60, parseInt(req.query.tf) || 15));
+    if (!PS_INSTS[inst]) return res.status(400).json({ ok: false, error: 'inst must be ' + Object.keys(PS_INSTS).join('|') });
+    const oneMin = await _psFetchCandles(inst);
+    const bars = candlestickPatterns.aggregate(oneMin, tf);
+    if (!bars.length) return res.json({ ok: true, inst, tf, candles: [], patterns: [], signals: [], note: 'no candles (market closed/holiday)' });
+
+    const candles = bars.map(b => [b.t * 1000, +b.o.toFixed(2), +b.h.toFixed(2), +b.l.toFixed(2), +b.c.toFixed(2)]);
+
+    // sliding pattern detection: ask "what fired at bar i" for each closed bar
+    const patterns = [];
+    for (let i = 3; i < bars.length; i++) {
+      const p = candlestickPatterns.detectPattern(bars.slice(0, i + 1), tf);
+      if (!p || p.idx !== i || p.forming) continue;
+      if (p.sentiment === 'Neutral' || p.strength < 55) continue;      // skip weak/no-pattern reads
+      patterns.push({ t: bars[i].t * 1000, name: p.name, sentiment: p.sentiment, strength: p.strength, reliability: p.reliability });
+    }
+
+    // confirmed trade signals (≥3-of-4 engines) for this instrument → chart flags
+    const trk = confirmedTracker;
+    const sigOut = [];
+    const today0 = (() => { const d = new Date(Date.now() + 330 * 60000); d.setUTCHours(0, 0, 0, 0); return d.getTime() - 330 * 60000; })();
+    for (const p of trk.pending || []) if (p.inst === inst && p.at >= today0)
+      sigOut.push({ t: p.at, direction: p.direction, trade: `BUY ${p.strike} ${p.optType}`, status: 'OPEN', agreeN: p.agreeN });
+    for (const r of (trk.resolved || []).slice(-200)) if (r.inst === inst && r.at >= today0)
+      sigOut.push({ t: r.at, direction: r.direction, trade: `BUY ${r.strike} ${r.optType}`, status: r.flat ? 'FLAT' : r.correct ? 'HIT' : 'MISS', movePct: r.movePct });
+    sigOut.sort((a, b) => a.t - b.t);
+
+    const last = bars[bars.length - 1];
+    res.json({ ok: true, inst, tf, spot: +last.c.toFixed(2), candles, patterns, signals: sigOut,
+      session: { openMin: candlestickPatterns.SESSION_OPEN_MIN, closeMin: candlestickPatterns.SESSION_CLOSE_MIN },
+      generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 app.get('/api/pattern-signals', async (req, res) => {
   try {
     const instReq = String(req.query.inst || 'ALL').toUpperCase();

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pattern Chart · Antigravity Pro</title>
+<!-- Highcharts Stock — self-hosted (public/vendor) so the chart works without CDN/internet -->
+<script src="/vendor/highstock.js"></script>
+<style>
+  :root{ --bg:#070b12; --panel:#0c131f; --panel2:#0e1726; --border:#1b2942; --muted:#7c8aa0; --green:#22d39a; --red:#f7567c; --amber:#fcd34d; --blue:#7aa2ff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:#e6edf6; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap{ padding:0 14px 30px; max-width:1600px; margin:0 auto; }
+  .topbar{ padding:10px 4px 6px; display:flex; align-items:center; gap:12px; }
+  .brand{ font-size:1rem; font-weight:800; color:var(--blue); }
+  nav{ display:flex; gap:4px; padding:4px 2px 10px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:12px; }
+  nav a{ color:#9fb0c8; text-decoration:none; font-size:0.7rem; font-weight:700; padding:3px 9px; border-radius:7px; }
+  nav a:hover{ background:rgba(122,162,255,.14); color:#cfe0ff; }
+  nav a.active{ background:rgba(122,162,255,.18); color:#cfe0ff; }
+  .bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .seg{ display:flex; gap:4px; background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:3px; }
+  .seg button{ background:none; border:0; color:#9fb0c8; font-size:0.7rem; font-weight:800; padding:4px 12px; border-radius:7px; cursor:pointer; }
+  .seg button.on{ background:rgba(122,162,255,.2); color:#cfe0ff; }
+  .px{ font-size:1rem; font-weight:900; font-variant-numeric:tabular-nums; }
+  .live-sig{ margin-left:auto; font-size:0.68rem; font-weight:800; padding:4px 12px; border-radius:9px; background:var(--panel); border:1px solid var(--border); }
+  .legend{ display:flex; gap:14px; font-size:0.6rem; color:var(--muted); margin:6px 2px 8px; flex-wrap:wrap; }
+  .legend b{ font-weight:800; }
+  #chart{ background:var(--panel); border:1px solid var(--border); border-radius:14px; height:640px; }
+  .note{ font-size:0.58rem; color:#6b7787; margin:10px 2px 0; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
+  <nav>
+    <a href="/">Command</a>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/pattern-signals.html">Patterns</a>
+    <a href="/chart.html" class="active">Chart</a>
+    <a href="/signals4.html">4 Engines</a>
+    <a href="/payoff.html">Payoff</a>
+    <a href="/agents.html">AI Agents</a>
+  </nav>
+
+  <div class="bar">
+    <div class="seg" id="instSeg">
+      <button data-v="NIFTY" class="on">NIFTY</button>
+      <button data-v="SENSEX">SENSEX</button>
+      <button data-v="BANKNIFTY">BANKNIFTY</button>
+    </div>
+    <div class="seg" id="tfSeg">
+      <button data-v="5">5m</button>
+      <button data-v="15" class="on">15m</button>
+      <button data-v="60">1hr</button>
+    </div>
+    <span class="px" id="spot">—</span>
+    <span class="live-sig" id="liveSig">loading…</span>
+  </div>
+
+  <div class="legend">
+    <span>🟢/🔴 candles</span>
+    <span><b style="color:#22d39a">▲</b> bullish pattern · <b style="color:#f7567c">▼</b> bearish pattern (strength ≥55, closed bars only)</span>
+    <span><b style="color:#fcd34d">◆ B/S</b> = CONFIRMED trade signal (≥3 of 4 engines) — HIT/MISS colour after resolve</span>
+  </div>
+
+  <div id="chart"></div>
+  <div class="note">Patterns are detected on CLOSED bars via candlestick-patterns.js (same engine as the Patterns page). Trade flags are the tracked Confirmed Signals — paper/educational, not advice. Auto-refresh 15s. Highcharts © Highsoft — licence required for commercial SaaS use.</div>
+</div>
+
+<script>
+const API = '';
+let INST = 'NIFTY', TF = 15, chart = null, timer = null;
+
+const BULL = '#22d39a', BEAR = '#f7567c', AMBER = '#fcd34d';
+
+function segWire(id, cb) {
+  document.getElementById(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#' + id + ' button').forEach(x => x.classList.toggle('on', x === b));
+    cb(b.dataset.v);
+  });
+}
+segWire('instSeg', v => { INST = v; load(true); });
+segWire('tfSeg', v => { TF = +v; load(true); });
+
+function buildChart(d) {
+  const patBull = d.patterns.filter(p => p.sentiment === 'Bullish').map(p => ({
+    x: p.t, title: '▲', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` }));
+  const patBear = d.patterns.filter(p => p.sentiment === 'Bearish').map(p => ({
+    x: p.t, title: '▼', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` }));
+  const sigFlags = d.signals.map(s => ({
+    x: s.t, title: s.direction === 'BULLISH' ? 'B' : 'S',
+    text: `<b>${s.direction} · ${s.trade}</b><br/>${s.status}${s.movePct != null ? ' · move ' + s.movePct + '%' : ''}${s.agreeN ? ' · ' + s.agreeN + '/4 engines' : ''}`,
+    fillColor: s.status === 'HIT' ? BULL : s.status === 'MISS' ? BEAR : AMBER,
+  }));
+
+  chart = Highcharts.stockChart('chart', {
+    chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' } },
+    time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },   // IST (v12 uses timezone; offset = older builds)
+    rangeSelector: { enabled: false },
+    navigator: { enabled: true, height: 28, maskFill: 'rgba(122,162,255,.08)' },
+    scrollbar: { enabled: false },
+    credits: { enabled: false },
+    xAxis: { lineColor: '#1b2942', tickColor: '#1b2942', labels: { style: { color: '#7c8aa0', fontSize: '10px' } },
+      ordinal: true },
+    yAxis: [{ labels: { style: { color: '#7c8aa0', fontSize: '10px' }, align: 'left', x: 4 },
+      gridLineColor: '#111a2c', opposite: true, height: '100%' }],
+    tooltip: { backgroundColor: '#0e1726', borderColor: '#1b2942', style: { color: '#e6edf6', fontSize: '11px' }, split: false, shared: true, useHTML: true },
+    plotOptions: { flags: { useHTML: false } },
+    series: [
+      { type: 'candlestick', id: 'px', name: d.inst, data: d.candles,
+        color: BEAR, lineColor: BEAR, upColor: BULL, upLineColor: BULL,
+        dataGrouping: { enabled: false } },
+      { type: 'flags', name: 'Bullish patterns', data: patBull, onSeries: 'px', shape: 'squarepin', width: 14,
+        fillColor: 'rgba(34,211,154,.15)', color: BULL, style: { color: BULL, fontSize: '9px', fontWeight: '900' },
+        y: -34, states: { hover: { fillColor: 'rgba(34,211,154,.3)' } } },
+      { type: 'flags', name: 'Bearish patterns', data: patBear, onSeries: 'px', shape: 'squarepin', width: 14,
+        fillColor: 'rgba(247,86,124,.15)', color: BEAR, style: { color: BEAR, fontSize: '9px', fontWeight: '900' },
+        y: 12, states: { hover: { fillColor: 'rgba(247,86,124,.3)' } } },
+      { type: 'flags', name: 'Trade signals', data: sigFlags, shape: 'circlepin', width: 16,
+        color: AMBER, style: { color: '#0b0d12', fontSize: '10px', fontWeight: '900' }, y: -55 },
+    ],
+  });
+}
+
+async function load(rebuild) {
+  try {
+    const d = await (await fetch(`${API}/api/chart-patterns?inst=${INST}&tf=${TF}`, { cache: 'no-store' })).json();
+    if (!d.ok) { document.getElementById('liveSig').textContent = '⚠️ ' + (d.error || 'feed error'); return; }
+    document.getElementById('spot').textContent = d.spot ? d.inst + ' ' + d.spot.toLocaleString('en-IN') : '—';
+    const lastPat = d.patterns[d.patterns.length - 1];
+    const sig = document.getElementById('liveSig');
+    if (!d.candles.length) { sig.textContent = 'market closed — no candles today'; sig.style.color = '#7c8aa0'; }
+    else if (lastPat) {
+      sig.textContent = `latest: ${lastPat.name} (${lastPat.sentiment} ${lastPat.strength})`;
+      sig.style.color = lastPat.sentiment === 'Bullish' ? BULL : BEAR;
+    } else { sig.textContent = 'no strong pattern yet'; sig.style.color = '#7c8aa0'; }
+
+    if (!chart || rebuild) { if (chart) { chart.destroy(); chart = null; } if (d.candles.length) buildChart(d); return; }
+    // live update in place (keeps user's zoom)
+    chart.get('px').setData(d.candles, false);
+    const mk = (p, up) => ({ x: p.t, title: up ? '▲' : '▼', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` });
+    chart.series[1].setData(d.patterns.filter(p => p.sentiment === 'Bullish').map(p => mk(p, true)), false);
+    chart.series[2].setData(d.patterns.filter(p => p.sentiment === 'Bearish').map(p => mk(p, false)), false);
+    chart.series[3].setData(d.signals.map(s => ({
+      x: s.t, title: s.direction === 'BULLISH' ? 'B' : 'S',
+      text: `<b>${s.direction} · ${s.trade}</b><br/>${s.status}${s.movePct != null ? ' · move ' + s.movePct + '%' : ''}`,
+      fillColor: s.status === 'HIT' ? BULL : s.status === 'MISS' ? BEAR : AMBER,
+    })), false);
+    chart.redraw();
+  } catch (e) { document.getElementById('liveSig').textContent = '⚠️ ' + e.message; }
+}
+
+load(true);
+timer = setInterval(() => load(false), 15000);
+
+// build-freshness badge (auto-reload on server restart) — same guard as dashboard
+(function () {
+  let bid = null;
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(15,23,42,.78);border:1px solid #1f2937;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace';
+  (document.body || document.documentElement).appendChild(b);
+  async function chk() {
+    try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
+      if (bid === null) bid = h.bootId; else if (h.bootId !== bid) { b.textContent = '⟳ new build…'; setTimeout(() => location.reload(), 900); return; }
+      b.textContent = '● build ' + new Date(h.bootId).toLocaleTimeString(); b.style.color = '#22c55e';
+    } catch (_) {}
+  }
+  chk(); setInterval(chk, 12000);
+})();
+</script>
+</body>
+</html>
