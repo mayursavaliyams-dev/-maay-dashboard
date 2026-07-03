@@ -31,6 +31,15 @@
   .ticker{ display:flex; gap:22px; overflow:hidden; padding:6px 12px; border:1px solid var(--border); border-radius:9px; background:var(--panel); font-size:0.66rem; margin-bottom:10px; }
   .ticker .t b{ color:#cfe0ff; } .ticker .up{ color:var(--green); } .ticker .dn{ color:var(--red); }
 
+  /* per-instrument signal strip */
+  .sigstrip{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:8px; margin-bottom:10px; }
+  .sig{ border:1px solid var(--border); border-radius:10px; background:var(--panel); padding:8px 11px; }
+  .sig .in{ font-size:0.66rem; font-weight:900; letter-spacing:1px; }
+  .sig .dec{ font-size:0.86rem; font-weight:900; margin:2px 0; }
+  .sig .gates{ font-size:0.54rem; color:var(--muted); letter-spacing:.5px; }
+  .sig .gates b.go{ color:var(--green); } .sig .gates b.no{ color:#4a5670; }
+  .sig.buy{ border-color:rgba(0,224,138,.4); } .sig.sell{ border-color:rgba(255,61,110,.4); }
+
   .grid{ display:grid; grid-template-columns:1.25fr 1fr 1fr; gap:10px; }
   @media(max-width:1000px){ .grid{ grid-template-columns:1fr 1fr; } }
   @media(max-width:680px){ .grid{ grid-template-columns:1fr; } }
@@ -96,6 +105,9 @@
   <div class="rankbar" id="rankbar"></div>
 
   <div class="ticker" id="ticker"><span class="t">loading live tape…</span></div>
+
+  <!-- per-instrument live signal strip (NIFTY · SENSEX · BANKNIFTY) -->
+  <div class="sigstrip" id="sigstrip"></div>
 
   <div class="grid">
     <!-- PnL hero -->
@@ -204,6 +216,17 @@ async function load() {
   document.getElementById('ticker').innerHTML = (d.ticker || []).filter(t => t.px > 0).map(t =>
     `<span class="t"><b>${t.sym}</b> <span class="mono">${t.px.toLocaleString('en-IN')}</span></span>`).join('')
     + `<span class="t" style="color:var(--muted)">· paper P&L ${inr(d.score.netPnl)} · today ${inr(d.score.dayPnl)} · ${d.score.trades} trades ·</span>`;
+
+  // per-instrument live signal strip (NIFTY · SENSEX · BANKNIFTY)
+  document.getElementById('sigstrip').innerHTML = (d.signals || []).map(s => {
+    const dcls = s.decision === 'BUY' ? 'up' : s.decision === 'SELL' ? 'dn' : 'flat';
+    const cardCls = s.buyGo ? 'buy' : s.condorGo ? 'sell' : '';
+    return `<div class="sig ${cardCls}">
+      <div class="in">${s.inst}${d.ivp != null ? ` <span style="color:var(--muted);font-weight:400">· IVP ${d.ivp}</span>` : ''}</div>
+      <div class="dec ${dcls}">${s.decision}${s.probability != null ? ' · ' + s.probability + '%' : ''}</div>
+      <div class="gates">🎯 BUY <b class="${s.buyGo ? 'go' : 'no'}">${s.buyGo ? 'GO' : 'wait'}</b> &nbsp; 🦅 CONDOR <b class="${s.condorGo ? 'go' : 'no'}">${s.condorGo ? 'GO' : 'wait'}</b></div>
+    </div>`;
+  }).join('');
 
   // biggest win
   document.getElementById('bwX').textContent = d.score.biggestWin > 0 ? '+' + inrPlain(d.score.biggestWin) : '—';

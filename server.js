@@ -5403,23 +5403,41 @@ app.get('/api/quant', async (req, res) => {
     ];
     const swarm = Object.values(A.agents || {}).map(a => ({ name: a.name, emoji: a.emoji, state: a.state }));
 
+    // per-instrument live read: signal decision/prob + buy/condor gate readiness
+    const sigOut = A.agents?.signal?.output || {};
+    const riskOut = A.agents?.risk?.output || {};
+    const signals = (agentsEngine.instruments || ['NIFTY', 'SENSEX', 'BANKNIFTY']).map(inst => {
+      const s = sigOut[inst] || {};
+      return {
+        inst, decision: s.decision || 'HOLD', probability: s.probability != null ? s.probability : null,
+        newsBias: s.newsBias != null ? s.newsBias : 0,
+        buyGo: !!(riskOut[inst] && riskOut[inst].go),
+        condorGo: !!(riskOut.sell && riskOut.sell[inst] && riskOut.sell[inst].go),
+      };
+    });
+    const ivp = A.agents?.risk?.output?.ivp ?? null;
+
     // biggest single win across paper ledgers
     let biggest = 0, biggestSrc = null;
     for (const e of engines) if (e.netPnl > biggest && e.wins > 0) { biggest = e.netPnl; }
     for (const t of (G.recent || [])) if (num(t.pnl) > biggest) { biggest = num(t.pnl); biggestSrc = 'GAMMA'; }
     for (const t of (S.recent || [])) if (num(t.pnl) > biggest) { biggest = num(t.pnl); biggestSrc = 'CONDOR'; }
 
-    const nifty = num(typeof _niftyLivePrice !== 'undefined' && _niftyLivePrice);
-    const sensex = num(typeof _livePrice !== 'undefined' && _livePrice);
+    // only surface a price that was actually fetched (At timestamp set) — avoids
+    // showing the cold-restart init defaults as if they were live quotes
+    const fresh = (px, at) => (typeof at !== 'undefined' && at > 0 ? num(px) : 0);
+    const nifty = fresh(_niftyLivePrice, typeof _niftyLivePriceAt !== 'undefined' ? _niftyLivePriceAt : 0);
+    const sensex = fresh(_livePrice, typeof _livePriceAt !== 'undefined' ? _livePriceAt : 0);
+    const banknifty = fresh(_bankNiftyLivePrice, typeof _bankNiftyLivePriceAt !== 'undefined' ? _bankNiftyLivePriceAt : 0);
     const session = getMarketSession();
     res.json({
       ok: true, mode: 'PAPER',
       score: { netPnl: +netPnl.toFixed(0), dayPnl: +dayPnl.toFixed(0), trades: totalTrades, wins: totalWins,
         winRate: totalTrades ? +(totalWins / totalTrades * 100).toFixed(1) : null, openNow,
         biggestWin: +biggest.toFixed(0), biggestSrc, since: S.allTime?.since || A.allTime?.since || null },
-      engines, cycle, swarm,
+      engines, cycle, swarm, signals, ivp, instruments: agentsEngine.instruments,
       ticker: [
-        { sym: 'NIFTY', px: nifty }, { sym: 'SENSEX', px: sensex },
+        { sym: 'NIFTY', px: nifty }, { sym: 'SENSEX', px: sensex }, { sym: 'BANKNIFTY', px: banknifty },
       ],
       market: session.status, generatedAt: new Date().toISOString(),
       disclaimer: 'PAPER trading — every figure is a simulated paper-ledger total, not real money. Educational, not advice.',
