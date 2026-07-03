@@ -135,7 +135,12 @@ function sigFlags(d) {
 function buildChart(d) {
   chart = Highcharts.stockChart('chart', {
     chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' },
-      events: { load() { setOHLC(d.candles.length - 1); } } },
+      events: { load() {
+        setOHLC(d.candles.length - 1);
+        // open focused on the most recent ~55 bars (TradingView-like); scroll left for history
+        const n = d.candles.length;
+        if (n > 55) this.xAxis[0].setExtremes(d.candles[n - 55][0], d.candles[n - 1][0], true, false);
+      } } },
     time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },
     rangeSelector: { enabled: false }, scrollbar: { enabled: false }, credits: { enabled: false },
     navigator: { enabled: true, height: 26, maskFill: 'rgba(91,156,255,.06)', outlineColor: '#1c2735',
@@ -159,12 +164,12 @@ function buildChart(d) {
     ],
     tooltip: { enabled: false },   // OHLC shown in the fixed legend instead (TradingView style)
     plotOptions: {
-      candlestick: { pointPadding: 0.08, groupPadding: 0.12,
+      candlestick: { pointPadding: 0.15, groupPadding: 0.18, maxPointWidth: 9,   // thin, neat candles
         point: { events: { mouseOver() { setOHLC(this.index); } } },
         lastPrice: { enabled: true, color: '#5b9cff' },
         lastVisiblePrice: { enabled: true, label: { enabled: true, backgroundColor: '#5b9cff', style: { color: '#04101e', fontWeight: '800' } } } },
       flags: { useHTML: false },
-      column: { borderWidth: 0 },
+      column: { borderWidth: 0, maxPointWidth: 9 },
     },
     series: [
       { type: 'candlestick', id: 'px', name: d.inst, data: d.candles,

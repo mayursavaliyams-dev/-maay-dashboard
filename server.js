@@ -4351,6 +4351,37 @@ async function _psFetchCandles(inst) {
   return r;
 }
 
+// Multi-day 1-min candles for the TradingView-style chart — more bars = thin,
+// scrollable candles (separate 30s cache; does NOT touch the pattern-signal feed).
+// Dhan INDEX intraday only serves ONE day per call, so fetch the last N trading
+// days separately and merge — gives the chart many thin, scrollable candles.
+const _chartCandleCache = {}, _chartCandleAt = {};
+async function _chartFetchCandles(inst, days = 5) {
+  const key = inst + ':' + days, now = Date.now();
+  if (_chartCandleCache[key] && now - (_chartCandleAt[key] || 0) < 30000) return _chartCandleCache[key];
+  const cfg = PS_INSTS[inst];
+  const dates = [];
+  for (let back = 0; dates.length < days && back < days * 2 + 6; back++) {
+    const d = new Date(now + 5.5 * 3600 * 1000 - back * 86400000);
+    const dow = d.getUTCDay();
+    if (dow === 0 || dow === 6) continue;                 // skip weekends
+    dates.push(d.toISOString().slice(0, 10));
+  }
+  dates.reverse();                                        // oldest → newest
+  const merged = { timestamp: [], open: [], high: [], low: [], close: [], volume: [] };
+  const parts = await Promise.all(dates.map(dt =>
+    live.client._post('/v2/charts/intraday', {
+      securityId: String(cfg.sid), exchangeSegment: 'IDX_I', instrument: 'INDEX', interval: '1', fromDate: dt, toDate: dt
+    }).catch(() => null)));
+  for (const r of parts) {
+    if (!r || !r.timestamp || !r.timestamp.length) continue;
+    for (const f of ['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+      if (Array.isArray(r[f])) merged[f].push(...r[f]);
+  }
+  _chartCandleCache[key] = merged; _chartCandleAt[key] = now;
+  return merged;
+}
+
 const _psAnalyticsCache = {}, _psAnalyticsAt = {};
 async function _psFetchAnalytics(inst) {
   const now = Date.now();
@@ -4481,8 +4512,9 @@ app.get('/api/chart-patterns', async (req, res) => {
   try {
     const inst = String(req.query.inst || 'NIFTY').toUpperCase();
     const tf = Math.max(3, Math.min(60, parseInt(req.query.tf) || 15));
+    const days = Math.max(1, Math.min(15, parseInt(req.query.days) || 5));   // multi-day history → many thin candles
     if (!PS_INSTS[inst]) return res.status(400).json({ ok: false, error: 'inst must be ' + Object.keys(PS_INSTS).join('|') });
-    const oneMin = await _psFetchCandles(inst);
+    const oneMin = await _chartFetchCandles(inst, days);
     const bars = candlestickPatterns.aggregate(oneMin, tf);
     if (!bars.length) return res.json({ ok: true, inst, tf, candles: [], patterns: [], signals: [], note: 'no candles (market closed/holiday)' });
 
