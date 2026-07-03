@@ -7,26 +7,36 @@
 <!-- Highcharts Stock — self-hosted (public/vendor) so the chart works without CDN/internet -->
 <script src="/vendor/highstock.js"></script>
 <style>
-  :root{ --bg:#070b12; --panel:#0c131f; --panel2:#0e1726; --border:#1b2942; --muted:#7c8aa0; --green:#22d39a; --red:#f7567c; --amber:#fcd34d; --blue:#7aa2ff; }
+  :root{ --bg:#0a0e14; --panel:#0e1520; --panel2:#0e1726; --border:#1c2735; --muted:#7c8aa0; --tvup:#26a69a; --tvdn:#ef5350; --amber:#fcd34d; --blue:#5b9cff; --ema9:#ff9800; --ema21:#2196f3; }
   *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--bg); color:#e6edf6; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  .wrap{ padding:0 14px 30px; max-width:1600px; margin:0 auto; }
-  .topbar{ padding:10px 4px 6px; display:flex; align-items:center; gap:12px; }
-  .brand{ font-size:1rem; font-weight:800; color:var(--blue); }
-  nav{ display:flex; gap:4px; padding:4px 2px 10px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:12px; }
+  body{ margin:0; background:var(--bg); color:#d1d4dc; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  .wrap{ padding:0 12px 24px; max-width:1680px; margin:0 auto; }
+  .topbar{ padding:9px 4px 4px; display:flex; align-items:center; gap:12px; }
+  .brand{ font-size:0.95rem; font-weight:800; color:var(--blue); }
+  nav{ display:flex; gap:4px; padding:4px 2px 8px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:8px; }
   nav a{ color:#9fb0c8; text-decoration:none; font-size:0.7rem; font-weight:700; padding:3px 9px; border-radius:7px; }
-  nav a:hover{ background:rgba(122,162,255,.14); color:#cfe0ff; }
-  nav a.active{ background:rgba(122,162,255,.18); color:#cfe0ff; }
-  .bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
-  .seg{ display:flex; gap:4px; background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:3px; }
-  .seg button{ background:none; border:0; color:#9fb0c8; font-size:0.7rem; font-weight:800; padding:4px 12px; border-radius:7px; cursor:pointer; }
-  .seg button.on{ background:rgba(122,162,255,.2); color:#cfe0ff; }
-  .px{ font-size:1rem; font-weight:900; font-variant-numeric:tabular-nums; }
-  .live-sig{ margin-left:auto; font-size:0.68rem; font-weight:800; padding:4px 12px; border-radius:9px; background:var(--panel); border:1px solid var(--border); }
-  .legend{ display:flex; gap:14px; font-size:0.6rem; color:var(--muted); margin:6px 2px 8px; flex-wrap:wrap; }
-  .legend b{ font-weight:800; }
-  #chart{ background:var(--panel); border:1px solid var(--border); border-radius:14px; height:640px; }
-  .note{ font-size:0.58rem; color:#6b7787; margin:10px 2px 0; line-height:1.5; }
+  nav a:hover{ background:rgba(91,156,255,.14); color:#cfe0ff; } nav a.active{ background:rgba(91,156,255,.18); color:#cfe0ff; }
+  .bar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
+  .seg{ display:flex; gap:2px; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:2px; }
+  .seg button{ background:none; border:0; color:#9fb0c8; font-size:0.68rem; font-weight:800; padding:4px 11px; border-radius:6px; cursor:pointer; }
+  .seg button.on{ background:rgba(91,156,255,.22); color:#cfe0ff; }
+  .live-sig{ margin-left:auto; font-size:0.66rem; font-weight:800; padding:4px 12px; border-radius:8px; background:var(--panel); border:1px solid var(--border); }
+
+  .chartbox{ position:relative; background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  #chart{ height:660px; }
+  /* TradingView-style floating OHLC legend (top-left overlay) */
+  .ohlc{ position:absolute; left:12px; top:9px; z-index:5; font-size:0.72rem; font-weight:700; pointer-events:none;
+         display:flex; gap:11px; flex-wrap:wrap; align-items:center; font-variant-numeric:tabular-nums;
+         text-shadow:0 1px 3px rgba(0,0,0,.7); }
+  .ohlc .sym{ font-size:0.82rem; font-weight:900; color:#e6edf6; }
+  .ohlc .tf{ font-size:0.6rem; color:var(--muted); font-weight:700; }
+  .ohlc .lbl{ color:var(--muted); font-weight:600; margin-right:2px; }
+  .ohlc .o,.ohlc .h,.ohlc .l,.ohlc .c{ font-weight:800; }
+  .ohlc .chg{ font-weight:800; }
+  .ohlc .ema{ font-size:0.62rem; font-weight:700; }
+  .legend2{ display:flex; gap:14px; font-size:0.58rem; color:var(--muted); margin:7px 2px 6px; flex-wrap:wrap; }
+  .legend2 b{ font-weight:800; }
+  .note{ font-size:0.56rem; color:#5a6678; margin:8px 2px 0; line-height:1.5; }
 </style>
 </head>
 <body>
@@ -40,6 +50,7 @@
     <a href="/signals4.html">4 Engines</a>
     <a href="/payoff.html">Payoff</a>
     <a href="/agents.html">AI Agents</a>
+    <a href="/quant.html">⚡ Quant</a>
   </nav>
 
   <div class="bar">
@@ -51,27 +62,29 @@
     <div class="seg" id="tfSeg">
       <button data-v="5">5m</button>
       <button data-v="15" class="on">15m</button>
-      <button data-v="60">1hr</button>
+      <button data-v="60">1h</button>
     </div>
-    <span class="px" id="spot">—</span>
     <span class="live-sig" id="liveSig">loading…</span>
   </div>
 
-  <div class="legend">
-    <span>🟢/🔴 candles</span>
-    <span><b style="color:#22d39a">▲</b> bullish pattern · <b style="color:#f7567c">▼</b> bearish pattern (strength ≥55, closed bars only)</span>
-    <span><b style="color:#fcd34d">◆ B/S</b> = CONFIRMED trade signal (≥3 of 4 engines) — HIT/MISS colour after resolve</span>
+  <div class="chartbox">
+    <div class="ohlc" id="ohlc"><span class="sym" id="ohSym">—</span></div>
+    <div id="chart"></div>
   </div>
 
-  <div id="chart"></div>
-  <div class="note">Patterns are detected on CLOSED bars via candlestick-patterns.js (same engine as the Patterns page). Trade flags are the tracked Confirmed Signals — paper/educational, not advice. Auto-refresh 15s. Highcharts © Highsoft — licence required for commercial SaaS use.</div>
+  <div class="legend2">
+    <span><b style="color:var(--ema9)">━ EMA 9</b> · <b style="color:var(--ema21)">━ EMA 21</b></span>
+    <span><b style="color:var(--tvup)">▲</b> bullish pattern · <b style="color:var(--tvdn)">▼</b> bearish pattern (≥55, closed bars)</span>
+    <span><b style="color:var(--amber)">◆ B/S</b> = CONFIRMED signal (≥3/4 engines) — HIT/MISS colour after resolve</span>
+  </div>
+  <div class="note">Live like TradingView — crosshair OHLC readout, EMA9/21, volume pane, last-price label; the forming candle updates every 5s. Patterns via candlestick-patterns.js; flags are tracked Confirmed Signals — paper/educational, not advice. Highcharts © Highsoft — licence required for commercial SaaS.</div>
 </div>
 
 <script>
 const API = '';
-let INST = 'NIFTY', TF = 15, chart = null, timer = null;
-
-const BULL = '#22d39a', BEAR = '#f7567c', AMBER = '#fcd34d';
+let INST = 'NIFTY', TF = 15, chart = null, lastData = null;
+const UP = '#26a69a', DN = '#ef5350', AMBER = '#fcd34d';
+const tfLabel = { 5: '5m', 15: '15m', 60: '1h' };
 
 function segWire(id, cb) {
   document.getElementById(id).addEventListener('click', e => {
@@ -83,42 +96,90 @@ function segWire(id, cb) {
 segWire('instSeg', v => { INST = v; load(true); });
 segWire('tfSeg', v => { TF = +v; load(true); });
 
-function buildChart(d) {
-  const patBull = d.patterns.filter(p => p.sentiment === 'Bullish').map(p => ({
-    x: p.t, title: '▲', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` }));
-  const patBear = d.patterns.filter(p => p.sentiment === 'Bearish').map(p => ({
-    x: p.t, title: '▼', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` }));
-  const sigFlags = d.signals.map(s => ({
+const fmt = v => v == null ? '—' : v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// TradingView-style floating OHLC readout for a given candle index
+function setOHLC(i) {
+  if (!lastData || !lastData.candles.length) return;
+  const c = lastData.candles[Math.max(0, Math.min(i, lastData.candles.length - 1))];
+  if (!c) return;
+  const [t, o, h, l, cl] = c;
+  const up = cl >= o, col = up ? UP : DN;
+  const prev = i > 0 ? lastData.candles[i - 1][4] : o;
+  const chg = cl - prev, chgPct = prev ? (chg / prev * 100) : 0;
+  const e9 = (lastData.ema9.find(p => p[0] === t) || [])[1];
+  const e21 = (lastData.ema21.find(p => p[0] === t) || [])[1];
+  document.getElementById('ohlc').innerHTML =
+    `<span class="sym">${INST}</span><span class="tf">· ${tfLabel[TF] || TF + 'm'}</span>` +
+    `<span><span class="lbl">O</span><span class="o" style="color:${col}">${fmt(o)}</span></span>` +
+    `<span><span class="lbl">H</span><span class="h" style="color:${col}">${fmt(h)}</span></span>` +
+    `<span><span class="lbl">L</span><span class="l" style="color:${col}">${fmt(l)}</span></span>` +
+    `<span><span class="lbl">C</span><span class="c" style="color:${col}">${fmt(cl)}</span></span>` +
+    `<span class="chg" style="color:${col}">${chg >= 0 ? '+' : ''}${fmt(chg)} (${chg >= 0 ? '+' : ''}${chgPct.toFixed(2)}%)</span>` +
+    (e9 != null ? `<span class="ema" style="color:var(--ema9)">EMA9 ${fmt(e9)}</span>` : '') +
+    (e21 != null ? `<span class="ema" style="color:var(--ema21)">EMA21 ${fmt(e21)}</span>` : '');
+}
+
+function patFlags(d, sent) {
+  return d.patterns.filter(p => p.sentiment === sent).map(p =>
+    ({ x: p.t, title: sent === 'Bullish' ? '▲' : '▼', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` }));
+}
+function sigFlags(d) {
+  return d.signals.map(s => ({
     x: s.t, title: s.direction === 'BULLISH' ? 'B' : 'S',
     text: `<b>${s.direction} · ${s.trade}</b><br/>${s.status}${s.movePct != null ? ' · move ' + s.movePct + '%' : ''}${s.agreeN ? ' · ' + s.agreeN + '/4 engines' : ''}`,
-    fillColor: s.status === 'HIT' ? BULL : s.status === 'MISS' ? BEAR : AMBER,
+    fillColor: s.status === 'HIT' ? UP : s.status === 'MISS' ? DN : AMBER,
   }));
+}
 
+function buildChart(d) {
   chart = Highcharts.stockChart('chart', {
-    chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' } },
-    time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },   // IST (v12 uses timezone; offset = older builds)
-    rangeSelector: { enabled: false },
-    navigator: { enabled: true, height: 28, maskFill: 'rgba(122,162,255,.08)' },
-    scrollbar: { enabled: false },
-    credits: { enabled: false },
-    xAxis: { lineColor: '#1b2942', tickColor: '#1b2942', labels: { style: { color: '#7c8aa0', fontSize: '10px' } },
-      ordinal: true },
-    yAxis: [{ labels: { style: { color: '#7c8aa0', fontSize: '10px' }, align: 'left', x: 4 },
-      gridLineColor: '#111a2c', opposite: true, height: '100%' }],
-    tooltip: { backgroundColor: '#0e1726', borderColor: '#1b2942', style: { color: '#e6edf6', fontSize: '11px' }, split: false, shared: true, useHTML: true },
-    plotOptions: { flags: { useHTML: false } },
+    chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' },
+      events: { load() { setOHLC(d.candles.length - 1); } } },
+    time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },
+    rangeSelector: { enabled: false }, scrollbar: { enabled: false }, credits: { enabled: false },
+    navigator: { enabled: true, height: 26, maskFill: 'rgba(91,156,255,.06)', outlineColor: '#1c2735',
+      series: { color: '#3a4a63', lineColor: '#3a4a63' }, xAxis: { labels: { style: { color: '#5a6678' } } } },
+    xAxis: {
+      lineColor: '#1c2735', tickColor: '#1c2735', gridLineColor: 'rgba(255,255,255,.03)', gridLineWidth: 1,
+      labels: { style: { color: '#7c8aa0', fontSize: '10px' } }, ordinal: true,
+      crosshair: { width: 1, color: 'rgba(255,255,255,.25)', dashStyle: 'ShortDot',
+        label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '10px' }, format: '{value:%H:%M}' } },
+    },
+    yAxis: [
+      { // price
+        labels: { style: { color: '#7c8aa0', fontSize: '10px' }, align: 'left', x: 6 },
+        gridLineColor: 'rgba(255,255,255,.04)', opposite: true, height: '80%', lineWidth: 0,
+        crosshair: { width: 1, color: 'rgba(255,255,255,.25)', dashStyle: 'ShortDot',
+          label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '10px' }, format: '{value:,.2f}' } },
+      },
+      { // volume
+        labels: { enabled: false }, gridLineWidth: 0, opposite: true, top: '82%', height: '18%', offset: 0,
+      },
+    ],
+    tooltip: { enabled: false },   // OHLC shown in the fixed legend instead (TradingView style)
+    plotOptions: {
+      candlestick: { pointPadding: 0.08, groupPadding: 0.12,
+        point: { events: { mouseOver() { setOHLC(this.index); } } },
+        lastPrice: { enabled: true, color: '#5b9cff' },
+        lastVisiblePrice: { enabled: true, label: { enabled: true, backgroundColor: '#5b9cff', style: { color: '#04101e', fontWeight: '800' } } } },
+      flags: { useHTML: false },
+      column: { borderWidth: 0 },
+    },
     series: [
       { type: 'candlestick', id: 'px', name: d.inst, data: d.candles,
-        color: BEAR, lineColor: BEAR, upColor: BULL, upLineColor: BULL,
-        dataGrouping: { enabled: false } },
-      { type: 'flags', name: 'Bullish patterns', data: patBull, onSeries: 'px', shape: 'squarepin', width: 14,
-        fillColor: 'rgba(34,211,154,.15)', color: BULL, style: { color: BULL, fontSize: '9px', fontWeight: '900' },
-        y: -34, states: { hover: { fillColor: 'rgba(34,211,154,.3)' } } },
-      { type: 'flags', name: 'Bearish patterns', data: patBear, onSeries: 'px', shape: 'squarepin', width: 14,
-        fillColor: 'rgba(247,86,124,.15)', color: BEAR, style: { color: BEAR, fontSize: '9px', fontWeight: '900' },
-        y: 12, states: { hover: { fillColor: 'rgba(247,86,124,.3)' } } },
-      { type: 'flags', name: 'Trade signals', data: sigFlags, shape: 'circlepin', width: 16,
-        color: AMBER, style: { color: '#0b0d12', fontSize: '10px', fontWeight: '900' }, y: -55 },
+        color: DN, lineColor: DN, upColor: UP, upLineColor: UP, dataGrouping: { enabled: false } },
+      { type: 'line', id: 'ema9', name: 'EMA 9', data: d.ema9, color: '#ff9800', lineWidth: 1.2,
+        marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } },
+      { type: 'line', id: 'ema21', name: 'EMA 21', data: d.ema21, color: '#2196f3', lineWidth: 1.2,
+        marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } },
+      { type: 'column', id: 'vol', name: 'Vol', data: d.volume || [], yAxis: 1, dataGrouping: { enabled: false } },
+      { type: 'flags', name: 'Bullish', data: patFlags(d, 'Bullish'), onSeries: 'px', shape: 'squarepin', width: 13,
+        fillColor: 'rgba(38,166,154,.16)', color: UP, style: { color: UP, fontSize: '9px', fontWeight: '900' }, y: -30 },
+      { type: 'flags', name: 'Bearish', data: patFlags(d, 'Bearish'), onSeries: 'px', shape: 'squarepin', width: 13,
+        fillColor: 'rgba(239,83,80,.16)', color: DN, style: { color: DN, fontSize: '9px', fontWeight: '900' }, y: 10 },
+      { type: 'flags', name: 'Signals', data: sigFlags(d), shape: 'circlepin', width: 16,
+        color: AMBER, style: { color: '#0b0d12', fontSize: '10px', fontWeight: '900' }, y: -52 },
     ],
   });
 }
@@ -127,45 +188,39 @@ async function load(rebuild) {
   try {
     const d = await (await fetch(`${API}/api/chart-patterns?inst=${INST}&tf=${TF}`, { cache: 'no-store' })).json();
     if (!d.ok) { document.getElementById('liveSig').textContent = '⚠️ ' + (d.error || 'feed error'); return; }
-    document.getElementById('spot').textContent = d.spot ? d.inst + ' ' + d.spot.toLocaleString('en-IN') : '—';
+    d.ema9 = d.ema9 || []; d.ema21 = d.ema21 || []; d.volume = d.volume || [];
+    lastData = d;
     const lastPat = d.patterns[d.patterns.length - 1];
     const sig = document.getElementById('liveSig');
-    if (!d.candles.length) { sig.textContent = 'market closed — no candles today'; sig.style.color = '#7c8aa0'; }
-    else if (lastPat) {
-      sig.textContent = `latest: ${lastPat.name} (${lastPat.sentiment} ${lastPat.strength})`;
-      sig.style.color = lastPat.sentiment === 'Bullish' ? BULL : BEAR;
-    } else { sig.textContent = 'no strong pattern yet'; sig.style.color = '#7c8aa0'; }
+    if (!d.candles.length) { sig.textContent = 'market closed — no candles today'; sig.style.color = '#7c8aa0'; document.getElementById('ohSym').textContent = INST; }
+    else if (lastPat) { sig.textContent = `latest: ${lastPat.name} (${lastPat.sentiment} ${lastPat.strength})`; sig.style.color = lastPat.sentiment === 'Bullish' ? UP : DN; }
+    else { sig.textContent = 'no strong pattern yet'; sig.style.color = '#7c8aa0'; }
 
     if (!chart || rebuild) { if (chart) { chart.destroy(); chart = null; } if (d.candles.length) buildChart(d); return; }
-    // live update in place (keeps user's zoom)
+    // live in-place update (keeps zoom) — the forming last candle grows like TradingView
     chart.get('px').setData(d.candles, false);
-    const mk = (p, up) => ({ x: p.t, title: up ? '▲' : '▼', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` });
-    chart.series[1].setData(d.patterns.filter(p => p.sentiment === 'Bullish').map(p => mk(p, true)), false);
-    chart.series[2].setData(d.patterns.filter(p => p.sentiment === 'Bearish').map(p => mk(p, false)), false);
-    chart.series[3].setData(d.signals.map(s => ({
-      x: s.t, title: s.direction === 'BULLISH' ? 'B' : 'S',
-      text: `<b>${s.direction} · ${s.trade}</b><br/>${s.status}${s.movePct != null ? ' · move ' + s.movePct + '%' : ''}`,
-      fillColor: s.status === 'HIT' ? BULL : s.status === 'MISS' ? BEAR : AMBER,
-    })), false);
-    chart.redraw();
+    chart.get('ema9').setData(d.ema9, false);
+    chart.get('ema21').setData(d.ema21, false);
+    chart.get('vol').setData(d.volume, false);
+    chart.series[4].setData(patFlags(d, 'Bullish'), false);
+    chart.series[5].setData(patFlags(d, 'Bearish'), false);
+    chart.series[6].setData(sigFlags(d), false);
+    chart.redraw(false);
+    setOHLC(d.candles.length - 1);
   } catch (e) { document.getElementById('liveSig').textContent = '⚠️ ' + e.message; }
 }
 
 load(true);
-timer = setInterval(() => load(false), 15000);
+setInterval(() => load(false), 5000);   // TradingView-like live cadence
 
-// build-freshness badge (auto-reload on server restart) — same guard as dashboard
+// build-freshness badge
 (function () {
-  let bid = null;
-  const b = document.createElement('div');
-  b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(15,23,42,.78);border:1px solid #1f2937;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace';
+  let bid = null; const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(10,14,20,.8);border:1px solid #1c2735;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace';
   (document.body || document.documentElement).appendChild(b);
-  async function chk() {
-    try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
-      if (bid === null) bid = h.bootId; else if (h.bootId !== bid) { b.textContent = '⟳ new build…'; setTimeout(() => location.reload(), 900); return; }
-      b.textContent = '● build ' + new Date(h.bootId).toLocaleTimeString(); b.style.color = '#22c55e';
-    } catch (_) {}
-  }
+  async function chk() { try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
+    if (bid === null) bid = h.bootId; else if (h.bootId !== bid) { location.reload(); return; }
+    b.textContent = '● build ' + new Date(h.bootId).toLocaleTimeString(); b.style.color = '#26a69a'; } catch (_) {} }
   chk(); setInterval(chk, 12000);
 })();
 </script>

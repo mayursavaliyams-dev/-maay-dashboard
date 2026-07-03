@@ -4487,6 +4487,11 @@ app.get('/api/chart-patterns', async (req, res) => {
     if (!bars.length) return res.json({ ok: true, inst, tf, candles: [], patterns: [], signals: [], note: 'no candles (market closed/holiday)' });
 
     const candles = bars.map(b => [b.t * 1000, +b.o.toFixed(2), +b.h.toFixed(2), +b.l.toFixed(2), +b.c.toFixed(2)]);
+    const volume = bars.map(b => ({ x: b.t * 1000, y: Math.round(Number(b.v) || 0), color: b.c >= b.o ? 'rgba(38,166,154,.5)' : 'rgba(239,83,80,.5)' }));
+    const closesArr = bars.map(b => +b.c.toFixed(2));
+    const e9 = _emaSeries(closesArr, 9), e21 = _emaSeries(closesArr, 21);
+    const ema9 = bars.map((b, i) => [b.t * 1000, e9[i]]);
+    const ema21 = bars.map((b, i) => [b.t * 1000, e21[i]]);
 
     // sliding pattern detection: ask "what fired at bar i" for each closed bar
     const patterns = [];
@@ -4508,7 +4513,7 @@ app.get('/api/chart-patterns', async (req, res) => {
     sigOut.sort((a, b) => a.t - b.t);
 
     const last = bars[bars.length - 1];
-    res.json({ ok: true, inst, tf, spot: +last.c.toFixed(2), candles, patterns, signals: sigOut,
+    res.json({ ok: true, inst, tf, spot: +last.c.toFixed(2), candles, volume, ema9, ema21, patterns, signals: sigOut,
       session: { openMin: candlestickPatterns.SESSION_OPEN_MIN, closeMin: candlestickPatterns.SESSION_CLOSE_MIN },
       generatedAt: new Date().toISOString() });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
