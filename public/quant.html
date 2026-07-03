@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLAUDE × QUANT — Command Center</title>
+<style>
+  :root{ --bg:#05070d; --panel:#0a0f18; --panel2:#0c1320; --border:#16203a; --muted:#5f6b82; --green:#00e08a; --red:#ff3d6e; --amber:#ffcf4d; --blue:#4d8bff; --violet:#a06bff; --cyan:#22d3ee; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:#dfe7f5; font-family:"SF Mono",ui-monospace,"Cascadia Code",Consolas,monospace; overflow-x:hidden; }
+  .wrap{ max-width:1400px; margin:0 auto; padding:10px 12px 40px; }
+  .mono{ font-variant-numeric:tabular-nums; }
+
+  /* header */
+  .hdr{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:10px 14px; border:1px solid var(--border);
+        border-radius:12px; background:linear-gradient(135deg,#0a0f18,#0c1526); }
+  .logo{ font-size:1.05rem; font-weight:900; letter-spacing:1px; }
+  .logo b{ color:var(--green); } .logo span{ color:var(--violet); }
+  .tags{ font-size:0.62rem; color:var(--muted); letter-spacing:1px; }
+  .paper{ font-size:0.6rem; font-weight:900; padding:3px 10px; border-radius:6px; background:#2a2410; color:var(--amber); letter-spacing:1px; }
+  .clock{ margin-left:auto; font-size:1.1rem; font-weight:800; color:#cfe0ff; letter-spacing:1px; }
+  .clock small{ font-size:0.55rem; color:var(--muted); }
+
+  .rankbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; font-size:0.62rem; letter-spacing:.5px; }
+  .rankbar .chip{ padding:3px 9px; border-radius:6px; background:var(--panel2); border:1px solid var(--border); color:#9fb0c8; }
+  .rankbar .chip b{ color:var(--green); }
+  .live-dot{ width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); display:inline-block; animation:pulse 1.4s infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1 } 50%{ opacity:.35 } }
+
+  /* ticker */
+  .ticker{ display:flex; gap:22px; overflow:hidden; padding:6px 12px; border:1px solid var(--border); border-radius:9px; background:var(--panel); font-size:0.66rem; margin-bottom:10px; }
+  .ticker .t b{ color:#cfe0ff; } .ticker .up{ color:var(--green); } .ticker .dn{ color:var(--red); }
+
+  .grid{ display:grid; grid-template-columns:1.25fr 1fr 1fr; gap:10px; }
+  @media(max-width:1000px){ .grid{ grid-template-columns:1fr 1fr; } }
+  @media(max-width:680px){ .grid{ grid-template-columns:1fr; } }
+  .card{ border:1px solid var(--border); border-radius:12px; background:var(--panel); padding:12px 14px; position:relative; overflow:hidden; }
+  .card .k{ font-size:0.58rem; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; }
+
+  .pnl-card{ grid-column:span 1; }
+  .verified{ font-size:0.55rem; font-weight:900; color:#04121e; background:var(--green); padding:2px 7px; border-radius:5px; letter-spacing:1px; }
+  .bigpnl{ font-size:2.7rem; font-weight:900; margin:6px 0 2px; letter-spacing:-1px; }
+  .sub{ font-size:0.62rem; color:var(--muted); }
+  .statrow{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:12px; }
+  .stat .v{ font-size:1.15rem; font-weight:900; } .stat .l{ font-size:0.52rem; color:var(--muted); letter-spacing:1px; }
+  .safe{ position:absolute; bottom:10px; right:12px; font-size:0.55rem; font-weight:900; color:var(--green); border:1px solid rgba(0,224,138,.4); border-radius:5px; padding:2px 8px; letter-spacing:1px; }
+
+  .win-card .x{ font-size:2.4rem; font-weight:900; color:var(--amber); line-height:1; }
+  .kv{ display:flex; justify-content:space-between; font-size:0.64rem; padding:2px 0; border-bottom:1px dashed #131c30; }
+  .kv b{ color:#cfe0ff; }
+
+  .eng-card table{ width:100%; border-collapse:collapse; font-size:0.62rem; }
+  .eng-card td{ padding:5px 4px; border-bottom:1px solid #101827; }
+  .eng-card .nm{ font-weight:800; } .eng-card .off{ opacity:.4; }
+
+  /* execution cycle */
+  .cycle{ display:flex; gap:6px; margin:10px 0; flex-wrap:wrap; }
+  .stage{ flex:1; min-width:90px; border:1px solid var(--border); border-radius:9px; padding:8px 6px; text-align:center; background:var(--panel); position:relative; }
+  .stage .n{ font-size:0.62rem; font-weight:800; letter-spacing:1px; }
+  .stage .i{ font-size:0.5rem; color:var(--muted); }
+  .stage.on{ border-color:var(--green); box-shadow:0 0 14px rgba(0,224,138,.25) inset; }
+  .stage.on .n{ color:var(--green); } .stage.on .dot{ background:var(--green); box-shadow:0 0 8px var(--green); }
+  .stage .dot{ width:6px; height:6px; border-radius:50%; background:#25324a; margin:5px auto 0; }
+
+  /* swarm */
+  .swarm-card{ padding:0; }
+  .swarm-hd{ display:flex; align-items:center; gap:10px; padding:10px 14px; flex-wrap:wrap; }
+  .swarm-hd .t{ font-size:0.72rem; font-weight:900; letter-spacing:1px; }
+  .swarm-hd .meta{ font-size:0.56rem; color:var(--muted); margin-left:auto; letter-spacing:1px; }
+  #swarm{ width:100%; height:300px; display:block; }
+  .swarm-legend{ display:flex; gap:8px; flex-wrap:wrap; padding:8px 14px 12px; font-size:0.56rem; }
+  .swarm-legend span{ padding:2px 8px; border-radius:5px; border:1px solid var(--border); background:var(--panel2); }
+  .sw-on{ color:var(--green); } .sw-idle{ color:var(--muted); }
+
+  nav{ display:flex; gap:4px; padding:6px 2px 10px; flex-wrap:wrap; font-family:system-ui,sans-serif; }
+  nav a{ color:#7c8aa0; text-decoration:none; font-size:0.68rem; font-weight:700; padding:3px 9px; border-radius:7px; }
+  nav a:hover{ background:rgba(122,162,255,.14); color:#cfe0ff; } nav a.active{ background:rgba(160,107,255,.18); color:#cfe0ff; }
+  .note{ font-size:0.56rem; color:#4a5670; margin-top:14px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a href="/dashboard.html">Dashboard</a><a href="/chart.html">Chart</a>
+    <a href="/agents.html">AI Agents</a><a href="/payoff.html">Payoff</a>
+    <a href="/quant.html" class="active">⚡ Quant Center</a>
+  </nav>
+
+  <header class="hdr">
+    <div class="logo"><b>CLAUDE</b> × <span>QUANT</span></div>
+    <div class="tags">NIFTY · SENSEX · BANKNIFTY &nbsp;|&nbsp; VRP · KELLY · SELF-LEARN · 6-AGENT SWARM</div>
+    <span class="paper">● PAPER</span>
+    <div class="clock" id="clock">--:--:--<br><small>—</small></div>
+  </header>
+
+  <div class="rankbar" id="rankbar"></div>
+
+  <div class="ticker" id="ticker"><span class="t">loading live tape…</span></div>
+
+  <div class="grid">
+    <!-- PnL hero -->
+    <div class="card pnl-card">
+      <div class="k">Paper P&L · all-time <span class="verified" id="vbadge">PAPER-VERIFIED</span></div>
+      <div class="bigpnl mono" id="bigpnl">₹0</div>
+      <div class="sub" id="pnlsub">accruing from live paper engines…</div>
+      <div class="statrow">
+        <div class="stat"><div class="v mono" id="stTrades">0</div><div class="l">TRADES</div></div>
+        <div class="stat"><div class="v mono" id="stWin">—</div><div class="l">WIN RATE</div></div>
+        <div class="stat"><div class="v mono" id="stDay">₹0</div><div class="l">TODAY</div></div>
+      </div>
+      <span class="safe" id="safeBadge">● LIVE</span>
+    </div>
+
+    <!-- biggest win -->
+    <div class="card win-card">
+      <div class="k">★ Biggest paper win ✓</div>
+      <div class="x mono" id="bwX">—</div>
+      <div style="margin-top:8px">
+        <div class="kv"><span>Source</span><b id="bwSrc">—</b></div>
+        <div class="kv"><span>Net P&L</span><b id="bwPnl">—</b></div>
+        <div class="kv"><span>Since</span><b id="bwSince">—</b></div>
+        <div class="kv"><span>Open now</span><b id="bwOpen">0</b></div>
+      </div>
+    </div>
+
+    <!-- engines -->
+    <div class="card eng-card">
+      <div class="k">Strategy engines · paper</div>
+      <table><tbody id="engBody"></tbody></table>
+    </div>
+  </div>
+
+  <!-- execution cycle -->
+  <div class="card" style="margin-top:10px">
+    <div class="k">Execution cycle <span style="color:var(--muted)">· live pipeline stage</span></div>
+    <div class="cycle" id="cycle"></div>
+  </div>
+
+  <!-- agent swarm -->
+  <div class="card swarm-card" style="margin-top:10px">
+    <div class="swarm-hd">
+      <span class="t">⚙ AGENT SWARM</span>
+      <span class="meta" id="swarmMeta">6 agents · news → impact → signal → risk → exec → analyst</span>
+    </div>
+    <canvas id="swarm"></canvas>
+    <div class="swarm-legend" id="swarmLegend"></div>
+  </div>
+
+  <div class="note" id="disc">PAPER trading — every figure is a simulated paper-ledger total, not real money. Educational, not advice.</div>
+</div>
+
+<script>
+const API = '';
+let cur = 0;               // current animated pnl
+let target = 0;
+
+// live clock (IST) — renders market status from window._mkt (set by load())
+function tick() {
+  const ist = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata' });
+  document.getElementById('clock').innerHTML = ist + '<br><small>IST · ' + (window._mkt || '—') + '</small>';
+}
+setInterval(tick, 1000); tick();
+
+const inr = v => (v < 0 ? '-' : '+') + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+const inrPlain = v => '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+
+// count-up animation toward target
+function animate() {
+  const diff = target - cur;
+  if (Math.abs(diff) > 1) { cur += diff * 0.08; }
+  else cur = target;
+  const el = document.getElementById('bigpnl');
+  el.textContent = (cur < 0 ? '-' : '+') + '₹' + Math.abs(Math.round(cur)).toLocaleString('en-IN');
+  el.style.color = cur >= 0 ? 'var(--green)' : 'var(--red)';
+  requestAnimationFrame(animate);
+}
+animate();
+
+async function load() {
+  let d; try { d = await (await fetch(`${API}/api/quant`, { cache: 'no-store' })).json(); } catch (_) { return; }
+  if (!d.ok) return;
+  window._mkt = d.market;                              // clock's tick() renders this
+
+  target = d.score.netPnl;
+  document.getElementById('pnlsub').textContent =
+    `${d.score.trades} paper trades · ${d.score.winRate != null ? d.score.winRate + '% win' : 'building'} · live-accruing`;
+  document.getElementById('stTrades').textContent = d.score.trades.toLocaleString('en-IN');
+  document.getElementById('stWin').textContent = d.score.winRate != null ? d.score.winRate + '%' : '—';
+  const day = document.getElementById('stDay');
+  day.textContent = inr(d.score.dayPnl); day.style.color = d.score.dayPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('safeBadge').innerHTML = (d.market === 'MARKET_OPEN' ? '● LIVE' : '● ' + (d.market || 'IDLE'));
+  document.getElementById('safeBadge').style.color = d.market === 'MARKET_OPEN' ? 'var(--green)' : 'var(--muted)';
+
+  // rank bar (honest framing, not fake "#1 global")
+  document.getElementById('rankbar').innerHTML =
+    `<span class="live-dot"></span>` +
+    `<span class="chip">MODE <b>PAPER FORWARD-TEST</b></span>` +
+    `<span class="chip">EDGE <b>VRP · SELL-SIDE</b></span>` +
+    `<span class="chip">ENGINES <b>${d.engines.filter(e => e.enabled).length}/${d.engines.length} LIVE</b></span>` +
+    `<span class="chip">OPEN <b>${d.score.openNow}</b></span>` +
+    `<span class="chip">BEST WIN <b>${inr(d.score.biggestWin)}</b></span>`;
+
+  // ticker
+  document.getElementById('ticker').innerHTML = (d.ticker || []).filter(t => t.px > 0).map(t =>
+    `<span class="t"><b>${t.sym}</b> <span class="mono">${t.px.toLocaleString('en-IN')}</span></span>`).join('')
+    + `<span class="t" style="color:var(--muted)">· paper P&L ${inr(d.score.netPnl)} · today ${inr(d.score.dayPnl)} · ${d.score.trades} trades ·</span>`;
+
+  // biggest win
+  document.getElementById('bwX').textContent = d.score.biggestWin > 0 ? '+' + inrPlain(d.score.biggestWin) : '—';
+  document.getElementById('bwSrc').textContent = d.score.biggestSrc || (d.engines.slice().sort((a,b)=>b.netPnl-a.netPnl)[0]?.label || '—');
+  document.getElementById('bwPnl').textContent = inr(d.score.netPnl);
+  document.getElementById('bwSince').textContent = d.score.since || '—';
+  document.getElementById('bwOpen').textContent = d.score.openNow;
+
+  // engines table
+  document.getElementById('engBody').innerHTML = d.engines.map(e => `
+    <tr class="${e.enabled ? '' : 'off'}">
+      <td class="nm">${e.enabled ? '●' : '○'} ${e.label}<br><span style="color:var(--muted);font-size:0.54rem">${e.tag}</span></td>
+      <td style="text-align:right" class="mono">${e.trades}<br><span style="color:var(--muted);font-size:0.54rem">${e.winRate != null ? e.winRate + '%' : '—'}</span></td>
+      <td style="text-align:right" class="mono" style="color:${e.netPnl>=0?'var(--green)':'var(--red)'}"><span style="color:${e.netPnl>=0?'var(--green)':'var(--red)'}">${inr(e.netPnl)}</span><br><span style="color:var(--muted);font-size:0.54rem">${e.open} open</span></td>
+    </tr>`).join('');
+
+  // execution cycle
+  document.getElementById('cycle').innerHTML = (d.cycle || []).map((s, i) => `
+    <div class="stage ${s.on ? 'on' : ''}">
+      <div class="i">${String(i + 1).padStart(2, '0')}</div>
+      <div class="n">${s.n}</div>
+      <div class="dot"></div>
+    </div>`).join('');
+
+  // swarm nodes + legend
+  window._swarm = d.swarm || [];
+  document.getElementById('swarmLegend').innerHTML = (d.swarm || []).map(a =>
+    `<span class="${['ACTIVE','GO','IN TRADE','ON-DEMAND'].includes(a.state) ? 'sw-on' : 'sw-idle'}">${a.emoji} ${a.name} · ${a.state}</span>`).join('');
+  document.getElementById('disc').textContent = d.disclaimer;
+}
+load();
+setInterval(load, 3000);
+
+// ── agent-swarm canvas: layered neural mesh, animated (decorative, labelled) ──
+const cv = document.getElementById('swarm'), cx = cv.getContext('2d');
+function resize() { cv.width = cv.clientWidth * devicePixelRatio; cv.height = 300 * devicePixelRatio; cx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+window.addEventListener('resize', resize); resize();
+const LAYERS = 5, PER = 9, COLORS = ['#00e08a','#4d8bff','#a06bff','#22d3ee','#ff3d6e'];
+const nodes = [];
+for (let l = 0; l < LAYERS; l++) for (let i = 0; i < PER; i++)
+  nodes.push({ l, i, ph: (l * 7 + i) * 0.6 });
+let tphase = 0;
+function drawSwarm() {
+  const W = cv.clientWidth, H = 300;
+  cx.clearRect(0, 0, W, H);
+  tphase += 0.012;
+  const active = (window._swarm || []).some(a => ['ACTIVE','GO','IN TRADE'].includes(a.state));
+  const pos = (n) => {
+    const x = 40 + (n.l / (LAYERS - 1)) * (W - 80);
+    const y = 30 + (n.i / (PER - 1)) * (H - 60) + Math.sin(tphase * 2 + n.ph) * 7;
+    return { x, y };
+  };
+  // links between adjacent layers
+  for (let l = 0; l < LAYERS - 1; l++) {
+    for (const a of nodes.filter(n => n.l === l)) for (const b of nodes.filter(n => n.l === l + 1)) {
+      if ((a.i + b.i) % 3 !== 0) continue;                       // thin the mesh
+      const pa = pos(a), pb = pos(b);
+      const pulse = (Math.sin(tphase * 3 - l) + 1) / 2;
+      cx.strokeStyle = COLORS[l] + (active ? '55' : '22');
+      cx.lineWidth = 0.5 + pulse * (active ? 1.1 : 0.4);
+      cx.beginPath(); cx.moveTo(pa.x, pa.y); cx.lineTo(pb.x, pb.y); cx.stroke();
+    }
+  }
+  // nodes
+  for (const n of nodes) {
+    const p = pos(n); const c = COLORS[n.l];
+    const glow = active ? 4 + Math.sin(tphase * 4 + n.ph) * 2 : 2;
+    cx.fillStyle = c; cx.shadowColor = c; cx.shadowBlur = glow;
+    cx.beginPath(); cx.arc(p.x, p.y, 2.4, 0, 7); cx.fill();
+  }
+  cx.shadowBlur = 0;
+  // moving "signal" packets left→right when active
+  if (active) {
+    for (let k = 0; k < 6; k++) {
+      const prog = ((tphase * 0.4 + k / 6) % 1);
+      const l = Math.min(LAYERS - 2, Math.floor(prog * (LAYERS - 1)));
+      const seg = prog * (LAYERS - 1) - l;
+      const a = nodes.find(n => n.l === l && n.i === (k + l) % PER);
+      const b = nodes.find(n => n.l === l + 1 && n.i === (k + l + 1) % PER);
+      if (!a || !b) continue;
+      const pa = pos(a), pb = pos(b);
+      cx.fillStyle = '#fff'; cx.shadowColor = '#fff'; cx.shadowBlur = 8;
+      cx.beginPath(); cx.arc(pa.x + (pb.x - pa.x) * seg, pa.y + (pb.y - pa.y) * seg, 1.8, 0, 7); cx.fill();
+    }
+    cx.shadowBlur = 0;
+  }
+  requestAnimationFrame(drawSwarm);
+}
+drawSwarm();
+
+// build-freshness badge
+(function () {
+  let bid = null; const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(10,15,24,.8);border:1px solid #16203a;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace';
+  document.body.appendChild(b);
+  async function chk() { try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
+    if (bid === null) bid = h.bootId; else if (h.bootId !== bid) { location.reload(); return; }
+    b.textContent = '● build ' + new Date(h.bootId).toLocaleTimeString(); } catch (_) {} }
+  chk(); setInterval(chk, 12000);
+})();
+</script>
+</body>
+</html>

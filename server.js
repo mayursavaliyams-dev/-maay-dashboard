@@ -5357,6 +5357,72 @@ app.get('/api/agents/trades', (req, res) => {
   res.json({ ok: true, trades: agentsEngine._allTrades.slice(-limit).reverse() });
 });
 
+// QUANT COMMAND CENTER — one aggregate feed powering /quant.html: merges every
+// PAPER engine (AI agents, strangle/condor forward-test, gamma-blast) into a
+// single scoreboard + the live execution-cycle stage + agent-swarm states.
+// Honest: all numbers are REAL paper-ledger totals, clearly PAPER — no fabricated
+// balances. (The viral "Claude quant bot" look, wired to real paper results.)
+app.get('/api/quant', async (req, res) => {
+  try {
+    const A = agentsEngine.status();
+    let S = {}, G = {};
+    try { S = strangleEngine.status(); } catch (_) {}
+    try { G = gammaBlastEngine.status(); } catch (_) {}
+    const num = v => Number(v) || 0;
+
+    const engines = [
+      { key: 'agents', label: 'AI AGENTS', tag: '6-agent · news→exec',
+        trades: num(A.allTime?.trades), wins: num(A.allTime?.wins), winRate: A.allTime?.winRate,
+        netPnl: num(A.allTime?.netPnl), dayPnl: num(A.dayPnl), open: (A.open?.length || 0) + (A.condors?.length || 0), enabled: !!A.enabled },
+      { key: 'strangle', label: 'CONDOR VRP', tag: 'defined-risk selling',
+        trades: num(S.allTime?.trades), wins: num(S.allTime?.wins), winRate: S.allTime?.winRate,
+        netPnl: num(S.allTime?.netPnl), dayPnl: num(S.netPnl), open: (S.openPositions?.length || 0), enabled: !!S.enabled },
+      { key: 'gamma', label: 'GAMMA BLAST', tag: 'expiry 0-DTE buy',
+        trades: num(G.allTime?.trades), wins: num(G.allTime?.wins), winRate: G.allTime?.winRate,
+        netPnl: num(G.allTime?.netPnl), dayPnl: num(G.today?.netPnl), open: (G.openPositions?.length || 0), enabled: !!G.enabled },
+    ];
+    const totalTrades = engines.reduce((s, e) => s + e.trades, 0);
+    const totalWins = engines.reduce((s, e) => s + e.wins, 0);
+    const netPnl = engines.reduce((s, e) => s + e.netPnl, 0);
+    const dayPnl = engines.reduce((s, e) => s + e.dayPnl, 0);
+    const openNow = engines.reduce((s, e) => s + e.open, 0);
+
+    // execution-cycle live stage from the agents pipeline
+    const st = k => A.agents?.[k]?.state || 'IDLE';
+    const cycle = [
+      { n: 'SCAN', on: st('news') === 'ACTIVE' },
+      { n: 'DETECT', on: st('impact') === 'ACTIVE' },
+      { n: 'VALIDATE', on: st('signal') === 'ACTIVE' },
+      { n: 'SIZE', on: st('risk') === 'GO' },
+      { n: 'FILL', on: st('executor') === 'IN TRADE' },
+      { n: 'SETTLE', on: openNow === 0 && totalTrades > 0 },
+    ];
+    const swarm = Object.values(A.agents || {}).map(a => ({ name: a.name, emoji: a.emoji, state: a.state }));
+
+    // biggest single win across paper ledgers
+    let biggest = 0, biggestSrc = null;
+    for (const e of engines) if (e.netPnl > biggest && e.wins > 0) { biggest = e.netPnl; }
+    for (const t of (G.recent || [])) if (num(t.pnl) > biggest) { biggest = num(t.pnl); biggestSrc = 'GAMMA'; }
+    for (const t of (S.recent || [])) if (num(t.pnl) > biggest) { biggest = num(t.pnl); biggestSrc = 'CONDOR'; }
+
+    const nifty = num(typeof _niftyLivePrice !== 'undefined' && _niftyLivePrice);
+    const sensex = num(typeof _livePrice !== 'undefined' && _livePrice);
+    const session = getMarketSession();
+    res.json({
+      ok: true, mode: 'PAPER',
+      score: { netPnl: +netPnl.toFixed(0), dayPnl: +dayPnl.toFixed(0), trades: totalTrades, wins: totalWins,
+        winRate: totalTrades ? +(totalWins / totalTrades * 100).toFixed(1) : null, openNow,
+        biggestWin: +biggest.toFixed(0), biggestSrc, since: S.allTime?.since || A.allTime?.since || null },
+      engines, cycle, swarm,
+      ticker: [
+        { sym: 'NIFTY', px: nifty }, { sym: 'SENSEX', px: sensex },
+      ],
+      market: session.status, generatedAt: new Date().toISOString(),
+      disclaimer: 'PAPER trading — every figure is a simulated paper-ledger total, not real money. Educational, not advice.',
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // 6th agent — Stock Analyst: ask about ANY stock → live quote + news + deal
 // impacts fused into a probability verdict (parameters disclosed).
 const stockAnalyst = require('./stock-analyst');
