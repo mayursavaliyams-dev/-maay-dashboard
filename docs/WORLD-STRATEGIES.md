@@ -88,6 +88,27 @@ walk · 2× leg stop where noted · charges.js on every leg · compounding ₹1L
 5. **CONFIRMED: our existing IVP≥50 gate** matches ORATS's published 33/66
    bucket practice and the WPUT lesson (weeklies = smaller tail, less net).
 
+## C. 20-year Yahoo backtest — BUYING vs SELLING head-to-head (backtest-tv/)
+
+`backtest-tv/run.js` (buying) already existed; added `backtest-tv/sell.js` — the
+same Yahoo-daily + Black-Scholes engine, but SELLING 0-DTE straddle/strangle/
+condor on every expiry (1200+ NIFTY/SENSEX, 1423 BANKNIFTY), net of charges.
+
+| | BUY (run.js) | SELL straddle (sell.js) |
+|---|---|---|
+| NIFTY | 99 tr · 57.6% · avg 1.31x | 754 tr · **97.2%** · PF 195 · net ₹97.2L |
+| SENSEX | 167 tr · 48.5% | 966 tr · **96.1%** · PF 76 · net ₹90.0L |
+| BANKNIFTY | 138 tr · 72.5% | 883 tr · **96.4%** · PF 113 · net ₹130.8L |
+
+⚠️ The 96-98% sell win-rates are a **BS-model artifact** — expiry-morning IV set
+to 1.7×HV overprices the premium and daily OHLC can't model an intraday
+gap-through-strike, so the modelled seller "never loses." Real bhavcopy says
+~80-84%, not 98%. Do NOT quote 97%. What IS robust across every method (modelled
+buy, modelled sell, and real bhavcopy): **selling dominates buying** — more
+trades, far higher win rate, positive PF where buying is break-even. The sell
+tail (the rare gap that the model hides) is exactly why we run defined-risk
+condors + IVP filter live, not naked strangles.
+
 ### Caveats (honest)
 - Daily-resolution walk (bhavcopy has no intraday path): TP/SL trigger on daily
   closes, leg-stops on day highs. Win rates are ballpark, comparable across the

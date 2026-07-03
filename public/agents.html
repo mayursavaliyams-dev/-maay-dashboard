@@ -33,8 +33,7 @@
   .up{ color:var(--green); } .dn{ color:var(--red); } .flat{ color:#9ca3af; }
 
   /* next action strip — plain-language why/when */
-  .next{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-  @media(max-width:800px){ .next{ grid-template-columns:1fr; } }
+  .next{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px; margin-top:10px; }
   .next-card{ background:rgba(7,11,18,.55); border:1px solid #1f2f52; border-radius:12px; padding:9px 12px; }
   .next-card .in{ font-size:0.66rem; font-weight:900; margin-bottom:3px; display:flex; gap:8px; align-items:center; }
   .next-card .line{ font-size:0.68rem; line-height:1.5; color:#cbd5e1; }
@@ -218,6 +217,7 @@
 <script>
 const API = '';
 let ENABLED = null;
+let INSTS = ['NIFTY', 'SENSEX', 'BANKNIFTY'];   // synced from the signal agent each load
 
 const AGENT_ORDER = ['news','impact','signal','risk','executor','analyst'];
 const ST_CLASS = s => s==='GO'||s==='ACTIVE' ? 'active' : s==='IN TRADE' ? 'trade' : '';
@@ -252,6 +252,9 @@ async function load() {
   let d;
   try { d = await (await fetch(`${API}/api/agents`, {cache:'no-store'})).json(); } catch(e){ return; }
   if (!d.ok) return;
+  // sync the instrument set with whatever the engine runs (NIFTY/SENSEX/BANKNIFTY)
+  const sigKeys = Object.keys(d.agents?.signal?.output || {}).filter(k => k === k.toUpperCase() && k.length >= 4);
+  if (sigKeys.length) INSTS = sigKeys;
   ENABLED = d.enabled;
   const tog = document.getElementById('togBtn');
   tog.textContent = d.enabled ? '● AGENTS ON' : '○ AGENTS OFF';
@@ -275,7 +278,7 @@ async function load() {
 
   // ── next action (plain language, per index — the best of the two plays) ──
   const rk = d.agents.risk?.output || {};
-  document.getElementById('nextRow').innerHTML = ['NIFTY','SENSEX'].map(x => {
+  document.getElementById('nextRow').innerHTML = INSTS.map(x => {
     const buy = blocker(rk[x]), sell = blocker((rk.sell||{})[x]);
     const ivpTxt = rk.ivp!=null ? ` · IVP <b>${rk.ivp}%</b> ${rk.ivp>=50?'(sell zone ✓)':'(cheap)'}` : '';
     return `<div class="next-card">
@@ -334,13 +337,14 @@ async function load() {
     const a = d.agents[k]; if (!a) return '';
     let body = '';
     if (k==='news') { const o=a.output||{}; body = `${o.events??0} deal events (24h)` + (o.latest?`<br><span style="color:#8fa0b8">${(o.latest.title||'').slice(0,58)}…</span>`:''); }
-    if (k==='impact') { const o=a.output||{}; body = `${o.withStocks??0} events hit stocks · bias N ${o.indexBias?.NIFTY??0} / S ${o.indexBias?.SENSEX??0}`; }
-    if (k==='signal') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const s=o[x]||{};return `${x} <b>${s.decision||'—'}</b> ${s.probability!=null?s.probability+'%':''}`;}).join(' · '); }
-    if (k==='risk') { const o=a.output||{}; body = ['NIFTY','SENSEX'].map(x=>{const g=o[x]||{};const s=(o.sell||{})[x]||{};return `${x}: buy ${g.go?'<b class="up">GO</b>':'NO'} · condor ${s.go?'<b class="up">GO</b>':'NO'}`;}).join('<br>'); }
+    if (k==='impact') { const o=a.output||{}; const b=o.indexBias||{}; body = `${o.withStocks??0} events hit stocks · bias ${INSTS.map(x=>x[0]+' '+(b[x]??0)).join(' / ')}`; }
+    if (k==='signal') { const o=a.output||{}; body = INSTS.map(x=>{const s=o[x]||{};return `${x} <b>${s.decision||'—'}</b> ${s.probability!=null?s.probability+'%':''}`;}).join(' · '); }
+    if (k==='risk') { const o=a.output||{}; body = INSTS.map(x=>{const g=o[x]||{};const s=(o.sell||{})[x]||{};return `${x}: buy ${g.go?'<b class="up">GO</b>':'NO'} · condor ${s.go?'<b class="up">GO</b>':'NO'}`;}).join('<br>'); }
     if (k==='executor') { const o=a.output||{}; body = `${(o.open||[]).length+(o.condors||[]).length} open · ${(o.closedToday||[]).length} closed · day ${inr(o.dayPnl||0)}`; }
     if (k==='analyst') { const o=a.output; body = o ? `last: <b>${o.symbol}</b> ₹${o.price} → <b class="${o.direction==='UP'?'up':o.direction==='DOWN'?'dn':'flat'}">${o.direction} ${o.probability}%</b>` : 'ask any stock above ↑'; }
     return `<div class="agent">
       <div class="hdr"><span class="emoji">${a.emoji}</span><span class="nm">${a.name}</span><span class="st ${ST_CLASS(a.state)}">${a.state}</span></div>
+      <div style="font-size:0.5rem;color:#6b7a93;margin-bottom:4px;">${a.role || ''}</div>
       <div class="body">${body}</div>
       <div style="font-size:0.48rem;color:#475569;margin-top:4px;">last run ${fmtT(a.lastRun)}</div>
     </div>`;
@@ -362,7 +366,7 @@ async function load() {
 
   // ── signal fusion ──
   const sig = d.agents.signal?.output || {};
-  document.getElementById('sigRow').innerHTML = ['NIFTY','SENSEX'].map(x => {
+  document.getElementById('sigRow').innerHTML = INSTS.map(x => {
     const s = sig[x] || {};
     const cls = s.decision==='BUY'?'up':s.decision==='SELL'?'dn':'flat';
     return `<div class="sigcard">
@@ -374,7 +378,7 @@ async function load() {
 
   // ── risk gates: collapsible detail ──
   const renderChecks = g => (g.checks||[]).map(c=>`<div class="chk"><span class="${c.pass?'t':'f'}">${c.pass?'✓':'✗'}</span><span>${c.name}</span><span style="color:#64748b;margin-left:auto;">${c.note||''}</span></div>`).join('');
-  document.getElementById('riskBox').innerHTML = ['NIFTY','SENSEX'].map(x => {
+  document.getElementById('riskBox').innerHTML = INSTS.map(x => {
     const g = rk[x] || {}, s = (rk.sell||{})[x] || {};
     return `<details>
         <summary>${x} · 🎯 BUY play — <span class="${g.go?'up':'flat'}">${g.go?'✅ GO':'⛔ NO-GO'}</span><span class="caret">▾</span></summary>

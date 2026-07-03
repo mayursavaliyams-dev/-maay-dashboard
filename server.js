@@ -5065,9 +5065,13 @@ async function gatherMasterSignal(inst, opts = {}) {
     const strikes = (chain && chain.strikes) || [];
     const atm = Number(chain && chain.atmStrike) || (strikes.length ? strikes[Math.floor(strikes.length / 2)].strike : 0);
 
-    const closes  = inst === 'NIFTY' ? niftyPrices  : prices;
-    const vols    = inst === 'NIFTY' ? niftyVolumes : volumes;
-    const vwapVal = inst === 'NIFTY' ? niftyVwap    : vwap;
+    // NIFTY/SENSEX have live tick-series (trend/volume factors). BANKNIFTY has no
+    // dedicated tick loop → pass empty so those factors mark UNAVAILABLE (honest)
+    // and its verdict comes from the chain factors (OI/PCR/greeks/news). Never
+    // feed another index's prices as BANKNIFTY's trend.
+    const closes  = inst === 'NIFTY' ? niftyPrices  : inst === 'SENSEX' ? prices   : [];
+    const vols    = inst === 'NIFTY' ? niftyVolumes : inst === 'SENSEX' ? volumes  : [];
+    const vwapVal = inst === 'NIFTY' ? niftyVwap    : inst === 'SENSEX' ? vwap     : null;
 
     const factors = {};
 
@@ -5200,7 +5204,7 @@ async function gatherMasterSignal(inst, opts = {}) {
       _chain: { strikes, atm, spot, step: (PS_INSTS[inst] && PS_INSTS[inst].step) || null, ivAvg: null },
     };
 }
-app.get('/api/master-signal/:inst(nifty|sensex)', async (req, res) => {
+app.get('/api/master-signal/:inst(nifty|sensex|banknifty)', async (req, res) => {
   try {
     const out = await gatherMasterSignal(req.params.inst.toUpperCase(), { track: req.query.track !== '0' });
     const { _chain, ...pub } = out;
@@ -5464,11 +5468,12 @@ async function agentsTick() {
       const ivp = volContext.ivRankPercentile(deps.vix?.value, hist);
       if (ivp.available) deps.ivp = ivp.ivPercentile;
     } catch (_) {}
-    try { const det = gammaBlastEngine.status().detect || {}; for (const i of ['NIFTY', 'SENSEX']) deps.expiries[i] = det[i]?.expiry || null; } catch (_) {}
-    // masters (and their chains) only when the market is open — outside hours the
+    try { const det = gammaBlastEngine.status().detect || {}; for (const i of agentsEngine.instruments) deps.expiries[i] = det[i]?.expiry || null; } catch (_) {}
+    // masters (and their chains) for every instrument the agents run on (NIFTY,
+    // SENSEX, BANKNIFTY) — only when the market is open. Outside hours the
     // pipeline still runs news → impact so the dashboard stays informative.
     if (session.inMarketHours) {
-      for (const inst of ['NIFTY', 'SENSEX']) {
+      for (const inst of agentsEngine.instruments) {
         try {
           const ms = await gatherMasterSignal(inst, { track: false });   // don't pollute the learner
           deps.masters[inst] = ms;

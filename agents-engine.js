@@ -40,20 +40,24 @@ const EVENT_TYPES = [
   { type: 'RESULTS',       w: 0.70, kws: ['q1 results', 'q2 results', 'q3 results', 'q4 results', 'quarterly results', 'net profit', 'revenue up', 'revenue fell', 'guidance', 'margin expansion', 'profit jumps', 'profit falls', 'loss widens'] },
 ];
 
-// approx index weights (%) for bias math — heavyweights move the index, tails don't
+// approx index weights (%) for bias math — heavyweights move the index, tails don't.
+// BANKNIFTY is bank-only (HDFC/ICICI dominate ~50%); non-banks carry 0 weight there.
 const INDEX_WEIGHT = {
-  RELIANCE: { NIFTY: 9.0, SENSEX: 11.5 }, HDFCBANK: { NIFTY: 11.0, SENSEX: 13.5 },
-  ICICIBANK: { NIFTY: 8.0, SENSEX: 9.5 }, INFY: { NIFTY: 5.0, SENSEX: 6.5 },
-  TCS: { NIFTY: 4.0, SENSEX: 5.0 }, ITC: { NIFTY: 3.5, SENSEX: 4.0 },
-  BHARTIARTL: { NIFTY: 4.0, SENSEX: 4.5 }, LT: { NIFTY: 3.5, SENSEX: 4.0 },
-  AXISBANK: { NIFTY: 3.0, SENSEX: 3.5 }, SBIN: { NIFTY: 3.0, SENSEX: 3.5 },
-  KOTAKBANK: { NIFTY: 2.5, SENSEX: 3.0 }, HINDUNILVR: { NIFTY: 2.0, SENSEX: 2.5 },
-  BAJFINANCE: { NIFTY: 2.0, SENSEX: 2.5 }, M_M: { NIFTY: 2.0, SENSEX: 2.5 },
-  MARUTI: { NIFTY: 1.5, SENSEX: 2.0 }, TATAMOTORS: { NIFTY: 1.5, SENSEX: 1.5 },
-  TITAN: { NIFTY: 1.5, SENSEX: 1.5 }, SUNPHARMA: { NIFTY: 1.5, SENSEX: 1.5 },
-  NTPC: { NIFTY: 1.5, SENSEX: 1.5 }, ULTRACEMCO: { NIFTY: 1.2, SENSEX: 1.5 },
+  RELIANCE:  { NIFTY: 9.0, SENSEX: 11.5, BANKNIFTY: 0 }, HDFCBANK: { NIFTY: 11.0, SENSEX: 13.5, BANKNIFTY: 28 },
+  ICICIBANK: { NIFTY: 8.0, SENSEX: 9.5, BANKNIFTY: 24 },  INFY: { NIFTY: 5.0, SENSEX: 6.5, BANKNIFTY: 0 },
+  TCS: { NIFTY: 4.0, SENSEX: 5.0, BANKNIFTY: 0 },          ITC: { NIFTY: 3.5, SENSEX: 4.0, BANKNIFTY: 0 },
+  BHARTIARTL: { NIFTY: 4.0, SENSEX: 4.5, BANKNIFTY: 0 },   LT: { NIFTY: 3.5, SENSEX: 4.0, BANKNIFTY: 0 },
+  AXISBANK: { NIFTY: 3.0, SENSEX: 3.5, BANKNIFTY: 9 },     SBIN: { NIFTY: 3.0, SENSEX: 3.5, BANKNIFTY: 10 },
+  KOTAKBANK: { NIFTY: 2.5, SENSEX: 3.0, BANKNIFTY: 9 },    HINDUNILVR: { NIFTY: 2.0, SENSEX: 2.5, BANKNIFTY: 0 },
+  BAJFINANCE: { NIFTY: 2.0, SENSEX: 2.5, BANKNIFTY: 0 },   M_M: { NIFTY: 2.0, SENSEX: 2.5, BANKNIFTY: 0 },
+  MARUTI: { NIFTY: 1.5, SENSEX: 2.0, BANKNIFTY: 0 },       TATAMOTORS: { NIFTY: 1.5, SENSEX: 1.5, BANKNIFTY: 0 },
+  TITAN: { NIFTY: 1.5, SENSEX: 1.5, BANKNIFTY: 0 },        SUNPHARMA: { NIFTY: 1.5, SENSEX: 1.5, BANKNIFTY: 0 },
+  NTPC: { NIFTY: 1.5, SENSEX: 1.5, BANKNIFTY: 0 },         ULTRACEMCO: { NIFTY: 1.2, SENSEX: 1.5, BANKNIFTY: 0 },
+  INDUSINDBK: { NIFTY: 1.0, SENSEX: 0, BANKNIFTY: 6 },     BANKBARODA: { NIFTY: 0.8, SENSEX: 0, BANKNIFTY: 3 },
+  PNB: { NIFTY: 0.5, SENSEX: 0, BANKNIFTY: 2 },            FEDERALBNK: { NIFTY: 0.5, SENSEX: 0, BANKNIFTY: 2 },
 };
-const idxWeight = (sym, idx) => (INDEX_WEIGHT[sym.replace('&', '_')] || {})[idx] || 0.5;
+const INSTRUMENTS = ['NIFTY', 'SENSEX', 'BANKNIFTY'];
+const idxWeight = (sym, idx) => (INDEX_WEIGHT[sym.replace('&', '_')] || {})[idx] != null ? (INDEX_WEIGHT[sym.replace('&', '_')] || {})[idx] : (idx === 'BANKNIFTY' ? 0 : 0.5);
 
 // ── PURE: 1. detect deal-class events in news items ──────────────────────────
 function detectDealEvents(items, opts = {}) {
@@ -105,18 +109,14 @@ function computeImpact(ev, opts = {}) {
 
   const stocks = (ev.stocks || []).map(sym => ({
     symbol: sym, direction, probability: prob,
-    indexWeight: { NIFTY: idxWeight(sym, 'NIFTY'), SENSEX: idxWeight(sym, 'SENSEX') },
+    indexWeight: { NIFTY: idxWeight(sym, 'NIFTY'), SENSEX: idxWeight(sym, 'SENSEX'), BANKNIFTY: idxWeight(sym, 'BANKNIFTY') },
   }));
 
-  // index bias: signed pull each affected heavyweight puts on the index (bounded)
-  const bias = { NIFTY: 0, SENSEX: 0 };
+  // index bias: signed pull each affected heavyweight puts on each index (bounded)
+  const bias = { NIFTY: 0, SENSEX: 0, BANKNIFTY: 0 };
   const sgn = direction === 'UP' ? 1 : direction === 'DOWN' ? -1 : 0;
-  for (const s of stocks) {
-    bias.NIFTY += sgn * (prob / 100) * s.indexWeight.NIFTY;
-    bias.SENSEX += sgn * (prob / 100) * s.indexWeight.SENSEX;
-  }
-  bias.NIFTY = round(clamp(bias.NIFTY, -15, 15));
-  bias.SENSEX = round(clamp(bias.SENSEX, -15, 15));
+  for (const s of stocks) for (const idx of INSTRUMENTS) bias[idx] += sgn * (prob / 100) * s.indexWeight[idx];
+  for (const idx of INSTRUMENTS) bias[idx] = round(clamp(bias[idx], -15, 15));
 
   return { ...ev, direction, probability: prob, params, stockImpacts: stocks, indexBias: bias };
 }
@@ -204,6 +204,9 @@ class AgentsEngine {
     this.squareOffMins = hhmm(cfg.squareOff ?? process.env.AGENTS_SQUAREOFF ?? '15:15');
     this.lastEntryMins = hhmm(cfg.lastEntry ?? process.env.AGENTS_LAST_ENTRY ?? '14:45');
     this.qty = parseInt(cfg.qty ?? process.env.AGENTS_QTY ?? 1);
+    // instruments the whole pipeline runs on — NIFTY + SENSEX + BANKNIFTY by default
+    this.instruments = (cfg.instruments || (process.env.AGENTS_INSTRUMENTS || 'NIFTY,SENSEX,BANKNIFTY').split(','))
+      .map(s => String(s).trim().toUpperCase()).filter(i => LOT[i]);
 
     // ── the VALIDATED edge: defined-risk premium selling (iron condor) ──
     this.sellEnabled = String(cfg.sellEnabled ?? process.env.AGENTS_SELL_ENABLED ?? 'true').toLowerCase() === 'true';
@@ -287,27 +290,26 @@ class AgentsEngine {
 
     // 2. IMPACT ANALYST
     const impacts = events.slice(0, 25).map(ev => computeImpact(ev));
-    const totalBias = { NIFTY: 0, SENSEX: 0 };
-    for (const im of impacts) { totalBias.NIFTY += im.indexBias.NIFTY; totalBias.SENSEX += im.indexBias.SENSEX; }
-    totalBias.NIFTY = round(clamp(totalBias.NIFTY, -20, 20));
-    totalBias.SENSEX = round(clamp(totalBias.SENSEX, -20, 20));
+    const totalBias = { NIFTY: 0, SENSEX: 0, BANKNIFTY: 0 };
+    for (const im of impacts) for (const idx of this.instruments) totalBias[idx] += im.indexBias[idx] || 0;
+    for (const idx of this.instruments) totalBias[idx] = round(clamp(totalBias[idx], -20, 20));
     const stockHits = impacts.filter(i => i.stockImpacts.length);
     this._stamp('impact', stockHits.length ? 'ACTIVE' : 'WATCHING',
       { analyzed: impacts.length, withStocks: stockHits.length, indexBias: totalBias,
         top: stockHits.slice(0, 8).map(i => ({ title: i.title, type: i.eventType, direction: i.direction,
           probability: i.probability, stocks: i.stockImpacts.map(s => s.symbol), params: i.params })) });
 
-    // 3. SIGNAL AGENT
+    // 3. SIGNAL AGENT — fuses master verdict × news bias for every instrument
     const combined = {};
-    for (const inst of ['NIFTY', 'SENSEX']) combined[inst] = combineSignal(deps.masters?.[inst], totalBias[inst]);
-    this._stamp('signal', 'ACTIVE', { NIFTY: combined.NIFTY, SENSEX: combined.SENSEX });
+    for (const inst of this.instruments) combined[inst] = combineSignal(deps.masters?.[inst], totalBias[inst]);
+    this._stamp('signal', 'ACTIVE', this.instruments.reduce((o, i) => (o[i] = combined[i], o), {}));
 
     // 4 + 5. RISK GATE → EXECUTOR, per instrument · two plays:
     //   DIR BUY (rare, prob-gated)  +  RANGE CONDOR (the validated selling edge)
     const vixExtreme = (deps.vix?.value || 0) >= 22;
     const ivp = deps.ivp != null && isFinite(deps.ivp) ? round(deps.ivp, 1) : null;
     const gates = {}, sellGates = {}, actions = [];
-    for (const inst of ['NIFTY', 'SENSEX']) {
+    for (const inst of this.instruments) {
       const sig = combined[inst];
       const gate = riskGate({
         inMarketHours: !!deps.inMarketHours, decision: sig.decision, probability: sig.probability,
@@ -347,7 +349,7 @@ class AgentsEngine {
       }
     }
     this._stamp('risk', Object.values(gates).some(g => g.go) || Object.values(sellGates).some(g => g.go) ? 'GO' : 'HOLDING',
-      { NIFTY: gates.NIFTY, SENSEX: gates.SENSEX, sell: sellGates, ivp });
+      { ...gates, sell: sellGates, ivp });
     this._stamp('executor', (this._open.size + this._openCondor.size) ? 'IN TRADE' : 'STANDBY', {
       open: [...this._open.values()], condors: [...this._openCondor.values()],
       closedToday: this._closedToday, dayPnl: round(this._dailyPnl()),
