@@ -1,0 +1,85 @@
+{
+ "generatedAt": "2026-07-02T13:23:03.493Z",
+ "days": 600,
+ "range": [
+  "2024-01-08",
+  "2026-06-17"
+ ],
+ "results": [
+  {
+   "name": "BASE_STRANGLE",
+   "trades": 128,
+   "winPct": 80,
+   "net": 1469794,
+   "final": 1569794,
+   "pf": 7.25,
+   "expectancy": 11483,
+   "maxDDpct": 7.2,
+   "avgWin": 16554,
+   "avgLoss": -9409,
+   "worst": -37322,
+   "tpExits": 0,
+   "slExits": 86
+  },
+  {
+   "name": "TT_MANAGE50",
+   "trades": 128,
+   "winPct": 84,
+   "net": 1041064,
+   "final": 1141064,
+   "pf": 6.9,
+   "expectancy": 8133,
+   "maxDDpct": 5,
+   "avgWin": 11379,
+   "avgLoss": -8403,
+   "worst": -28731,
+   "tpExits": 60,
+   "slExits": 68
+  },
+  {
+   "name": "TT_CONDOR50",
+   "trades": 128,
+   "winPct": 80,
+   "net": 168006,
+   "final": 268006,
+   "pf": 1.42,
+   "expectancy": 1313,
+   "maxDDpct": 35.4,
+   "avgWin": 5507,
+   "avgLoss": -15967,
+   "worst": -105508,
+   "tpExits": 101,
+   "slExits": 0
+  },
+  {
+   "name": "EM_STRANGLE",
+   "trades": 128,
+   "winPct": 83,
+   "net": 918699,
+   "final": 1018699,
+   "pf": 6.51,
+   "expectancy": 7177,
+   "maxDDpct": 5.7,
+   "avgWin": 10241,
+   "avgLoss": -7583,
+   "worst": -31055,
+   "tpExits": 57,
+   "slExits": 71
+  },
+  {
+   "name": "PUT_WRITE",
+   "trades": 128,
+   "winPct": 63,
+   "net": 304946,
+   "final": 404946,
+   "pf": 1.56,
+   "expectancy": 2382,
+   "maxDDpct": 35.5,
+   "avgWin": 10677,
+   "avgLoss": -11442,
+   "worst": -29020,
+   "tpExits": 0,
+   "slExits": 48
+  }
+ ]
+}
