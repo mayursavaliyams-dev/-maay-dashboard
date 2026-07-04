@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pattern Chart · Antigravity Pro</title>
-<!-- Highcharts Stock — self-hosted (public/vendor) so the chart works without CDN/internet -->
 <script src="/vendor/highstock.js"></script>
 <style>
-  :root{ --bg:#0a0e14; --panel:#0e1520; --panel2:#0e1726; --border:#1c2735; --muted:#7c8aa0; --tvup:#26a69a; --tvdn:#ef5350; --amber:#fcd34d; --blue:#5b9cff; --ema9:#ff9800; --ema21:#2196f3; }
+  :root{ --bg:#0a0e14; --panel:#0e1520; --border:#1c2735; --muted:#7c8aa0; --tvup:#26a69a; --tvdn:#ef5350; --amber:#fcd34d;
+         --blue:#5b9cff; --ema9:#ffd400; --ema21:#2196f3; --up:#26a69a; --dn:#ef5350; }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--bg); color:#d1d4dc; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
-  .wrap{ padding:0 12px 24px; max-width:1680px; margin:0 auto; }
+  .wrap{ padding:0 12px 24px; max-width:1760px; margin:0 auto; }
   .topbar{ padding:9px 4px 4px; display:flex; align-items:center; gap:12px; }
   .brand{ font-size:0.95rem; font-weight:800; color:var(--blue); }
   nav{ display:flex; gap:4px; padding:4px 2px 8px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:8px; }
@@ -18,32 +18,47 @@
   nav a:hover{ background:rgba(91,156,255,.14); color:#cfe0ff; } nav a.active{ background:rgba(91,156,255,.18); color:#cfe0ff; }
   .bar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
   .seg{ display:flex; gap:2px; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:2px; }
-  .seg button{ background:none; border:0; color:#9fb0c8; font-size:0.68rem; font-weight:800; padding:4px 11px; border-radius:6px; cursor:pointer; }
+  .seg button{ background:none; border:0; color:#9fb0c8; font-size:0.68rem; font-weight:800; padding:4px 10px; border-radius:6px; cursor:pointer; }
   .seg button.on{ background:rgba(91,156,255,.22); color:#cfe0ff; }
+  .trend{ font-size:0.66rem; font-weight:900; padding:4px 12px; border-radius:8px; border:1px solid var(--border); }
   .live-sig{ margin-left:auto; font-size:0.66rem; font-weight:800; padding:4px 12px; border-radius:8px; background:var(--panel); border:1px solid var(--border); }
 
+  .layout{ display:grid; grid-template-columns:1fr 300px; gap:10px; }
+  @media(max-width:1080px){ .layout{ grid-template-columns:1fr; } }
   .chartbox{ position:relative; background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-  #chart{ height:660px; }
-  /* TradingView-style floating OHLC legend (top-left overlay) */
+  #chart{ height:640px; }
   .ohlc{ position:absolute; left:12px; top:9px; z-index:5; font-size:0.72rem; font-weight:700; pointer-events:none;
-         display:flex; gap:11px; flex-wrap:wrap; align-items:center; font-variant-numeric:tabular-nums;
-         text-shadow:0 1px 3px rgba(0,0,0,.7); }
-  .ohlc .sym{ font-size:0.82rem; font-weight:900; color:#e6edf6; }
-  .ohlc .tf{ font-size:0.6rem; color:var(--muted); font-weight:700; }
-  .ohlc .lbl{ color:var(--muted); font-weight:600; margin-right:2px; }
-  .ohlc .o,.ohlc .h,.ohlc .l,.ohlc .c{ font-weight:800; }
-  .ohlc .chg{ font-weight:800; }
-  .ohlc .ema{ font-size:0.62rem; font-weight:700; }
+         display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,.7); }
+  .ohlc .sym{ font-size:0.82rem; font-weight:900; color:#e6edf6; } .ohlc .tf{ font-size:0.6rem; color:var(--muted); font-weight:700; }
+  .ohlc .lbl{ color:var(--muted); font-weight:600; margin-right:2px; } .ohlc .chg{ font-weight:800; } .ohlc .ema{ font-size:0.62rem; font-weight:700; }
+
+  /* option chain side panel */
+  .chain{ background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+  .chain-hd{ display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--border); }
+  .chain-hd .t{ font-size:0.72rem; font-weight:900; }
+  .chain-hd .spot{ margin-left:auto; font-size:0.7rem; font-weight:800; color:var(--amber); font-variant-numeric:tabular-nums; }
+  .chain-seg{ display:flex; gap:2px; padding:6px 8px; }
+  .chain-seg button{ flex:1; background:var(--panel); border:1px solid var(--border); color:#9fb0c8; font-size:0.6rem; font-weight:800; padding:4px; border-radius:6px; cursor:pointer; }
+  .chain-seg button.on{ background:rgba(91,156,255,.2); color:#cfe0ff; border-color:#22355c; }
+  .chain-tbl{ overflow-y:auto; max-height:600px; }
+  table.oc{ width:100%; border-collapse:collapse; font-size:0.62rem; font-variant-numeric:tabular-nums; }
+  table.oc th{ position:sticky; top:0; background:#0c131f; color:#7c8aa0; font-weight:700; font-size:0.52rem; text-transform:uppercase; padding:5px 4px; border-bottom:1px solid var(--border); }
+  table.oc td{ padding:4px 5px; border-bottom:1px solid #101827; text-align:right; }
+  table.oc td.k{ text-align:center; font-weight:800; color:#cfe0ff; background:rgba(255,255,255,.02); }
+  table.oc tr.atm td{ background:rgba(255,212,0,.08); }
+  table.oc tr.atm td.k{ color:var(--amber); }
+  .ce{ color:#8fd6c8; } .pe{ color:#f2a6b3; }
+  .oibar{ display:inline-block; height:9px; border-radius:2px; vertical-align:middle; margin-left:3px; }
+
   .legend2{ display:flex; gap:14px; font-size:0.58rem; color:var(--muted); margin:7px 2px 6px; flex-wrap:wrap; }
   .legend2 b{ font-weight:800; }
-  .note{ font-size:0.56rem; color:#5a6678; margin:8px 2px 0; line-height:1.5; }
+  .note{ font-size:0.55rem; color:#5a6678; margin:6px 2px 0; line-height:1.5; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
   <nav>
-    <a href="/">Command</a>
     <a href="/dashboard.html">Dashboard</a>
     <a href="/pattern-signals.html">Patterns</a>
     <a href="/chart.html" class="active">Chart</a>
@@ -60,31 +75,51 @@
       <button data-v="BANKNIFTY">BANKNIFTY</button>
     </div>
     <div class="seg" id="tfSeg">
+      <button data-v="3">3m</button>
       <button data-v="5">5m</button>
       <button data-v="15" class="on">15m</button>
       <button data-v="60">1h</button>
+      <button data-v="120">2h</button>
     </div>
+    <span class="trend" id="trend">TREND —</span>
     <span class="live-sig" id="liveSig">loading…</span>
   </div>
 
-  <div class="chartbox">
-    <div class="ohlc" id="ohlc"><span class="sym" id="ohSym">—</span></div>
-    <div id="chart"></div>
+  <div class="layout">
+    <div class="chartbox">
+      <div class="ohlc" id="ohlc"><span class="sym">—</span></div>
+      <div id="chart"></div>
+    </div>
+
+    <!-- side option chain (follows the selected instrument, or pick another) -->
+    <div class="chain">
+      <div class="chain-hd"><span class="t">📊 Option Chain</span><span class="spot" id="ocSpot">—</span></div>
+      <div class="chain-seg" id="ocSeg">
+        <button data-v="NIFTY" class="on">NIFTY</button>
+        <button data-v="SENSEX">SENSEX</button>
+        <button data-v="BANKNIFTY">BANKNIFTY</button>
+      </div>
+      <div class="chain-tbl">
+        <table class="oc">
+          <thead><tr><th>CE OI</th><th>CE LTP</th><th>Strike</th><th>PE LTP</th><th>PE OI</th></tr></thead>
+          <tbody id="ocBody"><tr><td colspan="5" style="text-align:center;color:#5a6678;padding:16px">loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div class="legend2">
-    <span><b style="color:var(--ema9)">━ EMA 9</b> · <b style="color:var(--ema21)">━ EMA 21</b></span>
-    <span><b style="color:var(--tvup)">▲</b> bullish pattern · <b style="color:var(--tvdn)">▼</b> bearish pattern (≥55, closed bars)</span>
-    <span><b style="color:var(--amber)">◆ B/S</b> = CONFIRMED signal (≥3/4 engines) — HIT/MISS colour after resolve</span>
+    <span><b style="color:var(--ema9)">━ EMA 9</b> · <b style="color:var(--ema21)">━ EMA 21</b> · <b style="color:var(--up)">━</b>/<b style="color:var(--dn)">━</b> <b>EMA 200</b> (green up-trend / red down-trend)</span>
+    <span><b style="color:var(--tvup)">▲</b>/<b style="color:var(--tvdn)">▼</b> pattern · <b style="color:var(--amber)">◆ B/S</b> confirmed signal</span>
   </div>
-  <div class="note">Live like TradingView — crosshair OHLC readout, EMA9/21, volume pane, last-price label; the forming candle updates every 5s. Patterns via candlestick-patterns.js; flags are tracked Confirmed Signals — paper/educational, not advice. Highcharts © Highsoft — licence required for commercial SaaS.</div>
+  <div class="note">Timeframes 3m·5m·15m·1h·2h for trend-finding. EMA200 colours the trend (green rising / red falling) — full on 3m/5m/15m; 1h/2h intraday history is limited so EMA200 appears once ≥200 bars exist. Forming candle updates every 5s. Paper/educational, not advice. Highcharts © Highsoft — licence required for commercial SaaS.</div>
 </div>
 
 <script>
 const API = '';
-let INST = 'NIFTY', TF = 15, chart = null, lastData = null;
+let INST = 'NIFTY', TF = 15, OCINST = 'NIFTY', chart = null, lastData = null;
 const UP = '#26a69a', DN = '#ef5350', AMBER = '#fcd34d';
-const tfLabel = { 5: '5m', 15: '15m', 60: '1h' };
+const tfLabel = { 3: '3m', 5: '5m', 15: '15m', 60: '1h', 120: '2h' };
 
 function segWire(id, cb) {
   document.getElementById(id).addEventListener('click', e => {
@@ -93,98 +128,70 @@ function segWire(id, cb) {
     cb(b.dataset.v);
   });
 }
-segWire('instSeg', v => { INST = v; load(true); });
+segWire('instSeg', v => { INST = v; setOcInst(v); load(true); });
 segWire('tfSeg', v => { TF = +v; load(true); });
+segWire('ocSeg', v => { OCINST = v; loadChain(); });
+function setOcInst(v) { OCINST = v; document.querySelectorAll('#ocSeg button').forEach(x => x.classList.toggle('on', x.dataset.v === v)); loadChain(); }
 
 const fmt = v => v == null ? '—' : v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// TradingView-style floating OHLC readout for a given candle index
 function setOHLC(i) {
   if (!lastData || !lastData.candles.length) return;
-  const c = lastData.candles[Math.max(0, Math.min(i, lastData.candles.length - 1))];
-  if (!c) return;
-  const [t, o, h, l, cl] = c;
-  const up = cl >= o, col = up ? UP : DN;
-  const prev = i > 0 ? lastData.candles[i - 1][4] : o;
-  const chg = cl - prev, chgPct = prev ? (chg / prev * 100) : 0;
-  const e9 = (lastData.ema9.find(p => p[0] === t) || [])[1];
-  const e21 = (lastData.ema21.find(p => p[0] === t) || [])[1];
+  const c = lastData.candles[Math.max(0, Math.min(i, lastData.candles.length - 1))]; if (!c) return;
+  const [t, o, h, l, cl] = c; const up = cl >= o, col = up ? UP : DN;
+  const prev = i > 0 ? lastData.candles[i - 1][4] : o; const chg = cl - prev, chgPct = prev ? (chg / prev * 100) : 0;
+  const at = a => (a.find(p => p[0] === t) || [])[1];
+  const e9 = at(lastData.ema9), e21 = at(lastData.ema21);
+  const e2 = at(lastData.ema200up) != null ? at(lastData.ema200up) : at(lastData.ema200dn);
   document.getElementById('ohlc').innerHTML =
     `<span class="sym">${INST}</span><span class="tf">· ${tfLabel[TF] || TF + 'm'}</span>` +
-    `<span><span class="lbl">O</span><span class="o" style="color:${col}">${fmt(o)}</span></span>` +
-    `<span><span class="lbl">H</span><span class="h" style="color:${col}">${fmt(h)}</span></span>` +
-    `<span><span class="lbl">L</span><span class="l" style="color:${col}">${fmt(l)}</span></span>` +
-    `<span><span class="lbl">C</span><span class="c" style="color:${col}">${fmt(cl)}</span></span>` +
+    `<span><span class="lbl">O</span><span style="color:${col}">${fmt(o)}</span></span>` +
+    `<span><span class="lbl">H</span><span style="color:${col}">${fmt(h)}</span></span>` +
+    `<span><span class="lbl">L</span><span style="color:${col}">${fmt(l)}</span></span>` +
+    `<span><span class="lbl">C</span><span style="color:${col}">${fmt(cl)}</span></span>` +
     `<span class="chg" style="color:${col}">${chg >= 0 ? '+' : ''}${fmt(chg)} (${chg >= 0 ? '+' : ''}${chgPct.toFixed(2)}%)</span>` +
     (e9 != null ? `<span class="ema" style="color:var(--ema9)">EMA9 ${fmt(e9)}</span>` : '') +
-    (e21 != null ? `<span class="ema" style="color:var(--ema21)">EMA21 ${fmt(e21)}</span>` : '');
+    (e21 != null ? `<span class="ema" style="color:var(--ema21)">EMA21 ${fmt(e21)}</span>` : '') +
+    (e2 != null ? `<span class="ema" style="color:${lastData.trend200 === 'DOWN' ? DN : UP}">EMA200 ${fmt(e2)}</span>` : '');
 }
 
-function patFlags(d, sent) {
-  return d.patterns.filter(p => p.sentiment === sent).map(p =>
-    ({ x: p.t, title: sent === 'Bullish' ? '▲' : '▼', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` }));
-}
-function sigFlags(d) {
-  return d.signals.map(s => ({
-    x: s.t, title: s.direction === 'BULLISH' ? 'B' : 'S',
-    text: `<b>${s.direction} · ${s.trade}</b><br/>${s.status}${s.movePct != null ? ' · move ' + s.movePct + '%' : ''}${s.agreeN ? ' · ' + s.agreeN + '/4 engines' : ''}`,
-    fillColor: s.status === 'HIT' ? UP : s.status === 'MISS' ? DN : AMBER,
-  }));
-}
+const patFlags = (d, s) => d.patterns.filter(p => p.sentiment === s).map(p =>
+  ({ x: p.t, title: s === 'Bullish' ? '▲' : '▼', text: `<b>${p.name}</b><br/>strength ${p.strength} · ${p.reliability}` }));
+const sigFlags = d => d.signals.map(s => ({ x: s.t, title: s.direction === 'BULLISH' ? 'B' : 'S',
+  text: `<b>${s.direction} · ${s.trade}</b><br/>${s.status}${s.movePct != null ? ' · move ' + s.movePct + '%' : ''}`,
+  fillColor: s.status === 'HIT' ? UP : s.status === 'MISS' ? DN : AMBER }));
 
 function buildChart(d) {
   chart = Highcharts.stockChart('chart', {
     chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' },
-      events: { load() {
-        setOHLC(d.candles.length - 1);
-        // open focused on the most recent ~55 bars (TradingView-like); scroll left for history
-        const n = d.candles.length;
-        if (n > 55) this.xAxis[0].setExtremes(d.candles[n - 55][0], d.candles[n - 1][0], true, false);
-      } } },
+      events: { load() { setOHLC(d.candles.length - 1); const n = d.candles.length; if (n > 55) this.xAxis[0].setExtremes(d.candles[n - 55][0], d.candles[n - 1][0], true, false); } } },
     time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },
     rangeSelector: { enabled: false }, scrollbar: { enabled: false }, credits: { enabled: false },
-    navigator: { enabled: true, height: 26, maskFill: 'rgba(91,156,255,.06)', outlineColor: '#1c2735',
-      series: { color: '#3a4a63', lineColor: '#3a4a63' }, xAxis: { labels: { style: { color: '#5a6678' } } } },
-    xAxis: {
-      lineColor: '#1c2735', tickColor: '#1c2735', gridLineColor: 'rgba(255,255,255,.03)', gridLineWidth: 1,
+    navigator: { enabled: true, height: 24, maskFill: 'rgba(91,156,255,.06)', outlineColor: '#1c2735', series: { color: '#3a4a63', lineColor: '#3a4a63' }, xAxis: { labels: { style: { color: '#5a6678' } } } },
+    xAxis: { lineColor: '#1c2735', tickColor: '#1c2735', gridLineColor: 'rgba(255,255,255,.03)', gridLineWidth: 1,
       labels: { style: { color: '#7c8aa0', fontSize: '10px' } }, ordinal: true,
-      crosshair: { width: 1, color: 'rgba(255,255,255,.25)', dashStyle: 'ShortDot',
-        label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '10px' }, format: '{value:%H:%M}' } },
-    },
+      crosshair: { width: 1, color: 'rgba(255,255,255,.25)', dashStyle: 'ShortDot', label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '10px' }, format: '{value:%H:%M}' } } },
     yAxis: [
-      { // price
-        labels: { style: { color: '#7c8aa0', fontSize: '10px' }, align: 'left', x: 6 },
-        gridLineColor: 'rgba(255,255,255,.04)', opposite: true, height: '80%', lineWidth: 0,
-        crosshair: { width: 1, color: 'rgba(255,255,255,.25)', dashStyle: 'ShortDot',
-          label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '10px' }, format: '{value:,.2f}' } },
-      },
-      { // volume
-        labels: { enabled: false }, gridLineWidth: 0, opposite: true, top: '82%', height: '18%', offset: 0,
-      },
+      { labels: { style: { color: '#7c8aa0', fontSize: '10px' }, align: 'left', x: 6 }, gridLineColor: 'rgba(255,255,255,.04)', opposite: true, height: '80%', lineWidth: 0,
+        crosshair: { width: 1, color: 'rgba(255,255,255,.25)', dashStyle: 'ShortDot', label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '10px' }, format: '{value:,.2f}' } } },
+      { labels: { enabled: false }, gridLineWidth: 0, opposite: true, top: '82%', height: '18%', offset: 0 },
     ],
-    tooltip: { enabled: false },   // OHLC shown in the fixed legend instead (TradingView style)
+    tooltip: { enabled: false },
     plotOptions: {
-      candlestick: { pointPadding: 0.15, groupPadding: 0.18, maxPointWidth: 9,   // thin, neat candles
-        point: { events: { mouseOver() { setOHLC(this.index); } } },
-        lastPrice: { enabled: true, color: '#5b9cff' },
-        lastVisiblePrice: { enabled: true, label: { enabled: true, backgroundColor: '#5b9cff', style: { color: '#04101e', fontWeight: '800' } } } },
-      flags: { useHTML: false },
-      column: { borderWidth: 0, maxPointWidth: 9 },
+      candlestick: { pointPadding: 0.15, groupPadding: 0.18, maxPointWidth: 9, point: { events: { mouseOver() { setOHLC(this.index); } } },
+        lastPrice: { enabled: true, color: '#5b9cff' }, lastVisiblePrice: { enabled: true, label: { enabled: true, backgroundColor: '#5b9cff', style: { color: '#04101e', fontWeight: '800' } } } },
+      flags: { useHTML: false }, column: { borderWidth: 0, maxPointWidth: 9 }, line: { marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } },
     },
     series: [
-      { type: 'candlestick', id: 'px', name: d.inst, data: d.candles,
-        color: DN, lineColor: DN, upColor: UP, upLineColor: UP, dataGrouping: { enabled: false } },
-      { type: 'line', id: 'ema9', name: 'EMA 9', data: d.ema9, color: '#ff9800', lineWidth: 1.2,
-        marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } },
-      { type: 'line', id: 'ema21', name: 'EMA 21', data: d.ema21, color: '#2196f3', lineWidth: 1.2,
-        marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } },
+      { type: 'candlestick', id: 'px', name: d.inst, data: d.candles, color: DN, lineColor: DN, upColor: UP, upLineColor: UP, dataGrouping: { enabled: false } },
+      { type: 'line', id: 'ema9', name: 'EMA 9', data: d.ema9, color: '#ffd400', lineWidth: 1.2 },
+      { type: 'line', id: 'ema21', name: 'EMA 21', data: d.ema21, color: '#2196f3', lineWidth: 1.2 },
+      { type: 'line', id: 'ema200up', name: 'EMA 200 ↑', data: d.ema200up || [], color: UP, lineWidth: 2, connectNulls: false },
+      { type: 'line', id: 'ema200dn', name: 'EMA 200 ↓', data: d.ema200dn || [], color: DN, lineWidth: 2, connectNulls: false },
       { type: 'column', id: 'vol', name: 'Vol', data: d.volume || [], yAxis: 1, dataGrouping: { enabled: false } },
-      { type: 'flags', name: 'Bullish', data: patFlags(d, 'Bullish'), onSeries: 'px', shape: 'squarepin', width: 13,
-        fillColor: 'rgba(38,166,154,.16)', color: UP, style: { color: UP, fontSize: '9px', fontWeight: '900' }, y: -30 },
-      { type: 'flags', name: 'Bearish', data: patFlags(d, 'Bearish'), onSeries: 'px', shape: 'squarepin', width: 13,
-        fillColor: 'rgba(239,83,80,.16)', color: DN, style: { color: DN, fontSize: '9px', fontWeight: '900' }, y: 10 },
-      { type: 'flags', name: 'Signals', data: sigFlags(d), shape: 'circlepin', width: 16,
-        color: AMBER, style: { color: '#0b0d12', fontSize: '10px', fontWeight: '900' }, y: -52 },
+      { type: 'flags', name: 'Bullish', data: patFlags(d, 'Bullish'), onSeries: 'px', shape: 'squarepin', width: 13, fillColor: 'rgba(38,166,154,.16)', color: UP, style: { color: UP, fontSize: '9px', fontWeight: '900' }, y: -30 },
+      { type: 'flags', name: 'Bearish', data: patFlags(d, 'Bearish'), onSeries: 'px', shape: 'squarepin', width: 13, fillColor: 'rgba(239,83,80,.16)', color: DN, style: { color: DN, fontSize: '9px', fontWeight: '900' }, y: 10 },
+      { type: 'flags', name: 'Signals', data: sigFlags(d), shape: 'circlepin', width: 16, color: AMBER, style: { color: '#0b0d12', fontSize: '10px', fontWeight: '900' }, y: -52 },
     ],
   });
 }
@@ -193,32 +200,54 @@ async function load(rebuild) {
   try {
     const d = await (await fetch(`${API}/api/chart-patterns?inst=${INST}&tf=${TF}`, { cache: 'no-store' })).json();
     if (!d.ok) { document.getElementById('liveSig').textContent = '⚠️ ' + (d.error || 'feed error'); return; }
-    d.ema9 = d.ema9 || []; d.ema21 = d.ema21 || []; d.volume = d.volume || [];
+    d.ema9 = d.ema9 || []; d.ema21 = d.ema21 || []; d.ema200up = d.ema200up || []; d.ema200dn = d.ema200dn || []; d.volume = d.volume || [];
     lastData = d;
+    const tEl = document.getElementById('trend');
+    const tr = d.trend200 || 'n/a';
+    tEl.textContent = 'TREND ' + (tr === 'UP' ? '▲ UP' : tr === 'DOWN' ? '▼ DOWN' : '—');
+    tEl.style.color = tr === 'UP' ? UP : tr === 'DOWN' ? DN : '#7c8aa0';
+    tEl.style.borderColor = tr === 'UP' ? 'rgba(38,166,154,.4)' : tr === 'DOWN' ? 'rgba(239,83,80,.4)' : 'var(--border)';
     const lastPat = d.patterns[d.patterns.length - 1];
     const sig = document.getElementById('liveSig');
-    if (!d.candles.length) { sig.textContent = 'market closed — no candles today'; sig.style.color = '#7c8aa0'; document.getElementById('ohSym').textContent = INST; }
+    if (!d.candles.length) { sig.textContent = 'market closed — no candles'; sig.style.color = '#7c8aa0'; }
     else if (lastPat) { sig.textContent = `latest: ${lastPat.name} (${lastPat.sentiment} ${lastPat.strength})`; sig.style.color = lastPat.sentiment === 'Bullish' ? UP : DN; }
     else { sig.textContent = 'no strong pattern yet'; sig.style.color = '#7c8aa0'; }
 
     if (!chart || rebuild) { if (chart) { chart.destroy(); chart = null; } if (d.candles.length) buildChart(d); return; }
-    // live in-place update (keeps zoom) — the forming last candle grows like TradingView
     chart.get('px').setData(d.candles, false);
-    chart.get('ema9').setData(d.ema9, false);
-    chart.get('ema21').setData(d.ema21, false);
+    chart.get('ema9').setData(d.ema9, false); chart.get('ema21').setData(d.ema21, false);
+    chart.get('ema200up').setData(d.ema200up, false); chart.get('ema200dn').setData(d.ema200dn, false);
     chart.get('vol').setData(d.volume, false);
-    chart.series[4].setData(patFlags(d, 'Bullish'), false);
-    chart.series[5].setData(patFlags(d, 'Bearish'), false);
-    chart.series[6].setData(sigFlags(d), false);
-    chart.redraw(false);
-    setOHLC(d.candles.length - 1);
+    chart.series[6].setData(patFlags(d, 'Bullish'), false); chart.series[7].setData(patFlags(d, 'Bearish'), false); chart.series[8].setData(sigFlags(d), false);
+    chart.redraw(false); setOHLC(d.candles.length - 1);
   } catch (e) { document.getElementById('liveSig').textContent = '⚠️ ' + e.message; }
 }
 
-load(true);
-setInterval(() => load(false), 5000);   // TradingView-like live cadence
+// ── side option chain ──
+async function loadChain() {
+  try {
+    const d = await (await fetch(`${API}/api/option-chain-full?inst=${OCINST}&depth=8`, { cache: 'no-store' })).json();
+    document.getElementById('ocSpot').textContent = d.spot ? OCINST + ' ' + d.spot.toLocaleString('en-IN') : OCINST;
+    const rows = d.rows || [];
+    const maxOI = Math.max(1, ...rows.map(r => Math.max(r.ce?.oi || 0, r.pe?.oi || 0)));
+    const oiBar = (oi, side) => { const w = Math.round((oi / maxOI) * 46); return `<span class="oibar" style="width:${w}px;background:${side === 'ce' ? 'rgba(38,166,154,.35)' : 'rgba(239,83,80,.35)'}"></span>`; };
+    const k = n => n >= 1e7 ? (n / 1e7).toFixed(1) + 'Cr' : n >= 1e5 ? (n / 1e5).toFixed(1) + 'L' : n >= 1e3 ? (n / 1e3).toFixed(0) + 'k' : n;
+    document.getElementById('ocBody').innerHTML = rows.length ? rows.map(r => `
+      <tr class="${r.isATM ? 'atm' : ''}">
+        <td class="ce">${k(r.ce?.oi || 0)}${oiBar(r.ce?.oi || 0, 'ce')}</td>
+        <td class="ce">${r.ce?.ltp ? r.ce.ltp.toFixed(1) : '—'}</td>
+        <td class="k">${r.strike}${r.isATM ? ' ★' : ''}</td>
+        <td class="pe">${r.pe?.ltp ? r.pe.ltp.toFixed(1) : '—'}</td>
+        <td class="pe">${oiBar(r.pe?.oi || 0, 'pe')}${k(r.pe?.oi || 0)}</td>
+      </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:#5a6678;padding:16px">no chain (market closed)</td></tr>';
+  } catch (e) { document.getElementById('ocBody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--dn);padding:16px">⚠️ ${e.message}</td></tr>`; }
+}
 
-// build-freshness badge
+load(true); loadChain();
+setInterval(() => load(false), 5000);
+setInterval(loadChain, 8000);
+
+// build badge + auto-reload
 (function () {
   let bid = null; const b = document.createElement('div');
   b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(10,14,20,.8);border:1px solid #1c2735;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace';
