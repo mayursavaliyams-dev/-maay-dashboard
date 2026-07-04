@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4 Charts · Antigravity Pro</title>
+<script src="/vendor/highstock.js"></script>
+<style>
+  :root{ --bg:#0a0e14; --panel:#0e1520; --border:#1c2735; --muted:#7c8aa0; --up:#26a69a; --dn:#ef5350; --amber:#fcd34d; --blue:#5b9cff; --ema9:#ffd400; --ema21:#1565c0; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:#d1d4dc; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  .wrap{ padding:0 12px 20px; max-width:1900px; margin:0 auto; }
+  .topbar{ padding:9px 4px 4px; display:flex; align-items:center; gap:12px; }
+  .brand{ font-size:0.95rem; font-weight:800; color:var(--blue); }
+  nav{ display:flex; gap:4px; padding:4px 2px 8px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:8px; }
+  nav a{ color:#9fb0c8; text-decoration:none; font-size:0.7rem; font-weight:700; padding:3px 9px; border-radius:7px; }
+  nav a:hover{ background:rgba(91,156,255,.14); color:#cfe0ff; } nav a.active{ background:rgba(91,156,255,.18); color:#cfe0ff; }
+  .toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; font-size:0.66rem; }
+  .toolbar .preset{ background:var(--panel); border:1px solid var(--border); color:#9fb0c8; font-weight:800; padding:5px 12px; border-radius:8px; cursor:pointer; }
+  .toolbar .preset:hover{ border-color:var(--blue); color:#cfe0ff; }
+
+  .grid{ display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:8px; height:calc(100vh - 130px); min-height:640px; }
+  @media(max-width:820px){ .grid{ grid-template-columns:1fr; grid-template-rows:repeat(4,340px); height:auto; } }
+  .cell{ background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+  .cell-hd{ display:flex; align-items:center; gap:6px; padding:5px 8px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .cell-hd select{ background:#0a111d; border:1px solid var(--border); color:#e6edf6; border-radius:6px; padding:2px 5px; font-size:0.62rem; font-weight:800; cursor:pointer; }
+  .cell-hd .px{ font-size:0.72rem; font-weight:900; font-variant-numeric:tabular-nums; }
+  .cell-hd .trend{ font-size:0.56rem; font-weight:900; padding:2px 8px; border-radius:6px; border:1px solid var(--border); }
+  .cell-hd .pat{ margin-left:auto; font-size:0.55rem; font-weight:700; }
+  .cell-chart{ flex:1; min-height:0; }
+  .ohlc{ position:absolute; left:8px; top:34px; z-index:5; font-size:0.58rem; font-weight:700; pointer-events:none; display:flex; gap:7px; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,.7); }
+  .ohlc .lbl{ color:var(--muted); }
+  .note{ font-size:0.55rem; color:#5a6678; margin-top:8px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
+  <nav>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/chart.html">Chart</a>
+    <a href="/charts4.html" class="active">4 Charts</a>
+    <a href="/pattern-signals.html">Patterns</a>
+    <a href="/signals4.html">4 Engines</a>
+    <a href="/payoff.html">Payoff</a>
+    <a href="/agents.html">AI Agents</a>
+    <a href="/quant.html">⚡ Quant</a>
+  </nav>
+
+  <div class="toolbar">
+    <span style="color:var(--muted);font-weight:700">Presets:</span>
+    <button class="preset" onclick="preset('mtf-nifty')">NIFTY multi-TF</button>
+    <button class="preset" onclick="preset('mtf-sensex')">SENSEX multi-TF</button>
+    <button class="preset" onclick="preset('mtf-bank')">BANKNIFTY multi-TF</button>
+    <button class="preset" onclick="preset('indices')">3 indices (15m)</button>
+    <span style="color:var(--muted)">· each cell: pick instrument + timeframe · EMA9/21/200 · live 5s</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="note">4-chart grid for multi-timeframe / multi-instrument trend reading. EMA9 yellow · EMA21 blue · EMA200 green(up)/red(down). EMA200 needs ≥200 bars (full on 3m/5m/15m; 1h/2h intraday history is limited). Paper/educational — not advice. Highcharts © Highsoft — licence for commercial SaaS.</div>
+</div>
+
+<script>
+const API = '';
+const UP = '#26a69a', DN = '#ef5350', AMBER = '#fcd34d';
+const tfLabel = { 3: '3m', 5: '5m', 15: '15m', 60: '1h', 120: '2h' };
+const INSTS = ['NIFTY', 'SENSEX', 'BANKNIFTY'], TFS = [3, 5, 15, 60, 120];
+
+// four independent cells
+let cells = [
+  { inst: 'NIFTY', tf: 5 }, { inst: 'NIFTY', tf: 15 },
+  { inst: 'NIFTY', tf: 60 }, { inst: 'NIFTY', tf: 120 },
+];
+
+const PRESETS = {
+  'mtf-nifty':  [{ inst: 'NIFTY', tf: 5 }, { inst: 'NIFTY', tf: 15 }, { inst: 'NIFTY', tf: 60 }, { inst: 'NIFTY', tf: 120 }],
+  'mtf-sensex': [{ inst: 'SENSEX', tf: 5 }, { inst: 'SENSEX', tf: 15 }, { inst: 'SENSEX', tf: 60 }, { inst: 'SENSEX', tf: 120 }],
+  'mtf-bank':   [{ inst: 'BANKNIFTY', tf: 5 }, { inst: 'BANKNIFTY', tf: 15 }, { inst: 'BANKNIFTY', tf: 60 }, { inst: 'BANKNIFTY', tf: 120 }],
+  'indices':    [{ inst: 'NIFTY', tf: 15 }, { inst: 'SENSEX', tf: 15 }, { inst: 'BANKNIFTY', tf: 15 }, { inst: 'NIFTY', tf: 5 }],
+};
+
+const charts = [null, null, null, null], cellData = [null, null, null, null];
+const fmt = v => v == null ? '—' : v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function renderGrid() {
+  document.getElementById('grid').innerHTML = cells.map((c, i) => `
+    <div class="cell">
+      <div class="cell-hd">
+        <select onchange="setCell(${i},'inst',this.value)">${INSTS.map(x => `<option ${x === c.inst ? 'selected' : ''}>${x}</option>`).join('')}</select>
+        <select onchange="setCell(${i},'tf',+this.value)">${TFS.map(x => `<option value="${x}" ${x === c.tf ? 'selected' : ''}>${tfLabel[x]}</option>`).join('')}</select>
+        <span class="px" id="px${i}">—</span>
+        <span class="trend" id="tr${i}">—</span>
+        <span class="pat" id="pat${i}"></span>
+      </div>
+      <div class="ohlc" id="oh${i}"></div>
+      <div class="cell-chart" id="ch${i}"></div>
+    </div>`).join('');
+  charts.forEach((c, i) => { if (c) { try { c.destroy(); } catch (_) {} } charts[i] = null; });
+  cells.forEach((_, i) => load(i, true));
+}
+
+function setCell(i, k, v) { cells[i][k] = v; load(i, true); }
+function preset(name) { if (PRESETS[name]) { cells = PRESETS[name].map(x => ({ ...x })); renderGrid(); } }
+
+function setOHLC(i, idx) {
+  const d = cellData[i]; if (!d || !d.candles.length) return;
+  const c = d.candles[Math.max(0, Math.min(idx, d.candles.length - 1))]; if (!c) return;
+  const [, o, h, l, cl] = c; const col = cl >= o ? UP : DN;
+  document.getElementById('oh' + i).innerHTML =
+    `<span><span class="lbl">O</span>${fmt(o)}</span><span><span class="lbl">H</span>${fmt(h)}</span>` +
+    `<span><span class="lbl">L</span>${fmt(l)}</span><span style="color:${col}"><span class="lbl" style="color:var(--muted)">C</span>${fmt(cl)}</span>`;
+}
+
+const patFlags = (d, s) => d.patterns.filter(p => p.sentiment === s).map(p => ({ x: p.t, title: s === 'Bullish' ? '▲' : '▼', text: `<b>${p.name}</b> ${p.strength}` }));
+
+function build(i, d) {
+  charts[i] = Highcharts.stockChart('ch' + i, {
+    chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' }, animation: false,
+      events: { load() { const n = d.candles.length; if (n > 45) this.xAxis[0].setExtremes(d.candles[n - 45][0], d.candles[n - 1][0], true, false); setOHLC(i, n - 1); } } },
+    time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },
+    rangeSelector: { enabled: false }, scrollbar: { enabled: false }, credits: { enabled: false }, navigator: { enabled: false },
+    xAxis: { lineColor: '#1c2735', tickColor: '#1c2735', gridLineColor: 'rgba(255,255,255,.03)', gridLineWidth: 1,
+      labels: { style: { color: '#7c8aa0', fontSize: '9px' } }, ordinal: true,
+      crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot' } },
+    yAxis: { labels: { style: { color: '#7c8aa0', fontSize: '9px' }, align: 'left', x: 4 }, gridLineColor: 'rgba(255,255,255,.04)', opposite: true, lineWidth: 0,
+      crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot', label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '9px' }, format: '{value:,.0f}' } } },
+    tooltip: { enabled: false },
+    plotOptions: {
+      candlestick: { pointPadding: 0.18, maxPointWidth: 7, point: { events: { mouseOver() { setOHLC(i, this.index); } } },
+        lastPrice: { enabled: true, color: '#5b9cff' }, lastVisiblePrice: { enabled: true, label: { enabled: true, backgroundColor: '#5b9cff', style: { color: '#04101e', fontWeight: '800', fontSize: '9px' } } } },
+      line: { marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } }, flags: { useHTML: false },
+    },
+    series: [
+      { type: 'candlestick', id: 'px', data: d.candles, color: DN, lineColor: DN, upColor: UP, upLineColor: UP, dataGrouping: { enabled: false } },
+      { type: 'line', id: 'e9', data: d.ema9, color: '#ffd400', lineWidth: 1 },
+      { type: 'line', id: 'e21', data: d.ema21, color: '#1565c0', lineWidth: 1 },
+      { type: 'line', id: 'e2u', data: d.ema200up || [], color: UP, lineWidth: 1.6, connectNulls: false },
+      { type: 'line', id: 'e2d', data: d.ema200dn || [], color: DN, lineWidth: 1.6, connectNulls: false },
+      { type: 'flags', data: patFlags(d, 'Bullish'), onSeries: 'px', shape: 'flag', width: 11, fillColor: 'rgba(38,166,154,.16)', color: UP, style: { color: UP, fontSize: '8px', fontWeight: '900' }, y: -18 },
+      { type: 'flags', data: patFlags(d, 'Bearish'), onSeries: 'px', shape: 'flag', width: 11, fillColor: 'rgba(239,83,80,.16)', color: DN, style: { color: DN, fontSize: '8px', fontWeight: '900' }, y: -18 },
+    ],
+  });
+}
+
+async function load(i, rebuild) {
+  const c = cells[i];
+  try {
+    const d = await (await fetch(`${API}/api/chart-patterns?inst=${c.inst}&tf=${c.tf}`, { cache: 'no-store' })).json();
+    if (!d.ok) return;
+    d.ema9 = d.ema9 || []; d.ema21 = d.ema21 || []; d.ema200up = d.ema200up || []; d.ema200dn = d.ema200dn || [];
+    cellData[i] = d;
+    document.getElementById('px' + i).textContent = d.spot ? d.spot.toLocaleString('en-IN') : '—';
+    const tr = d.trend200 || 'n/a', te = document.getElementById('tr' + i);
+    te.textContent = tr === 'UP' ? '▲ UP' : tr === 'DOWN' ? '▼ DOWN' : '—';
+    te.style.color = tr === 'UP' ? UP : tr === 'DOWN' ? DN : '#7c8aa0';
+    te.style.borderColor = tr === 'UP' ? 'rgba(38,166,154,.4)' : tr === 'DOWN' ? 'rgba(239,83,80,.4)' : 'var(--border)';
+    const lp = d.patterns[d.patterns.length - 1];
+    const pe = document.getElementById('pat' + i);
+    if (lp) { pe.textContent = lp.name + ' ' + lp.strength; pe.style.color = lp.sentiment === 'Bullish' ? UP : lp.sentiment === 'Bearish' ? DN : '#7c8aa0'; }
+    else { pe.textContent = ''; }
+
+    if (!charts[i] || rebuild) { if (charts[i]) { try { charts[i].destroy(); } catch (_) {} charts[i] = null; } if (d.candles.length) build(i, d); return; }
+    charts[i].get('px').setData(d.candles, false);
+    charts[i].get('e9').setData(d.ema9, false); charts[i].get('e21').setData(d.ema21, false);
+    charts[i].get('e2u').setData(d.ema200up, false); charts[i].get('e2d').setData(d.ema200dn, false);
+    charts[i].series[5].setData(patFlags(d, 'Bullish'), false); charts[i].series[6].setData(patFlags(d, 'Bearish'), false);
+    charts[i].redraw(false); setOHLC(i, d.candles.length - 1);
+  } catch (_) {}
+}
+
+renderGrid();
+setInterval(() => cells.forEach((_, i) => load(i, false)), 5000);
+
+// build badge + auto-reload
+(function () {
+  let bid = null; const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-size:9px;color:#475569;background:rgba(10,14,20,.8);border:1px solid #1c2735;border-radius:4px;padding:1px 6px;pointer-events:none;font-family:monospace';
+  document.body.appendChild(b);
+  async function chk() { try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
+    if (bid === null) bid = h.bootId; else if (h.bootId !== bid) { location.reload(); return; }
+    b.textContent = '● build ' + new Date(h.bootId).toLocaleTimeString(); b.style.color = '#26a69a'; } catch (_) {} }
+  chk(); setInterval(chk, 12000);
+})();
+</script>
+</body>
+</html>

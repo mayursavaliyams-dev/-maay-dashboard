@@ -4426,6 +4426,26 @@ function _emaSeries(closes, period) {
   for (let i = 0; i < Math.min(period - 1, out.length); i++) out[i] = null;
   return out;
 }
+// EMA200 split into rising(green)/falling(red) segments for a trend-finder line.
+// tsMs[i] = bar timestamp in ms. Returns { ema200up, ema200dn, trend200 }.
+function _ema200Trend(closes, tsMs) {
+  const e200 = _emaSeries(closes, 200);
+  const up = [], dn = [];
+  for (let i = 0; i < closes.length; i++) {
+    const t = tsMs[i], v = e200[i];
+    if (v == null) { up.push([t, null]); dn.push([t, null]); continue; }
+    const rising = i > 0 && e200[i - 1] != null ? v >= e200[i - 1] : true;
+    up.push([t, rising ? v : null]);
+    dn.push([t, rising ? null : v]);
+  }
+  for (let i = 1; i < closes.length; i++) {
+    if (e200[i] != null && e200[i - 1] != null && (up[i][1] != null) !== (up[i - 1][1] != null)) {
+      up[i - 1][1] = e200[i - 1]; dn[i - 1][1] = e200[i - 1];
+    }
+  }
+  const last = e200[e200.length - 1], prev = e200[Math.max(0, e200.length - 6)];
+  return { ema200up: up, ema200dn: dn, trend200: last == null ? 'n/a' : (last >= (prev ?? last) ? 'UP' : 'DOWN') };
+}
 // Aggregate a live tick series into fixed-interval OHLC bars (tfMin).
 // Timestamps may arrive in seconds or ms (Redis-restored vs live); normalise to
 // ms, then return bar.t in SECONDS to match candlestick-patterns.aggregate() so
@@ -4493,13 +4513,15 @@ app.get('/api/strike-chart', async (req, res) => {
 
     const candles = bars.map(b => [b.t * 1000, +b.o.toFixed(2), +b.h.toFixed(2), +b.l.toFixed(2), +b.c.toFixed(2)]);
     const closes = bars.map(b => +b.c.toFixed(2));
+    const tsMs = bars.map(b => b.t * 1000);
     const e9 = _emaSeries(closes, 9), e21 = _emaSeries(closes, 21);
     const ema9 = bars.map((b, i) => [b.t * 1000, e9[i]]);
     const ema21 = bars.map((b, i) => [b.t * 1000, e21[i]]);
+    const { ema200up, ema200dn, trend200 } = _ema200Trend(closes, tsMs);
     const last = bars.length ? bars[bars.length - 1] : null;
     res.json({ ok: true, inst, strike, type, atm, isATM: strike === atm, tf, source,
       ltp: +Number(leg.ltp || (last ? last.c : 0)).toFixed(2), oi: Number(leg.oi || 0), iv: +Number(leg.iv || 0).toFixed(2),
-      candles, ema9, ema21, marketStatus: session.status, generatedAt: new Date().toISOString(),
+      candles, ema9, ema21, ema200up, ema200dn, trend200, marketStatus: session.status, generatedAt: new Date().toISOString(),
       note: source === 'live-ticks' ? 'live tick candles (option intraday history unavailable on this feed — builds since last restart)' : undefined });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -4525,27 +4547,10 @@ app.get('/api/chart-patterns', async (req, res) => {
     const candles = bars.map(b => [b.t * 1000, +b.o.toFixed(2), +b.h.toFixed(2), +b.l.toFixed(2), +b.c.toFixed(2)]);
     const volume = bars.map(b => ({ x: b.t * 1000, y: Math.round(Number(b.v) || 0), color: b.c >= b.o ? 'rgba(38,166,154,.5)' : 'rgba(239,83,80,.5)' }));
     const closesArr = bars.map(b => +b.c.toFixed(2));
-    const e9 = _emaSeries(closesArr, 9), e21 = _emaSeries(closesArr, 21), e200 = _emaSeries(closesArr, 200);
+    const e9 = _emaSeries(closesArr, 9), e21 = _emaSeries(closesArr, 21);
     const ema9 = bars.map((b, i) => [b.t * 1000, e9[i]]);
     const ema21 = bars.map((b, i) => [b.t * 1000, e21[i]]);
-    // EMA200 split into rising(green)/falling(red) segments for a trend-finder line.
-    // Bridge the boundary point into both series so the two-colour line stays connected.
-    const ema200up = [], ema200dn = [];
-    for (let i = 0; i < bars.length; i++) {
-      const t = bars[i].t * 1000, v = e200[i];
-      if (v == null) { ema200up.push([t, null]); ema200dn.push([t, null]); continue; }
-      const rising = i > 0 && e200[i - 1] != null ? v >= e200[i - 1] : true;
-      ema200up.push([t, rising ? v : null]);
-      ema200dn.push([t, rising ? null : v]);
-    }
-    for (let i = 1; i < bars.length; i++) {                       // bridge transitions
-      const upNow = ema200up[i][1] != null, upPrev = ema200up[i - 1][1] != null;
-      if (e200[i] != null && e200[i - 1] != null && upNow !== upPrev) {
-        ema200up[i - 1][1] = e200[i - 1]; ema200dn[i - 1][1] = e200[i - 1];
-      }
-    }
-    const e200last = e200[e200.length - 1], e200prev = e200[Math.max(0, e200.length - 6)];
-    const trend200 = (e200last == null) ? 'n/a' : (e200last >= (e200prev ?? e200last) ? 'UP' : 'DOWN');
+    const { ema200up, ema200dn, trend200 } = _ema200Trend(closesArr, bars.map(b => b.t * 1000));
 
     // sliding pattern detection: ask "what fired at bar i" for each closed bar
     const patterns = [];

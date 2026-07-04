@@ -7,7 +7,7 @@
 <script src="/vendor/highstock.js"></script>
 <style>
   :root{ --bg:#0a0e14; --panel:#0e1520; --border:#1c2735; --muted:#7c8aa0; --tvup:#26a69a; --tvdn:#ef5350; --amber:#fcd34d;
-         --blue:#5b9cff; --ema9:#ffd400; --ema21:#2196f3; --up:#26a69a; --dn:#ef5350; }
+         --blue:#5b9cff; --ema9:#ffd400; --ema21:#1565c0; --up:#26a69a; --dn:#ef5350; }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--bg); color:#d1d4dc; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
   .wrap{ padding:0 12px 24px; max-width:1760px; margin:0 auto; }
@@ -53,6 +53,19 @@
   .legend2{ display:flex; gap:14px; font-size:0.58rem; color:var(--muted); margin:7px 2px 6px; flex-wrap:wrap; }
   .legend2 b{ font-weight:800; }
   .note{ font-size:0.55rem; color:#5a6678; margin:6px 2px 0; line-height:1.5; }
+  /* clickable strike premium chart modal */
+  table.oc td.click{ cursor:pointer; } table.oc td.click:hover{ background:rgba(91,156,255,.12); border-radius:4px; }
+  .modal{ display:none; position:fixed; inset:0; z-index:50; background:rgba(4,7,12,.72); backdrop-filter:blur(2px); }
+  .modal.on{ display:flex; align-items:center; justify-content:center; }
+  .modal-box{ width:min(1100px,94vw); background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .modal-hd{ display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .modal-hd .t{ font-size:0.86rem; font-weight:900; } .modal-hd .sub{ font-size:0.64rem; color:var(--muted); }
+  .modal-hd .seg{ margin-left:auto; }
+  .modal-hd .x{ background:none; border:1px solid var(--border); color:#9fb0c8; font-size:0.9rem; font-weight:800; width:28px; height:28px; border-radius:8px; cursor:pointer; }
+  .modal-hd .x:hover{ border-color:var(--dn); color:var(--dn); }
+  #mChart{ height:460px; position:relative; }
+  .mohlc{ position:absolute; left:12px; top:8px; z-index:5; font-size:0.66rem; font-weight:700; pointer-events:none; display:flex; gap:9px; flex-wrap:wrap; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,.7); }
+  .mohlc .lbl{ color:var(--muted); }
 </style>
 </head>
 <body>
@@ -62,6 +75,7 @@
     <a href="/dashboard.html">Dashboard</a>
     <a href="/pattern-signals.html">Patterns</a>
     <a href="/chart.html" class="active">Chart</a>
+    <a href="/charts4.html">4 Charts</a>
     <a href="/signals4.html">4 Engines</a>
     <a href="/payoff.html">Payoff</a>
     <a href="/agents.html">AI Agents</a>
@@ -112,7 +126,21 @@
     <span><b style="color:var(--ema9)">━ EMA 9</b> · <b style="color:var(--ema21)">━ EMA 21</b> · <b style="color:var(--up)">━</b>/<b style="color:var(--dn)">━</b> <b>EMA 200</b> (green up-trend / red down-trend)</span>
     <span><b style="color:var(--tvup)">▲</b>/<b style="color:var(--tvdn)">▼</b> pattern · <b style="color:var(--amber)">◆ B/S</b> confirmed signal</span>
   </div>
-  <div class="note">Timeframes 3m·5m·15m·1h·2h for trend-finding. EMA200 colours the trend (green rising / red falling) — full on 3m/5m/15m; 1h/2h intraday history is limited so EMA200 appears once ≥200 bars exist. Forming candle updates every 5s. Paper/educational, not advice. Highcharts © Highsoft — licence required for commercial SaaS.</div>
+  <!-- strike premium chart modal (opens on clicking a CE/PE price in the chain) -->
+  <div class="modal" id="modal" onclick="if(event.target===this)closeStrike()">
+    <div class="modal-box">
+      <div class="modal-hd">
+        <div><div class="t" id="mTitle">—</div><div class="sub" id="mSub"></div></div>
+        <div class="seg" id="mTfSeg">
+          <button data-v="3">3m</button><button data-v="5" class="on">5m</button><button data-v="15">15m</button><button data-v="60">1h</button>
+        </div>
+        <button class="x" onclick="closeStrike()">✕</button>
+      </div>
+      <div id="mChart"><div class="mohlc" id="mOhlc"></div></div>
+    </div>
+  </div>
+
+  <div class="note">Timeframes 3m·5m·15m·1h·2h for trend-finding. Click any CE/PE price in the option chain → that strike's live premium chart (same EMA9/21/200 pattern). EMA200 colours the trend (green rising / red falling) — full on 3m/5m/15m; 1h/2h intraday history is limited so EMA200 appears once ≥200 bars exist. Forming candle updates every 5s. Paper/educational, not advice. Highcharts © Highsoft — licence required for commercial SaaS.</div>
 </div>
 
 <script>
@@ -185,7 +213,7 @@ function buildChart(d) {
     series: [
       { type: 'candlestick', id: 'px', name: d.inst, data: d.candles, color: DN, lineColor: DN, upColor: UP, upLineColor: UP, dataGrouping: { enabled: false } },
       { type: 'line', id: 'ema9', name: 'EMA 9', data: d.ema9, color: '#ffd400', lineWidth: 1.2 },
-      { type: 'line', id: 'ema21', name: 'EMA 21', data: d.ema21, color: '#2196f3', lineWidth: 1.2 },
+      { type: 'line', id: 'ema21', name: 'EMA 21', data: d.ema21, color: '#1565c0', lineWidth: 1.2 },
       { type: 'line', id: 'ema200up', name: 'EMA 200 ↑', data: d.ema200up || [], color: UP, lineWidth: 2, connectNulls: false },
       { type: 'line', id: 'ema200dn', name: 'EMA 200 ↓', data: d.ema200dn || [], color: DN, lineWidth: 2, connectNulls: false },
       { type: 'column', id: 'vol', name: 'Vol', data: d.volume || [], yAxis: 1, dataGrouping: { enabled: false } },
@@ -235,12 +263,88 @@ async function loadChain() {
     document.getElementById('ocBody').innerHTML = rows.length ? rows.map(r => `
       <tr class="${r.isATM ? 'atm' : ''}">
         <td class="ce">${k(r.ce?.oi || 0)}${oiBar(r.ce?.oi || 0, 'ce')}</td>
-        <td class="ce">${r.ce?.ltp ? r.ce.ltp.toFixed(1) : '—'}</td>
+        <td class="ce click" onclick="openStrike('${OCINST}',${r.strike},'CE')">${r.ce?.ltp ? r.ce.ltp.toFixed(1) : '—'}</td>
         <td class="k">${r.strike}${r.isATM ? ' ★' : ''}</td>
-        <td class="pe">${r.pe?.ltp ? r.pe.ltp.toFixed(1) : '—'}</td>
+        <td class="pe click" onclick="openStrike('${OCINST}',${r.strike},'PE')">${r.pe?.ltp ? r.pe.ltp.toFixed(1) : '—'}</td>
         <td class="pe">${oiBar(r.pe?.oi || 0, 'pe')}${k(r.pe?.oi || 0)}</td>
       </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:#5a6678;padding:16px">no chain (market closed)</td></tr>';
   } catch (e) { document.getElementById('ocBody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--dn);padding:16px">⚠️ ${e.message}</td></tr>`; }
+}
+
+// ── strike premium chart modal (same EMA9/21/200 pattern) ──
+let mStrike = null, mChart = null, mData = null, mTimer = null;
+const mTf = { get v() { return +(document.querySelector('#mTfSeg button.on')?.dataset.v || 5); } };
+document.getElementById('mTfSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#mTfSeg button').forEach(x => x.classList.toggle('on', x === b));
+  loadStrike(true);
+});
+function openStrike(inst, strike, type) {
+  mStrike = { inst, strike, type };
+  document.getElementById('mTitle').textContent = `${inst} ${strike} ${type}`;
+  document.getElementById('modal').classList.add('on');
+  loadStrike(true);
+  clearInterval(mTimer); mTimer = setInterval(() => loadStrike(false), 5000);
+}
+function closeStrike() {
+  document.getElementById('modal').classList.remove('on');
+  clearInterval(mTimer); if (mChart) { try { mChart.destroy(); } catch (_) {} mChart = null; }
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeStrike(); });
+
+function mSetOHLC(i) {
+  if (!mData || !mData.candles.length) return;
+  const c = mData.candles[Math.max(0, Math.min(i, mData.candles.length - 1))]; if (!c) return;
+  const [t, o, h, l, cl] = c; const col = cl >= o ? UP : DN;
+  const at = a => (a.find(p => p[0] === t) || [])[1];
+  const e2 = at(mData.ema200up) != null ? at(mData.ema200up) : at(mData.ema200dn);
+  document.getElementById('mOhlc').innerHTML =
+    `<span><span class="lbl">O</span>${fmt(o)}</span><span><span class="lbl">H</span>${fmt(h)}</span><span><span class="lbl">L</span>${fmt(l)}</span>` +
+    `<span style="color:${col}"><span class="lbl" style="color:var(--muted)">C</span>${fmt(cl)}</span>` +
+    (at(mData.ema9) != null ? `<span style="color:var(--ema9)">EMA9 ${fmt(at(mData.ema9))}</span>` : '') +
+    (at(mData.ema21) != null ? `<span style="color:var(--ema21)">EMA21 ${fmt(at(mData.ema21))}</span>` : '') +
+    (e2 != null ? `<span style="color:${mData.trend200 === 'DOWN' ? DN : UP}">EMA200 ${fmt(e2)}</span>` : '');
+}
+async function loadStrike(rebuild) {
+  if (!mStrike) return;
+  const { inst, strike, type } = mStrike;
+  try {
+    const d = await (await fetch(`${API}/api/strike-chart?inst=${inst}&strike=${strike}&type=${type}&tf=${mTf.v}`, { cache: 'no-store' })).json();
+    if (!d.ok) { document.getElementById('mSub').textContent = '⚠️ ' + (d.error || 'no data'); return; }
+    d.ema9 = d.ema9 || []; d.ema21 = d.ema21 || []; d.ema200up = d.ema200up || []; d.ema200dn = d.ema200dn || [];
+    mData = d;
+    document.getElementById('mSub').textContent =
+      `LTP ₹${d.ltp} · IV ${d.iv}% · OI ${(d.oi/1e5).toFixed(1)}L · trend ${d.trend200}${d.note ? ' · ' + d.note : ''}`;
+    if (!mChart || rebuild) {
+      if (mChart) { try { mChart.destroy(); } catch (_) {} mChart = null; }
+      if (!d.candles.length) { document.getElementById('mChart').querySelector('.mohlc').textContent = 'no candles yet'; return; }
+      mChart = Highcharts.stockChart('mChart', {
+        chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' },
+          events: { load() { const n = d.candles.length; if (n > 50) this.xAxis[0].setExtremes(d.candles[n-50][0], d.candles[n-1][0], true, false); mSetOHLC(n - 1); } } },
+        time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },
+        rangeSelector: { enabled: false }, scrollbar: { enabled: false }, credits: { enabled: false }, navigator: { enabled: true, height: 22, maskFill: 'rgba(91,156,255,.06)', outlineColor: '#1c2735', series: { color: '#3a4a63' } },
+        xAxis: { lineColor: '#1c2735', tickColor: '#1c2735', gridLineColor: 'rgba(255,255,255,.03)', gridLineWidth: 1, labels: { style: { color: '#7c8aa0', fontSize: '10px' } }, ordinal: true,
+          crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot' } },
+        yAxis: { labels: { style: { color: '#7c8aa0', fontSize: '10px' }, align: 'left', x: 6 }, gridLineColor: 'rgba(255,255,255,.04)', opposite: true, lineWidth: 0,
+          crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot', label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '10px' }, format: '{value:,.2f}' } } },
+        tooltip: { enabled: false },
+        plotOptions: { candlestick: { pointPadding: 0.15, maxPointWidth: 9, point: { events: { mouseOver() { mSetOHLC(this.index); } } },
+          lastPrice: { enabled: true, color: '#5b9cff' }, lastVisiblePrice: { enabled: true, label: { enabled: true, backgroundColor: '#5b9cff', style: { color: '#04101e', fontWeight: '800' } } } },
+          line: { marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } } },
+        series: [
+          { type: 'candlestick', id: 'px', data: d.candles, color: DN, lineColor: DN, upColor: UP, upLineColor: UP, dataGrouping: { enabled: false } },
+          { type: 'line', id: 'e9', data: d.ema9, color: '#ffd400', lineWidth: 1.2 },
+          { type: 'line', id: 'e21', data: d.ema21, color: '#1565c0', lineWidth: 1.2 },
+          { type: 'line', id: 'e2u', data: d.ema200up, color: UP, lineWidth: 2, connectNulls: false },
+          { type: 'line', id: 'e2d', data: d.ema200dn, color: DN, lineWidth: 2, connectNulls: false },
+        ],
+      });
+      return;
+    }
+    mChart.get('px').setData(d.candles, false); mChart.get('e9').setData(d.ema9, false); mChart.get('e21').setData(d.ema21, false);
+    mChart.get('e2u').setData(d.ema200up, false); mChart.get('e2d').setData(d.ema200dn, false);
+    mChart.redraw(false); mSetOHLC(d.candles.length - 1);
+  } catch (e) { document.getElementById('mSub').textContent = '⚠️ ' + e.message; }
 }
 
 load(true); loadChain();

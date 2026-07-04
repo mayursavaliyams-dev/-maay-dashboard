@@ -24,7 +24,7 @@ jobs:
 
       - name: Validate dashboard inline scripts
         run: |
-          node -e "const fs=require('fs'),vm=require('vm');let bad=0;for(const f of ['dashboard','login','pattern-signals','oi','ami-heatmap','signals4','payoff','agents','chart','quant','strike-history']){const p='public/'+f+'.html';if(!fs.existsSync(p))continue;const h=fs.readFileSync(p,'utf8');for(const m of h.matchAll(/<script>([\s\S]*?)<\/script>/g)){try{new vm.Script(m[1])}catch(e){console.error(f,e.message);bad++}}}process.exit(bad?1:0)"
+          node -e "const fs=require('fs'),vm=require('vm');let bad=0;for(const f of ['dashboard','login','pattern-signals','oi','ami-heatmap','signals4','payoff','agents','chart','charts4','quant','strike-history']){const p='public/'+f+'.html';if(!fs.existsSync(p))continue;const h=fs.readFileSync(p,'utf8');for(const m of h.matchAll(/<script>([\s\S]*?)<\/script>/g)){try{new vm.Script(m[1])}catch(e){console.error(f,e.message);bad++}}}process.exit(bad?1:0)"
 
       - name: Auth unit test
         env:
