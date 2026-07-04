@@ -66,6 +66,23 @@
   #mChart{ height:460px; position:relative; }
   .mohlc{ position:absolute; left:12px; top:8px; z-index:5; font-size:0.66rem; font-weight:700; pointer-events:none; display:flex; gap:9px; flex-wrap:wrap; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,.7); }
   .mohlc .lbl{ color:var(--muted); }
+  /* right-click context menu + extra chart panels */
+  .ctxmenu{ display:none; position:fixed; z-index:80; background:#0e1622; border:1px solid #26344a; border-radius:9px; padding:5px; min-width:186px; box-shadow:0 8px 26px rgba(0,0,0,.5); }
+  .ctxmenu.on{ display:block; }
+  .ctxmenu .mi{ padding:6px 10px; font-size:0.68rem; font-weight:700; color:#cbd5e1; border-radius:6px; cursor:pointer; display:flex; gap:8px; align-items:center; }
+  .ctxmenu .mi:hover{ background:rgba(91,156,255,.14); color:#fff; }
+  .ctxmenu .sep{ height:1px; background:#1c2735; margin:4px 2px; }
+  .ctxmenu .hdr{ font-size:0.54rem; color:#5a6678; text-transform:uppercase; letter-spacing:.5px; padding:3px 10px 2px; }
+  #extraCharts{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  @media(max-width:1080px){ #extraCharts{ grid-template-columns:1fr; } }
+  .xpanel{ background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+  .xpanel-hd{ display:flex; align-items:center; gap:6px; padding:5px 8px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .xpanel-hd select{ background:#0a111d; border:1px solid var(--border); color:#e6edf6; border-radius:6px; padding:2px 5px; font-size:0.62rem; font-weight:800; cursor:pointer; }
+  .xpanel-hd .px{ font-size:0.7rem; font-weight:900; font-variant-numeric:tabular-nums; }
+  .xpanel-hd .trend{ font-size:0.54rem; font-weight:900; padding:2px 7px; border-radius:6px; border:1px solid var(--border); }
+  .xpanel-hd .rm{ margin-left:auto; background:none; border:1px solid var(--border); color:#9fb0c8; font-weight:800; width:22px; height:22px; border-radius:6px; cursor:pointer; }
+  .xpanel-hd .rm:hover{ border-color:var(--dn); color:var(--dn); }
+  .xpanel-chart{ height:320px; }
 </style>
 </head>
 <body>
@@ -120,6 +137,23 @@
         </table>
       </div>
     </div>
+  </div>
+
+  <!-- extra chart panels added via right-click -->
+  <div id="extraCharts"></div>
+
+  <!-- right-click context menu -->
+  <div class="ctxmenu" id="ctx">
+    <div class="hdr">Add chart</div>
+    <div class="mi" onclick="ctxAdd('NIFTY')">➕ NIFTY chart panel</div>
+    <div class="mi" onclick="ctxAdd('SENSEX')">➕ SENSEX chart panel</div>
+    <div class="mi" onclick="ctxAdd('BANKNIFTY')">➕ BANKNIFTY chart panel</div>
+    <div class="mi" onclick="ctxAdd(INST)">➕ Add current (<span id="ctxCur">NIFTY</span>)</div>
+    <div class="sep"></div>
+    <div class="mi" onclick="openStrike(OCINST, mAtm(), 'CE')">🎯 ATM CE premium chart</div>
+    <div class="mi" onclick="openStrike(OCINST, mAtm(), 'PE')">🎯 ATM PE premium chart</div>
+    <div class="sep"></div>
+    <div class="mi" onclick="location.href='/charts4.html'">⊞ Open 4-chart grid</div>
   </div>
 
   <div class="legend2">
@@ -257,6 +291,7 @@ async function loadChain() {
     const d = await (await fetch(`${API}/api/option-chain-full?inst=${OCINST}&depth=8`, { cache: 'no-store' })).json();
     document.getElementById('ocSpot').textContent = d.spot ? OCINST + ' ' + d.spot.toLocaleString('en-IN') : OCINST;
     const rows = d.rows || [];
+    window._chainRows = rows;   // for the context-menu ATM strike shortcut
     const maxOI = Math.max(1, ...rows.map(r => Math.max(r.ce?.oi || 0, r.pe?.oi || 0)));
     const oiBar = (oi, side) => { const w = Math.round((oi / maxOI) * 46); return `<span class="oibar" style="width:${w}px;background:${side === 'ce' ? 'rgba(38,166,154,.35)' : 'rgba(239,83,80,.35)'}"></span>`; };
     const k = n => n >= 1e7 ? (n / 1e7).toFixed(1) + 'Cr' : n >= 1e5 ? (n / 1e5).toFixed(1) + 'L' : n >= 1e3 ? (n / 1e3).toFixed(0) + 'k' : n;
@@ -347,9 +382,79 @@ async function loadStrike(rebuild) {
   } catch (e) { document.getElementById('mSub').textContent = '⚠️ ' + e.message; }
 }
 
+// ── right-click context menu: add chart panels ──
+const mAtm = () => { const rows = (window._chainRows || []); const a = rows.find(r => r.isATM); return a ? a.strike : (rows[Math.floor(rows.length / 2)] || {}).strike || 0; };
+const ctxEl = document.getElementById('ctx');
+document.querySelector('.chartbox').addEventListener('contextmenu', e => {
+  e.preventDefault();
+  document.getElementById('ctxCur').textContent = INST;
+  ctxEl.style.left = Math.min(e.clientX, innerWidth - 200) + 'px';
+  ctxEl.style.top = Math.min(e.clientY, innerHeight - 260) + 'px';
+  ctxEl.classList.add('on');
+});
+document.addEventListener('click', () => ctxEl.classList.remove('on'));
+document.addEventListener('scroll', () => ctxEl.classList.remove('on'), true);
+
+const TFS = [3, 5, 15, 60, 120];
+let panels = [], pSeq = 0;
+function ctxAdd(inst) { ctxEl.classList.remove('on'); addPanel(inst, TF); }
+function addPanel(inst, tf) {
+  const id = 'xp' + (pSeq++);
+  const p = { id, inst, tf, chart: null };
+  panels.push(p);
+  const div = document.createElement('div');
+  div.className = 'xpanel'; div.id = id;
+  div.innerHTML = `<div class="xpanel-hd">
+      <select onchange="pSet('${id}','inst',this.value)">${['NIFTY','SENSEX','BANKNIFTY'].map(x => `<option ${x === inst ? 'selected' : ''}>${x}</option>`).join('')}</select>
+      <select onchange="pSet('${id}','tf',+this.value)">${TFS.map(x => `<option value="${x}" ${x === tf ? 'selected' : ''}>${tfLabel[x]}</option>`).join('')}</select>
+      <span class="px" id="${id}px">—</span><span class="trend" id="${id}tr">—</span>
+      <button class="rm" onclick="pRemove('${id}')" title="remove">✕</button>
+    </div><div class="xpanel-chart" id="${id}c"></div>`;
+  document.getElementById('extraCharts').appendChild(div);
+  pLoad(id, true);
+}
+function pFind(id) { return panels.find(x => x.id === id); }
+function pSet(id, k, v) { const p = pFind(id); if (!p) return; p[k] = v; pLoad(id, true); }
+function pRemove(id) { const p = pFind(id); if (p && p.chart) { try { p.chart.destroy(); } catch (_) {} } panels = panels.filter(x => x.id !== id); const el = document.getElementById(id); if (el) el.remove(); }
+async function pLoad(id, rebuild) {
+  const p = pFind(id); if (!p) return;
+  try {
+    const d = await (await fetch(`${API}/api/chart-patterns?inst=${p.inst}&tf=${p.tf}`, { cache: 'no-store' })).json();
+    if (!d.ok) return;
+    d.ema9 = d.ema9 || []; d.ema21 = d.ema21 || []; d.ema200up = d.ema200up || []; d.ema200dn = d.ema200dn || [];
+    const px = document.getElementById(id + 'px'); if (px) px.textContent = d.spot ? d.spot.toLocaleString('en-IN') : '—';
+    const tr = d.trend200 || 'n/a', te = document.getElementById(id + 'tr');
+    if (te) { te.textContent = tr === 'UP' ? '▲ UP' : tr === 'DOWN' ? '▼ DOWN' : '—'; te.style.color = tr === 'UP' ? UP : tr === 'DOWN' ? DN : '#7c8aa0'; te.style.borderColor = tr === 'UP' ? 'rgba(38,166,154,.4)' : tr === 'DOWN' ? 'rgba(239,83,80,.4)' : 'var(--border)'; }
+    if (!p.chart || rebuild) {
+      if (p.chart) { try { p.chart.destroy(); } catch (_) {} p.chart = null; }
+      if (!d.candles.length) return;
+      p.chart = Highcharts.stockChart(id + 'c', {
+        chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' }, events: { load() { const n = d.candles.length; if (n > 45) this.xAxis[0].setExtremes(d.candles[n-45][0], d.candles[n-1][0], true, false); } } },
+        time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },
+        rangeSelector: { enabled: false }, scrollbar: { enabled: false }, credits: { enabled: false }, navigator: { enabled: false },
+        xAxis: { lineColor: '#1c2735', tickColor: '#1c2735', gridLineColor: 'rgba(255,255,255,.03)', gridLineWidth: 1, labels: { style: { color: '#7c8aa0', fontSize: '9px' } }, ordinal: true, crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot' } },
+        yAxis: { labels: { style: { color: '#7c8aa0', fontSize: '9px' }, align: 'left', x: 4 }, gridLineColor: 'rgba(255,255,255,.04)', opposite: true, lineWidth: 0, crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot', label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '9px' }, format: '{value:,.0f}' } } },
+        tooltip: { enabled: false },
+        plotOptions: { candlestick: { pointPadding: 0.18, maxPointWidth: 8, lastPrice: { enabled: true, color: '#5b9cff' } }, line: { marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } } },
+        series: [
+          { type: 'candlestick', id: 'px', data: d.candles, color: DN, lineColor: DN, upColor: UP, upLineColor: UP, dataGrouping: { enabled: false } },
+          { type: 'line', id: 'e9', data: d.ema9, color: '#ffd400', lineWidth: 1 },
+          { type: 'line', id: 'e21', data: d.ema21, color: '#1565c0', lineWidth: 1 },
+          { type: 'line', id: 'e2u', data: d.ema200up, color: UP, lineWidth: 1.6, connectNulls: false },
+          { type: 'line', id: 'e2d', data: d.ema200dn, color: DN, lineWidth: 1.6, connectNulls: false },
+        ],
+      });
+      return;
+    }
+    p.chart.get('px').setData(d.candles, false); p.chart.get('e9').setData(d.ema9, false); p.chart.get('e21').setData(d.ema21, false);
+    p.chart.get('e2u').setData(d.ema200up, false); p.chart.get('e2d').setData(d.ema200dn, false); p.chart.redraw(false);
+  } catch (_) {}
+}
+
 load(true); loadChain();
 setInterval(() => load(false), 5000);
 setInterval(loadChain, 8000);
+setInterval(() => panels.forEach(p => pLoad(p.id, false)), 5000);
 
 // build badge + auto-reload
 (function () {
