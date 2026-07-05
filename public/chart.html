@@ -343,7 +343,7 @@ async function loadStrike(rebuild) {
     if (rebuild || !mS) {
       const el = document.getElementById('mChart'); el.querySelectorAll('div:not(.ohlc)').forEach(x => x.remove());
       if (mS) { try { mS.chart.remove(); } catch (_) {} }
-      if (!d.candles.length) { document.getElementById('mOhlc').textContent = 'no candles yet'; mS = null; return; }
+      if (!d.candles.length) { document.getElementById('mOhlc').innerHTML = '<span style="color:#8fa0b8;max-width:640px;line-height:1.5">📼 ' + (d.note || 'no candles yet') + '</span>'; mS = null; return; }
       const holder = document.createElement('div'); holder.style.height = '440px'; el.appendChild(holder);
       mS = makeChart(holder, 440);
       mS.chart.subscribeCrosshairMove(param => { const o = document.getElementById('mOhlc'); if (!param.time) { o.innerHTML = ohlcHTML(mData, lastBar(mData), `${strike}${type}`, mTf()); return; } const c = param.seriesData.get(mS.candle); if (c) o.innerHTML = ohlcHTML(mData, c, `${strike}${type}`, mTf()); });

@@ -454,6 +454,7 @@ function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0) {
   // Chain OHLC has no event timestamp and can temporarily contain yesterday's
   // values. LTP gives immediate updates; one-minute candles provide exact H/L.
   if (last <= 0 || !isFinite(last)) return;
+  _recordOptCandle(inst, strike, type, last, Date.now());   // persistent 1-min premium candles
   const observedHigh = last;
   const observedLow = last;
   _purgeOptHLIfNewDay();
@@ -539,6 +540,60 @@ function _persistOptHLDay() {
 // Regular save — every 60s writes today's records if any exist (captures the
 // post-close final state too, since _updateOptHL only mutates during hours).
 setInterval(_persistOptHLDay, 60 * 1000);
+
+// ── PERSISTENT OPTION-PREMIUM 1-MIN CANDLE RECORDER ──────────────────────────
+// The Upstox feed serves NO option intraday history, so we build & SAVE 1-min
+// OHLC of every watched strike's premium live during market hours. Persisted to
+// data/opt-candles/<date>.json so the strike chart has multi-day history that
+// survives restarts. Key = "INST|strike|TYPE"; bar = [minuteMs, o, h, l, c].
+const _optCandDir = require('path').join(__dirname, 'data', 'opt-candles');
+const _optMin = new Map();                 // key → { day, bars: Map(minMs → [o,h,l,c]) }
+function _recordOptCandle(inst, strike, type, ltp, now) {
+  const day = _istDateStr();
+  const key = `${inst}|${strike}|${type}`;
+  const min = Math.floor(now / 60000) * 60000;
+  let d = _optMin.get(key);
+  if (!d || d.day !== day) { d = { day, bars: new Map() }; _optMin.set(key, d); }
+  const b = d.bars.get(min);
+  if (!b) d.bars.set(min, [ltp, ltp, ltp, ltp]);
+  else { if (ltp > b[1]) b[1] = ltp; if (ltp < b[2]) b[2] = ltp; b[3] = ltp; }
+}
+function _persistOptCandles() {
+  try {
+    const fs2 = require('fs'), path2 = require('path'), day = _istDateStr();
+    const series = {};
+    for (const [key, d] of _optMin.entries()) {
+      if (!d || d.day !== day || !d.bars.size) continue;
+      series[key] = [...d.bars.entries()].sort((a, b) => a[0] - b[0]).map(([m, o]) => [m, +o[0].toFixed(2), +o[1].toFixed(2), +o[2].toFixed(2), +o[3].toFixed(2)]);
+    }
+    if (!Object.keys(series).length) return;
+    fs2.mkdirSync(_optCandDir, { recursive: true });
+    fs2.writeFileSync(path2.join(_optCandDir, `${day}.json`), JSON.stringify({ date: day, savedAt: Date.now(), series }));
+    const files = fs2.readdirSync(_optCandDir).filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+    while (files.length > 40) { try { fs2.unlinkSync(path2.join(_optCandDir, files.shift())); } catch (_) {} }
+  } catch (_) {}
+}
+setInterval(_persistOptCandles, 60 * 1000);
+// Load a strike's saved 1-min bars across the last N days (persisted files) +
+// today's in-memory bars → merged {timestamp,open,high,low,close} for aggregate().
+function _loadOptCandles(inst, strike, type, days = 7) {
+  const key = `${inst}|${strike}|${type}`;
+  const oneMin = { timestamp: [], open: [], high: [], low: [], close: [], volume: [] };
+  const push = rows => { for (const r of rows) { oneMin.timestamp.push(Math.floor(r[0] / 1000)); oneMin.open.push(r[1]); oneMin.high.push(r[2]); oneMin.low.push(r[3]); oneMin.close.push(r[4]); oneMin.volume.push(0); } };
+  try {
+    const fs2 = require('fs'), path2 = require('path'), today = _istDateStr();
+    if (fs2.existsSync(_optCandDir)) {
+      const files = fs2.readdirSync(_optCandDir).filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().slice(-days);
+      for (const f of files) {
+        if (f.slice(0, 10) === today) continue;                        // today comes from memory (fresher)
+        try { const j = JSON.parse(fs2.readFileSync(path2.join(_optCandDir, f), 'utf8')); if (j.series && j.series[key]) push(j.series[key]); } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  const d = _optMin.get(key);                                          // today's live bars
+  if (d && d.day === _istDateStr() && d.bars.size) push([...d.bars.entries()].sort((a, b) => a[0] - b[0]).map(([m, o]) => [m, o[0], o[1], o[2], o[3]]));
+  return oneMin;
+}
 
 // Auto-consolidate AmiBroker signals into the single data/ami-signals-all.json
 // every 10 min (covers EOD) + once on boot. No-op/empty file when no signals.
@@ -4486,16 +4541,36 @@ app.get('/api/strike-chart', async (req, res) => {
     const istNow = new Date(Date.now() + IST_OFFSET_MIN * 60 * 1000);
     const endTime = session.afterClose ? '15:30:00' : istNow.toISOString().slice(11, 19);
 
-    // Source 1 — full-day OPTIDX intraday candles (works on Dhan-native builds).
+    // Source 1 — OPTIDX intraday candles over the last few TRADING days (Dhan serves
+    // one day per call), merged — so the strike premium chart has history even on a
+    // weekend/holiday (not just today). The option's securityId is valid for the days
+    // the contract existed; older days simply return empty and are skipped.
     let bars = [], source = 'intraday';
     try {
-      const r = await live.client._post('/v2/charts/intraday', {
-        securityId: String(securityId), exchangeSegment: meta.segment, instrument: 'OPTIDX',
-        interval: '1', oi: false, fromDate: `${today} 09:14:00`, toDate: `${today} ${endTime}`,
-      });
-      const oneMin = { timestamp: r?.timestamp || [], open: r?.open || [], high: r?.high || [], low: r?.low || [], close: r?.close || [], volume: r?.volume || [] };
+      const dates = [];
+      for (let back = 0; dates.length < 6 && back < 14; back++) {
+        const d = new Date(Date.now() + IST_OFFSET_MIN * 60000 - back * 86400000);
+        const dow = d.getUTCDay(); if (dow === 0 || dow === 6) continue;   // skip weekends
+        dates.push(d.toISOString().slice(0, 10));
+      }
+      dates.reverse();
+      const parts = await Promise.all(dates.map((dt, i) => {
+        const end = (i === dates.length - 1 && !session.afterClose && dt === today) ? endTime : '15:30:00';
+        return live.client._post('/v2/charts/intraday', {
+          securityId: String(securityId), exchangeSegment: meta.segment, instrument: 'OPTIDX',
+          interval: '1', oi: false, fromDate: `${dt} 09:14:00`, toDate: `${dt} ${end}`,
+        }).catch(() => null);
+      }));
+      const oneMin = { timestamp: [], open: [], high: [], low: [], close: [], volume: [] };
+      for (const r of parts) { if (!r || !r.timestamp || !r.timestamp.length) continue; for (const f of ['timestamp', 'open', 'high', 'low', 'close', 'volume']) if (Array.isArray(r[f])) oneMin[f].push(...r[f]); }
       bars = candlestickPatterns.aggregate(oneMin, tf);
     } catch (_) {}
+    // Source 1b — our own SAVED premium candles (recorded live + persisted). This
+    // is what makes the chart work on Upstox (no option history) and across days.
+    if (!bars.length) {
+      const saved = _loadOptCandles(inst, strike, type, 7);
+      if (saved.timestamp.length) { bars = candlestickPatterns.aggregate(saved, tf); source = 'saved'; }
+    }
     // Source 2 — live tick tracker (Upstox build: option intraday history is
     // unavailable, but every LTP move is recorded in _optHL.tickPath and persisted
     // to Redis). Aggregate those ticks into candles so the chart still moves live.
@@ -4522,7 +4597,10 @@ app.get('/api/strike-chart', async (req, res) => {
     res.json({ ok: true, inst, strike, type, atm, isATM: strike === atm, tf, source,
       ltp: +Number(leg.ltp || (last ? last.c : 0)).toFixed(2), oi: Number(leg.oi || 0), iv: +Number(leg.iv || 0).toFixed(2),
       candles, ema9, ema21, ema200up, ema200dn, trend200, marketStatus: session.status, generatedAt: new Date().toISOString(),
-      note: source === 'live-ticks' ? 'live tick candles (option intraday history unavailable on this feed — builds since last restart)' : undefined });
+      note: !candles.length
+        ? (session.inMarketHours ? 'recording premium candles now — appears within a minute' : 'option premium history is recorded & saved live during market hours (the feed serves no option history). Opens Mon 9:15; then the chart shows saved multi-day history.')
+        : source === 'saved' ? 'saved premium candles (recorded live, persisted across days)'
+        : source === 'live-ticks' ? 'live tick candles — building this session' : undefined });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -5425,6 +5503,83 @@ app.get('/api/agents/trades', (req, res) => {
   res.json({ ok: true, trades: agentsEngine._allTrades.slice(-limit).reverse() });
 });
 
+// persistent stock-analysis archive — every deal-radar analysis ever made, newest first.
+// optional ?date=YYYY-MM-DD to slice one day, ?stock=SYM to filter a symbol.
+app.get('/api/agents/impact-history', (req, res) => {
+  const limit = Math.min(2000, Math.max(1, parseInt(req.query.limit) || 300));
+  let hist = agentsEngine._impactHistory || [];
+  if (req.query.date) hist = hist.filter(h => h.date === req.query.date);
+  if (req.query.stock) { const s = String(req.query.stock).toUpperCase(); hist = hist.filter(h => (h.stocks || []).some(x => String(x).toUpperCase() === s)); }
+  res.json({ ok: true, total: agentsEngine._impactHistory.length, history: hist.slice(-limit).reverse() });
+});
+
+// accuracy scoreboard — how often the predicted direction was right + the move error.
+app.get('/api/agents/impact-accuracy', (req, res) => {
+  res.json({ ok: true, stats: agentsEngine.accuracyStats() });
+});
+
+// ── outcome scorer: for each old prediction, fetch the stock's ACTUAL move (news-day
+// close → next trading-day close) via Yahoo daily candles and mark hit/miss. Runs
+// hourly + on POST /api/agents/score-outcomes. Idempotent — only touches unscored rows.
+let _scoringOutcomes = false;
+async function scoreImpactOutcomes() {
+  if (_scoringOutcomes) return { skipped: 'in-progress' };
+  _scoringOutcomes = true;
+  try {
+    const istDate = new Date(Date.now() + IST_OFFSET_MIN * 60 * 1000).toISOString().slice(0, 10);
+    const pending = agentsEngine.pendingOutcomes(istDate);
+    if (!pending.length) return { scored: 0, pending: 0 };
+
+    // group predictions by the first named stock — one Yahoo fetch per symbol
+    const bySym = new Map();
+    for (const h of pending) {
+      const raw = String((h.stocks || [])[0] || '').replace('&', '_').toUpperCase();
+      if (!raw) continue;
+      const local = stockAnalyst.resolveLocal(raw);
+      const ysym = (local && local.symbol ? local.symbol : raw) + '.NS';
+      if (!bySym.has(ysym)) bySym.set(ysym, []);
+      bySym.get(ysym).push(h);
+    }
+
+    const YF = require('yahoo-finance2').default;
+    const yf = new YF({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
+    let scored = 0;
+    const syms = [...bySym.keys()].slice(0, 40);   // cap network per run
+    for (const ysym of syms) {
+      const rows = bySym.get(ysym);
+      const dates = rows.map(r => r.date).sort();
+      const period1 = new Date(new Date(dates[0]).getTime() - 5 * 86400000);
+      const period2 = new Date(Date.now() + 86400000);
+      let candles;
+      try { candles = await yf.historical(ysym, { period1, period2, interval: '1d' }); } catch { continue; }
+      const closes = (candles || [])
+        .filter(c => Number.isFinite(c?.close))
+        .map(c => ({ d: new Date(c.date).toISOString().slice(0, 10), close: +c.close }))
+        .sort((a, b) => a.d.localeCompare(b.d));
+      if (closes.length < 2) continue;
+      for (const h of rows) {
+        const baseIdx = closes.map(c => c.d).filter(d => d <= h.date).length - 1;   // last close on/before news day
+        if (baseIdx < 0 || baseIdx + 1 >= closes.length) continue;                  // need a following session
+        const base = closes[baseIdx].close, out = closes[baseIdx + 1].close;
+        if (!(base > 0)) continue;
+        const actualMovePct = +(((out - base) / base) * 100).toFixed(2);
+        const hit = h.direction === 'UP' ? actualMovePct > 0 : h.direction === 'DOWN' ? actualMovePct < 0 : null;
+        agentsEngine.applyOutcome(h.key, {
+          actualMovePct, hit, baselineClose: base, outcomeClose: out,
+          outcomeDate: closes[baseIdx + 1].d, yahooSymbol: ysym,
+        });
+        scored++;
+      }
+    }
+    if (scored) console.log(`[agents] scored ${scored} prediction outcomes`);
+    return { scored, symbols: syms.length, pending: pending.length };
+  } finally { _scoringOutcomes = false; }
+}
+app.post('/api/agents/score-outcomes', async (req, res) => {
+  try { res.json({ ok: true, ...(await scoreImpactOutcomes()) }); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // QUANT COMMAND CENTER — one aggregate feed powering /quant.html: merges every
 // PAPER engine (AI agents, strangle/condor forward-test, gamma-blast) into a
 // single scoreboard + the live execution-cycle stage + agent-swarm states.
@@ -5575,6 +5730,18 @@ async function agentsTick() {
 }
 setInterval(agentsTick, 45000);
 setTimeout(agentsTick, 12000);   // first pass shortly after boot
+
+// backfill the analysis archive from stored news, then score old predictions' outcomes so
+// accuracy shows from the first load. Idempotent (deduped by event key) → safe every boot;
+// picks up any news day not yet archived. Scorer re-runs hourly.
+setTimeout(() => {
+  try {
+    const r = agentsEngine.backfillFromNews(require('path').join(__dirname, 'data', 'news'));
+    if (r.added) console.log(`[agents] backfilled ${r.added} historical predictions from ${r.files} news files`);
+  } catch (e) { console.warn('[agents] backfill failed:', e.message); }
+  scoreImpactOutcomes().catch(e => console.warn('[agents] outcome scoring failed:', e.message));
+}, 18000);
+setInterval(() => scoreImpactOutcomes().catch(() => {}), 3600000);   // hourly
 
 // ════════════════════════════════════════════════════════════════════════════
 // CONFIRMED SIGNALS + ACCURACY — cut false signals: only fire when ≥3 of the 4

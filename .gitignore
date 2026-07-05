@@ -2,6 +2,7 @@ node_modules/
 .env
 *.log
 *.err
+*.xls
 *.xlsx
 dp-err.txt
 .DS_Store
@@ -41,10 +42,11 @@ data/eod-*.json
 __pycache__/
 *.pyc
 backend/
-backtest-real/
 
 # date-wise option H/L archive (runtime)
 data/opthl/
+# saved option-premium 1-min candles (recorded live, regenerable)
+data/opt-candles/
 
 # large regenerable 1-min index data (refetch via bt-fetch-1min.js)
 bt-data/sensex-1min.json
