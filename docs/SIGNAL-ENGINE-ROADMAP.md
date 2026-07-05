@@ -93,7 +93,17 @@ no signal; it makes every later phase trustworthy.
 - **Edge contribution:** 0 direct, but it is the gate every later phase must
   pass. Prevents shipping overfit garbage.
 
-## Phase 1 — VRP regime signal (the real edge, made conditional)
+## Phase 1 — VRP regime signal (the real edge, made conditional) · **✅ v1 DONE**
+
+**Built:** `GET /api/regime[/:inst]` — per-instrument SELL-ON / REDUCE / STAND-DOWN
++ 0-100 score from IV-percentile (India VIX 1y) + **IV−realized-vol spread** (VRP,
+realized derived from daily closes) + **PCR conditioning** (sell when PCR
+low-normal, stand down at extremes) + event-risk + VIX-panic, **MA-smoothed**
+across ticks to avoid whipsaw. Surfaced as live gauges on the new command-center
+dashboard. Live now: NIFTY/SENSEX SELL-ON (VRP +2.5/+1.6), BANKNIFTY borderline
+(realized ≈ implied). Next (v2): wire the regime gate into the agents' condor
+play so it only sells when SELL-ON, and validate the gated vs un-gated
+expectancy through `bt-validate.js`.
 
 Selling premium is only +EV *when implied > realized*. Sell blindly and a vol
 spike wipes months of theta. So gate the sell engine on a **volatility-risk-

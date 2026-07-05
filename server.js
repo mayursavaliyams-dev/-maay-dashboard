@@ -5686,6 +5686,82 @@ app.get('/api/quant', async (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// VRP REGIME GATE (Signal-Engine Roadmap · Phase 1) — the biggest direct edge.
+// Selling premium is only +EV when implied > realized AND we're not in a stress
+// regime. This scores, per instrument, whether to SELL / REDUCE / STAND-DOWN
+// from: IV percentile (India VIX 1y), IV−realized-vol spread, PCR conditioning
+// (research: PCR-conditioned writing beats VIX-conditioned), event risk, and a
+// smoothed composite (regime models whipsaw unless smoothed). Honest: India VIX
+// is the market implied-vol proxy for all three indices (no per-index VIX).
+//   GET /api/regime  ·  GET /api/regime/:inst
+// ════════════════════════════════════════════════════════════════════════════
+const _regimeSmooth = {};                 // inst → [recent scores] for MA smoothing
+function _realizedVolFromCloses(closes) {
+  const c = (closes || []).filter(v => v > 0);
+  if (c.length < 6) return null;
+  const rets = []; for (let i = 1; i < c.length; i++) rets.push(Math.log(c[i] / c[i - 1]));
+  const m = rets.reduce((s, x) => s + x, 0) / rets.length;
+  const v = rets.reduce((s, x) => s + (x - m) ** 2, 0) / (rets.length - 1);
+  return Math.sqrt(v * 252) * 100;        // annualised %
+}
+async function _dailyCloses(inst, days = 22) {
+  // derive daily closes from the multi-day 1-min chart feed (reuses _chartFetchCandles)
+  try {
+    const om = await _chartFetchCandles(inst, Math.min(15, days));
+    const ts = om.timestamp || [], cl = om.close || [];
+    const byDay = new Map();
+    for (let i = 0; i < ts.length; i++) { const d = Math.floor((ts[i] * 1000 + 330 * 60000) / 86400000); if (cl[i] > 0) byDay.set(d, cl[i]); }
+    return [...byDay.entries()].sort((a, b) => a[0] - b[0]).map(e => e[1]);
+  } catch (_) { return []; }
+}
+async function _computeRegime(inst) {
+  const meta = getInstrumentMeta(inst);
+  let spot = 0, pcr = null;
+  try { spot = await meta.priceGetter(); const chain = await meta.chainGetter(spot);
+    let ceOI = 0, peOI = 0; for (const s of (chain.strikes || [])) { ceOI += Number(s.ce?.oi || 0); peOI += Number(s.pe?.oi || 0); }
+    if (ceOI > 0) pcr = +(peOI / ceOI).toFixed(2);
+  } catch (_) {}
+  let vix = null, ivp = null;
+  try { const v = await eventEngine.getVix(); vix = Number(v.value) || null;
+    const hist = await eventEngine.getVixHistory(365); const r = volContext.ivRankPercentile(vix, hist); if (r.available) ivp = r.ivPercentile;
+  } catch (_) {}
+  const realized = _realizedVolFromCloses(await _dailyCloses(inst));
+  const vrp = (vix != null && realized != null) ? +(vix - realized).toFixed(2) : null;   // implied − realized
+  let eventRisk = 0; try { eventRisk = Number((await eventEngine.eventRiskScore(5)).score) || 0; } catch (_) {}
+
+  // component scores (0..100 sell-favourability)
+  const cIVP = ivp != null ? ivp : 50;                                   // high IVP = rich premium
+  const cVRP = vrp != null ? clamp01(50 + vrp * 8) : 50;                 // positive spread = sell-friendly
+  const cPCR = pcr != null ? (pcr < 0.7 ? 30 : pcr > 1.4 ? 55 : 70) : 55; // research: sell when PCR low-normal, stand down at extremes
+  const cEvent = eventRisk >= 70 ? 0 : eventRisk >= 50 ? 35 : 100;
+  const cPanic = vix != null && vix >= 22 ? 0 : vix != null && vix >= 18 ? 40 : 100;
+  const raw = Math.round(0.30 * cIVP + 0.28 * cVRP + 0.17 * cPCR + 0.15 * cEvent + 0.10 * cPanic);
+  // smooth (MA of last 5) to avoid whipsaw
+  const buf = (_regimeSmooth[inst] = (_regimeSmooth[inst] || [])); buf.push(raw); if (buf.length > 5) buf.shift();
+  const score = Math.round(buf.reduce((s, x) => s + x, 0) / buf.length);
+  const verdict = score >= 62 ? 'SELL-ON' : score >= 45 ? 'REDUCE' : 'STAND-DOWN';
+  return {
+    inst, verdict, score,
+    components: { ivPercentile: ivp, vrp, ivImplied: vix, realizedVol: realized != null ? +realized.toFixed(1) : null, pcr, eventRisk },
+    scores: { ivp: cIVP, vrp: Math.round(cVRP), pcr: cPCR, event: cEvent, panic: cPanic },
+    note: 'VRP regime: sell premium only when rich + implied>realized + calm. India VIX = market implied proxy. Educational.',
+  };
+}
+const clamp01 = v => Math.max(0, Math.min(100, v));
+app.get('/api/regime/:inst(nifty|sensex|banknifty)', async (req, res) => {
+  try { res.json({ ok: true, ...(await _computeRegime(req.params.inst.toUpperCase())), generatedAt: new Date().toISOString() }); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+app.get('/api/regime', async (req, res) => {
+  try {
+    const insts = agentsEngine.instruments || ['NIFTY', 'SENSEX', 'BANKNIFTY'];
+    const out = {};
+    for (const i of insts) { try { out[i] = await _computeRegime(i); } catch (_) { out[i] = { inst: i, verdict: 'n/a' }; } }
+    res.json({ ok: true, regimes: out, generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // 6th agent — Stock Analyst: ask about ANY stock → live quote + news + deal
 // impacts fused into a probability verdict (parameters disclosed).
 const stockAnalyst = require('./stock-analyst');

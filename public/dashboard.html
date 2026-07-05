@@ -3,83 +3,118 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard · Antigravity Pro</title>
+<title>Command Center · Antigravity Pro</title>
 <style>
-  :root{ --bg:#070b12; --panel:#0c131f; --panel2:#0e1726; --border:#1b2942; --muted:#7c8aa0; --green:#22d39a; --red:#f7567c; --amber:#fcd34d; --blue:#5b9cff; --violet:#a78bfa; }
+  :root{
+    --bg:#070a10; --bg2:#0a0e16; --panel:#0d1420; --panel2:#111a28; --line:#1a2536; --line2:#22314a;
+    --txt:#e6edf6; --mut:#8291a8; --dim:#5a6a80; --dim2:#556274;
+    --up:#26d0a0; --dn:#ff5470; --amber:#ffc24b; --blue:#5b9cff; --violet:#a78bff; --cyan:#3ad0e0;
+  }
   *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--bg); color:#dfe7f5; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
-  .wrap{ max-width:1400px; margin:0 auto; padding:0 14px 40px; }
-  .mono{ font-variant-numeric:tabular-nums; }
+  body{ margin:0; background:radial-gradient(1200px 600px at 70% -10%, #0d1626 0%, var(--bg) 55%); color:var(--txt);
+        font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; }
+  .mono{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+  .wrap{ max-width:1500px; margin:0 auto; padding:0 16px 48px; }
   a{ color:inherit; text-decoration:none; }
+  .up{ color:var(--up); } .dn{ color:var(--dn); } .flat{ color:#9aa7ba; }
 
   /* stale-server guard */
-  .stale{ display:none; background:#3a0f16; border:1px solid #7f1d2e; color:#ffb4c4; font-size:0.74rem; font-weight:700;
-          padding:9px 14px; border-radius:10px; margin:10px 0; }
-  .stale code{ background:rgba(0,0,0,.35); padding:1px 6px; border-radius:4px; }
+  .stale{ display:none; background:linear-gradient(90deg,#3a0f18,#2a0b12); border:1px solid #7f1d2e; color:#ffb4c4;
+          font-size:0.78rem; font-weight:700; padding:11px 15px; border-radius:12px; margin:12px 0; }
+  .stale code{ background:rgba(0,0,0,.4); padding:1px 6px; border-radius:5px; color:#ffd7df; }
 
-  header{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:12px 4px 8px; }
-  .brand{ font-size:1.05rem; font-weight:900; color:var(--blue); }
-  .clock{ margin-left:auto; text-align:right; font-size:0.95rem; font-weight:800; }
-  .clock small{ font-size:0.55rem; color:var(--muted); font-weight:600; }
-  .bot{ font-size:0.66rem; font-weight:800; padding:4px 12px; border-radius:8px; border:1px solid var(--border); }
-  .bot.on{ color:var(--green); border-color:#1c5a38; background:rgba(34,211,154,.08); }
-  .bot.off{ color:var(--red); border-color:#5a1c2a; }
+  /* header */
+  header{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:16px 4px 12px; }
+  .brand{ font-size:1.15rem; font-weight:900; letter-spacing:.3px; display:flex; align-items:center; gap:9px; }
+  .brand .logo{ font-size:1.3rem; }
+  .brand b{ background:linear-gradient(90deg,#5b9cff,#a78bff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .paper{ font-size:0.58rem; font-weight:900; letter-spacing:1px; padding:3px 9px; border-radius:6px; background:#3a2d10; color:var(--amber); }
+  .hstat{ display:flex; align-items:center; gap:6px; font-size:0.66rem; font-weight:700; color:var(--mut); }
+  .dot{ width:8px; height:8px; border-radius:50%; }
+  .dot.live{ background:var(--up); box-shadow:0 0 10px var(--up); animation:pulse 1.6s infinite; }
+  .dot.off{ background:#3a4658; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
+  .clock{ margin-left:auto; text-align:right; }
+  .clock .t{ font-size:1.15rem; font-weight:800; letter-spacing:.5px; }
+  .clock .m{ font-size:0.56rem; color:var(--mut); font-weight:700; letter-spacing:.5px; }
+  .bot{ font-size:0.66rem; font-weight:900; padding:6px 14px; border-radius:9px; border:1px solid var(--line2); }
+  .bot.on{ color:var(--up); border-color:rgba(38,208,160,.4); background:rgba(38,208,160,.08); }
+  .bot.off{ color:var(--dn); border-color:rgba(255,84,112,.4); }
 
-  nav{ display:flex; gap:5px; flex-wrap:wrap; padding:2px 2px 12px; border-bottom:1px solid var(--border); margin-bottom:14px; }
-  nav a{ color:#9fb0c8; font-size:0.72rem; font-weight:700; padding:5px 12px; border-radius:8px; border:1px solid transparent; }
-  nav a:hover{ background:rgba(91,156,255,.12); color:#cfe0ff; }
-  nav a.active{ background:rgba(91,156,255,.18); color:#cfe0ff; border-color:#22355c; }
+  nav{ display:flex; gap:5px; flex-wrap:wrap; padding:4px 0 14px; border-bottom:1px solid var(--line); margin-bottom:16px; }
+  nav a{ color:#93a2b8; font-size:0.72rem; font-weight:700; padding:6px 13px; border-radius:9px; border:1px solid transparent; transition:.12s; }
+  nav a:hover{ background:rgba(91,156,255,.1); color:#cfe0ff; }
+  nav a.active{ background:rgba(91,156,255,.16); color:#cfe0ff; border-color:var(--line2); }
 
-  /* live prices */
-  .prices{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
-  @media(max-width:680px){ .prices{ grid-template-columns:1fr; } }
-  .px{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 15px; display:flex; align-items:baseline; gap:10px; }
-  .px .nm{ font-size:0.78rem; font-weight:900; letter-spacing:.5px; }
-  .px .v{ font-size:1.5rem; font-weight:900; margin-left:auto; }
-  .px.nifty .nm{ color:var(--amber); } .px.sensex .nm{ color:#38bdf8; } .px.banknifty .nm{ color:var(--violet); }
+  .sec-h{ font-size:0.62rem; font-weight:800; color:var(--dim2); text-transform:uppercase; letter-spacing:1.2px; margin:20px 2px 9px; }
+
+  /* index cards */
+  .idxrow{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  @media(max-width:820px){ .idxrow{ grid-template-columns:1fr; } }
+  .idx{ background:linear-gradient(160deg,var(--panel),var(--bg2)); border:1px solid var(--line); border-radius:16px; padding:14px 16px; position:relative; overflow:hidden; }
+  .idx .top{ display:flex; align-items:baseline; gap:10px; }
+  .idx .nm{ font-size:0.82rem; font-weight:900; letter-spacing:.5px; }
+  .idx.nifty .nm{ color:var(--amber); } .idx.sensex .nm{ color:var(--cyan); } .idx.banknifty .nm{ color:var(--violet); }
+  .idx .px{ font-size:1.9rem; font-weight:900; margin-left:auto; letter-spacing:-.5px; }
+  .idx .chg{ font-size:0.74rem; font-weight:800; margin-top:2px; }
+  .idx .spark{ height:38px; margin:8px 0 6px; }
+  .idx .foot{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .regchip{ font-size:0.56rem; font-weight:900; letter-spacing:.4px; padding:3px 9px; border-radius:999px; }
+  .regchip.sell{ background:rgba(38,208,160,.14); color:var(--up); }
+  .regchip.reduce{ background:rgba(255,194,75,.14); color:var(--amber); }
+  .regchip.stand{ background:rgba(120,132,150,.14); color:#9aa7ba; }
+  .sigchip{ font-size:0.56rem; font-weight:800; color:var(--mut); }
+  .sigchip b{ font-weight:900; }
 
   /* stat tiles */
-  .stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
-  .tile{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:11px 14px; }
-  .tile .l{ font-size:0.56rem; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
-  .tile .v{ font-size:1.5rem; font-weight:900; margin-top:3px; }
-  .tile .s{ font-size:0.56rem; color:#64748b; margin-top:1px; }
-  .up{ color:var(--green); } .dn{ color:var(--red); } .flat{ color:#9ca3af; }
+  .stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .tile{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 15px; }
+  .tile .l{ font-size:0.56rem; color:var(--mut); text-transform:uppercase; letter-spacing:.6px; }
+  .tile .v{ font-size:1.55rem; font-weight:900; margin-top:3px; letter-spacing:-.3px; }
+  .tile .s{ font-size:0.56rem; color:var(--dim2); margin-top:2px; }
 
-  .grid2{ display:grid; grid-template-columns:1.3fr 1fr; gap:14px; }
-  @media(max-width:940px){ .grid2{ grid-template-columns:1fr; } }
-  .card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:14px; }
-  .card-hd{ display:flex; align-items:center; gap:8px; padding:11px 15px; border-bottom:1px solid var(--border); font-size:0.82rem; font-weight:800; }
-  .card-hd small{ margin-left:auto; font-weight:400; color:var(--muted); font-size:0.6rem; }
-  .card-bd{ padding:12px 15px; }
+  .grid2{ display:grid; grid-template-columns:1.15fr 1fr; gap:14px; }
+  @media(max-width:960px){ .grid2{ grid-template-columns:1fr; } }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+  .card-h{ display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); font-size:0.82rem; font-weight:800; }
+  .card-h small{ margin-left:auto; font-weight:400; color:var(--mut); font-size:0.6rem; }
+  .card-b{ padding:12px 16px; }
 
-  /* signals */
+  /* regime gauge rows */
+  .reg{ padding:10px 0; border-bottom:1px solid #101a28; }
+  .reg:last-child{ border-bottom:0; }
+  .reg .r1{ display:flex; align-items:center; gap:9px; }
+  .reg .in{ font-size:0.74rem; font-weight:900; width:92px; }
+  .reg .vd{ font-size:0.68rem; font-weight:900; }
+  .reg .sc{ margin-left:auto; font-size:0.62rem; color:var(--mut); }
+  .gauge{ height:8px; background:linear-gradient(90deg,rgba(255,84,112,.25),rgba(255,194,75,.22),rgba(38,208,160,.28)); border-radius:99px; margin-top:6px; position:relative; }
+  .gauge i{ position:absolute; top:-2px; width:3px; height:12px; background:#fff; border-radius:2px; box-shadow:0 0 6px rgba(255,255,255,.6); }
+  .reg .cmp{ font-size:0.55rem; color:var(--dim2); margin-top:4px; }
+
+  /* signal rows */
   .sig{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #101a28; }
   .sig:last-child{ border-bottom:0; }
   .sig .in{ font-size:0.74rem; font-weight:900; width:92px; }
-  .sig .dec{ font-size:0.9rem; font-weight:900; width:120px; }
-  .sig .gates{ margin-left:auto; font-size:0.58rem; color:var(--muted); letter-spacing:.5px; text-align:right; }
-  .sig .gates b.go{ color:var(--green); } .sig .gates b.no{ color:#4a5670; }
+  .sig .dec{ font-size:0.86rem; font-weight:900; width:118px; }
+  .sig .g{ margin-left:auto; font-size:0.58rem; color:var(--mut); text-align:right; }
+  .sig .g b.go{ color:var(--up); } .sig .g b.no{ color:#4c586b; }
 
-  /* engines */
-  .eng{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #101a28; font-size:0.72rem; }
-  .eng:last-child{ border-bottom:0; }
-  .eng .dot{ width:8px; height:8px; border-radius:50%; }
-  .eng .nm{ font-weight:800; } .eng .tag{ color:var(--muted); font-size:0.56rem; }
-  .eng .r{ margin-left:auto; text-align:right; font-variant-numeric:tabular-nums; }
-
+  /* engines / agents */
+  .row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #101a28; font-size:0.72rem; }
+  .row:last-child{ border-bottom:0; }
+  .row .nm{ font-weight:800; } .row .tag{ color:var(--mut); font-size:0.55rem; }
+  .row .r{ margin-left:auto; text-align:right; }
   .pipe{ display:flex; gap:5px; flex-wrap:wrap; }
-  .stage{ flex:1; min-width:70px; text-align:center; border:1px solid var(--border); border-radius:8px; padding:6px 4px; font-size:0.56rem; font-weight:800; color:var(--muted); }
-  .stage.on{ border-color:#1c5a38; color:var(--green); background:rgba(34,211,154,.06); }
+  .stg{ flex:1; min-width:64px; text-align:center; border:1px solid var(--line); border-radius:9px; padding:7px 4px; font-size:0.55rem; font-weight:800; color:var(--mut); }
+  .stg.on{ border-color:rgba(38,208,160,.45); color:var(--up); background:rgba(38,208,160,.07); }
 
   /* quick links */
-  .links{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-top:2px; }
-  .lk{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center; font-weight:800; font-size:0.78rem; }
-  .lk:hover{ border-color:var(--blue); background:rgba(91,156,255,.06); }
-  .lk .e{ font-size:1.3rem; display:block; margin-bottom:5px; }
-  .lk .d{ font-size:0.55rem; color:var(--muted); font-weight:600; margin-top:3px; }
-  .paper{ font-size:0.6rem; font-weight:800; padding:2px 10px; border-radius:999px; background:#3a2d10; color:var(--amber); }
-  .note{ font-size:0.56rem; color:#5a6678; margin-top:16px; line-height:1.5; }
+  .links{ display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:12px; }
+  .lk{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:15px 12px; text-align:center; font-weight:800; font-size:0.78rem; transition:.12s; }
+  .lk:hover{ border-color:var(--blue); background:rgba(91,156,255,.06); transform:translateY(-1px); }
+  .lk .e{ font-size:1.4rem; display:block; margin-bottom:6px; }
+  .lk .d{ font-size:0.54rem; color:var(--mut); font-weight:600; margin-top:3px; }
+  .note{ font-size:0.56rem; color:var(--dim2); margin-top:18px; line-height:1.6; }
 </style>
 </head>
 <body>
@@ -87,166 +122,193 @@
   <div class="stale" id="stale"></div>
 
   <header>
-    <span class="brand">🚀 ANTIGRAVITY PRO</span>
+    <div class="brand"><span class="logo">🚀</span> ANTIGRAVITY <b>PRO</b></div>
     <span class="paper">● PAPER</span>
-    <span class="bot" id="botState">bot —</span>
-    <div class="clock"><div id="clock">--:--:--</div><small id="mkt">—</small></div>
+    <span class="hstat"><span class="dot off" id="botDot"></span><span id="botTxt">bot —</span></span>
+    <span class="bot" id="botBtn" style="cursor:default">—</span>
+    <div class="clock"><div class="t mono" id="clock">--:--:--</div><div class="m" id="mkt">—</div></div>
   </header>
 
   <nav>
-    <a href="/dashboard.html" class="active">Dashboard</a>
-    <a href="/chart.html">📊 Chart</a>
+    <a href="/dashboard.html" class="active">⌂ Command</a>
+    <a href="/chart.html">📈 Chart</a>
+    <a href="/charts4.html">▦ 4 Charts</a>
     <a href="/agents.html">🤖 AI Agents</a>
-    <a href="/quant.html">⚡ Quant Center</a>
+    <a href="/quant.html">⚡ Quant</a>
     <a href="/payoff.html">📐 Payoff</a>
     <a href="/pattern-signals.html">🕯️ Patterns</a>
-    <a href="/signals4.html">4 Engines</a>
-    <a href="/dashboard-legacy.html" style="color:#5a6678">Legacy</a>
+    <a href="/signals4.html">✅ 4 Engines</a>
   </nav>
 
-  <div class="prices" id="prices"></div>
+  <div class="idxrow" id="idxRow"></div>
 
+  <div class="sec-h">Performance · paper</div>
   <div class="stats" id="stats"></div>
 
+  <div class="sec-h">Signals & regime</div>
   <div class="grid2">
-    <div>
-      <div class="card">
-        <div class="card-hd">🎯 Live Signals <small>NIFTY · SENSEX · BANKNIFTY</small></div>
-        <div class="card-bd" id="signals"><div class="flat" style="font-size:0.72rem">loading…</div></div>
-      </div>
-      <div class="card">
-        <div class="card-hd">⚙️ Execution Pipeline <small id="cycleMeta">6-agent · live stage</small></div>
-        <div class="card-bd"><div class="pipe" id="pipe"></div></div>
-      </div>
+    <div class="card">
+      <div class="card-h">🌡️ VRP Regime <small>sell-timing · Phase-1 gate</small></div>
+      <div class="card-b" id="regimeBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
     </div>
-    <div>
-      <div class="card">
-        <div class="card-hd">🧩 Strategy Engines <small>paper</small></div>
-        <div class="card-bd" id="engines"><div class="flat" style="font-size:0.72rem">loading…</div></div>
-      </div>
-      <div class="card">
-        <div class="card-hd">🤖 Agent Pipeline</div>
-        <div class="card-bd" id="agentStates"><div class="flat" style="font-size:0.72rem">loading…</div></div>
-      </div>
+    <div class="card">
+      <div class="card-h">🎯 Live Signals <small>NIFTY · SENSEX · BANKNIFTY</small></div>
+      <div class="card-b" id="sigBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
     </div>
   </div>
 
-  <div class="card-hd" style="border:0;padding:4px 2px 8px;font-size:0.7rem;color:var(--muted)">QUICK ACCESS</div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="card">
+      <div class="card-h">⚙️ Execution Pipeline <small>6-agent · live stage</small></div>
+      <div class="card-b"><div class="pipe" id="pipe"></div>
+        <div style="margin-top:12px" id="agentRows"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-h">🧩 Strategy Engines <small>paper</small></div>
+      <div class="card-b" id="engBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
+    </div>
+  </div>
+
+  <div class="sec-h">Quick access</div>
   <div class="links">
-    <a class="lk" href="/chart.html"><span class="e">📊</span>Chart<div class="d">TradingView-style · patterns · EMA</div></a>
-    <a class="lk" href="/agents.html"><span class="e">🤖</span>AI Agents<div class="d">news → impact → signal → trade</div></a>
-    <a class="lk" href="/quant.html"><span class="e">⚡</span>Quant Center<div class="d">live P&L · swarm · pipeline</div></a>
-    <a class="lk" href="/payoff.html"><span class="e">📐</span>Payoff Builder<div class="d">multi-leg · Greeks · PoP</div></a>
-    <a class="lk" href="/pattern-signals.html"><span class="e">🕯️</span>Patterns<div class="d">candle × OI × trend</div></a>
-    <a class="lk" href="/signals4.html"><span class="e">✅</span>4 Engines<div class="d">confirmed signals + accuracy</div></a>
+    <a class="lk" href="/chart.html"><span class="e">📈</span>Chart<div class="d">TradingView · indicators · backtest</div></a>
+    <a class="lk" href="/charts4.html"><span class="e">▦</span>4 Charts<div class="d">multi-timeframe grid</div></a>
+    <a class="lk" href="/agents.html"><span class="e">🤖</span>AI Agents<div class="d">news → signal → paper trade</div></a>
+    <a class="lk" href="/quant.html"><span class="e">⚡</span>Quant Center<div class="d">live P&L · swarm</div></a>
+    <a class="lk" href="/payoff.html"><span class="e">📐</span>Payoff<div class="d">multi-leg · Greeks · PoP</div></a>
+    <a class="lk" href="/signals4.html"><span class="e">✅</span>4 Engines<div class="d">confirmed signals</div></a>
   </div>
 
-  <div class="note" id="note">Paper / educational — not investment advice. Clean dashboard wired to the aggregate paper feeds (restart-safe). The old dense dashboard is preserved at <a href="/dashboard-legacy.html" style="color:#7c8aa0;text-decoration:underline">Legacy</a>.</div>
+  <div class="note" id="note">Paper / educational — not investment advice. Restart-safe: this command center reads the aggregate paper feeds and guards against a stale server.</div>
 </div>
 
 <script>
 const API = '';
 const inr = v => (v < 0 ? '-' : '+') + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+let SPARK = {};   // inst → recent closes
 
-function tick() {
-  const ist = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata' });
-  document.getElementById('clock').textContent = ist;
-}
+function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata' }); }
 setInterval(tick, 1000); tick();
 
-// ── stale-server guard: the recurring "wrong server on :3000" problem ──
+// stale-server guard (the recurring "old dashboard / wrong server" problem)
 async function healthGuard() {
   try {
-    const r = await fetch('/healthz', { cache: 'no-store' });
-    if (!r.ok) throw new Error('no /healthz');
-    const h = await r.json();
-    if (!h || !h.bootId) throw new Error('no bootId');
+    const h = await (await fetch('/healthz', { cache: 'no-store' })).json();
+    if (!h || !h.bootId) throw 0;
     document.getElementById('stale').style.display = 'none';
-    document.getElementById('mkt').textContent = 'build ' + new Date(h.bootId).toLocaleTimeString();
     return true;
   } catch (_) {
-    const el = document.getElementById('stale');
-    el.style.display = 'block';
-    el.innerHTML = '⚠️ <b>Wrong / stale server on :3000</b> — this build has no <code>/healthz</code>. ' +
-      'The correct server is the one in <code>Expiry-Friday-5x</code>. Kill port 3000 and run ' +
-      '<code>node server.js</code> from that folder (the watchdog does this automatically if the port is free).';
+    const el = document.getElementById('stale'); el.style.display = 'block';
+    el.innerHTML = '⚠️ <b>Wrong / stale server on port 3000</b> — no <code>/healthz</code>. Kill it and run <code>node server.js</code> from <code>Expiry-Friday-5x</code> (the auto-start task for the old D:\\BACKUP build is disabled).';
     return false;
   }
 }
 
-async function load() {
-  const okServer = await healthGuard();
-  if (!okServer) return;
-  let d;
-  try { d = await (await fetch(`${API}/api/quant`, { cache: 'no-store' })).json(); } catch (_) { return; }
-  if (!d.ok) return;
-  document.getElementById('mkt').textContent = d.market || '';
+function sparkSVG(vals, up) {
+  if (!vals || vals.length < 2) return '';
+  const w = 220, h = 38, min = Math.min(...vals), max = Math.max(...vals), rng = (max - min) || 1;
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * w).toFixed(1)},${(h - (v - min) / rng * (h - 4) - 2).toFixed(1)}`).join(' ');
+  const col = up ? 'var(--up)' : 'var(--dn)';
+  const area = `0,${h} ${pts} ${w},${h}`;
+  return `<svg class="spark" width="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polygon points="${area}" fill="${up ? 'rgba(38,208,160,.10)' : 'rgba(255,84,112,.10)'}"/>
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+}
 
-  // prices
-  document.getElementById('prices').innerHTML = (d.ticker || []).map(t => {
-    const cls = t.sym.toLowerCase();
-    return `<div class="px ${cls}"><span class="nm">${t.sym}</span><span class="v mono">${t.px > 0 ? t.px.toLocaleString('en-IN') : '—'}</span></div>`;
+async function loadSparks() {
+  for (const inst of ['NIFTY', 'SENSEX', 'BANKNIFTY']) {
+    try { const d = await (await fetch(`${API}/api/chart-patterns?inst=${inst}&tf=15`, { cache: 'no-store' })).json();
+      if (d.ok && d.candles && d.candles.length) SPARK[inst] = d.candles.slice(-40).map(c => c[4]);
+    } catch (_) {}
+  }
+}
+
+async function load() {
+  if (!(await healthGuard())) return;
+  let q, reg;
+  try { q = await (await fetch(`${API}/api/quant`, { cache: 'no-store' })).json(); } catch (_) { return; }
+  try { reg = await (await fetch(`${API}/api/regime`, { cache: 'no-store' })).json(); } catch (_) { reg = { regimes: {} }; }
+  if (!q.ok) return;
+  document.getElementById('mkt').textContent = q.market || '';
+  const regs = (reg && reg.regimes) || {};
+  const sigByInst = {}; (q.signals || []).forEach(s => sigByInst[s.inst] = s);
+
+  // index cards (price + spark + regime + signal)
+  document.getElementById('idxRow').innerHTML = (q.ticker || []).map(t => {
+    const inst = t.sym, sp = SPARK[inst] || [], up = sp.length > 1 ? sp[sp.length - 1] >= sp[0] : true;
+    const chg = sp.length > 1 ? (sp[sp.length - 1] - sp[0]) : 0, pct = sp.length > 1 && sp[0] ? chg / sp[0] * 100 : 0;
+    const rg = regs[inst] || {}, sg = sigByInst[inst] || {};
+    const rcls = rg.verdict === 'SELL-ON' ? 'sell' : rg.verdict === 'REDUCE' ? 'reduce' : 'stand';
+    return `<div class="idx ${inst.toLowerCase()}">
+      <div class="top"><span class="nm">${inst}</span><span class="px mono">${t.px > 0 ? t.px.toLocaleString('en-IN') : '—'}</span></div>
+      <div class="chg ${up ? 'up' : 'dn'}">${sp.length > 1 ? (chg >= 0 ? '▲ +' : '▼ ') + Math.abs(chg).toFixed(1) + ' (' + (chg >= 0 ? '+' : '') + pct.toFixed(2) + '%)' : '—'}</div>
+      ${sparkSVG(sp, up)}
+      <div class="foot">
+        <span class="regchip ${rcls}">🌡️ ${rg.verdict || '—'}${rg.score != null ? ' ' + rg.score : ''}</span>
+        <span class="sigchip">signal <b class="${sg.decision === 'BUY' ? 'up' : sg.decision === 'SELL' ? 'dn' : 'flat'}">${sg.decision || '—'}${sg.probability != null ? ' ' + sg.probability + '%' : ''}</b></span>
+      </div>
+    </div>`;
   }).join('');
 
   // stat tiles
-  const s = d.score;
+  const s = q.score;
   document.getElementById('stats').innerHTML = `
-    <div class="tile"><div class="l">Paper P&L · all-time</div><div class="v mono ${s.netPnl>=0?'up':'dn'}">${inr(s.netPnl)}</div><div class="s">${s.trades} trades since ${s.since||'—'}</div></div>
-    <div class="tile"><div class="l">Today P&L</div><div class="v mono ${s.dayPnl>=0?'up':'dn'}">${inr(s.dayPnl)}</div><div class="s">${d.market||''}</div></div>
-    <div class="tile"><div class="l">Win Rate</div><div class="v mono">${s.winRate!=null?s.winRate+'%':'—'}</div><div class="s">${s.wins}/${s.trades} wins</div></div>
-    <div class="tile"><div class="l">Open Positions</div><div class="v mono">${s.openNow}</div><div class="s">IVP ${d.ivp??'—'} · best win ${inr(s.biggestWin)}</div></div>`;
+    <div class="tile"><div class="l">Paper P&L · all-time</div><div class="v mono ${s.netPnl>=0?'up':'dn'}">${inr(s.netPnl)}</div><div class="s">${s.trades} trades · since ${s.since||'—'}</div></div>
+    <div class="tile"><div class="l">Today P&L</div><div class="v mono ${s.dayPnl>=0?'up':'dn'}">${inr(s.dayPnl)}</div><div class="s">${q.market||''}</div></div>
+    <div class="tile"><div class="l">Win rate</div><div class="v mono">${s.winRate!=null?s.winRate+'%':'—'}</div><div class="s">${s.wins}/${s.trades} wins</div></div>
+    <div class="tile"><div class="l">Open positions</div><div class="v mono">${s.openNow}</div><div class="s">best win ${inr(s.biggestWin)}</div></div>
+    <div class="tile"><div class="l">IV percentile</div><div class="v mono">${q.ivp!=null?q.ivp:'—'}</div><div class="s">${q.ivp>=50?'premium rich · sell':q.ivp!=null?'premium cheap':'—'}</div></div>`;
 
-  // live signals
-  document.getElementById('signals').innerHTML = (d.signals || []).map(x => {
-    const dc = x.decision === 'BUY' ? 'up' : x.decision === 'SELL' ? 'dn' : 'flat';
-    return `<div class="sig">
-      <span class="in">${x.inst}</span>
-      <span class="dec ${dc}">${x.decision}${x.probability!=null?' · '+x.probability+'%':''}</span>
-      <span class="gates">🎯 BUY <b class="${x.buyGo?'go':'no'}">${x.buyGo?'GO':'wait'}</b> &nbsp; 🦅 CONDOR <b class="${x.condorGo?'go':'no'}">${x.condorGo?'GO':'wait'}</b></span>
+  // regime gauges
+  document.getElementById('regimeBox').innerHTML = ['NIFTY','SENSEX','BANKNIFTY'].map(inst => {
+    const r = regs[inst] || {}; const c = r.components || {};
+    const vcls = r.verdict === 'SELL-ON' ? 'up' : r.verdict === 'REDUCE' ? 'flat' : 'dn';
+    return `<div class="reg">
+      <div class="r1"><span class="in">${inst}</span><span class="vd ${vcls}">${r.verdict || '—'}</span><span class="sc">score ${r.score ?? '—'}/100</span></div>
+      <div class="gauge"><i style="left:${Math.max(0,Math.min(100,r.score||0))}%"></i></div>
+      <div class="cmp">IVP ${c.ivPercentile ?? '—'} · VRP ${c.vrp ?? '—'} (IV ${c.ivImplied ?? '—'} − RV ${c.realizedVol ?? '—'}) · PCR ${c.pcr ?? '—'}</div>
     </div>`;
-  }).join('') || '<div class="flat" style="font-size:0.72rem">no signals</div>';
+  }).join('');
 
-  // pipeline
-  document.getElementById('pipe').innerHTML = (d.cycle || []).map(c =>
-    `<div class="stage ${c.on?'on':''}">${c.n}</div>`).join('');
+  // signals
+  document.getElementById('sigBox').innerHTML = (q.signals || []).map(x => {
+    const dc = x.decision === 'BUY' ? 'up' : x.decision === 'SELL' ? 'dn' : 'flat';
+    return `<div class="sig"><span class="in">${x.inst}</span>
+      <span class="dec ${dc}">${x.decision}${x.probability!=null?' · '+x.probability+'%':''}</span>
+      <span class="g">🎯 BUY <b class="${x.buyGo?'go':'no'}">${x.buyGo?'GO':'wait'}</b> &nbsp; 🦅 CONDOR <b class="${x.condorGo?'go':'no'}">${x.condorGo?'GO':'wait'}</b></span></div>`;
+  }).join('') || '<div class="flat" style="font-size:.72rem">no signals</div>';
+
+  // pipeline + agents
+  document.getElementById('pipe').innerHTML = (q.cycle || []).map(c => `<div class="stg ${c.on?'on':''}">${c.n}</div>`).join('');
+  document.getElementById('agentRows').innerHTML = (q.swarm || []).map(a => {
+    const on = ['ACTIVE','GO','IN TRADE','ON-DEMAND'].includes(a.state);
+    return `<div class="row"><span class="dot ${on?'live':'off'}" style="animation:none"></span><span class="nm">${a.emoji} ${a.name}</span><span class="r tag">${a.state}</span></div>`;
+  }).join('');
 
   // engines
-  document.getElementById('engines').innerHTML = (d.engines || []).map(e => `
-    <div class="eng">
-      <span class="dot" style="background:${e.enabled?'var(--green)':'#334155'}"></span>
+  document.getElementById('engBox').innerHTML = (q.engines || []).map(e => `
+    <div class="row"><span class="dot ${e.enabled?'live':'off'}" style="animation:none"></span>
       <span><span class="nm">${e.label}</span><br><span class="tag">${e.tag}</span></span>
-      <span class="r"><span class="${e.netPnl>=0?'up':'dn'}">${inr(e.netPnl)}</span><br><span class="tag">${e.trades} tr · ${e.winRate!=null?e.winRate+'%':'—'}</span></span>
-    </div>`).join('');
-
-  // agent states
-  document.getElementById('agentStates').innerHTML = (d.swarm || []).map(a => {
-    const on = ['ACTIVE','GO','IN TRADE','ON-DEMAND'].includes(a.state);
-    return `<div class="eng"><span class="dot" style="background:${on?'var(--green)':'#334155'}"></span>
-      <span class="nm">${a.emoji} ${a.name}</span><span class="r tag">${a.state}</span></div>`;
-  }).join('');
+      <span class="r"><span class="${e.netPnl>=0?'up':'dn'} mono">${inr(e.netPnl)}</span><br><span class="tag">${e.trades} tr · ${e.winRate!=null?e.winRate+'%':'—'}</span></span></div>`).join('');
 }
 
 async function loadBot() {
-  try {
-    const b = await (await fetch('/api/bot/status', { cache: 'no-store' })).json();
-    const el = document.getElementById('botState');
-    el.textContent = b.running ? '● Bot ON' : '○ Bot OFF';
-    el.className = 'bot ' + (b.running ? 'on' : 'off');
+  try { const b = await (await fetch('/api/bot/status', { cache: 'no-store' })).json();
+    document.getElementById('botDot').className = 'dot ' + (b.running ? 'live' : 'off');
+    document.getElementById('botTxt').textContent = b.running ? 'bot running' : 'bot stopped';
+    const bb = document.getElementById('botBtn'); bb.textContent = b.running ? '● LIVE' : '○ OFF'; bb.className = 'bot ' + (b.running ? 'on' : 'off');
   } catch (_) {}
 }
 
-load(); loadBot();
+loadSparks().then(load); loadBot();
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
+setInterval(() => loadSparks(), 30000);
 
-// auto-reload on server restart (bootId change)
-(function () {
-  let bid = null;
-  async function chk() {
-    try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
-      if (bid === null) bid = h.bootId; else if (h.bootId !== bid) location.reload();
-    } catch (_) {}
-  }
+// bootId auto-reload on server restart
+(function () { let bid = null;
+  async function chk() { try { const h = await (await fetch('/healthz', { cache: 'no-store' })).json(); if (!h || !h.bootId) return;
+    if (bid === null) bid = h.bootId; else if (h.bootId !== bid) location.reload(); } catch (_) {} }
   chk(); setInterval(chk, 12000);
 })();
 </script>
