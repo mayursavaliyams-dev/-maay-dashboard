@@ -481,7 +481,11 @@ function renderAcc(s) {
   const el = document.getElementById('accStrip');
   if (!s || !s.scored) { el.innerHTML = `<span style="color:#64748b">accuracy: ${s&&s.pending?s.pending+' predictions awaiting outcome (scores next trading day)':'building…'}</span>`; return; }
   const hc = s.hitRate>=60?'var(--green)':s.hitRate>=50?'var(--amber)':'var(--red)';
-  el.innerHTML = `<b style="color:${hc}">${s.hitRate}% direction accuracy</b> <span style="color:#64748b">· ${s.hits}/${s.scored} hits · move error ±${s.meanAbsMoveError}% (actual avg ${s.avgActualAbsMove}%) · ${s.pending} pending</span>`;
+  const chip = g => { const c = g.hitRate>=60?'var(--green)':g.hitRate>=50?'var(--amber)':'var(--red)';
+    return `<span style="display:inline-block;margin:2px 6px 2px 0;padding:1px 7px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;font-size:0.62rem;">${g.key} <b style="color:${c}">${g.hitRate}%</b> <span style="color:#475569">${g.hits}/${g.scored}</span></span>`; };
+  el.innerHTML = `<b style="color:${hc}">${s.hitRate}% direction accuracy</b> <span style="color:#64748b">· ${s.hits}/${s.scored} hits · move error ±${s.meanAbsMoveError}% (actual avg ${s.avgActualAbsMove}%) · ${s.pending} pending</span>`
+    + ((s.byType&&s.byType.length) ? `<div style="margin-top:5px;"><span style="color:#64748b;font-size:0.62rem;">by event type: </span>${s.byType.map(chip).join('')}</div>` : '')
+    + ((s.byDirection&&s.byDirection.length) ? `<div style="margin-top:2px;"><span style="color:#64748b;font-size:0.62rem;">by direction: </span>${s.byDirection.map(chip).join('')}</div>` : '');
 }
 async function loadHist() {
   try {

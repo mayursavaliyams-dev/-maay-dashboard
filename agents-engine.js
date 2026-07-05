@@ -348,14 +348,26 @@ class AgentsEngine {
   accuracyStats() {
     const scored = this._impactHistory.filter(h => h.actualMovePct != null && h.hit != null);
     const n = scored.length;
-    if (!n) return { scored: 0, pending: this._impactHistory.filter(h => h.actualMovePct == null).length, hitRate: null };
+    if (!n) return { scored: 0, pending: this._impactHistory.filter(h => h.actualMovePct == null).length, hitRate: null, byType: [], byDirection: [] };
     const hits = scored.filter(h => h.hit).length;
     const absErr = scored.reduce((s, h) => s + Math.abs((h.expectedMovePct || 0) - (h.actualMovePct || 0)), 0) / n;
     const avgActualAbs = scored.reduce((s, h) => s + Math.abs(h.actualMovePct || 0), 0) / n;
+
+    // break the hit-rate down by group so we can see WHERE the edge is (event type, direction)
+    const breakdown = (keyFn) => {
+      const g = {};
+      for (const h of scored) { const k = keyFn(h) || '—'; (g[k] = g[k] || []).push(h); }
+      return Object.entries(g)
+        .map(([k, arr]) => ({ key: k, scored: arr.length, hits: arr.filter(x => x.hit).length,
+          hitRate: round(arr.filter(x => x.hit).length / arr.length * 100, 1) }))
+        .sort((a, b) => b.scored - a.scored);
+    };
     return {
       scored: n, hits, hitRate: round(hits / n * 100, 1),
       meanAbsMoveError: round(absErr, 2), avgActualAbsMove: round(avgActualAbs, 2),
       pending: this._impactHistory.filter(h => h.actualMovePct == null && h.direction !== 'FLAT').length,
+      byType: breakdown(h => h.type),
+      byDirection: breakdown(h => h.direction),
     };
   }
 
