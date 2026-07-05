@@ -53,7 +53,21 @@ So the engine has two heads:
 
 ---
 
-## Phase 0 — Fix the foundation (validation infra) · **do this first**
+## Phase 0 — Fix the foundation (validation infra) · **✅ DONE**
+
+**Built:** `bt-validate.js` (+ `test/bt-validate.test.js`, 32 assertions) — a pure
+validation library: Sharpe/skew/kurtosis, **Probabilistic Sharpe Ratio**,
+**Deflated Sharpe Ratio** (Bailey/LdP — corrects for #trials, skew, kurtosis,
+sample length), **walk-forward** (rolling OOS, no look-ahead), **purged k-fold**,
+and expectancy. `node bt-validate.js` re-runs the existing short-strangle through
+it on 600 real days with charges + 0.5% slippage.
+
+**Result — the known selling edge PASSES every honest test** (so the harness is
+trustworthy): 129 trades, 91.5% win; in-sample Sharpe 0.85; **Deflated Sharpe
+0.9999 (12 trials) → PASS @95%**; **walk-forward OOS Sharpe 1.23 / 93% win**
+(higher than in-sample = robust, not overfit); purged 5-fold all positive
+(mean 1.04). Left skew −2.0 / kurt 9.65 honestly capture the seller's tail. Every
+future signal must clear this gate before we trust it. → `bt-data/result-validate.json`.
 
 Without honest validation, every "signal" is data-mined noise. This phase adds
 no signal; it makes every later phase trustworthy.
