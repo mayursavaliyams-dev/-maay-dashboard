@@ -24,6 +24,11 @@ const candlestickPatterns = require("./candlestick-patterns");
 const smartMoney = require("./smart-money");
 const volContext = require("./vol-context");
 const payoffEngine = require("./payoff-engine");
+// Signal-Engine Roadmap heads (docs/SIGNAL-ENGINE-ROADMAP.md)
+const tradePlanner = require("./trade-planner");   // Phase 4 — signal → structure → size
+const gexSkew = require("./gex-skew");             // Phase 2 — GEX/OI range/trend label + skew
+const metaLabel = require("./meta-label");         // Phase 3 — calibrated confluence probability
+const signalHealth = require("./signal-health");   // Phase 5 — calibration-drift + edge-decay tracker
 const { AgentsEngine } = require("./agents-engine");
 const agentsEngine = new AgentsEngine();
 const pineConverter = require("./pine-converter");
@@ -5759,6 +5764,139 @@ app.get('/api/regime', async (req, res) => {
     const out = {};
     for (const i of insts) { try { out[i] = await _computeRegime(i); } catch (_) { out[i] = { inst: i, verdict: 'n/a' }; } }
     res.json({ ok: true, regimes: out, generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  SIGNAL-ENGINE ROADMAP · Phases 2–5 — the honest signal → structure → size loop.
+//  Regime (Phase 1) + direction (master signal) + GEX/OI skew (Phase 2) →
+//  calibrated confluence probability (Phase 3) → defined-risk trade plan (Phase 4).
+//  Every planned outcome feeds the signal-health tracker (Phase 5) which watches
+//  for calibration drift + edge decay. See docs/SIGNAL-ENGINE-ROADMAP.md.
+// ════════════════════════════════════════════════════════════════════════════
+const _sigFs = require('fs'), _sigPath = require('path');
+const _SIG_HEALTH_PATH = _sigPath.join(__dirname, 'data', 'signal-outcomes.json');
+const _metaCalibrator = metaLabel.newCalibrator();
+let _signalTracker;
+try { _signalTracker = signalHealth.loadState(_sigFs, _SIG_HEALTH_PATH, { window: 300, minSamples: 30 }); }
+catch (_) { _signalTracker = signalHealth.newTracker({ window: 300, minSamples: 30 }); }
+// seed the meta-calibrator from any persisted outcomes so calibration survives restarts
+try { for (const o of _signalTracker.outcomes) metaLabel.recordOutcome(_metaCalibrator, o.rawP, o.won); } catch (_) {}
+
+// Assemble everything a trade plan needs for one instrument (single fetch pass).
+async function _assembleSignalContext(inst) {
+  const meta = getInstrumentMeta(inst);
+  const spot = await meta.priceGetter();
+  const chain = await meta.chainGetter(spot);
+  const strikes = (chain && chain.strikes) || [];
+  const atm = Number(chain && chain.atmStrike) || 0;
+  const step = (PS_INSTS[inst] && PS_INSTS[inst].step) || (getInstrumentMeta(inst).step) || 50;
+  const lotSize = (PS_INSTS[inst] && PS_INSTS[inst].lot) || getInstrumentMeta(inst).lotSize || 1;
+
+  // days to expiry (gamma-blast detector, fallback 3)
+  let dte = 3;
+  try { const exp = (gammaBlastEngine.status().detect || {})[inst]?.expiry; if (exp) dte = Math.max(0.5, (Date.parse(exp + 'T15:30:00+05:30') - Date.now()) / 86400000); } catch (_) {}
+
+  // regime (Phase 1)
+  const regime = await _computeRegime(inst);
+
+  // expected move from ATM straddle (Phase-4 strikes come from here, not a fixed %)
+  const rows = strikes.map(s => ({ strike: Number(s.strike), ceOI: Number(s.ce?.oi || 0), peOI: Number(s.pe?.oi || 0), ceLtp: Number(s.ce?.ltp || 0), peLtp: Number(s.pe?.ltp || 0) }));
+  const atmRow = rows.find(r => r.strike === atm);
+  const atmStraddle = atmRow ? atmRow.ceLtp + atmRow.peLtp : 0;
+  let vixVal = regime.components?.ivImplied || null;
+  const em = volContext.expectedMove(spot, atmStraddle, vixVal, dte);
+  const emPts = em && em.byExpiryPts ? em.byExpiryPts : (atmStraddle > 0 ? atmStraddle * 0.85 : (vixVal ? spot * (vixVal / 100) * Math.sqrt(Math.max(dte, 0.5) / 365) : 0));
+
+  // GEX / OI skew (Phase 2) — range/trend label + strike-placement skew (NOT alpha)
+  const gexChain = rows.map(r => ({ strike: r.strike, ceOI: r.ceOI, peOI: r.peOI }));
+  const gex = gexSkew.computeGEX({ spot, dte, iv: vixVal ? vixVal / 100 : 0.14, lotSize, chain: gexChain });
+
+  // direction head (master signal) — no learner pollution here
+  let master = null;
+  try { master = await gatherMasterSignal(inst, { track: false }); } catch (_) {}
+
+  return { inst, spot, atm, step, lotSize, dte, regime, em, emPts, atmStraddle, gex, master, vix: vixVal };
+}
+
+// Build the meta-label input from an assembled context.
+function _metaInputFrom(ctx) {
+  const c = ctx.regime.components || {};
+  const netDir = ctx.master ? (ctx.master.net || 0) : 0;
+  return {
+    regimeScore: ctx.regime.score,
+    ivp: c.ivPercentile,
+    ivMinusRV: (c.ivImplied != null && c.realizedVol != null) ? (c.ivImplied - c.realizedVol) / 100 : 0,
+    trend: ctx.master ? netDir / 100 : 0,
+    momentum: netDir,
+    pcr: c.pcr,
+    gexRange: ctx.gex && ctx.gex.ok ? ctx.gex.regimeLabel : null,
+    eventRisk: (c.eventRisk || 0) / 100,
+  };
+}
+
+// Phase 2 — GEX / OI range-trend label + skew
+app.get('/api/gex/:inst(nifty|sensex|banknifty)', async (req, res) => {
+  try {
+    const inst = req.params.inst.toUpperCase();
+    const ctx = await _assembleSignalContext(inst);
+    res.json({ ok: true, instrument: inst, spot: Math.round(ctx.spot), dte: +ctx.dte.toFixed(1), ...ctx.gex, generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Phase 3 — calibrated confluence probability (white-box meta-label)
+app.get('/api/meta-label/:inst(nifty|sensex|banknifty)', async (req, res) => {
+  try {
+    const inst = req.params.inst.toUpperCase();
+    const ctx = await _assembleSignalContext(inst);
+    const score = metaLabel.scoreConfluence(_metaInputFrom(ctx), _metaCalibrator);
+    res.json({ ok: true, instrument: inst, decision: ctx.master ? ctx.master.decision : 'HOLD',
+      inputs: _metaInputFrom(ctx), ...score, generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Phase 4 — full trade plan: regime + direction + skew + calibrated prob → defined-risk structure + size
+app.get('/api/trade-plan/:inst(nifty|sensex|banknifty)', async (req, res) => {
+  try {
+    const inst = req.params.inst.toUpperCase();
+    const ctx = await _assembleSignalContext(inst);
+    const metaScore = metaLabel.scoreConfluence(_metaInputFrom(ctx), _metaCalibrator);
+    const capital = Number(req.query.capital) || Number(process.env.SIGNAL_CAPITAL) || 700000;
+    const plan = tradePlanner.planTrade({
+      regime: ctx.regime.verdict, regimeScore: ctx.regime.score,
+      decision: ctx.master ? ctx.master.decision : 'HOLD',
+      probability: metaScore.probabilityPct,
+      skew: ctx.gex && ctx.gex.ok ? ctx.gex.skew : 0,
+      ivp: ctx.regime.components?.ivPercentile,
+      emPts: ctx.emPts, spot: ctx.spot, step: ctx.step, vix: ctx.vix,
+      capital, riskPct: Number(req.query.riskPct) || 0.05, lotSize: ctx.lotSize, dte: ctx.dte,
+    });
+    res.json({
+      ok: true, instrument: inst, generatedAt: new Date().toISOString(),
+      regime: { verdict: ctx.regime.verdict, score: ctx.regime.score },
+      direction: ctx.master ? { decision: ctx.master.decision, net: ctx.master.net, conviction: ctx.master.conviction } : null,
+      gex: ctx.gex && ctx.gex.ok ? { regimeLabel: ctx.gex.regimeLabel, skew: ctx.gex.skew, callWall: ctx.gex.callWall, putWall: ctx.gex.putWall } : null,
+      metaLabel: { probability: metaScore.probabilityPct, raw: metaScore.rawProbability, calibrationSamples: metaScore.calibrationSamples },
+      expectedMove: ctx.em, plan,
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Phase 5 — signal-engine health: calibration + edge-decay verdict
+app.get('/api/signal-health', (req, res) => {
+  try {
+    const h = signalHealth.assessHealth(_signalTracker);
+    res.json({ ok: true, ...h, metaCalibration: metaLabel.health(_metaCalibrator), generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+// Log a realized paper outcome (feeds calibrator + drift tracker). Used by paper engines forward-testing.
+app.post('/api/signal-health/outcome', (req, res) => {
+  try {
+    const b = req.body || {};
+    const o = signalHealth.logOutcome(_signalTracker, { t: Date.now(), inst: b.inst, structure: b.structure, rawP: b.rawP, prob: b.prob, won: !!b.won, pnl: Number(b.pnl) || 0 });
+    metaLabel.recordOutcome(_metaCalibrator, o.rawP, o.won);
+    signalHealth.saveState(_signalTracker, _sigFs, _SIG_HEALTH_PATH);
+    res.json({ ok: true, logged: o, health: signalHealth.assessHealth(_signalTracker) });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

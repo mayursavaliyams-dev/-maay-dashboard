@@ -136,7 +136,14 @@ premium regime score**.
 - **Edge contribution:** HIGH — turns a good-on-average edge into a
   good-*when-you-trade* edge; cuts the worst tail losses.
 
-## Phase 2 — Options-positioning as a REGIME LABEL (GEX / OI walls) — *demoted*
+## Phase 2 — Options-positioning as a REGIME LABEL (GEX / OI walls) — *demoted* · **✅ DONE**
+
+**Shipped:** [`gex-skew.js`](../gex-skew.js) — Black-Scholes dealer-gamma over the
+live chain → `netGEX` → **RANGE (positive gamma) vs TREND (negative gamma)** label,
+plus call/put walls, gamma-flip strike, and a bounded `skew` (−100..+100) used ONLY
+for credit-spread strike placement. Never a directional predictor (research is clear).
+Wired to [`trade-planner.js`](../trade-planner.js) + `GET /api/gex/:inst`.
+Tests: [`test/gex-skew.test.js`](../test/gex-skew.test.js) (18 assertions).
 
 **Research correction:** GEX/dealer-positioning has **no independent predictive
 power** once you control for VIX/IV [flashalpha 8-yr SPY]. So this is NOT a
@@ -156,7 +163,16 @@ direction or as a standalone trigger.
 - **Edge contribution:** LOW-MEDIUM — better strike/risk placement + one regime
   input; explicitly NOT a directional predictor (the research is clear on this).
 
-## Phase 3 — Confluence meta-model (turn many weak signals into one)
+## Phase 3 — Confluence meta-model (turn many weak signals into one) · **✅ DONE**
+
+**Shipped:** [`meta-label.js`](../meta-label.js) — a white-box logistic meta-label
+(López de Prado): disclosed per-feature weights blend regime + IVP + VRP + trend +
+momentum + PCR + GEX-range + event-risk into one probability, then an **empirical
+reliability-bin calibrator** (pseudo-count-shrunk) makes "70%" mean ~70% against
+realized paper outcomes. Exposes Brier + ECE + reliability table. Wired to
+`GET /api/meta-label/:inst` and folded into the trade plan. Calibrator survives
+restarts (seeded from `data/signal-outcomes.json`).
+Tests: [`test/meta-label.test.js`](../test/meta-label.test.js) (22 assertions).
 
 We already have an 11-factor master signal + a 4-engine confirmed voter. Phase 3
 makes the *combination* principled instead of hand-weighted.
@@ -180,7 +196,17 @@ makes the *combination* principled instead of hand-weighted.
 - **Edge contribution:** MEDIUM-HIGH — the difference between "a signal" and "a
   *calibrated* signal you can size by."
 
-## Phase 4 — Signal → structure → size (execution fit)
+## Phase 4 — Signal → structure → size (execution fit) · **✅ DONE**
+
+**Shipped:** [`trade-planner.js`](../trade-planner.js) — `planTrade()` maps
+regime + direction + GEX skew + calibrated probability to a **defined-risk**
+structure: SELL-ON + neutral → **iron condor**; SELL-ON + skew → **credit spread**
+on the safer side; STAND-DOWN + strong direction → **debit spread** (never a naked
+long); else **NO TRADE**. Strikes from the **expected move** (ATM straddle), size
+from **half-Kelly × IV-scale** capped by risk-%-of-capital, half-size in REDUCE.
+Wired to `GET /api/trade-plan/:inst` (assembles regime + master signal + GEX + EM).
+Tests: [`test/trade-planner.test.js`](../test/trade-planner.test.js) (34 assertions,
+incl. an exhaustive "never emits a naked long option" sweep).
 
 A signal is worthless until it maps to the right trade at the right size.
 
@@ -198,7 +224,16 @@ A signal is worthless until it maps to the right trade at the right size.
 - **Edge contribution:** HIGH — most retail "good signals" die at execution
   (wrong structure, wrong size). This is where edge is kept or lost.
 
-## Phase 5 — Live forward-test + self-learning loop
+## Phase 5 — Live forward-test + self-learning loop · **✅ DONE**
+
+**Shipped:** [`signal-health.js`](../signal-health.js) — a rolling-window outcome
+tracker that folds every realized paper result into the Phase-3 calibrator and emits
+a **HEALTHY / LEARNING / DEGRADED** verdict from calibration drift (Brier/ECE),
+edge decay (recent-half vs older-half win-rate), and expectancy. `GET /api/signal-health`
+reads it; `POST /api/signal-health/outcome` logs a result (persisted to
+`data/signal-outcomes.json`, survives restart). When the model goes out of
+calibration it says so honestly instead of pretending.
+Tests: [`test/signal-health.test.js`](../test/signal-health.test.js) (18 assertions).
 
 - **Build:** paper-forward every signal with full attribution; feed outcomes to
   the confluence-learner (we have it) to re-weight factors; track *live*
