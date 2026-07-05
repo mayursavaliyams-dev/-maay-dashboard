@@ -4519,6 +4519,24 @@ function _ticksToBars(ticks, tfMin) {
   }
   return order.sort((a, b) => a - b).map(b => byBucket.get(b));
 }
+// Lazy Dhan client used ONLY to pull option intraday HISTORY (Dhan serves it,
+// Upstox does not). Uses the .env Dhan token; if that token is expired/invalid
+// the call throws and the strike chart falls back to our saved/recorded candles.
+// Refresh the token at /api/dhan/login to enable full historical option candles.
+let _dhanHist = null, _dhanHistTried = false;
+function _dhanHistClient() {
+  if (_dhanHistTried) return _dhanHist;
+  _dhanHistTried = true;
+  try {
+    if (!process.env.DHAN_ACCESS_TOKEN || !process.env.DHAN_CLIENT_ID) return null;
+    const st = getDhanTokenStatus(process.env.DHAN_ACCESS_TOKEN);
+    if (st && st.expired) return null;                       // don't bother with a dead token
+    const DhanClient = require('./dhan-client');
+    _dhanHist = new DhanClient({ clientId: process.env.DHAN_CLIENT_ID, accessToken: process.env.DHAN_ACCESS_TOKEN, onAuthFailure: () => {} });
+  } catch (_) { _dhanHist = null; }
+  return _dhanHist;
+}
+
 app.get('/api/strike-chart', async (req, res) => {
   try {
     const inst = String(req.query.inst || 'NIFTY').toUpperCase();
@@ -4554,16 +4572,17 @@ app.get('/api/strike-chart', async (req, res) => {
         dates.push(d.toISOString().slice(0, 10));
       }
       dates.reverse();
-      const parts = await Promise.all(dates.map((dt, i) => {
-        const end = (i === dates.length - 1 && !session.afterClose && dt === today) ? endTime : '15:30:00';
-        return live.client._post('/v2/charts/intraday', {
-          securityId: String(securityId), exchangeSegment: meta.segment, instrument: 'OPTIDX',
-          interval: '1', oi: false, fromDate: `${dt} 09:14:00`, toDate: `${dt} ${end}`,
-        }).catch(() => null);
-      }));
+      // Dhan serves option intraday history; use the dedicated Dhan hist client if
+      // its token is valid, else the active connector (works on a Dhan-native build).
+      const dh = _dhanHistClient();
+      const fetchDay = (dt, end) => dh
+        ? dh.getIntradayCandles({ securityId: String(securityId), exchangeSegment: meta.segment, instrument: 'OPTIDX', interval: 1, fromDate: `${dt} 09:14:00`, toDate: `${dt} ${end}`, oi: false }).catch(() => null)
+        : live.client._post('/v2/charts/intraday', { securityId: String(securityId), exchangeSegment: meta.segment, instrument: 'OPTIDX', interval: '1', oi: false, fromDate: `${dt} 09:14:00`, toDate: `${dt} ${end}` }).catch(() => null);
+      const parts = await Promise.all(dates.map((dt, i) => fetchDay(dt, (i === dates.length - 1 && !session.afterClose && dt === today) ? endTime : '15:30:00')));
       const oneMin = { timestamp: [], open: [], high: [], low: [], close: [], volume: [] };
       for (const r of parts) { if (!r || !r.timestamp || !r.timestamp.length) continue; for (const f of ['timestamp', 'open', 'high', 'low', 'close', 'volume']) if (Array.isArray(r[f])) oneMin[f].push(...r[f]); }
       bars = candlestickPatterns.aggregate(oneMin, tf);
+      if (bars.length && dh) source = 'dhan-history';
     } catch (_) {}
     // Source 1b — our own SAVED premium candles (recorded live + persisted). This
     // is what makes the chart work on Upstox (no option history) and across days.
@@ -4598,7 +4617,10 @@ app.get('/api/strike-chart', async (req, res) => {
       ltp: +Number(leg.ltp || (last ? last.c : 0)).toFixed(2), oi: Number(leg.oi || 0), iv: +Number(leg.iv || 0).toFixed(2),
       candles, ema9, ema21, ema200up, ema200dn, trend200, marketStatus: session.status, generatedAt: new Date().toISOString(),
       note: !candles.length
-        ? (session.inMarketHours ? 'recording premium candles now — appears within a minute' : 'option premium history is recorded & saved live during market hours (the feed serves no option history). Opens Mon 9:15; then the chart shows saved multi-day history.')
+        ? (_dhanHistClient()
+            ? (session.inMarketHours ? 'recording premium candles now — appears within a minute' : 'no saved candles for this strike yet — recorded live during market hours')
+            : 'For full HISTORICAL option candles, refresh the Dhan token at /api/dhan/login (Dhan serves option history; the current Upstox feed does not). Meanwhile premium candles are recorded & saved live during market hours.')
+        : source === 'dhan-history' ? 'historical option candles (Dhan)'
         : source === 'saved' ? 'saved premium candles (recorded live, persisted across days)'
         : source === 'live-ticks' ? 'live tick candles — building this session' : undefined });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
