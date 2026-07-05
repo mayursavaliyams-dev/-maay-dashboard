@@ -107,6 +107,19 @@ function computeImpact(ev, opts = {}) {
   prob = Math.round(clamp(prob * ev.sourceWeight, 5, 92));
   if (direction === 'FLAT') prob = Math.min(prob, 40);
 
+  // expected next-session % move of the named stock — signed by direction, disclosed heuristic.
+  // magnitude scales with wording strength, deal class and the news-engine impact score,
+  // discounted by the reaction probability (low-confidence events get a smaller expected move).
+  const dsgn = direction === 'UP' ? 1 : direction === 'DOWN' ? -1 : 0;
+  const magnitude = clamp(
+      0.4                                  // base drift
+    + (sentStrength / 100) * 3.0           // strong wording → bigger move
+    + ev.eventWeight * 2.0                 // deal class (M&A) moves more than results
+    + (ev.impactScore / 100) * 1.5,        // news-engine impact score
+      0.3, 9) * (prob / 100);
+  const expectedMovePct = round(dsgn * magnitude, 1);
+  params.expectedMovePct = expectedMovePct;
+
   const stocks = (ev.stocks || []).map(sym => ({
     symbol: sym, direction, probability: prob,
     indexWeight: { NIFTY: idxWeight(sym, 'NIFTY'), SENSEX: idxWeight(sym, 'SENSEX'), BANKNIFTY: idxWeight(sym, 'BANKNIFTY') },
@@ -118,7 +131,7 @@ function computeImpact(ev, opts = {}) {
   for (const s of stocks) for (const idx of INSTRUMENTS) bias[idx] += sgn * (prob / 100) * s.indexWeight[idx];
   for (const idx of INSTRUMENTS) bias[idx] = round(clamp(bias[idx], -15, 15));
 
-  return { ...ev, direction, probability: prob, params, stockImpacts: stocks, indexBias: bias };
+  return { ...ev, direction, probability: prob, expectedMovePct, params, stockImpacts: stocks, indexBias: bias };
 }
 
 // ── PURE: 3. fuse master verdict + aggregated news bias per index ─────────────
@@ -226,7 +239,10 @@ class AgentsEngine {
     this._closedToday = [];
     this._tradesFile = require('path').join(__dirname, 'data', 'ai-agents-trades.json');
     this._openFile = require('path').join(__dirname, 'data', 'ai-agents-open.json');
+    this._impactFile = require('path').join(__dirname, 'data', 'ai-agents-impact-history.json');
     this._allTrades = this._loadTrades();
+    this._impactHistory = this._loadImpactHistory();          // stock-analysis archive — grows over time, survives restarts
+    this._impactSeen = new Set(this._impactHistory.map(h => h.key));  // dedup: never archive the same event twice
     this._loadOpen();                // condors hold across days → survive restarts
     this.onLearn = null;             // (trade) => void — feeds the confluence learner
 
@@ -254,6 +270,89 @@ class AgentsEngine {
 
   _loadTrades() { try { return JSON.parse(require('fs').readFileSync(this._tradesFile, 'utf8')) || []; } catch { return []; } }
   _saveTrades() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._tradesFile), { recursive: true }); fs.writeFileSync(this._tradesFile, JSON.stringify(this._allTrades.slice(-5000))); } catch (_) {} }
+
+  // ── stock-analysis archive: every deal-radar analysis is saved once and kept forever ──
+  _loadImpactHistory() { try { return JSON.parse(require('fs').readFileSync(this._impactFile, 'utf8')) || []; } catch { return []; } }
+  _saveImpactHistory() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._impactFile), { recursive: true }); fs.writeFileSync(this._impactFile, JSON.stringify(this._impactHistory.slice(-4000))); } catch (_) {} }
+  // append newly-analysed stock events (deduped by stable event key) so old analysis stays available
+  _archiveImpacts(hits, date) {
+    let added = 0;
+    for (const i of hits) {
+      const key = String(i.id || `${i.title}|${i.ts}`);
+      if (this._impactSeen.has(key)) continue;
+      this._impactSeen.add(key);
+      this._impactHistory.push({
+        key, date, ts: i.ts, analysedAt: new Date().toISOString(),
+        title: i.title, source: i.source, url: i.url, type: i.eventType,
+        direction: i.direction, probability: i.probability, expectedMovePct: i.expectedMovePct,
+        stocks: i.stockImpacts.map(s => s.symbol), params: i.params,
+      });
+      added++;
+    }
+    if (added) this._saveImpactHistory();
+    return added;
+  }
+
+  // one-time backfill: replay archived news files (data/news/news-YYYY-MM-DD.jsonl) through the
+  // SAME detector + impact math so the archive gains the older analysis it never captured live.
+  // Each event is scored as-of ~30min after publish so recency mirrors a fresh live scan.
+  backfillFromNews(newsDir) {
+    const fs = require('fs'), p = require('path');
+    let files;
+    try { files = fs.readdirSync(newsDir).filter(f => /^news-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort(); }
+    catch { return { added: 0, files: 0, error: 'news dir unreadable' }; }
+    let added = 0;
+    for (const f of files) {
+      let items = [];
+      try {
+        items = fs.readFileSync(p.join(newsDir, f), 'utf8').split('\n')
+          .filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+      } catch { continue; }
+      const events = detectDealEvents(items, { maxAgeH: 1e7 });   // huge window → keep every archived item
+      const hits = events
+        .map(ev => computeImpact(ev, { now: ev.ts + 30 * 60000 }))   // recency as-of 30min post-publish
+        .filter(i => i.stockImpacts.length);
+      for (const h of hits) added += this._archiveImpacts([h], new Date(h.ts + 5.5 * 3600000).toISOString().slice(0, 10));
+    }
+    // keep the archive chronological so history reads oldest→newest consistently
+    this._impactHistory.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    if (added) this._saveImpactHistory();
+    return { added, files: files.length };
+  }
+
+  // record what the stock ACTUALLY did after a prediction, so accuracy can be measured.
+  // patch: { actualMovePct, hit, baselineClose, outcomeClose, outcomeDate }
+  applyOutcome(key, patch) {
+    const e = this._impactHistory.find(h => h.key === key);
+    if (!e) return false;
+    Object.assign(e, patch, { scoredAt: new Date().toISOString() });
+    this._saveImpactHistory();
+    return true;
+  }
+
+  // predictions still awaiting an outcome (directional only — FLAT has nothing to score),
+  // old enough that the stock has had ≥1 trading day to react.
+  pendingOutcomes(todayStr) {
+    return this._impactHistory.filter(h =>
+      h.actualMovePct == null && h.direction && h.direction !== 'FLAT' &&
+      (h.stocks || []).length && h.date && h.date < todayStr);
+  }
+
+  // aggregate accuracy over everything scored so far — direction hit-rate + move error.
+  accuracyStats() {
+    const scored = this._impactHistory.filter(h => h.actualMovePct != null && h.hit != null);
+    const n = scored.length;
+    if (!n) return { scored: 0, pending: this._impactHistory.filter(h => h.actualMovePct == null).length, hitRate: null };
+    const hits = scored.filter(h => h.hit).length;
+    const absErr = scored.reduce((s, h) => s + Math.abs((h.expectedMovePct || 0) - (h.actualMovePct || 0)), 0) / n;
+    const avgActualAbs = scored.reduce((s, h) => s + Math.abs(h.actualMovePct || 0), 0) / n;
+    return {
+      scored: n, hits, hitRate: round(hits / n * 100, 1),
+      meanAbsMoveError: round(absErr, 2), avgActualAbsMove: round(avgActualAbs, 2),
+      pending: this._impactHistory.filter(h => h.actualMovePct == null && h.direction !== 'FLAT').length,
+    };
+  }
+
   _loadOpen() {
     try {
       const o = JSON.parse(require('fs').readFileSync(this._openFile, 'utf8'));
@@ -294,10 +393,13 @@ class AgentsEngine {
     for (const im of impacts) for (const idx of this.instruments) totalBias[idx] += im.indexBias[idx] || 0;
     for (const idx of this.instruments) totalBias[idx] = round(clamp(totalBias[idx], -20, 20));
     const stockHits = impacts.filter(i => i.stockImpacts.length);
+    this._archiveImpacts(stockHits, date);   // persist every new analysis — old data stays available forever
     this._stamp('impact', stockHits.length ? 'ACTIVE' : 'WATCHING',
       { analyzed: impacts.length, withStocks: stockHits.length, indexBias: totalBias,
+        archived: this._impactHistory.length,
         top: stockHits.slice(0, 8).map(i => ({ title: i.title, type: i.eventType, direction: i.direction,
-          probability: i.probability, stocks: i.stockImpacts.map(s => s.symbol), params: i.params })) });
+          probability: i.probability, expectedMovePct: i.expectedMovePct,
+          stocks: i.stockImpacts.map(s => s.symbol), params: i.params })) });
 
     // 3. SIGNAL AGENT — fuses master verdict × news bias for every instrument
     const combined = {};

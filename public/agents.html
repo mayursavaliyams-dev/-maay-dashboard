@@ -194,8 +194,18 @@
       <section class="pane">
         <div class="pane-hd">🎯 Deal Impact Radar <small>— stock ni upar probability, parameters saathe</small></div>
         <table>
-          <thead><tr><th>Event</th><th>Type</th><th>Stocks</th><th>Dir</th><th>Prob</th><th>Parameters</th></tr></thead>
-          <tbody id="tbImpact"><tr><td colspan="6" class="empty">scanning news…</td></tr></tbody>
+          <thead><tr><th>Event</th><th>Type</th><th>Stocks</th><th>Dir</th><th>Prob</th><th>Next %</th><th>Parameters</th></tr></thead>
+          <tbody id="tbImpact"><tr><td colspan="7" class="empty">scanning news…</td></tr></tbody>
+        </table>
+      </section>
+      <section class="pane">
+        <div class="pane-hd">🗂️ Analysis History <small id="histHd">— saved forever · old + today's analysis</small>
+          <input id="histFilter" placeholder="filter stock / event…" style="float:right;margin-top:-2px;background:var(--panel2);border:1px solid var(--border);color:#cbd5e1;border-radius:6px;padding:3px 8px;font-size:0.65rem;width:130px;">
+        </div>
+        <div id="accStrip" style="padding:6px 2px 10px;font-size:0.68rem;color:#94a3b8;">measuring accuracy…</div>
+        <table>
+          <thead><tr><th>Date</th><th>Event</th><th>Stocks</th><th>Dir</th><th>Prob</th><th>Next %</th><th>Actual</th><th></th></tr></thead>
+          <tbody id="tbHist"><tr><td colspan="8" class="empty">loading archive…</td></tr></tbody>
         </table>
       </section>
       <section class="pane">
@@ -360,9 +370,10 @@ async function load() {
       <td><b>${(e.stocks||[]).join(', ')||'—'}</b></td>
       <td class="${e.direction==='UP'?'up':e.direction==='DOWN'?'dn':'flat'}">${e.direction==='UP'?'▲ UP':e.direction==='DOWN'?'▼ DOWN':'— FLAT'}</td>
       <td class="prob" style="color:${e.probability>=65?'var(--green)':e.probability>=50?'var(--amber)':'#9ca3af'}">${e.probability}%</td>
+      <td class="prob" style="color:${e.expectedMovePct>0?'var(--green)':e.expectedMovePct<0?'var(--red)':'#9ca3af'}">${e.expectedMovePct>0?'+':''}${e.expectedMovePct??'—'}%</td>
       <td class="params">sent ${p.sentimentStrength??'—'} · conf ${p.sentimentConfidence??'—'} · type×${p.eventTypeWeight??'—'} · recency ${p.recencyFactor??'—'} · impact ${p.newsImpactScore??'—'}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="6" class="empty">no deal-class events with named stocks in the last 24h</td></tr>';
+  }).join('') : '<tr><td colspan="7" class="empty">no deal-class events with named stocks in the last 24h</td></tr>';
 
   // ── signal fusion ──
   const sig = d.agents.signal?.output || {};
@@ -445,8 +456,49 @@ async function toggleAgents() {
   } catch(_){}
 }
 
+// ── persistent analysis history ──
+let HIST = [];
+function renderHist() {
+  const q = (document.getElementById('histFilter').value || '').trim().toUpperCase();
+  const rows = q ? HIST.filter(h => (h.title||'').toUpperCase().includes(q) || (h.stocks||[]).some(s => String(s).toUpperCase().includes(q))) : HIST;
+  document.getElementById('histHd').textContent = `— ${HIST.length} saved${q?` · ${rows.length} match`:''}`;
+  const tb = document.getElementById('tbHist');
+  tb.innerHTML = rows.length ? rows.slice(0, 200).map(h => {
+    const scored = h.actualMovePct != null;
+    const actCol = scored ? (h.actualMovePct>0?'var(--green)':h.actualMovePct<0?'var(--red)':'#9ca3af') : '#475569';
+    return `<tr>
+      <td style="white-space:nowrap;color:#94a3b8;">${h.date||''}</td>
+      <td style="max-width:200px;">${(h.title||'').slice(0,72)}</td>
+      <td><b>${(h.stocks||[]).join(', ')||'—'}</b></td>
+      <td class="${h.direction==='UP'?'up':h.direction==='DOWN'?'dn':'flat'}">${h.direction==='UP'?'▲':h.direction==='DOWN'?'▼':'—'}</td>
+      <td class="prob" style="color:${h.probability>=65?'var(--green)':h.probability>=50?'var(--amber)':'#9ca3af'}">${h.probability}%</td>
+      <td class="prob" style="color:${h.expectedMovePct>0?'var(--green)':h.expectedMovePct<0?'var(--red)':'#9ca3af'}">${h.expectedMovePct>0?'+':''}${h.expectedMovePct??'—'}%</td>
+      <td class="prob" style="color:${actCol}">${scored?(h.actualMovePct>0?'+':'')+h.actualMovePct+'%':'…'}</td>
+      <td>${scored?(h.hit?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">✗</span>'):''}</td>
+    </tr>`; }).join('') : '<tr><td colspan="8" class="empty">no saved analysis yet — it archives as news is scanned</td></tr>';
+}
+function renderAcc(s) {
+  const el = document.getElementById('accStrip');
+  if (!s || !s.scored) { el.innerHTML = `<span style="color:#64748b">accuracy: ${s&&s.pending?s.pending+' predictions awaiting outcome (scores next trading day)':'building…'}</span>`; return; }
+  const hc = s.hitRate>=60?'var(--green)':s.hitRate>=50?'var(--amber)':'var(--red)';
+  el.innerHTML = `<b style="color:${hc}">${s.hitRate}% direction accuracy</b> <span style="color:#64748b">· ${s.hits}/${s.scored} hits · move error ±${s.meanAbsMoveError}% (actual avg ${s.avgActualAbsMove}%) · ${s.pending} pending</span>`;
+}
+async function loadHist() {
+  try {
+    const [r, a] = await Promise.all([
+      (await fetch(`${API}/api/agents/impact-history?limit=1000`, {cache:'no-store'})).json(),
+      (await fetch(`${API}/api/agents/impact-accuracy`, {cache:'no-store'})).json(),
+    ]);
+    if (r && r.ok) { HIST = r.history || []; renderHist(); }
+    if (a && a.ok) renderAcc(a.stats);
+  } catch(_){}
+}
+document.getElementById('histFilter').addEventListener('input', renderHist);
+
 load();
+loadHist();
 setInterval(load, 10000);
+setInterval(loadHist, 30000);
 
 // deep-link: /agents.html?q=reliance auto-runs the Stock Analyst
 (function(){ const uq = new URLSearchParams(location.search).get('q');
