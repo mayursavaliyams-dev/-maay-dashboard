@@ -74,6 +74,27 @@
 
   .legend2{ display:flex; gap:14px; font-size:0.58rem; color:var(--muted); margin:7px 2px 6px; flex-wrap:wrap; } .legend2 b{ font-weight:800; }
   .note{ font-size:0.55rem; color:#5a6678; margin:6px 2px 0; line-height:1.5; }
+  /* indicators + strategy toolbar */
+  .tbtn{ background:var(--panel); border:1px solid var(--border); color:#cbd5e1; font-size:0.66rem; font-weight:800; padding:4px 11px; border-radius:8px; cursor:pointer; }
+  .tbtn:hover{ border-color:var(--blue); color:#fff; }
+  .indmenu{ display:none; position:absolute; z-index:70; background:#0e1622; border:1px solid #26344a; border-radius:9px; padding:6px; min-width:220px; box-shadow:0 10px 30px rgba(0,0,0,.55); }
+  .indmenu.on{ display:block; }
+  .indmenu .hdr{ font-size:0.52rem; color:#5a6678; text-transform:uppercase; letter-spacing:.5px; padding:4px 8px 2px; }
+  .indmenu label{ display:flex; align-items:center; gap:8px; padding:5px 8px; font-size:0.68rem; font-weight:700; border-radius:6px; cursor:pointer; }
+  .indmenu label:hover{ background:rgba(91,156,255,.12); }
+  .indmenu label .sw{ width:9px; height:9px; border-radius:2px; }
+  #subpane{ height:0; overflow:hidden; border-top:1px solid var(--border); }
+  #subpane.on{ height:150px; }
+  /* strategy tester */
+  .strat{ display:none; background:var(--panel); border:1px solid var(--border); border-radius:12px; margin-top:10px; overflow:hidden; }
+  .strat.on{ display:block; }
+  .strat-hd{ display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .strat-hd select,.strat-hd input{ background:#0a111d; border:1px solid var(--border); color:#e6edf6; border-radius:7px; padding:4px 8px; font-size:0.68rem; font-weight:700; }
+  .strat-hd .run{ background:linear-gradient(135deg,#1c7d54,#26a69a); border:0; color:#fff; font-weight:900; font-size:0.7rem; padding:5px 16px; border-radius:8px; cursor:pointer; }
+  .strat-body{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; padding:12px 14px; }
+  .stt{ background:var(--panel2,#0e1726); border:1px solid var(--border); border-radius:9px; padding:8px 11px; }
+  .stt .l{ font-size:0.52rem; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; } .stt .v{ font-size:1rem; font-weight:900; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .strat-eq{ height:60px; padding:0 14px 12px; }
 </style>
 </head>
 <body>
@@ -94,6 +115,22 @@
     <div class="seg" id="instSeg"><button data-v="NIFTY" class="on">NIFTY</button><button data-v="SENSEX">SENSEX</button><button data-v="BANKNIFTY">BANKNIFTY</button></div>
     <div class="seg" id="tfSeg"><button data-v="3">3m</button><button data-v="5">5m</button><button data-v="15" class="on">15m</button><button data-v="60">1h</button><button data-v="120">2h</button></div>
     <span class="trend" id="trend">TREND —</span>
+    <div style="position:relative">
+      <button class="tbtn" id="indBtn">ƒ Indicators ▾</button>
+      <div class="indmenu" id="indMenu">
+        <div class="hdr">Overlays (on price)</div>
+        <label><input type="checkbox" data-ind="sma20"><span class="sw" style="background:#e879f9"></span> SMA 20</label>
+        <label><input type="checkbox" data-ind="sma50"><span class="sw" style="background:#f97316"></span> SMA 50</label>
+        <label><input type="checkbox" data-ind="bb"><span class="sw" style="background:#38bdf8"></span> Bollinger Bands (20,2)</label>
+        <label><input type="checkbox" data-ind="supertrend"><span class="sw" style="background:#22d3ee"></span> SuperTrend (10,3)</label>
+        <label><input type="checkbox" data-ind="vwap"><span class="sw" style="background:#a78bfa"></span> VWAP</label>
+        <div class="hdr">Oscillators (lower pane)</div>
+        <label><input type="checkbox" data-ind="rsi"><span class="sw" style="background:#fcd34d"></span> RSI (14)</label>
+        <label><input type="checkbox" data-ind="macd"><span class="sw" style="background:#5b9cff"></span> MACD (12,26,9)</label>
+        <label><input type="checkbox" data-ind="stoch"><span class="sw" style="background:#34d399"></span> Stochastic (14,3)</label>
+      </div>
+    </div>
+    <button class="tbtn" id="stratBtn">🧪 Strategy Tester</button>
     <span class="live-sig" id="liveSig">loading…</span>
   </div>
 
@@ -101,6 +138,7 @@
     <div class="chartbox">
       <div class="ohlc" id="ohlc"><span class="sym">—</span></div>
       <div id="chart"></div>
+      <div id="subpane"></div>
     </div>
     <div class="chain">
       <div class="chain-hd"><span class="t">📊 Option Chain</span><span class="spot" id="ocSpot">—</span></div>
@@ -108,6 +146,26 @@
       <div class="chain-tbl"><table class="oc"><thead><tr><th>CE OI</th><th>CE LTP</th><th>Strike</th><th>PE LTP</th><th>PE OI</th></tr></thead>
         <tbody id="ocBody"><tr><td colspan="5" style="text-align:center;color:#5a6678;padding:16px">loading…</td></tr></tbody></table></div>
     </div>
+  </div>
+
+  <!-- Strategy Tester (Pine-style backtest on the loaded candles) -->
+  <div class="strat" id="strat">
+    <div class="strat-hd">
+      <b style="font-size:0.76rem">🧪 Strategy Tester</b>
+      <select id="stratSel">
+        <option value="emacross">EMA 9/21 Crossover</option>
+        <option value="supertrend">SuperTrend (10,3)</option>
+        <option value="rsi">RSI (30/70)</option>
+        <option value="macd">MACD Crossover</option>
+        <option value="bbreak">Bollinger Breakout</option>
+      </select>
+      <label style="font-size:0.62rem;color:var(--muted)">SL% <input id="stratSL" type="number" value="0" step="0.1" style="width:56px"></label>
+      <label style="font-size:0.62rem;color:var(--muted)">Target% <input id="stratTP" type="number" value="0" step="0.1" style="width:56px"></label>
+      <button class="run" onclick="runBacktest()">▶ Run Backtest</button>
+      <span id="stratMsg" style="font-size:0.6rem;color:var(--muted)"></span>
+    </div>
+    <div class="strat-body" id="stratStats"></div>
+    <div class="strat-eq" id="stratEq"></div>
   </div>
 
   <div id="extraCharts"></div>
@@ -186,6 +244,7 @@ function drawData(s, d) {
   const mk = [];
   for (const p of d.patterns || []) mk.push({ time: T(p.t), position: p.sentiment === 'Bullish' ? 'belowBar' : 'aboveBar', color: p.sentiment === 'Bullish' ? UP : DN, shape: p.sentiment === 'Bullish' ? 'arrowUp' : 'arrowDown', text: '' });
   for (const g of d.signals || []) mk.push({ time: T(g.t), position: 'aboveBar', color: g.status === 'HIT' ? UP : g.status === 'MISS' ? DN : AMBER, shape: 'circle', text: g.direction === 'BULLISH' ? 'B' : 'S' });
+  if (s === main && window._stratMarkers) mk.push(...window._stratMarkers);   // strategy backtest trades
   mk.sort((a, b) => a.time - b.time);
   s.candle.setMarkers(mk);
 }
@@ -210,6 +269,7 @@ function ohlcHTML(d, c, sym, tf) {
 function build() {
   const el = document.getElementById('chart'); el.innerHTML = '';
   if (main) { try { main.chart.remove(); } catch (_) {} }
+  if (typeof resetIndicators === 'function') resetIndicators();   // overlay/oscillator series belonged to the old chart
   main = makeChart(el, 648);
   main.chart.subscribeCrosshairMove(param => {
     const el2 = document.getElementById('ohlc');
@@ -238,6 +298,7 @@ async function load() {
     else { sig.textContent = 'no strong pattern yet'; sig.style.color = '#7c8aa0'; }
     if (!cs.length) return;
     drawData(main, d);
+    applyIndicators(d);
     document.getElementById('ohlc').innerHTML = ohlcHTML(d, lastBar(d), INST, TF);
     if (!main._fit) { main.chart.timeScale().fitContent(); const n = cs.length; if (n > 60) main.chart.timeScale().setVisibleLogicalRange({ from: n - 60, to: n + 2 }); main._fit = true; }
   } catch (e) { document.getElementById('liveSig').textContent = '⚠️ ' + e.message; }
@@ -326,6 +387,116 @@ async function pLoad(id, rebuild) {
     if (rebuild || !p.s) { const el = document.getElementById(id + 'c'); if (!el) return; el.innerHTML = ''; if (p.s) { try { p.s.chart.remove(); } catch (_) {} } if (!d.candles.length) return; p.s = makeChart(el, 300); drawData(p.s, d); p.s.chart.timeScale().fitContent(); return; }
     if (d.candles.length) drawData(p.s, d);
   } catch (_) {}
+}
+
+// ══════════ INDICATORS (client-side, TradingView-style) ══════════
+const SMA = (v, p) => v.map((_, i) => i < p - 1 ? null : +(v.slice(i - p + 1, i + 1).reduce((a, b) => a + b, 0) / p).toFixed(2));
+function EMAv(v, p) { const k = 2 / (p + 1); const o = []; let e = v[0]; for (let i = 0; i < v.length; i++) { e = i ? v[i] * k + e * (1 - k) : v[0]; o.push(i < p - 1 ? null : +e.toFixed(2)); } return o; }
+function RSI(c, p = 14) { const o = new Array(c.length).fill(null); let g = 0, l = 0; for (let i = 1; i <= p; i++) { const d = c[i] - c[i - 1]; g += Math.max(d, 0); l += Math.max(-d, 0); } g /= p; l /= p; o[p] = 100 - 100 / (1 + g / (l || 1e-9)); for (let i = p + 1; i < c.length; i++) { const d = c[i] - c[i - 1]; g = (g * (p - 1) + Math.max(d, 0)) / p; l = (l * (p - 1) + Math.max(-d, 0)) / p; o[i] = +(100 - 100 / (1 + g / (l || 1e-9))).toFixed(2); } return o; }
+function MACD(c) { const e12 = EMAv(c, 12), e26 = EMAv(c, 26); const macd = c.map((_, i) => e12[i] != null && e26[i] != null ? +(e12[i] - e26[i]).toFixed(2) : null); const vals = macd.map(x => x == null ? 0 : x); const sig = EMAv(vals, 9).map((x, i) => macd[i] == null ? null : x); const hist = macd.map((m, i) => m != null && sig[i] != null ? +(m - sig[i]).toFixed(2) : null); return { macd, sig, hist }; }
+function BB(c, p = 20, m = 2) { const mid = SMA(c, p); const up = [], lo = []; for (let i = 0; i < c.length; i++) { if (i < p - 1) { up.push(null); lo.push(null); continue; } const s = c.slice(i - p + 1, i + 1); const mean = mid[i]; const sd = Math.sqrt(s.reduce((a, b) => a + (b - mean) ** 2, 0) / p); up.push(+(mean + m * sd).toFixed(2)); lo.push(+(mean - m * sd).toFixed(2)); } return { mid, up, lo }; }
+function ATR(h, l, c, p = 14) { const tr = c.map((_, i) => i ? Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])) : h[i] - l[i]); const o = new Array(c.length).fill(null); let a = tr.slice(1, p + 1).reduce((x, y) => x + y, 0) / p; o[p] = a; for (let i = p + 1; i < c.length; i++) { a = (a * (p - 1) + tr[i]) / p; o[i] = a; } return o; }
+function SuperTrend(h, l, c, p = 10, mult = 3) { const atr = ATR(h, l, c, p); const line = new Array(c.length).fill(null); const dir = new Array(c.length).fill(1); let ub = 0, lb = 0, st = 0; for (let i = 0; i < c.length; i++) { if (atr[i] == null) continue; const mid = (h[i] + l[i]) / 2; let uB = mid + mult * atr[i], lB = mid - mult * atr[i]; if (i > 0 && line[i - 1] != null) { uB = (uB < ub || c[i - 1] > ub) ? uB : ub; lB = (lB > lb || c[i - 1] < lb) ? lB : lb; } ub = uB; lb = lB; const prevDir = i > 0 ? dir[i - 1] : 1; let d = prevDir; if (prevDir === 1 && c[i] < lb) d = -1; else if (prevDir === -1 && c[i] > ub) d = 1; dir[i] = d; st = d === 1 ? lb : ub; line[i] = +st.toFixed(2); } return { line, dir }; }
+function Stoch(h, l, c, p = 14, ks = 3) { const k = new Array(c.length).fill(null); for (let i = p - 1; i < c.length; i++) { const hh = Math.max(...h.slice(i - p + 1, i + 1)), ll = Math.min(...l.slice(i - p + 1, i + 1)); k[i] = hh === ll ? 50 : +((c[i] - ll) / (hh - ll) * 100).toFixed(2); } const kv = k.map(x => x == null ? 0 : x); const d = SMA(kv, ks).map((x, i) => k[i] == null ? null : x); return { k, d }; }
+function VWAPv(h, l, c, vol) { const o = []; let cpv = 0, cv = 0; for (let i = 0; i < c.length; i++) { const tp = (h[i] + l[i] + c[i]) / 3, v = (vol && vol[i]) || 1; cpv += tp * v; cv += v; o.push(+(cpv / cv).toFixed(2)); } return o; }
+
+const OV = { sma20: '#e879f9', sma50: '#f97316', bb: '#38bdf8', supertrend: '#22d3ee', vwap: '#a78bfa' };
+let indOverlay = {}, subChart = null, subSeries = {};
+const activeInds = new Set();
+function arr(d) { const t = d.candles.map(c => c[0]); return { t, o: d.candles.map(c => c[1]), h: d.candles.map(c => c[2]), l: d.candles.map(c => c[3]), c: d.candles.map(c => c[4]), v: (d.volume || []).map(x => x.y) }; }
+const toLine = (t, v) => v.map((val, i) => val == null ? null : { time: T(t[i]), value: val }).filter(Boolean);
+
+function resetIndicators() { indOverlay = {}; if (subChart) { try { subChart.remove(); } catch (_) {} subChart = null; subSeries = {}; } document.getElementById('subpane').classList.remove('on'); }
+function ovLine(key, color, w) { if (!indOverlay[key]) indOverlay[key] = main.chart.addLineSeries({ color, lineWidth: w || 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }); return indOverlay[key]; }
+function removeOv(prefix) { for (const k of Object.keys(indOverlay)) if (k.startsWith(prefix)) { try { main.chart.removeSeries(indOverlay[k]); } catch (_) {} delete indOverlay[k]; } }
+
+function applyIndicators(d) {
+  if (!d || !d.candles.length || !main) return;
+  const a = arr(d);
+  // overlays
+  activeInds.has('sma20') ? ovLine('sma20', OV.sma20).setData(toLine(a.t, SMA(a.c, 20))) : removeOv('sma20');
+  activeInds.has('sma50') ? ovLine('sma50', OV.sma50).setData(toLine(a.t, SMA(a.c, 50))) : removeOv('sma50');
+  if (activeInds.has('bb')) { const b = BB(a.c); ovLine('bb_u', OV.bb).setData(toLine(a.t, b.up)); ovLine('bb_m', 'rgba(56,189,248,.5)').setData(toLine(a.t, b.mid)); ovLine('bb_l', OV.bb).setData(toLine(a.t, b.lo)); } else removeOv('bb');
+  activeInds.has('supertrend') ? ovLine('supertrend', OV.supertrend, 2).setData(toLine(a.t, SuperTrend(a.h, a.l, a.c).line)) : removeOv('supertrend');
+  activeInds.has('vwap') ? ovLine('vwap', OV.vwap).setData(toLine(a.t, VWAPv(a.h, a.l, a.c, a.v))) : removeOv('vwap');
+  // oscillators → lower pane
+  const oscActive = ['rsi', 'macd', 'stoch'].some(x => activeInds.has(x));
+  const sp = document.getElementById('subpane');
+  if (!oscActive) { if (subChart) { try { subChart.remove(); } catch (_) {} subChart = null; subSeries = {}; } sp.classList.remove('on'); return; }
+  sp.classList.add('on');
+  if (!subChart) {
+    subChart = LWC.createChart(sp, { ...DARK, height: 150, autoSize: true, timeScale: { ...DARK.timeScale, visible: false } });
+    // sync time scale with main
+    main.chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r && subChart) subChart.timeScale().setVisibleLogicalRange(r); });
+  }
+  const want = new Set();
+  if (activeInds.has('rsi')) { want.add('rsi'); const r = RSI(a.c); if (!subSeries.rsi) subSeries.rsi = subChart.addLineSeries({ color: '#fcd34d', lineWidth: 1, priceLineVisible: false }); subSeries.rsi.setData(toLine(a.t, r)); if (!subSeries.rsi70) { subSeries.rsi70 = subChart.addLineSeries({ color: 'rgba(247,86,124,.4)', lineWidth: 1, lineStyle: 2, lastValueVisible: false, priceLineVisible: false }); subSeries.rsi30 = subChart.addLineSeries({ color: 'rgba(38,166,154,.4)', lineWidth: 1, lineStyle: 2, lastValueVisible: false, priceLineVisible: false }); } subSeries.rsi70.setData(a.t.map(t => ({ time: T(t), value: 70 }))); subSeries.rsi30.setData(a.t.map(t => ({ time: T(t), value: 30 }))); }
+  if (activeInds.has('macd')) { want.add('macd'); const m = MACD(a.c); if (!subSeries.macd) { subSeries.macd = subChart.addLineSeries({ color: '#5b9cff', lineWidth: 1, priceLineVisible: false }); subSeries.macds = subChart.addLineSeries({ color: '#f97316', lineWidth: 1, priceLineVisible: false }); subSeries.macdh = subChart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false }); } subSeries.macd.setData(toLine(a.t, m.macd)); subSeries.macds.setData(toLine(a.t, m.sig)); subSeries.macdh.setData(m.hist.map((v, i) => v == null ? null : { time: T(a.t[i]), value: v, color: v >= 0 ? 'rgba(38,166,154,.5)' : 'rgba(239,83,80,.5)' }).filter(Boolean)); }
+  if (activeInds.has('stoch')) { want.add('stoch'); const st = Stoch(a.h, a.l, a.c); if (!subSeries.sk) { subSeries.sk = subChart.addLineSeries({ color: '#34d399', lineWidth: 1, priceLineVisible: false }); subSeries.sd = subChart.addLineSeries({ color: '#ef5350', lineWidth: 1, priceLineVisible: false }); } subSeries.sk.setData(toLine(a.t, st.k)); subSeries.sd.setData(toLine(a.t, st.d)); }
+  // remove deselected oscillators
+  for (const grp of [['rsi', ['rsi', 'rsi70', 'rsi30']], ['macd', ['macd', 'macds', 'macdh']], ['stoch', ['sk', 'sd']]]) {
+    if (!want.has(grp[0])) for (const k of grp[1]) if (subSeries[k]) { try { subChart.removeSeries(subSeries[k]); } catch (_) {} delete subSeries[k]; }
+  }
+}
+
+// indicator menu
+const indBtn = document.getElementById('indBtn'), indMenu = document.getElementById('indMenu');
+indBtn.addEventListener('click', e => { e.stopPropagation(); indMenu.classList.toggle('on'); indMenu.style.left = indBtn.offsetLeft + 'px'; indMenu.style.top = (indBtn.offsetTop + 26) + 'px'; });
+indMenu.addEventListener('click', e => e.stopPropagation());
+document.querySelectorAll('#indMenu input').forEach(ip => ip.addEventListener('change', () => { ip.checked ? activeInds.add(ip.dataset.ind) : activeInds.delete(ip.dataset.ind); applyIndicators(mainData); }));
+document.addEventListener('click', () => indMenu.classList.remove('on'));
+
+// ══════════ STRATEGY TESTER (Pine-style backtest on loaded candles) ══════════
+document.getElementById('stratBtn').addEventListener('click', () => document.getElementById('strat').classList.toggle('on'));
+function stratSignals(name, a) {
+  const n = a.c.length, long = new Array(n).fill(false);  // long[i] = in-position at bar i (entered at bar i's close eval)
+  if (name === 'emacross') { const e9 = EMAv(a.c, 9), e21 = EMAv(a.c, 21); for (let i = 1; i < n; i++) long[i] = e9[i] != null && e21[i] != null ? e9[i] > e21[i] : long[i - 1]; }
+  else if (name === 'supertrend') { const st = SuperTrend(a.h, a.l, a.c); for (let i = 0; i < n; i++) long[i] = st.dir[i] === 1; }
+  else if (name === 'rsi') { const r = RSI(a.c); let inp = false; for (let i = 1; i < n; i++) { if (r[i] != null) { if (!inp && r[i - 1] < 30 && r[i] >= 30) inp = true; else if (inp && r[i] >= 70) inp = false; } long[i] = inp; } }
+  else if (name === 'macd') { const m = MACD(a.c); for (let i = 1; i < n; i++) long[i] = m.macd[i] != null && m.sig[i] != null ? m.macd[i] > m.sig[i] : long[i - 1]; }
+  else if (name === 'bbreak') { const b = BB(a.c); let inp = false; for (let i = 1; i < n; i++) { if (b.up[i] != null) { if (!inp && a.c[i] > b.up[i]) inp = true; else if (inp && a.c[i] < b.mid[i]) inp = false; } long[i] = inp; } }
+  return long;
+}
+function runBacktest() {
+  if (!mainData || !mainData.candles.length) { document.getElementById('stratMsg').textContent = 'no candles'; return; }
+  const a = arr(mainData), name = document.getElementById('stratSel').value;
+  const sl = parseFloat(document.getElementById('stratSL').value) || 0, tp = parseFloat(document.getElementById('stratTP').value) || 0;
+  const long = stratSignals(name, a);
+  const trades = [], marks = []; let entry = null, entryI = 0, eq = 0; const equity = [];
+  for (let i = 1; i < a.c.length; i++) {
+    if (entry != null) {                                   // manage SL/TP intrabar (approx on close)
+      const chg = (a.c[i] - entry) / entry * 100;
+      let exit = null;
+      if (sl > 0 && chg <= -sl) exit = entry * (1 - sl / 100);
+      else if (tp > 0 && chg >= tp) exit = entry * (1 + tp / 100);
+      else if (!long[i]) exit = a.c[i];                    // signal flip → exit at close
+      if (exit != null) { const pts = exit - entry; eq += pts; trades.push({ pts, win: pts > 0 }); marks.push({ time: T(a.t[i]), position: 'aboveBar', color: pts > 0 ? UP : DN, shape: 'arrowDown', text: 'exit' }); entry = null; }
+    }
+    if (entry == null && long[i] && !long[i - 1]) { entry = a.c[i]; entryI = i; marks.push({ time: T(a.t[i]), position: 'belowBar', color: '#5b9cff', shape: 'arrowUp', text: 'buy' }); }
+    equity.push({ time: T(a.t[i]), value: +eq.toFixed(2) });
+  }
+  if (entry != null) { const pts = a.c[a.c.length - 1] - entry; eq += pts; trades.push({ pts, win: pts > 0 }); }
+  // stats
+  const wins = trades.filter(t => t.win).length, gw = trades.filter(t => t.pts > 0).reduce((s, t) => s + t.pts, 0), gl = Math.abs(trades.filter(t => t.pts < 0).reduce((s, t) => s + t.pts, 0));
+  let peak = 0, dd = 0, run = 0; for (const t of trades) { run += t.pts; peak = Math.max(peak, run); dd = Math.max(dd, peak - run); }
+  const st = document.getElementById('stratStats');
+  const tile = (l, v, cls) => `<div class="stt"><div class="l">${l}</div><div class="v ${cls || ''}">${v}</div></div>`;
+  st.innerHTML =
+    tile('Net (points)', (eq >= 0 ? '+' : '') + eq.toFixed(0), eq >= 0 ? 'up' : 'dn') +
+    tile('Trades', trades.length) +
+    tile('Win rate', trades.length ? Math.round(wins / trades.length * 100) + '%' : '—') +
+    tile('Profit factor', gl > 0 ? (gw / gl).toFixed(2) : '∞') +
+    tile('Max DD (pts)', '-' + dd.toFixed(0), 'dn') +
+    tile('Avg / trade', trades.length ? (eq / trades.length).toFixed(1) : '—');
+  document.getElementById('stratMsg').textContent = `${name} on ${a.c.length} bars (${tfLabel[TF]})`;
+  // plot trade markers on the price chart
+  window._stratMarkers = marks;
+  drawData(main, mainData);
+  // equity curve mini-chart
+  const eqEl = document.getElementById('stratEq'); eqEl.innerHTML = '';
+  const ec = LWC.createChart(eqEl, { ...DARK, height: 60, autoSize: true, timeScale: { visible: false, borderColor: '#1c2735' }, rightPriceScale: { visible: false }, leftPriceScale: { visible: false }, grid: { vertLines: { visible: false }, horzLines: { visible: false } } });
+  ec.addAreaSeries({ lineColor: eq >= 0 ? UP : DN, topColor: eq >= 0 ? 'rgba(38,166,154,.3)' : 'rgba(239,83,80,.3)', bottomColor: 'rgba(0,0,0,0)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }).setData(equity);
+  ec.timeScale().fitContent();
 }
 
 build(); loadChain();
