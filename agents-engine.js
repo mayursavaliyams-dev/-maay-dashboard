@@ -190,6 +190,10 @@ function rangeGate(ctx) {
       ctx.directionalGo ? 'directional play has priority' : `${ctx.decision} ${ctx.probability ?? ''}%`);
   add(`IVP ≥ ${ctx.ivpMin}% (sell only rich premium)`, ctx.ivp != null && ctx.ivp >= ctx.ivpMin,
       ctx.ivp != null ? `IVP ${ctx.ivp}` : 'IVP unavailable — no sell');
+  // Phase-1 VRP regime gate: sell only when the regime engine says SELL-ON.
+  // null = regime unavailable → allow (fall back to the IVP check above), honest.
+  add('Regime SELL-ON', ctx.regime == null || ctx.regime === 'SELL-ON',
+      ctx.regime ? `regime ${ctx.regime}` : 'regime n/a — allowed');
   add('Event risk < 50', (ctx.eventRisk || 0) < 50, `score ${ctx.eventRisk ?? 'n/a'}`);
   add('VIX < 20 (no panic)', (ctx.vix || 0) > 0 && ctx.vix < 20, ctx.vix ? `VIX ${ctx.vix}` : 'VIX n/a');
   add(`Condors today < ${ctx.maxSell}`, (ctx.sellsToday || 0) < ctx.maxSell, `${ctx.sellsToday || 0} done`);
@@ -444,6 +448,7 @@ class AgentsEngine {
       const sellGate = this.sellEnabled ? rangeGate({
         inMarketHours: !!deps.inMarketHours, directionalGo: gate.go, decision: sig.decision,
         probability: sig.probability, dirMinProb: this.minProb, ivp, ivpMin: this.ivpMinSell,
+        regime: deps.regimes ? deps.regimes[inst] : null,
         eventRisk: deps.eventRisk, vix: deps.vix?.value, maxSell: this.maxSellPerDay,
         sellsToday: this._sellsToday[inst] || 0, hasOpenCondor: this._openCondor.has(inst),
         dailyLossHit: this._dailyPnl() <= -this.maxDailyLoss, pastLastEntry: mins >= this.lastEntryMins, lots: this.qty,

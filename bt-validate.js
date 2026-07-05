@@ -142,10 +142,13 @@ if (require.main === module) {
   const { LOT, CAPITAL, loadDays, leg, atmStrike, sizeLots } = require('./bt-lib.js');
   const OTM_PCT = 0.015, STOP_MULT = 2.0;
 
-  function strangleTrades(days, slip = 0.005) {
+  // ivPctByDate: optional map date→0-100 IV-proxy percentile; gateMin: only enter
+  // when the proxy ≥ gateMin (stand-in for the live VRP regime SELL-ON gate).
+  function strangleTrades(days, slip = 0.005, ivPctByDate = null, gateMin = 0) {
     let cap = CAPITAL, cooldown = null; const trades = [];
     for (const day of days) {
       if (cooldown && day.date <= cooldown) continue;
+      if (ivPctByDate && (ivPctByDate.get(day.date) ?? 100) < gateMin) continue;   // regime gate: skip low-IV days
       const atm = atmStrike(day), off = Math.round((day.underlying * OTM_PCT) / 50) * 50;
       const ce = leg(day, 'CE', atm + off), pe = leg(day, 'PE', atm - off);
       if (!ce || !pe || ce.o < 1 || pe.o < 1) continue;
@@ -159,6 +162,25 @@ if (require.main === module) {
       trades.push({ date: day.date, pnl, ret: pnl / (credit * qty) });   // return on premium at risk
     }
     return trades;
+  }
+  // IV proxy per day = ATM straddle / underlying (higher = richer premium), then
+  // its TRAILING percentile over the prior 60 days — a bhavcopy stand-in for IVP
+  // (no VIX in bhavcopy). This lets us A/B the regime gate honestly on real data.
+  function ivProxyPercentiles(days, look = 60) {
+    const level = new Map(), raw = [];
+    for (const day of days) {
+      const atm = atmStrike(day); const ce = leg(day, 'CE', atm), pe = leg(day, 'PE', atm);
+      const v = (ce && pe && ce.o > 0 && pe.o > 0) ? (ce.o + pe.o) / day.underlying : null;
+      raw.push({ date: day.date, v });
+    }
+    for (let i = 0; i < raw.length; i++) {
+      if (raw[i].v == null) continue;
+      const hist = raw.slice(Math.max(0, i - look), i).map(x => x.v).filter(x => x != null);
+      if (hist.length < 20) continue;
+      const below = hist.filter(x => x < raw[i].v).length;
+      level.set(raw[i].date, +(below / hist.length * 100).toFixed(1));
+    }
+    return level;
   }
 
   const days = loadDays();
@@ -181,6 +203,20 @@ if (require.main === module) {
   console.log('\nVERDICT:', dsr.dsr >= 0.95 && wfT.oosSharpe > 0 && pk.meanFoldSharpe > 0
     ? '✅ Edge survives Deflated-Sharpe + walk-forward + purged k-fold with costs — harness trusts it.'
     : '⚠️ Edge weak/unproven under honest validation — investigate before trusting.');
+
+  // ── A/B: does the VRP regime gate (sell only when IV-proxy rich) add value? ──
+  console.log('\n=== Regime-gate A/B (Phase-1 validation): sell always vs sell only when IV-proxy ≥ 50 ===');
+  const ivPct = ivProxyPercentiles(days, 60);
+  const gated = strangleTrades(days, 0.005, ivPct, 50);
+  const gRets = gated.map(t => t.ret), gPnls = gated.map(t => t.pnl);
+  const gEx = expectancy(gPnls), gDsr = deflatedSharpe(gRets, NTRIALS);
+  console.log('  UNGATED (sell always) ' + ex.trades + ' tr, win ' + ex.winRate + '%, ₹' + Math.round(mean(pnls)) + '/tr, Sharpe ' + sharpe(rets).toFixed(3) + ', DSR ' + dsr.dsr);
+  console.log('  GATED   (IVP≥50)      ' + gEx.trades + ' tr, win ' + gEx.winRate + '%, ₹' + Math.round(mean(gPnls)) + '/tr, Sharpe ' + sharpe(gRets).toFixed(3) + ', DSR ' + gDsr.dsr);
+  const better = sharpe(gRets) > sharpe(rets) && mean(gPnls) > mean(pnls);
+  console.log('  → ' + (better
+    ? 'GATE ADDS VALUE: higher ₹/trade AND Sharpe (fewer, better trades) — wire it live.'
+    : mean(gPnls) > mean(pnls) ? 'gate lifts ₹/trade (quality up), Sharpe similar — net positive.'
+    : 'gate did not improve this metric on this window — keep validating.'));
 
   require('fs').writeFileSync('bt-data/result-validate.json', JSON.stringify({
     generatedAt: new Date().toISOString(), days: days.length, trades: ex.trades, expectancy: ex,

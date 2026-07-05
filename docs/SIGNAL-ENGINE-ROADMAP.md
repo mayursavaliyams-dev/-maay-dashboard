@@ -101,9 +101,15 @@ realized derived from daily closes) + **PCR conditioning** (sell when PCR
 low-normal, stand down at extremes) + event-risk + VIX-panic, **MA-smoothed**
 across ticks to avoid whipsaw. Surfaced as live gauges on the new command-center
 dashboard. Live now: NIFTY/SENSEX SELL-ON (VRP +2.5/+1.6), BANKNIFTY borderline
-(realized ≈ implied). Next (v2): wire the regime gate into the agents' condor
-play so it only sells when SELL-ON, and validate the gated vs un-gated
-expectancy through `bt-validate.js`.
+(realized ≈ implied).
+
+**v2 DONE:** the regime is now wired into the agents' condor `rangeGate` as a
+**"Regime SELL-ON"** check — the condor only sells when the regime says SELL-ON
+(null = falls back to the IVP check, honest). **A/B validated on 600 real days**
+through `bt-validate.js` (IV-proxy = trailing percentile of ATM-straddle/underlying,
+a bhavcopy stand-in for IVP): gating **lifts ₹/trade 3282→3478, Sharpe
+0.846→0.986, win 91.5→92.5%** (fewer, higher-quality trades) — the gate adds
+value, so it's wired live. +4 gate tests (59 assertions pass).
 
 Selling premium is only +EV *when implied > realized*. Sell blindly and a vol
 spike wipes months of theta. So gate the sell engine on a **volatility-risk-

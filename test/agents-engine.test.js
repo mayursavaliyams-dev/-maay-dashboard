@@ -111,6 +111,11 @@ const item = (over = {}) => ({
   ok(ag.rangeGate({ ...base, eventRisk: 60 }).go === false, 'event risk ≥50 → no condor into events');
   ok(ag.rangeGate({ ...base, vix: 23 }).go === false, 'VIX panic → no selling');
   ok(ag.rangeGate({ ...base, hasOpenCondor: true }).go === false, 'one condor at a time');
+  // Phase-1 VRP regime gate
+  ok(ag.rangeGate({ ...base, regime: 'SELL-ON' }).go === true, 'regime SELL-ON → condor allowed');
+  ok(ag.rangeGate({ ...base, regime: 'STAND-DOWN' }).go === false, 'regime STAND-DOWN → no condor');
+  ok(ag.rangeGate({ ...base, regime: 'REDUCE' }).go === false, 'regime REDUCE → no condor (only SELL-ON sells)');
+  ok(ag.rangeGate({ ...base, regime: null }).go === true, 'regime unavailable → falls back to IVP check (honest)');
 }
 
 // ── 6b. buy gate refuses rich premium ──

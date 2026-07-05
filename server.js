@@ -5803,6 +5803,13 @@ async function agentsTick() {
       const ivp = volContext.ivRankPercentile(deps.vix?.value, hist);
       if (ivp.available) deps.ivp = ivp.ivPercentile;
     } catch (_) {}
+    // Phase-1 VRP regime per instrument → the condor sell gate only fires on SELL-ON
+    deps.regimes = {};
+    if (session.inMarketHours) {
+      for (const inst of agentsEngine.instruments) {
+        try { deps.regimes[inst] = (await _computeRegime(inst)).verdict; } catch (_) {}
+      }
+    }
     try { const det = gammaBlastEngine.status().detect || {}; for (const i of agentsEngine.instruments) deps.expiries[i] = det[i]?.expiry || null; } catch (_) {}
     // masters (and their chains) for every instrument the agents run on (NIFTY,
     // SENSEX, BANKNIFTY) — only when the market is open. Outside hours the
