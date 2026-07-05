@@ -31,6 +31,12 @@ const hhmm = s => { const [a, b] = String(s).split(':').map(Number); return a * 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round = (v, d = 2) => +(+v).toFixed(d);
 
+// expected-move calibration: the raw heuristic overshoots — over 33 scored outcomes
+// (Jul 2026) mean predicted |move| was 3.85% vs 1.42% realised (ratio ~0.37). Shrink the
+// magnitude to match observed reality; keeps direction + relative ranking intact.
+// Re-fit as the archive grows (mean|actual| / mean|predicted| over scored history).
+const MOVE_CALIBRATION = 0.4;
+
 // ── event-type lexicon: what counts as a "deal" and how hard it usually hits ──
 const EVENT_TYPES = [
   { type: 'M&A / STAKE',   w: 1.00, kws: ['acquire', 'acquisition', 'merger', 'stake buy', 'stake sale', 'takeover', 'buyout', 'demerger', 'delisting'] },
@@ -116,7 +122,7 @@ function computeImpact(ev, opts = {}) {
     + (sentStrength / 100) * 3.0           // strong wording → bigger move
     + ev.eventWeight * 2.0                 // deal class (M&A) moves more than results
     + (ev.impactScore / 100) * 1.5,        // news-engine impact score
-      0.3, 9) * (prob / 100);
+      0.3, 9) * (prob / 100) * MOVE_CALIBRATION;   // shrink to observed reality (see MOVE_CALIBRATION)
   const expectedMovePct = round(dsgn * magnitude, 1);
   params.expectedMovePct = expectedMovePct;
 
