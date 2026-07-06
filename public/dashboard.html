@@ -99,6 +99,28 @@
   .sig .g{ margin-left:auto; font-size:0.58rem; color:var(--mut); text-align:right; }
   .sig .g b.go{ color:var(--up); } .sig .g b.no{ color:#4c586b; }
 
+  /* high/low levels panel */
+  .hlrow{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  @media(max-width:820px){ .hlrow{ grid-template-columns:1fr; } }
+  .hl{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 15px; }
+  .hl .t{ display:flex; align-items:baseline; gap:8px; margin-bottom:11px; }
+  .hl .nm{ font-size:0.74rem; font-weight:900; letter-spacing:.4px; }
+  .hl.nifty .nm{ color:var(--amber); } .hl.sensex .nm{ color:var(--cyan); } .hl.banknifty .nm{ color:var(--violet); }
+  .hl .px{ margin-left:auto; font-size:1.05rem; font-weight:900; }
+  .hl .rngpct{ font-size:0.56rem; font-weight:800; color:var(--mut); }
+  /* range bar: day low → day high, with price marker + ORB ticks */
+  .rbar{ height:10px; border-radius:99px; background:linear-gradient(90deg,rgba(255,84,112,.28),rgba(120,132,150,.18),rgba(38,208,160,.28)); position:relative; margin:14px 0 8px; }
+  .rbar .px{ position:absolute; top:-4px; width:3px; height:18px; background:#fff; border-radius:2px; box-shadow:0 0 7px rgba(255,255,255,.7); }
+  .rbar .orb{ position:absolute; top:-2px; width:2px; height:14px; background:rgba(120,180,255,.85); }
+  .rbar .vw{ position:absolute; top:0; width:2px; height:10px; background:var(--amber); opacity:.9; }
+  .hlm{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px 10px; margin-top:9px; }
+  .hlm .c{ }
+  .hlm .l{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.4px; }
+  .hlm .v{ font-size:0.72rem; font-weight:800; margin-top:1px; font-family:ui-monospace,Menlo,monospace; }
+  .hlm .v.hi{ color:var(--up); } .hlm .v.lo{ color:var(--dn); } .hlm .v.vw{ color:var(--amber); }
+  .hltag{ font-size:0.5rem; font-weight:800; padding:2px 6px; border-radius:5px; margin-left:2px; }
+  .hltag.br{ background:rgba(38,208,160,.16); color:var(--up); } .hltag.bd{ background:rgba(255,84,112,.16); color:var(--dn); }
+
   /* technical indicators panel */
   .instsel{ display:flex; gap:6px; }
   .isbtn{ font-size:0.58rem; font-weight:900; letter-spacing:.4px; padding:5px 12px; border-radius:8px; border:1px solid var(--line2); color:#93a2b8; background:transparent; cursor:pointer; transition:.12s; }
@@ -198,6 +220,9 @@
   </nav>
 
   <div class="idxrow" id="idxRow"></div>
+
+  <div class="sec-h">High / Low levels <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">day range · ORB · VWAP</small></div>
+  <div class="hlrow" id="hlRow"></div>
 
   <div class="sec-h">Performance · paper</div>
   <div class="stats" id="stats"></div>
@@ -437,6 +462,46 @@ async function loadSignalEngine() {
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 }
 
+// ── High / Low levels panel (day range · ORB · VWAP) ──
+async function loadHL() {
+  const insts = ['nifty','sensex','banknifty'];
+  try {
+    const rows = await Promise.all(insts.map(i => fetch(`${API}/api/${i}`, { cache:'no-store' }).then(r=>r.json()).catch(()=>({}))));
+    document.getElementById('hlRow').innerHTML = rows.map((d,idx) => {
+      const inst = insts[idx].toUpperCase();
+      const num = v => { const n = parseFloat(v); return isFinite(n) && n>0 ? n : null; };
+      const px = num(d.price), dh = num(d.dayHigh), dl = num(d.dayLow), oh = num(d.orbHigh), ol = num(d.orbLow), vw = num(d.vwap);
+      const fmt = v => v==null ? '--' : v.toLocaleString('en-IN',{maximumFractionDigits:2});
+      // position of a level within the day range [dl..dh] → 0..100%
+      const pos = v => (v!=null && dh!=null && dl!=null && dh>dl) ? Math.max(0,Math.min(100,((v-dl)/(dh-dl))*100)) : null;
+      const pPos = pos(px), ohPos = pos(oh), olPos = pos(ol), vwPos = pos(vw);
+      const rngPct = (dh!=null && dl!=null && dl>0) ? (((dh-dl)/dl)*100).toFixed(2) : null;
+      // breakout tag: price above ORB high = bull break, below ORB low = bear break
+      let tag = '';
+      if (px!=null && oh!=null && px>oh) tag = '<span class="hltag br">▲ ORB break</span>';
+      else if (px!=null && ol!=null && px<ol) tag = '<span class="hltag bd">▼ ORB break</span>';
+      const bar = (dh!=null && dl!=null) ? `<div class="rbar">
+        ${vwPos!=null?`<span class="vw" style="left:${vwPos}%"></span>`:''}
+        ${ohPos!=null?`<span class="orb" style="left:${ohPos}%"></span>`:''}
+        ${olPos!=null?`<span class="orb" style="left:${olPos}%"></span>`:''}
+        ${pPos!=null?`<span class="px" style="left:${pPos}%"></span>`:''}
+      </div>` : '<div style="font-size:.56rem;color:var(--dim2);margin:12px 0 6px">no intraday range feed</div>';
+      return `<div class="hl ${insts[idx]}">
+        <div class="t"><span class="nm">${inst}</span>${tag}<span class="px">${fmt(px)}</span></div>
+        ${bar}
+        <div class="hlm">
+          <div class="c"><div class="l">Day High</div><div class="v hi">${fmt(dh)}</div></div>
+          <div class="c"><div class="l">Day Low</div><div class="v lo">${fmt(dl)}</div></div>
+          <div class="c"><div class="l">Range</div><div class="v">${rngPct!=null?rngPct+'%':'--'}</div></div>
+          <div class="c"><div class="l">ORB High</div><div class="v">${fmt(oh)}</div></div>
+          <div class="c"><div class="l">ORB Low</div><div class="v">${fmt(ol)}</div></div>
+          <div class="c"><div class="l">VWAP</div><div class="v vw">${fmt(vw)}</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (_) { document.getElementById('hlRow').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
+}
+
 // ── Technical indicators panel (live multi-confirm) ──
 let IND_INST = 'NIFTY';
 function setIndInst(i) {
@@ -526,7 +591,8 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL();
+setInterval(loadHL, 4000);
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);
