@@ -137,6 +137,21 @@
   .ind.dn{ border-color:rgba(255,84,112,.4); } .ind.dn .st{ color:var(--dn); }
   .ind.mid .st{ color:var(--amber); } .ind.off .st{ color:#4c586b; }
 
+  /* option-chain OI panel */
+  .chwrap{ overflow-x:auto; }
+  table.chain{ width:100%; border-collapse:collapse; font-size:0.62rem; font-family:ui-monospace,Menlo,monospace; }
+  table.chain th{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.4px; font-weight:800; padding:6px 7px; border-bottom:1px solid var(--line2); text-align:right; white-space:nowrap; }
+  table.chain td{ padding:5px 7px; text-align:right; border-bottom:1px solid #0e1622; white-space:nowrap; }
+  table.chain tr.atm{ background:rgba(91,156,255,.08); }
+  table.chain td.strike{ text-align:center; font-weight:900; color:#fff; background:rgba(255,255,255,.03); }
+  table.chain td.ce{ color:#8fdcc0; } table.chain td.pe{ color:#f5a9b6; }
+  table.chain .ltp{ font-weight:900; }
+  table.chain .hl{ color:var(--amber); } table.chain .hl small{ color:var(--blue); }
+  .doi{ font-weight:900; padding:1px 5px; border-radius:5px; }
+  .doi.up{ color:var(--up); background:rgba(38,208,160,.12); }
+  .doi.dn{ color:var(--dn); background:rgba(255,84,112,.12); }
+  .chsplit{ text-align:center !important; color:var(--mut); font-size:0.5rem; letter-spacing:.5px; }
+
   /* trade plan rows */
   .pl{ padding:9px 0; border-bottom:1px solid #101a28; }
   .pl:last-child{ border-bottom:0; }
@@ -251,6 +266,30 @@
         <span class="indsig" id="indSig">—</span>
       </div>
       <div class="indwrap" id="indWrap"><div class="flat" style="font-size:.72rem">loading…</div></div>
+    </div>
+  </div>
+
+  <div class="sec-h">Option chain · OI buildup <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">LTP · High/Low · OI increase/decrease</small></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="indhead">
+        <div class="instsel" id="chSel">
+          <button class="isbtn on" onclick="setChInst('NIFTY')">NIFTY</button>
+          <button class="isbtn" onclick="setChInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setChInst('BANKNIFTY')">BANKNIFTY</button>
+        </div>
+        <span class="indsig" id="chMeta">—</span>
+      </div>
+      <div class="chwrap">
+        <table class="chain">
+          <thead><tr>
+            <th>CE ΔOI</th><th>CE OI</th><th>CE LTP</th><th>CE H/L</th>
+            <th class="chsplit">STRIKE</th>
+            <th>PE H/L</th><th>PE LTP</th><th>PE OI</th><th>PE ΔOI</th>
+          </tr></thead>
+          <tbody id="chBody"><tr><td colspan="9" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -462,6 +501,34 @@ async function loadSignalEngine() {
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 }
 
+// ── Option chain · OI buildup panel (LTP · High/Low · ΔOI increase/decrease) ──
+let CH_INST = 'NIFTY';
+function setChInst(i) {
+  CH_INST = i;
+  document.querySelectorAll('#chSel .isbtn').forEach(b => b.classList.toggle('on', b.textContent === i));
+  loadChain();
+}
+async function loadChain() {
+  const fmt = (v, d=1) => { const n = parseFloat(v); return isFinite(n) ? n.toLocaleString('en-IN',{maximumFractionDigits:d}) : '--'; };
+  const doi = v => { const n = parseFloat(v)||0; const cls = n>0?'up':n<0?'dn':''; const s = n>0?'+':''; return `<span class="doi ${cls}">${s}${Math.round(n).toLocaleString('en-IN')}</span>`; };
+  const hl = leg => (leg && leg.high>0) ? `${fmt(leg.high)}<small> / ${fmt(leg.low)}</small>` : '<span style="color:#4c586b">--</span>';
+  try {
+    const j = await (await fetch(`${API}/api/option-chain-full?inst=${CH_INST}&depth=6`, { cache:'no-store' })).json();
+    let rows = (j.rows || []).filter(r => r.isATM || (parseFloat(r.ce?.ltp||0)>0) || (parseFloat(r.pe?.ltp||0)>0));
+    if (!rows.length) rows = j.rows || [];
+    document.getElementById('chMeta').textContent = rows.length ? `ATM ${fmt(j.atm,0)} · ${rows.length} strikes` : '';
+    if (!rows.length) { document.getElementById('chBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--dim2)">no chain (BANKNIFTY may lack a live chain feed)</td></tr>'; return; }
+    document.getElementById('chBody').innerHTML = rows.map(r => {
+      const ce = r.ce||{}, pe = r.pe||{};
+      return `<tr class="${r.isATM?'atm':''}">
+        <td>${doi(ce.changeOI)}</td><td class="ce">${fmt(ce.oi,0)}</td><td class="ce ltp">${fmt(ce.ltp)}</td><td class="hl" style="font-size:.58rem">${hl(ce)}</td>
+        <td class="strike">${fmt(r.strike,0)}</td>
+        <td class="hl" style="font-size:.58rem">${hl(pe)}</td><td class="pe ltp">${fmt(pe.ltp)}</td><td class="pe">${fmt(pe.oi,0)}</td><td>${doi(pe.changeOI)}</td>
+      </tr>`;
+    }).join('');
+  } catch (_) { document.getElementById('chBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--dim2)">unavailable</td></tr>'; }
+}
+
 // ── High / Low levels panel (day range · ORB · VWAP) ──
 async function loadHL() {
   const insts = ['nifty','sensex','banknifty'];
@@ -591,8 +658,9 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain();
 setInterval(loadHL, 4000);
+setInterval(loadChain, 5000);
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);
