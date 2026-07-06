@@ -252,6 +252,12 @@
   .buybtn.ce{ color:#8fdcc0; border-color:rgba(38,208,160,.4); } .buybtn.ce:hover{ background:rgba(38,208,160,.12); }
   .buybtn.pe{ color:#f5a9b6; border-color:rgba(255,84,112,.4); } .buybtn.pe:hover{ background:rgba(255,84,112,.12); }
   .mqfilt{ display:flex; gap:5px; margin-left:auto; }
+  /* low-beside-LTP + blink */
+  .lowtag{ display:inline-block; font-size:0.54rem; font-weight:900; color:var(--dn); margin-left:7px; padding:1px 5px; border-radius:5px; font-family:ui-monospace,Menlo,monospace; }
+  .lowtag.hit{ background:rgba(255,84,112,.16); animation:blinkHit 0.7s ease-in-out infinite; }
+  .lowtag.newlow{ background:rgba(255,84,112,.3); color:#fff; animation:blink3 0.45s ease-in-out 3; }
+  @keyframes blinkHit{ 0%,100%{ opacity:1; } 50%{ opacity:.2; } }
+  @keyframes blink3{ 0%,100%{ opacity:1; box-shadow:0 0 0 rgba(255,84,112,0); transform:scale(1); } 50%{ opacity:.15; box-shadow:0 0 12px rgba(255,84,112,.95); transform:scale(1.12); } }
 
   /* trade plan rows */
   .pl{ padding:9px 0; border-bottom:1px solid #101a28; }
@@ -481,8 +487,9 @@
     <div class="card-b">
       <div class="indhead">
         <div class="instsel" id="mqSel">
-          <button class="isbtn on" onclick="setMqInst('SENSEX')">SENSEX</button>
-          <button class="isbtn" onclick="setMqInst('NIFTY')">NIFTY</button>
+          <button class="isbtn on" onclick="setMqInst('NIFTY')">NIFTY</button>
+          <button class="isbtn" onclick="setMqInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setMqInst('BANKNIFTY')">BANKNIFTY</button>
         </div>
         <div class="mqfilt" id="mqFilt">
           <button class="isbtn on" onclick="setMqFilt('ATM')">ATM±5</button>
@@ -944,6 +951,7 @@ let MQ_INST = 'SENSEX', MQ_FILT = 'ATM', MQ_LOT = 1;
 function setMqInst(i){ linkInst(i); }
 function setMqFilt(f){ MQ_FILT = f; document.querySelectorAll('#mqFilt .isbtn').forEach(b=>b.classList.toggle('on',b.textContent.startsWith(f))); loadWatchlist(); }
 let MQ_ROWS = [];
+const MQ_PREV_LOW = {};   // per-contract last-seen day low → detect new lower lows
 function renderWatchlist(){
   const fmt = (v,d=1)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
   const big = v=>{ const n=parseFloat(v)||0; if(n>=1e7) return (n/1e7).toFixed(2)+'Cr'; if(n>=1e5) return (n/1e5).toFixed(2)+'L'; return Math.round(n).toLocaleString('en-IN'); };
@@ -956,9 +964,16 @@ function renderWatchlist(){
     const cc = r.chng>=0?'up':'dn';
     const perLot = (parseFloat(r.ltp)||0)*MQ_LOT;
     const sel = Number(r.strike)===Number(LINK.strike) ? ' selstrike' : '';
+    // Low-beside-LTP + blink: hit = LTP at day low; newlow = day low just dropped (3× blink)
+    const ltpN = parseFloat(r.ltp)||0, lowN = parseFloat(r.low)||0;
+    const key = `${MQ_INST} ${r.strike} ${r.type}`, prevLow = MQ_PREV_LOW[key];
+    const newLower = prevLow!=null && lowN>0 && lowN < prevLow - 1e-6;
+    const atLow = ltpN>0 && lowN>0 && ltpN <= lowN*1.0008;
+    if (lowN>0) MQ_PREV_LOW[key] = lowN;
+    const lowCls = newLower ? 'newlow' : (atLow ? 'hit' : '');
     return `<tr class="clk ${r.type==='CE'?'ce':'pe'}${sel}" onclick="linkStrike(${r.strike})" title="click → link strike ${r.strike}">
       <td class="lbl">${r.label||(r.strike+' '+r.type)}</td>
-      <td class="ltp">${fmt(r.ltp)}</td>
+      <td class="ltp">${fmt(r.ltp)}<span class="lowtag ${lowCls}" title="day low${newLower?' · NEW LOW':atLow?' · at low':''}">L ${fmt(r.low)}</span></td>
       <td>₹${big(perLot)}</td>
       <td class="pop" style="color:${r.pop>=50?'var(--up)':r.pop>=35?'var(--amber)':'var(--dn)'}">${r.pop!=null?fmt(r.pop)+'%':'--'}</td>
       <td class="dn">${fmt(r.low)}</td><td class="up">${fmt(r.high)}</td>
