@@ -99,6 +99,22 @@
   .sig .g{ margin-left:auto; font-size:0.58rem; color:var(--mut); text-align:right; }
   .sig .g b.go{ color:var(--up); } .sig .g b.no{ color:#4c586b; }
 
+  /* technical indicators panel */
+  .instsel{ display:flex; gap:6px; }
+  .isbtn{ font-size:0.58rem; font-weight:900; letter-spacing:.4px; padding:5px 12px; border-radius:8px; border:1px solid var(--line2); color:#93a2b8; background:transparent; cursor:pointer; transition:.12s; }
+  .isbtn:hover{ color:#cfe0ff; border-color:var(--blue); }
+  .isbtn.on{ background:rgba(91,156,255,.16); color:#cfe0ff; border-color:var(--blue); }
+  .indhead{ display:flex; align-items:center; gap:10px; margin-bottom:11px; }
+  .indsig{ margin-left:auto; font-size:0.62rem; font-weight:900; }
+  .indwrap{ display:grid; grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); gap:8px; }
+  .ind{ background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; position:relative; }
+  .ind .lb{ font-size:0.52rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; font-weight:800; }
+  .ind .vl{ font-size:0.82rem; font-weight:900; margin-top:3px; }
+  .ind .st{ font-size:0.5rem; font-weight:900; letter-spacing:.3px; margin-top:2px; }
+  .ind.up{ border-color:rgba(38,208,160,.4); } .ind.up .st{ color:var(--up); }
+  .ind.dn{ border-color:rgba(255,84,112,.4); } .ind.dn .st{ color:var(--dn); }
+  .ind.mid .st{ color:var(--amber); } .ind.off .st{ color:#4c586b; }
+
   /* trade plan rows */
   .pl{ padding:9px 0; border-bottom:1px solid #101a28; }
   .pl:last-child{ border-bottom:0; }
@@ -195,6 +211,21 @@
     <div class="card">
       <div class="card-h">🎯 Live Signals <small>NIFTY · SENSEX · BANKNIFTY</small></div>
       <div class="card-b" id="sigBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
+    </div>
+  </div>
+
+  <div class="sec-h">Technical indicators <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">live multi-confirm · 13 indicators</small></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="indhead">
+        <div class="instsel" id="indSel">
+          <button class="isbtn on" onclick="setIndInst('NIFTY')">NIFTY</button>
+          <button class="isbtn" onclick="setIndInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setIndInst('BANKNIFTY')">BANKNIFTY</button>
+        </div>
+        <span class="indsig" id="indSig">—</span>
+      </div>
+      <div class="indwrap" id="indWrap"><div class="flat" style="font-size:.72rem">loading…</div></div>
     </div>
   </div>
 
@@ -406,6 +437,57 @@ async function loadSignalEngine() {
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 }
 
+// ── Technical indicators panel (live multi-confirm) ──
+let IND_INST = 'NIFTY';
+function setIndInst(i) {
+  IND_INST = i;
+  document.querySelectorAll('#indSel .isbtn').forEach(b => b.classList.toggle('on', b.textContent === i));
+  loadIndicators();
+}
+// classify a bull/bear layer into a display state
+function indState(o) {
+  if (!o) return ['off', '—'];
+  const bull = !!o.bull, bear = !!o.bear;
+  if (bull && !bear) return ['up', 'BULL'];
+  if (bear && !bull) return ['dn', 'BEAR'];
+  if (bull && bear)  return ['mid', 'BOTH'];
+  return ['off', 'flat'];
+}
+function indCard(lb, val, o) { const [cls, st] = indState(o); return `<div class="ind ${cls}"><div class="lb">${lb}</div><div class="vl">${val}</div><div class="st">${st}</div></div>`; }
+async function loadIndicators() {
+  try {
+    const r = await fetch(`${API}/api/multiconfirm/${IND_INST.toLowerCase()}`, { cache: 'no-store' });
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) {
+      document.getElementById('indSig').textContent = '—';
+      document.getElementById('indWrap').innerHTML = '<div class="flat" style="font-size:.72rem">No dedicated tick feed for ' + IND_INST + ' — live indicators need a real intraday series (we won\'t fake it with another index\'s data). Use NIFTY / SENSEX, or the Chart page for BANKNIFTY.</div>';
+      return;
+    }
+    const j = await r.json();
+    const sig = (j.signal || 'WAIT').toUpperCase();
+    const score = Math.max(j.callScore || 0, j.putScore || 0);
+    const sc = sig === 'CALL' ? 'up' : sig === 'PUT' ? 'dn' : 'flat';
+    document.getElementById('indSig').innerHTML = `<span class="${sc}">${sig}</span> · ${score}/8 aligned`;
+    const L = j.layers || {}, S = j.shields || {};
+    if (!L.emaStack) { document.getElementById('indWrap').innerHTML = `<div class="flat" style="font-size:.72rem">${j.reason || 'warming up…'}</div>`; return; }
+    const cards = [
+      indCard('EMA Stack', L.emaStack?.bull ? '↑' : L.emaStack?.bear ? '↓' : '·', L.emaStack),
+      indCard('VWAP', L.vwap?.bull ? 'above' : L.vwap?.bear ? 'below' : '·', L.vwap),
+      indCard('RSI', L.rsi?.value ?? '—', L.rsi),
+      indCard('Volume', L.volume?.ratio ? L.volume.ratio + '×' : '—', L.volume?.spike ? { bull: true } : null),
+      indCard('Candle', (L.candle?.bodyPct ?? '—') + '%', L.candle),
+      indCard('MACD', L.macd?.hist != null ? L.macd.hist : '—', L.macd),
+      indCard('Bollinger', L.bollinger?.pctB != null ? Math.round(L.bollinger.pctB * 100) + '%B' : '—', L.bollinger),
+      indCard('Stochastic', L.stochastic?.k ?? '—', L.stochastic),
+      indCard('OBV', L.obv?.rising ? 'rising' : 'falling', L.obv),
+      indCard('Chop', L.sideways?.choppy ? 'choppy' : 'clean', L.sideways?.choppy ? null : { bull: true }),
+      indCard('ADX', S.adx?.value ?? '—', S.adx?.ok ? { bull: true } : null),
+      indCard('SuperTrend', S.supertrend?.bull && !S.supertrend?.bear ? '↑' : S.supertrend?.bear && !S.supertrend?.bull ? '↓' : '·', S.supertrend),
+      indCard('HTF Trend', S.htf?.bull ? '↑' : S.htf?.bear ? '↓' : '·', S.htf),
+    ];
+    document.getElementById('indWrap').innerHTML = cards.join('');
+  } catch (_) { document.getElementById('indWrap').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
+}
+
 async function loadGammaBlast() {
   try {
     const g = await (await fetch(`${API}/api/gamma-blast/status`, { cache: 'no-store' })).json();
@@ -444,12 +526,13 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators();
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);
 setInterval(loadSignalEngine, 15000);   // heavier full-pass — refresh slower
 setInterval(loadGammaBlast, 8000);
+setInterval(loadIndicators, 5000);
 
 // bootId auto-reload on server restart
 (function () { let bid = null;
