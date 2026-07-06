@@ -18,6 +18,7 @@
 //  context expected-move, GEX skew) and calls planTrade(). See docs/SIGNAL-ENGINE-ROADMAP.md
 // ============================================================================
 'use strict';
+const { volTargetScale } = require('./vix-kelly-sizer');   // research #3 — VIX volatility targeting
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round = (v, d = 2) => +(+v).toFixed(d);
 const roundToStep = (v, step) => Math.round(v / step) * step;
@@ -106,15 +107,16 @@ function planTrade(i = {}) {
   let baseLots = Math.floor(riskBudget / perLotRisk);
   const kelly = halfKelly((i.sellStats?.winRate ?? 0.84), (i.sellStats?.payoff ?? 0.86));
   const ivScale = ivp != null ? clamp(0.6 + (ivp / 100) * 0.8, 0.6, 1.4) : 1;  // richer premium → a touch bigger
+  const volScale = volTargetScale(i.vix, i.vixBaseline != null ? i.vixBaseline : 14);  // #3: VIX high → size down
   const regimeScale = reduce ? 0.5 : 1;                   // half size in the REDUCE regime
-  let lots = Math.max(1, Math.round(baseLots * kelly * ivScale * regimeScale));
+  let lots = Math.max(1, Math.round(baseLots * kelly * ivScale * volScale * regimeScale));
   lots = clamp(lots, 1, Number(i.maxLots) || 10);
 
   return {
     ok: true, structure, dir, spot: round(spot), atm, step, em: round(em), regime, regimeScore: i.regimeScore,
     decision, probability: prob, skew, ivp,
     legs, strikes: legs.map(l => `${l.strike}${l.type}`),
-    sizing: { lots, kellyFraction: round(kelly, 3), ivScale: round(ivScale, 2), regimeScale, perLotRiskPts: round(perLotRisk / lotSize), riskBudget: Math.round(riskBudget) },
+    sizing: { lots, kellyFraction: round(kelly, 3), ivScale: round(ivScale, 2), volScale, regimeScale, perLotRiskPts: round(perLotRisk / lotSize), riskBudget: Math.round(riskBudget) },
     rationale,
     disclaimer: 'Defined-risk only — never a naked long option (buying has no edge here). Paper/educational, not advice.',
   };
