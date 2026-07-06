@@ -99,6 +99,22 @@
   .sig .g{ margin-left:auto; font-size:0.58rem; color:var(--mut); text-align:right; }
   .sig .g b.go{ color:var(--up); } .sig .g b.no{ color:#4c586b; }
 
+  /* P&L verification + positions */
+  .pverify{ display:flex; align-items:center; gap:10px; padding:10px 13px; border-radius:11px; margin-bottom:12px; font-size:0.66rem; font-weight:800; }
+  .pverify.ok{ background:rgba(38,208,160,.1); border:1px solid rgba(38,208,160,.35); color:var(--up); }
+  .pverify.bad{ background:rgba(255,84,112,.1); border:1px solid rgba(255,84,112,.38); color:var(--dn); }
+  .pverify .big{ font-size:1.1rem; font-weight:900; }
+  .pverify .sub{ margin-left:auto; font-size:0.56rem; color:var(--dim2); font-weight:600; text-align:right; }
+  table.pnl{ width:100%; border-collapse:collapse; font-size:0.62rem; font-family:ui-monospace,Menlo,monospace; }
+  table.pnl th{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.4px; font-weight:800; padding:6px 8px; border-bottom:1px solid var(--line2); text-align:right; white-space:nowrap; }
+  table.pnl th:first-child, table.pnl td:first-child{ text-align:left; }
+  table.pnl td{ padding:6px 8px; text-align:right; border-bottom:1px solid #0e1622; white-space:nowrap; }
+  table.pnl td.up{ color:var(--up); } table.pnl td.dn{ color:var(--dn); }
+  .vok{ color:var(--up); } .vbad{ color:var(--dn); }
+  .rtag{ font-size:0.5rem; font-weight:800; padding:2px 6px; border-radius:5px; }
+  .rtag.win{ background:rgba(38,208,160,.14); color:var(--up); } .rtag.loss{ background:rgba(255,84,112,.14); color:var(--dn); }
+  .possub{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; margin:13px 0 7px; }
+
   /* signal orb + positioning */
   .sigwrap{ display:flex; align-items:center; gap:16px; }
   .orb{ width:78px; height:78px; border-radius:20px; display:grid; place-items:center; font-weight:900; font-size:0.9rem; letter-spacing:.5px; flex:0 0 auto; border:1px solid var(--line2); }
@@ -315,6 +331,23 @@
 
   <div class="sec-h">Performance · paper</div>
   <div class="stats" id="stats"></div>
+
+  <div class="sec-h">Positions & P&L verification <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">what makes the paper P&L · reconciled + math-checked</small></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="pverify ok" id="pnlVerify">checking…</div>
+      <div class="possub">Closed trades (realized)</div>
+      <div style="overflow-x:auto"><table class="pnl">
+        <thead><tr><th>Contract</th><th>Entry</th><th>Exit</th><th>Reason</th><th>Gross</th><th>Charges</th><th>Net P&L</th><th>Verify</th></tr></thead>
+        <tbody id="pnlClosed"><tr><td colspan="8" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+      </table></div>
+      <div class="possub">Open positions (live · unrealized)</div>
+      <div style="overflow-x:auto"><table class="pnl">
+        <thead><tr><th>Position</th><th>Structure</th><th>Legs</th><th>Credit/Entry</th><th>Now</th><th>Live P&L</th></tr></thead>
+        <tbody id="pnlOpen"><tr><td colspan="6" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
 
   <div class="sec-h">Signals & regime</div>
   <div class="grid2">
@@ -677,6 +710,61 @@ async function loadSignalEngine() {
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 }
 
+// ── Positions & P&L verification (what makes the paper P&L · math-checked) ──
+async function loadPnL(){
+  const money = v => (v<0?'-':'+')+'₹'+Math.abs(Math.round(v)).toLocaleString('en-IN');
+  const fmt = (v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
+  const gj = u => fetch(`${API}${u}`,{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+  const [trd, strg, q] = await Promise.all([ gj('/api/agents/trades'), gj('/api/strangle/status'), gj('/api/quant') ]);
+  // Closed trades — recompute each from entry/exit/lot and reconcile against the headline.
+  const trades = (trd && (trd.trades||trd)) || [];
+  let sumNet = 0, allMathOk = true;
+  document.getElementById('pnlClosed').innerHTML = trades.length ? trades.map(t=>{
+    const lot = (t.lot||1)*(t.qty||1);
+    const reGross = ((t.exit||0)-(t.entry||0))*lot;                 // long option: (exit-entry)×lot
+    const reNet = reGross - (t.charges||0);
+    const stored = t.pnl||0;
+    const mathOk = Math.abs(reNet - stored) < 1.5;                  // ≤₹1.5 rounding tolerance
+    if (!mathOk) allMathOk = false;
+    sumNet += stored;
+    const win = stored>=0;
+    return `<tr>
+      <td>${t.inst} ${t.strike} ${t.side}</td>
+      <td>${fmt(t.entry)}</td><td>${fmt(t.exit)}</td>
+      <td><span class="rtag ${win?'win':'loss'}">${t.reason||'—'}</span></td>
+      <td class="${reGross>=0?'up':'dn'}">${money(reGross)}</td>
+      <td class="dn">-₹${fmt(t.charges,0)}</td>
+      <td class="${win?'up':'dn'}">${money(stored)}</td>
+      <td>${mathOk?'<span class="vok">✓</span>':'<span class="vbad">✗ '+money(reNet)+'</span>'}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--dim2)">no closed trades yet</td></tr>';
+  // Reconcile the sum against the headline all-time P&L.
+  const headline = q && q.score ? q.score.netPnl : null;
+  const reconciles = headline!=null && Math.abs(sumNet - headline) < 2;
+  const vEl = document.getElementById('pnlVerify');
+  vEl.className = 'pverify '+((reconciles && allMathOk)?'ok':'bad');
+  vEl.innerHTML = `<span>${(reconciles&&allMathOk)?'✓ VERIFIED':'⚠ CHECK'}</span>
+    <span class="big">${money(sumNet)}</span>
+    <span>from ${trades.length} closed trade${trades.length!==1?'s':''}</span>
+    <span class="sub">headline ${headline!=null?money(headline):'—'} · ${reconciles?'reconciles':'MISMATCH'} · math ${allMathOk?'ok':'MISMATCH'}</span>`;
+  // Open positions — live condors (mark-to-market)
+  const LOT = { NIFTY:75, SENSEX:20, BANKNIFTY:30 };
+  const condors = (strg && strg.openPositions) || [];
+  document.getElementById('pnlOpen').innerHTML = condors.length ? condors.map(c=>{
+    const lot = LOT[c.inst]||1;
+    const entryNet = ((c.ce?.entry||0)+(c.pe?.entry||0))-((c.ceWing?.entry||0)+(c.peWing?.entry||0));  // credit received
+    const nowNet   = ((c.ce?.ltp||0)+(c.pe?.ltp||0))-((c.ceWing?.ltp||0)+(c.peWing?.ltp||0));           // cost to close now
+    const pnl = (entryNet - nowNet) * lot;                          // short spread: profit when now < credit
+    const legs = `${c.pe?.strike}PE/${c.ce?.strike}CE`;
+    return `<tr>
+      <td>${c.inst} <span style="color:var(--mut)">exp ${c.expiry||''}</span></td>
+      <td>${c.structure||'CONDOR'}</td><td style="color:var(--mut)">${legs}</td>
+      <td>₹${fmt(entryNet)}</td><td>₹${fmt(nowNet)}</td>
+      <td class="${pnl>=0?'up':'dn'}">${money(pnl)}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--dim2)">no open positions</td></tr>';
+}
+
 // ── Strike price timeline (CE/PE live price + high/low record timeline) ──
 let STK_INST = 'NIFTY', STK_STRIKE = 0, STK_STEP = 50;
 function setStkInst(i){ STK_INST = i; STK_STRIKE = 0; document.querySelectorAll('#stkSel .isbtn').forEach(b=>b.classList.toggle('on',b.textContent===i)); loadStrikeList(); }
@@ -1005,7 +1093,8 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning(); loadStrikeList();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning(); loadStrikeList(); loadPnL();
+setInterval(loadPnL, 6000);
 setInterval(loadHL, 4000);
 setInterval(loadChain, 5000);
 setInterval(loadWatchlist, 6000);
