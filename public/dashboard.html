@@ -99,6 +99,43 @@
   .sig .g{ margin-left:auto; font-size:0.58rem; color:var(--mut); text-align:right; }
   .sig .g b.go{ color:var(--up); } .sig .g b.no{ color:#4c586b; }
 
+  /* signal orb + positioning */
+  .sigwrap{ display:flex; align-items:center; gap:16px; }
+  .orb{ width:78px; height:78px; border-radius:20px; display:grid; place-items:center; font-weight:900; font-size:0.9rem; letter-spacing:.5px; flex:0 0 auto; border:1px solid var(--line2); }
+  .orb.CALL{ color:var(--up); border-color:rgba(38,208,160,.5); background:radial-gradient(circle at 30% 30%,rgba(38,208,160,.35),rgba(38,208,160,.08)); box-shadow:0 0 22px rgba(38,208,160,.25); }
+  .orb.PUT{ color:var(--dn); border-color:rgba(255,84,112,.5); background:radial-gradient(circle at 30% 30%,rgba(255,84,112,.35),rgba(255,84,112,.08)); box-shadow:0 0 22px rgba(255,84,112,.25); }
+  .orb.WAIT{ color:var(--amber); border-color:rgba(255,194,75,.45); background:radial-gradient(circle at 30% 30%,rgba(255,194,75,.28),rgba(255,194,75,.06)); }
+  .sigmeta{ flex:1; min-width:0; }
+  .sigmeta .stk{ font-size:0.9rem; font-weight:900; }
+  .confbar{ height:7px; background:var(--bg2); border-radius:99px; margin:7px 0; overflow:hidden; }
+  .confbar i{ display:block; height:100%; background:linear-gradient(90deg,var(--blue),var(--cyan)); }
+  .sigrsn{ font-size:0.56rem; color:var(--dim2); line-height:1.5; }
+  .lvls{ display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-top:11px; }
+  .lvls .lv{ background:var(--bg2); border:1px solid var(--line); border-radius:9px; padding:7px 8px; text-align:center; }
+  .lvls .lv .l{ font-size:0.48rem; color:var(--mut); text-transform:uppercase; letter-spacing:.4px; }
+  .lvls .lv .v{ font-size:0.74rem; font-weight:900; margin-top:2px; font-family:ui-monospace,Menlo,monospace; }
+  .lvls .lv.e .v{ color:#cfe0ff; } .lvls .lv.s .v{ color:var(--dn); } .lvls .lv.t .v{ color:var(--up); }
+  /* maxpain / pcr */
+  .mpgrid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .mpbox{ background:var(--bg2); border:1px solid var(--line); border-radius:11px; padding:10px 12px; }
+  .mpbox .l{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; }
+  .mpbox .v{ font-size:1.15rem; font-weight:900; margin-top:3px; }
+  .mpbox .s{ font-size:0.52rem; color:var(--dim2); margin-top:2px; }
+  .biaschip{ display:inline-block; font-size:0.54rem; font-weight:900; padding:3px 9px; border-radius:999px; margin-top:6px; }
+  .biaschip.bull{ background:rgba(38,208,160,.14); color:var(--up); } .biaschip.bear{ background:rgba(255,84,112,.14); color:var(--dn); } .biaschip.neu{ background:rgba(120,132,150,.14); color:#9aa7ba; }
+  /* trend tactics */
+  .ttcol .h{ display:flex; align-items:center; gap:7px; font-size:0.62rem; font-weight:900; margin-bottom:7px; }
+  .ttev{ font-size:0.56rem; color:#b7c4d6; padding:5px 8px; border-radius:7px; background:var(--bg2); border:1px solid var(--line); margin-bottom:5px; font-family:ui-monospace,Menlo,monospace; display:flex; justify-content:space-between; }
+  .ttev.hi{ border-left:2px solid var(--up); } .ttev.lo{ border-left:2px solid var(--dn); }
+  .ttev .dl{ color:var(--mut); }
+  /* oi buildup badges */
+  .oibb{ display:flex; flex-wrap:wrap; gap:6px; margin:5px 0 11px; }
+  .oibadge{ font-size:0.54rem; font-weight:800; padding:4px 8px; border-radius:7px; font-family:ui-monospace,Menlo,monospace; }
+  .oibadge.lb{ background:rgba(38,208,160,.12); color:var(--up); border:1px solid rgba(38,208,160,.3); }
+  .oibadge.sb{ background:rgba(255,84,112,.12); color:var(--dn); border:1px solid rgba(255,84,112,.3); }
+  .oibadge.uw{ background:rgba(120,132,150,.12); color:#9aa7ba; border:1px solid var(--line2); }
+  .oilbl{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px; }
+
   /* high/low levels panel */
   .hlrow{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
   @media(max-width:820px){ .hlrow{ grid-template-columns:1fr; } }
@@ -275,6 +312,60 @@
         <span class="indsig" id="indSig">—</span>
       </div>
       <div class="indwrap" id="indWrap"><div class="flat" style="font-size:.72rem">loading…</div></div>
+    </div>
+  </div>
+
+  <div class="sec-h">Live signals & positioning
+    <span class="instsel" id="posSel" style="margin-left:12px">
+      <button class="isbtn on" onclick="setPosInst('NIFTY')">NIFTY</button>
+      <button class="isbtn" onclick="setPosInst('SENSEX')">SENSEX</button>
+      <button class="isbtn" onclick="setPosInst('BANKNIFTY')">BANKNIFTY</button>
+    </span>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-h">🎯 Trade Signal <small>multi-confirm · entry/SL/targets</small></div>
+      <div class="card-b">
+        <div class="sigwrap">
+          <div class="orb WAIT" id="sigOrb">WAIT</div>
+          <div class="sigmeta">
+            <div class="stk" id="sigStk">—</div>
+            <div class="confbar"><i id="sigConf" style="width:0%"></i></div>
+            <div class="sigrsn" id="sigRsn">loading…</div>
+          </div>
+        </div>
+        <div class="lvls">
+          <div class="lv e"><div class="l">Entry</div><div class="v" id="sigEntry">--</div></div>
+          <div class="lv s"><div class="l">SL</div><div class="v" id="sigSL">--</div></div>
+          <div class="lv t"><div class="l">T2</div><div class="v" id="sigT2">--</div></div>
+          <div class="lv t"><div class="l">T3</div><div class="v" id="sigT3">--</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h">🧲 Max-Pain & PCR <small>positioning</small></div>
+      <div class="card-b">
+        <div class="mpgrid">
+          <div class="mpbox"><div class="l">Max Pain</div><div class="v" id="mpVal">--</div><div class="s" id="mpDist">—</div></div>
+          <div class="mpbox"><div class="l">PCR (OI)</div><div class="v" id="pcrOI">--</div><div class="s" id="pcrSub">—</div></div>
+        </div>
+        <div style="margin-top:9px"><span class="biaschip neu" id="mpBias">—</span> <span class="biaschip neu" id="pcrBias">—</span></div>
+        <div class="sigrsn" id="mpRsn" style="margin-top:9px">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:14px">
+    <div class="card">
+      <div class="card-h">🔥 Trend Tactics <small>breakout events</small><span id="ttState" style="margin-left:auto;font-size:.6rem;font-weight:900"></span></div>
+      <div class="card-b" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="ttcol"><div class="h"><span style="color:var(--up)">▲</span> BUY CALL <span id="ttHiN" style="color:var(--mut)"></span></div><div id="ttHi"></div></div>
+        <div class="ttcol"><div class="h"><span style="color:var(--dn)">▼</span> BUY PUT <span id="ttLoN" style="color:var(--mut)"></span></div><div id="ttLo"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h">🧱 OI Buildup <small>long/short · unwinding</small><span id="oiBias" class="biaschip neu" style="margin-left:auto">—</span></div>
+      <div class="card-b" id="oiBuild"><div class="flat" style="font-size:.72rem">loading…</div></div>
     </div>
   </div>
 
@@ -539,6 +630,68 @@ async function loadSignalEngine() {
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 }
 
+// ── Live signals & positioning (signal orb · max-pain/PCR · trend tactics · OI buildup) ──
+let POS_INST = 'NIFTY';
+function setPosInst(i){ POS_INST = i; document.querySelectorAll('#posSel .isbtn').forEach(b=>b.classList.toggle('on',b.textContent===i)); loadPositioning(); }
+async function loadPositioning(){
+  const inst = POS_INST, ix = inst.toLowerCase();
+  const fmt = (v,d=1)=>{ const n=parseFloat(v); return isFinite(n)&&n!==0?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
+  const gj = u => fetch(`${API}${u}`, { cache:'no-store' }).then(r=>r.json()).catch(()=>null);
+  const [sig, mp, pcr, brk, oi] = await Promise.all([
+    gj(`/api/signal?inst=${inst}`), gj(`/api/options/maxpain?instrument=${inst}`), gj(`/api/options/pcr?instrument=${inst}`),
+    gj(`/api/breakouts?inst=${inst}`), gj(`/api/options/oi-analysis?instrument=${inst}`),
+  ]);
+  // Signal orb
+  if (sig) {
+    const s = (sig.signal||'WAIT').toUpperCase();
+    const orb = document.getElementById('sigOrb'); orb.textContent = s; orb.className = 'orb '+(['CALL','PUT','WAIT'].includes(s)?s:'WAIT');
+    document.getElementById('sigStk').textContent = (sig.strike && sig.strike!=='--') ? `${sig.strike} ${s==='PUT'?'PE':s==='CALL'?'CE':''}` : 'no active strike';
+    document.getElementById('sigConf').style.width = (sig.confidence||0)+'%';
+    document.getElementById('sigRsn').textContent = `${sig.confidence!=null?sig.confidence+'% conf · ':''}${sig.reason||''}`;
+    document.getElementById('sigEntry').textContent = fmt(sig.entry);
+    document.getElementById('sigSL').textContent = fmt(sig.sl);
+    document.getElementById('sigT2').textContent = fmt(sig.t2);
+    document.getElementById('sigT3').textContent = fmt(sig.t3);
+  }
+  // Max-Pain
+  if (mp && mp.maxPain!=null) {
+    document.getElementById('mpVal').textContent = fmt(mp.maxPain,0);
+    document.getElementById('mpDist').textContent = `spot ${fmt(mp.currentSpot,0)} · ${mp.distancePercent}%`;
+    const bull = /bullish/i.test(mp.interpretation||'');
+    const c = document.getElementById('mpBias'); c.className = 'biaschip '+(bull?'bull':/bearish/i.test(mp.interpretation||'')?'bear':'neu'); c.textContent = (mp.interpretation||'—');
+  }
+  // PCR
+  if (pcr && pcr.pcrOI!=null) {
+    document.getElementById('pcrOI').textContent = fmt(pcr.pcrOI,2);
+    document.getElementById('pcrSub').textContent = `vol ${fmt(pcr.pcrVolume,2)} · ATM ${fmt(pcr.pcrATM,2)}`;
+    const bias = (pcr.interpretation&&pcr.interpretation.bias||'').toUpperCase();
+    const c = document.getElementById('pcrBias'); c.className='biaschip '+(bias==='BULLISH'?'bull':bias==='BEARISH'?'bear':'neu'); c.textContent = bias?('PCR '+bias):'—';
+    document.getElementById('mpRsn').textContent = `Call OI ${(pcr.totalCallOI/1e5).toFixed(1)}L vs Put OI ${(pcr.totalPutOI/1e5).toFixed(1)}L`;
+  }
+  // Trend tactics — split breakout events into high (call) / low (put)
+  if (brk && Array.isArray(brk.events)) {
+    const hi = brk.events.filter(e=>e.dir==='HIGH').slice(0,6), lo = brk.events.filter(e=>e.dir==='LOW').slice(0,6);
+    const ev = (e,cls)=>`<div class="ttev ${cls}"><span>${e.time} · ${fmt(e.price,0)}</span><span class="dl">${e.type}${e.delta?' '+(e.delta>0?'+':'')+e.delta:''}</span></div>`;
+    document.getElementById('ttHi').innerHTML = hi.map(e=>ev(e,'hi')).join('') || '<div class="sigrsn">no high breaks</div>';
+    document.getElementById('ttLo').innerHTML = lo.map(e=>ev(e,'lo')).join('') || '<div class="sigrsn">no low breaks</div>';
+    document.getElementById('ttHiN').textContent = '('+hi.length+')'; document.getElementById('ttLoN').textContent = '('+lo.length+')';
+    document.getElementById('ttState').innerHTML = `<span style="color:var(--mut)">${brk.count} events today</span>`;
+  }
+  // OI buildup
+  if (oi) {
+    const badge=(arr,cls)=>(arr||[]).slice(0,3).map(x=>`<span class="oibadge ${cls}">${x.strike} · ${x.changeOI>0?'+':''}${Math.round(x.changeOI/1000)}k</span>`).join('');
+    document.getElementById('oiBuild').innerHTML = `
+      <div class="oilbl">Call long buildup</div><div class="oibb">${badge(oi.callLongBuildup,'lb')||'<span class="sigrsn">—</span>'}</div>
+      <div class="oilbl">Put long buildup</div><div class="oibb">${badge(oi.putLongBuildup,'lb')||'<span class="sigrsn">—</span>'}</div>
+      <div class="oilbl">Call short buildup (writers)</div><div class="oibb">${badge(oi.callShortBuildup,'sb')||'<span class="sigrsn">—</span>'}</div>
+      <div class="oilbl">Put short buildup (writers)</div><div class="oibb">${badge(oi.putShortBuildup,'sb')||'<span class="sigrsn">—</span>'}</div>
+      <div class="oilbl">Unwinding</div><div class="oibb">${(badge(oi.callUnwinding,'uw')+badge(oi.putUnwinding,'uw'))||'<span class="sigrsn">—</span>'}</div>`;
+    const b = document.getElementById('oiBias'); const bias=(oi.interpretation&&oi.interpretation.bias||'').toUpperCase();
+    b.className='biaschip '+(bias==='BULLISH'?'bull':bias==='BEARISH'?'bear':'neu'); b.textContent = bias||'—';
+    b.title = (oi.interpretation&&oi.interpretation.reason)||'';
+  }
+}
+
 // ── Market quotes watchlist (full option quote panel from the old dashboard) ──
 let MQ_INST = 'SENSEX', MQ_FILT = 'ATM', MQ_LOT = 1;
 function setMqInst(i){ MQ_INST = i; document.querySelectorAll('#mqSel .isbtn').forEach(b=>b.classList.toggle('on',b.textContent===i)); loadWatchlist(); }
@@ -746,10 +899,11 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning();
 setInterval(loadHL, 4000);
 setInterval(loadChain, 5000);
 setInterval(loadWatchlist, 6000);
+setInterval(loadPositioning, 6000);
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);

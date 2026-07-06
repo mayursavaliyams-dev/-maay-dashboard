@@ -2394,9 +2394,21 @@ app.get("/api/options/maxpain", async (req, res) => {
 // Get OI Analysis
 app.get("/api/options/oi-analysis", async (req, res) => {
   try {
-    const price = await getLivePrice();
-    optionAnalyzer.initialize(price, 20);
-    res.json(optionAnalyzer.analyzeOIBuildup());
+    // FIX: honor ?instrument/?inst and use the REAL chain (was always synthetic SENSEX).
+    const inst = String(req.query.instrument || req.query.inst || 'SENSEX').toUpperCase();
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const strikes = (chain.strikes || []).map(s => ({
+      strike: Number(s.strike),
+      ce: { changeOI: Number(s.ce?.changeOI || 0), ltp: Number(s.ce?.ltp || 0) },
+      pe: { changeOI: Number(s.pe?.changeOI || 0), ltp: Number(s.pe?.ltp || 0) },
+    }));
+    if (!strikes.length) { // fall back to the old synthetic path only if no real chain
+      optionAnalyzer.initialize(spot, 20);
+      return res.json({ instrument: inst, spot: Math.round(spot), synthetic: true, ...optionAnalyzer.analyzeOIBuildup() });
+    }
+    res.json({ instrument: inst, spot: Math.round(spot), ...optionAnalyzer.analyzeOIBuildup(strikes) });
   } catch (error) {
     res.status(500).json({ error: "Failed to analyze OI" });
   }
