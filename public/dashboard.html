@@ -177,6 +177,8 @@
   /* strike price timeline */
   .stkctl{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
   .stksel{ background:var(--bg2); border:1px solid var(--line2); color:#cfe0ff; font-size:0.62rem; font-weight:800; padding:5px 10px; border-radius:8px; cursor:pointer; }
+  .fullrecbtn{ background:rgba(91,156,255,.14); border:1px solid var(--blue); color:#cfe0ff; font-size:0.62rem; font-weight:900; padding:5px 12px; border-radius:8px; cursor:pointer; }
+  .fullrecbtn:hover{ background:rgba(91,156,255,.28); }
   .stkcols{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   @media(max-width:760px){ .stkcols{ grid-template-columns:1fr; } }
   .stkside{ border:1px solid var(--line); border-radius:12px; overflow:hidden; }
@@ -545,6 +547,7 @@
           <button class="isbtn" onclick="setStkInst('BANKNIFTY')">BANKNIFTY</button>
         </div>
         <select class="stksel" id="stkStrike" onchange="STK_STRIKE=+this.value; loadStrikeTimeline()"></select>
+        <button class="fullrecbtn" onclick="openRecModal()">📋 Full high/low record</button>
         <span class="indsig" id="stkMeta" style="margin-left:auto">—</span>
       </div>
       <div class="stkcols">
