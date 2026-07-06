@@ -151,6 +151,15 @@
   .doi.up{ color:var(--up); background:rgba(38,208,160,.12); }
   .doi.dn{ color:var(--dn); background:rgba(255,84,112,.12); }
   .chsplit{ text-align:center !important; color:var(--mut); font-size:0.5rem; letter-spacing:.5px; }
+  /* market quotes watchlist */
+  table.mq td.lbl{ text-align:left; font-weight:800; color:#cfe0ff; }
+  table.mq td.up{ color:var(--up); } table.mq td.dn{ color:var(--dn); }
+  table.mq tr.ce td.lbl{ color:#8fdcc0; } table.mq tr.pe td.lbl{ color:#f5a9b6; }
+  .pop{ font-weight:900; }
+  .buybtn{ font-size:0.5rem; font-weight:900; padding:3px 8px; border-radius:6px; border:1px solid; cursor:pointer; background:transparent; white-space:nowrap; }
+  .buybtn.ce{ color:#8fdcc0; border-color:rgba(38,208,160,.4); } .buybtn.ce:hover{ background:rgba(38,208,160,.12); }
+  .buybtn.pe{ color:#f5a9b6; border-color:rgba(255,84,112,.4); } .buybtn.pe:hover{ background:rgba(255,84,112,.12); }
+  .mqfilt{ display:flex; gap:5px; margin-left:auto; }
 
   /* trade plan rows */
   .pl{ padding:9px 0; border-bottom:1px solid #101a28; }
@@ -288,6 +297,35 @@
             <th>PE H/L</th><th>PE LTP</th><th>PE OI</th><th>PE ΔOI</th>
           </tr></thead>
           <tbody id="chBody"><tr><td colspan="9" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-h">Market quotes <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">full option quote · LTP · H/L · OI · UCL/LCL · 52W · PoP</small></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="indhead">
+        <div class="instsel" id="mqSel">
+          <button class="isbtn on" onclick="setMqInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setMqInst('NIFTY')">NIFTY</button>
+        </div>
+        <div class="mqfilt" id="mqFilt">
+          <button class="isbtn on" onclick="setMqFilt('ATM')">ATM±5</button>
+          <button class="isbtn" onclick="setMqFilt('ALL')">ALL</button>
+          <button class="isbtn" onclick="setMqFilt('CALL')">CALL</button>
+          <button class="isbtn" onclick="setMqFilt('PUT')">PUT</button>
+        </div>
+        <span class="indsig" id="mqMeta" style="margin-left:12px">—</span>
+      </div>
+      <div class="chwrap">
+        <table class="chain mq">
+          <thead><tr>
+            <th style="text-align:left">Contract</th><th>LTP</th><th>₹/Lot</th><th>PoP%</th><th>Low</th><th>High</th>
+            <th>Chng</th><th>%Chng</th><th>Bid</th><th>Ask</th><th>Volume</th><th>OI</th>
+            <th>Prev Cl</th><th>UCL</th><th>LCL</th><th>52W H</th><th>52W L</th><th>Avg</th><th>Trade</th>
+          </tr></thead>
+          <tbody id="mqBody"><tr><td colspan="19" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -501,6 +539,56 @@ async function loadSignalEngine() {
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 }
 
+// ── Market quotes watchlist (full option quote panel from the old dashboard) ──
+let MQ_INST = 'SENSEX', MQ_FILT = 'ATM', MQ_LOT = 1;
+function setMqInst(i){ MQ_INST = i; document.querySelectorAll('#mqSel .isbtn').forEach(b=>b.classList.toggle('on',b.textContent===i)); loadWatchlist(); }
+function setMqFilt(f){ MQ_FILT = f; document.querySelectorAll('#mqFilt .isbtn').forEach(b=>b.classList.toggle('on',b.textContent.startsWith(f))); loadWatchlist(); }
+let MQ_ROWS = [];
+function renderWatchlist(){
+  const fmt = (v,d=1)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
+  const big = v=>{ const n=parseFloat(v)||0; if(n>=1e7) return (n/1e7).toFixed(2)+'Cr'; if(n>=1e5) return (n/1e5).toFixed(2)+'L'; return Math.round(n).toLocaleString('en-IN'); };
+  let rows = MQ_ROWS.slice();
+  if (MQ_FILT==='CALL') rows = rows.filter(r=>r.type==='CE');
+  else if (MQ_FILT==='PUT') rows = rows.filter(r=>r.type==='PE');
+  const body = document.getElementById('mqBody');
+  if (!rows.length){ body.innerHTML = '<tr><td colspan="19" style="text-align:center;color:var(--dim2)">no quotes</td></tr>'; return; }
+  body.innerHTML = rows.map(r=>{
+    const cc = r.chng>=0?'up':'dn';
+    const perLot = (parseFloat(r.ltp)||0)*MQ_LOT;
+    return `<tr class="${r.type==='CE'?'ce':'pe'}">
+      <td class="lbl">${r.label||(r.strike+' '+r.type)}</td>
+      <td class="ltp">${fmt(r.ltp)}</td>
+      <td>₹${big(perLot)}</td>
+      <td class="pop" style="color:${r.pop>=50?'var(--up)':r.pop>=35?'var(--amber)':'var(--dn)'}">${r.pop!=null?fmt(r.pop)+'%':'--'}</td>
+      <td class="dn">${fmt(r.low)}</td><td class="up">${fmt(r.high)}</td>
+      <td class="${cc}">${r.chng>=0?'+':''}${fmt(r.chng)}</td><td class="${cc}">${r.chngPct>=0?'+':''}${fmt(r.chngPct)}%</td>
+      <td>${fmt(r.bid)}</td><td>${fmt(r.ask)}</td><td>${big(r.volume)}</td><td>${big(r.oi)}</td>
+      <td>${fmt(r.prevClose)}</td><td>${fmt(r.ucl)}</td><td>${fmt(r.lcl)}</td>
+      <td>${fmt(r.wkHigh)}</td><td>${fmt(r.wkLow)}</td><td>${fmt(r.avgPrice)}</td>
+      <td><button class="buybtn ${r.type==='CE'?'ce':'pe'}" onclick="mqBuy('${MQ_INST}',${r.strike},'${r.type}',${parseFloat(r.ltp)||0})">BUY ${r.type}</button></td>
+    </tr>`;
+  }).join('');
+}
+async function loadWatchlist(){
+  try {
+    const n = MQ_FILT==='ATM' ? 5 : 0;
+    const j = await (await fetch(`${API}/api/watchlist?inst=${MQ_INST}${n?'&n='+n:''}`, { cache:'no-store' })).json();
+    MQ_ROWS = j.rows || []; MQ_LOT = j.lotSize || 1;
+    document.getElementById('mqMeta').textContent = `ATM ${j.atm||'—'} · ${MQ_ROWS.length} legs · ${j.source||''}`;
+    renderWatchlist();
+  } catch(_){ document.getElementById('mqBody').innerHTML = '<tr><td colspan="19" style="text-align:center;color:var(--dim2)">unavailable</td></tr>'; }
+}
+async function mqBuy(inst, strike, type, ltp){
+  if (!confirm(`Paper BUY ${inst} ${strike} ${type} @ ₹${ltp}?\n(1 lot · paper/educational)`)) return;
+  try {
+    const url = inst === 'NIFTY' ? `${API}/api/nifty/position/enter` : `${API}/api/position/enter`;
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ inst, strike, type, side:'BUY', entryPrice: ltp, lots: 1, source:'watchlist' }) });
+    const j = await r.json().catch(()=>({}));
+    alert(j && j.ok!==false ? `Paper position opened: ${inst} ${strike} ${type}` : `Could not open: ${(j&&j.error)||'see engines/quant page'}`);
+  } catch(e){ alert('Paper buy failed: '+e.message); }
+}
+
 // ── Option chain · OI buildup panel (LTP · High/Low · ΔOI increase/decrease) ──
 let CH_INST = 'NIFTY';
 function setChInst(i) {
@@ -658,9 +746,10 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist();
 setInterval(loadHL, 4000);
 setInterval(loadChain, 5000);
+setInterval(loadWatchlist, 6000);
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);
