@@ -99,6 +99,30 @@
   .sig .g{ margin-left:auto; font-size:0.58rem; color:var(--mut); text-align:right; }
   .sig .g b.go{ color:var(--up); } .sig .g b.no{ color:#4c586b; }
 
+  /* trade plan rows */
+  .pl{ padding:9px 0; border-bottom:1px solid #101a28; }
+  .pl:last-child{ border-bottom:0; }
+  .pl .r1{ display:flex; align-items:center; gap:9px; }
+  .pl .in{ font-size:0.74rem; font-weight:900; width:86px; }
+  .struct{ font-size:0.58rem; font-weight:900; letter-spacing:.3px; padding:3px 9px; border-radius:999px; }
+  .struct.condor{ background:rgba(38,208,160,.14); color:var(--up); }
+  .struct.credit{ background:rgba(91,156,255,.15); color:#8fb8ff; }
+  .struct.debit{ background:rgba(180,120,255,.15); color:var(--violet); }
+  .struct.none{ background:rgba(120,132,150,.13); color:#9aa7ba; }
+  .pl .sz{ margin-left:auto; font-size:0.6rem; color:var(--mut); text-align:right; }
+  .pl .legs{ font-size:0.6rem; color:#b7c4d6; margin-top:5px; font-family:ui-monospace,Menlo,monospace; }
+  .pl .why{ font-size:0.54rem; color:var(--dim2); margin-top:3px; line-height:1.45; }
+  /* health */
+  .hbadge{ display:inline-flex; align-items:center; gap:7px; font-size:0.82rem; font-weight:900; padding:8px 14px; border-radius:11px; letter-spacing:.4px; }
+  .hbadge.healthy{ background:rgba(38,208,160,.13); color:var(--up); border:1px solid rgba(38,208,160,.35); }
+  .hbadge.learning{ background:rgba(255,194,75,.12); color:var(--amber); border:1px solid rgba(255,194,75,.32); }
+  .hbadge.degraded{ background:rgba(255,84,112,.13); color:var(--dn); border:1px solid rgba(255,84,112,.38); }
+  .hmet{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:12px; }
+  .hmet .m{ background:var(--bg2); border:1px solid var(--line); border-radius:11px; padding:9px 11px; }
+  .hmet .m .l{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; }
+  .hmet .m .v{ font-size:1.05rem; font-weight:900; margin-top:3px; }
+  .hreason{ font-size:0.56rem; color:var(--dim2); margin-top:11px; line-height:1.55; }
+
   /* engines / agents */
   .row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #101a28; font-size:0.72rem; }
   .row:last-child{ border-bottom:0; }
@@ -154,6 +178,18 @@
     <div class="card">
       <div class="card-h">🎯 Live Signals <small>NIFTY · SENSEX · BANKNIFTY</small></div>
       <div class="card-b" id="sigBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
+    </div>
+  </div>
+
+  <div class="sec-h">Trade plan & engine health <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">signal-engine · defined-risk only</small></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-h">🧭 Trade Plan <small>regime → structure → size · never a naked buy</small></div>
+      <div class="card-b" id="planBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-h">🩺 Signal Engine Health <small>calibration · edge-decay</small></div>
+      <div class="card-b" id="healthBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
     </div>
   </div>
 
@@ -292,6 +328,44 @@ async function load() {
       <span class="r"><span class="${e.netPnl>=0?'up':'dn'} mono">${inr(e.netPnl)}</span><br><span class="tag">${e.trades} tr · ${e.winRate!=null?e.winRate+'%':'—'}</span></span></div>`).join('');
 }
 
+const STRUCT_CLS = s => /CONDOR/.test(s)?'condor': /CREDIT/.test(s)?'credit': /DEBIT/.test(s)?'debit':'none';
+const STRUCT_LBL = s => (s||'').replace(/_/g,' ');
+async function loadSignalEngine() {
+  // trade plans (heavy full-pass each) for the 3 indices + engine health
+  try {
+    const insts = ['nifty','sensex','banknifty'];
+    const plans = await Promise.all(insts.map(i =>
+      fetch(`${API}/api/trade-plan/${i}`, { cache: 'no-store' }).then(r => r.json()).catch(() => ({ ok:false, instrument:i.toUpperCase() }))));
+    document.getElementById('planBox').innerHTML = plans.map(p => {
+      const pl = p.plan || {}; const st = pl.structure || 'NO_TRADE';
+      const legs = (pl.strikes || []).join('  ');
+      const meta = p.metaLabel || {}; const reg = p.regime || {};
+      const sz = pl.sizing ? `${pl.sizing.lots} lot${pl.sizing.lots>1?'s':''} · ½K ${pl.sizing.kellyFraction}` : '';
+      return `<div class="pl">
+        <div class="r1"><span class="in">${p.instrument||'—'}</span>
+          <span class="struct ${STRUCT_CLS(st)}">${STRUCT_LBL(st)}</span>
+          <span class="sz">${sz}${sz?' · ':''}P ${meta.probability??'—'}%</span></div>
+        ${st!=='NO_TRADE' && legs ? `<div class="legs">${legs}</div>` : ''}
+        <div class="why">${reg.verdict||'—'} ${reg.score!=null?reg.score:''}${p.gex?` · GEX ${p.gex.regimeLabel} skew ${p.gex.skew}`:''}${pl.reason?` · ${pl.reason}`:''}</div>
+      </div>`;
+    }).join('');
+  } catch (_) { document.getElementById('planBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
+
+  try {
+    const h = await (await fetch(`${API}/api/signal-health`, { cache: 'no-store' })).json();
+    const st = (h.status || 'LEARNING').toLowerCase();
+    const rec = h.recent || {}; const cal = h.metaCalibration || h.calibration || {};
+    document.getElementById('healthBox').innerHTML = `
+      <span class="hbadge ${st}">${st==='healthy'?'✅':st==='degraded'?'⚠️':'⏳'} ${(h.status||'LEARNING')}</span>
+      <div class="hmet">
+        <div class="m"><div class="l">Samples</div><div class="v">${rec.n ?? cal.total ?? 0}</div></div>
+        <div class="m"><div class="l">Win rate</div><div class="v">${rec.winRate!=null?Math.round(rec.winRate*100)+'%':'—'}</div></div>
+        <div class="m"><div class="l">Brier</div><div class="v">${cal.brier ?? '—'}</div></div>
+      </div>
+      <div class="hreason">${(h.reasons||[]).join(' · ') || h.advice || 'gathering forward-test outcomes'}</div>`;
+  } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
+}
+
 async function loadBot() {
   try { const b = await (await fetch('/api/bot/status', { cache: 'no-store' })).json();
     document.getElementById('botDot').className = 'dot ' + (b.running ? 'live' : 'off');
@@ -300,10 +374,11 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot();
+loadSparks().then(load); loadBot(); loadSignalEngine();
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);
+setInterval(loadSignalEngine, 15000);   // heavier full-pass — refresh slower
 
 // bootId auto-reload on server restart
 (function () { let bid = null;
