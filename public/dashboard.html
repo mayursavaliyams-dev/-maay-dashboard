@@ -99,6 +99,17 @@
   .sig .g{ margin-left:auto; font-size:0.58rem; color:var(--mut); text-align:right; }
   .sig .g b.go{ color:var(--up); } .sig .g b.no{ color:#4c586b; }
 
+  /* linked selection bar */
+  .linkbar{ position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:linear-gradient(180deg,var(--panel),var(--bg2)); border:1px solid var(--line2); border-radius:13px; padding:10px 14px; margin:2px 0 16px; box-shadow:0 6px 20px rgba(0,0,0,.35); }
+  .linkbar .lb{ font-size:0.66rem; font-weight:900; color:#cfe0ff; letter-spacing:.3px; }
+  .linkbar .lstrike{ background:var(--bg2); border:1px solid var(--line2); color:#fff; font-size:0.68rem; font-weight:900; padding:5px 12px; border-radius:8px; cursor:pointer; font-family:ui-monospace,Menlo,monospace; }
+  .linkbar .lpx{ margin-left:auto; display:flex; gap:14px; align-items:baseline; font-family:ui-monospace,Menlo,monospace; }
+  .linkbar .lpx .u{ font-size:0.9rem; font-weight:900; } .linkbar .lpx .u small{ font-size:0.5rem; color:var(--mut); font-weight:700; }
+  .linkbar .lpx .ce{ color:#8fdcc0; font-weight:900; font-size:0.72rem; } .linkbar .lpx .pe{ color:#f5a9b6; font-weight:900; font-size:0.72rem; }
+  .linkbar .lpx small{ font-size:0.5rem; color:var(--mut); }
+  tr.clk{ cursor:pointer; } tr.clk:hover{ background:rgba(91,156,255,.09); }
+  tr.selstrike{ outline:1px solid rgba(91,156,255,.5); background:rgba(91,156,255,.1) !important; }
+
   /* P&L verification + positions */
   .pverify{ display:flex; align-items:center; gap:10px; padding:10px 13px; border-radius:11px; margin-bottom:12px; font-size:0.66rem; font-weight:800; }
   .pverify.ok{ background:rgba(38,208,160,.1); border:1px solid rgba(38,208,160,.35); color:var(--up); }
@@ -323,6 +334,17 @@
     <a href="/pattern-signals.html">🕯️ Patterns</a>
     <a href="/signals4.html">✅ 4 Engines</a>
   </nav>
+
+  <div class="linkbar">
+    <span class="lb">🔗 Linked view</span>
+    <div class="instsel" id="linkSel">
+      <button class="isbtn on" onclick="linkInst('NIFTY')">NIFTY</button>
+      <button class="isbtn" onclick="linkInst('SENSEX')">SENSEX</button>
+      <button class="isbtn" onclick="linkInst('BANKNIFTY')">BANKNIFTY</button>
+    </div>
+    <select class="lstrike" id="linkStrike" onchange="linkStrike(+this.value)"></select>
+    <div class="lpx" id="linkPx"><span class="u">—</span></div>
+  </div>
 
   <div class="idxrow" id="idxRow"></div>
 
@@ -564,6 +586,30 @@
 
 <script>
 const API = '';
+// ── Linked selection: one instrument + strike drives every panel ──
+const LINK = { inst: 'NIFTY', strike: 0 };
+function syncInstButtons(i){
+  ['linkSel','indSel','chSel','mqSel','posSel','stkSel'].forEach(id=>{
+    const el = document.getElementById(id); if (!el) return;
+    el.querySelectorAll('.isbtn').forEach(b=>b.classList.toggle('on', b.textContent===i));
+  });
+}
+function linkInst(i){
+  LINK.inst = i; LINK.strike = 0;
+  IND_INST = CH_INST = MQ_INST = POS_INST = STK_INST = i; STK_STRIKE = 0;
+  syncInstButtons(i);
+  if (typeof loadIndicators==='function') loadIndicators();
+  if (typeof loadChain==='function') loadChain();
+  if (typeof loadWatchlist==='function') loadWatchlist();
+  if (typeof loadPositioning==='function') loadPositioning();
+  if (typeof loadStrikeList==='function') loadStrikeList();
+}
+function linkStrike(s){
+  s = +s; if (!s) return; LINK.strike = s; STK_STRIKE = s;
+  ['stkStrike','linkStrike'].forEach(id=>{ const el=document.getElementById(id); if (el) el.value = s; });
+  if (typeof loadStrikeTimeline==='function') loadStrikeTimeline();
+  if (typeof loadChain==='function') loadChain();          // re-highlight the selected strike
+}
 const inr = v => (v < 0 ? '-' : '+') + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
 let SPARK = {};   // inst → recent closes
 
@@ -767,14 +813,15 @@ async function loadPnL(){
 
 // ── Strike price timeline (CE/PE live price + high/low record timeline) ──
 let STK_INST = 'NIFTY', STK_STRIKE = 0, STK_STEP = 50;
-function setStkInst(i){ STK_INST = i; STK_STRIKE = 0; document.querySelectorAll('#stkSel .isbtn').forEach(b=>b.classList.toggle('on',b.textContent===i)); loadStrikeList(); }
+function setStkInst(i){ linkInst(i); }
 async function loadStrikeList(){
   try {
     const j = await (await fetch(`${API}/api/option-chain-full?inst=${STK_INST}&depth=8`, { cache:'no-store' })).json();
     const atm = Number(j.atm)||0; const strikes = (j.rows||[]).map(r=>Number(r.strike)).filter(Boolean).sort((a,b)=>a-b);
     if (!STK_STRIKE) STK_STRIKE = atm || strikes[Math.floor(strikes.length/2)] || 0;
-    const sel = document.getElementById('stkStrike');
-    sel.innerHTML = strikes.map(s=>`<option value="${s}" ${s===STK_STRIKE?'selected':''}>${s}${s===atm?' (ATM)':''}</option>`).join('');
+    LINK.strike = STK_STRIKE;
+    const opts = strikes.map(s=>`<option value="${s}" ${s===STK_STRIKE?'selected':''}>${s}${s===atm?' (ATM)':''}</option>`).join('');
+    ['stkStrike','linkStrike'].forEach(id=>{ const el=document.getElementById(id); if (el) el.innerHTML = opts; });
     loadStrikeTimeline();
   } catch(_){ document.getElementById('stkCE').innerHTML = '<div class="stkrec"><div class="flat" style="font-size:.72rem">no chain feed for '+STK_INST+'</div></div>'; document.getElementById('stkPE').innerHTML=''; }
 }
@@ -821,12 +868,18 @@ async function loadStrikeTimeline(){
     document.getElementById('stkMeta').textContent = `${STK_INST} ${STK_STRIKE}${j.isATM?' · ATM':''} · spot ${j.spot?Math.round(j.spot):'—'} · ${j.marketStatus||''}`;
     renderStrikeSide(document.getElementById('stkCE'), j.ce, STK_STRIKE, 'CE');
     renderStrikeSide(document.getElementById('stkPE'), j.pe, STK_STRIKE, 'PE');
+    // linked-view price readout: index spot + selected strike CE/PE
+    const lpx = document.getElementById('linkPx');
+    if (lpx) lpx.innerHTML = `<span class="u">${STK_INST} ${j.spot?Math.round(j.spot).toLocaleString('en-IN'):'—'} <small>SPOT</small></span>`
+      + `<span><span class="ce">${STK_STRIKE} CE ₹${j.ce?j.ce.ltp:'--'}</span></span>`
+      + `<span><span class="pe">${STK_STRIKE} PE ₹${j.pe?j.pe.ltp:'--'}</span></span>`
+      + `<span><small>dte ${j.dte??'—'}${j.isATM?' · ATM':''}</small></span>`;
   } catch(_){ document.getElementById('stkMeta').textContent = 'unavailable'; }
 }
 
 // ── Live signals & positioning (signal orb · max-pain/PCR · trend tactics · OI buildup) ──
 let POS_INST = 'NIFTY';
-function setPosInst(i){ POS_INST = i; document.querySelectorAll('#posSel .isbtn').forEach(b=>b.classList.toggle('on',b.textContent===i)); loadPositioning(); }
+function setPosInst(i){ linkInst(i); }
 async function loadPositioning(){
   const inst = POS_INST, ix = inst.toLowerCase();
   const fmt = (v,d=1)=>{ const n=parseFloat(v); return isFinite(n)&&n!==0?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
@@ -888,7 +941,7 @@ async function loadPositioning(){
 
 // ── Market quotes watchlist (full option quote panel from the old dashboard) ──
 let MQ_INST = 'SENSEX', MQ_FILT = 'ATM', MQ_LOT = 1;
-function setMqInst(i){ MQ_INST = i; document.querySelectorAll('#mqSel .isbtn').forEach(b=>b.classList.toggle('on',b.textContent===i)); loadWatchlist(); }
+function setMqInst(i){ linkInst(i); }
 function setMqFilt(f){ MQ_FILT = f; document.querySelectorAll('#mqFilt .isbtn').forEach(b=>b.classList.toggle('on',b.textContent.startsWith(f))); loadWatchlist(); }
 let MQ_ROWS = [];
 function renderWatchlist(){
@@ -902,7 +955,8 @@ function renderWatchlist(){
   body.innerHTML = rows.map(r=>{
     const cc = r.chng>=0?'up':'dn';
     const perLot = (parseFloat(r.ltp)||0)*MQ_LOT;
-    return `<tr class="${r.type==='CE'?'ce':'pe'}">
+    const sel = Number(r.strike)===Number(LINK.strike) ? ' selstrike' : '';
+    return `<tr class="clk ${r.type==='CE'?'ce':'pe'}${sel}" onclick="linkStrike(${r.strike})" title="click → link strike ${r.strike}">
       <td class="lbl">${r.label||(r.strike+' '+r.type)}</td>
       <td class="ltp">${fmt(r.ltp)}</td>
       <td>₹${big(perLot)}</td>
@@ -938,11 +992,7 @@ async function mqBuy(inst, strike, type, ltp){
 
 // ── Option chain · OI buildup panel (LTP · High/Low · ΔOI increase/decrease) ──
 let CH_INST = 'NIFTY';
-function setChInst(i) {
-  CH_INST = i;
-  document.querySelectorAll('#chSel .isbtn').forEach(b => b.classList.toggle('on', b.textContent === i));
-  loadChain();
-}
+function setChInst(i) { linkInst(i); }
 async function loadChain() {
   const fmt = (v, d=1) => { const n = parseFloat(v); return isFinite(n) ? n.toLocaleString('en-IN',{maximumFractionDigits:d}) : '--'; };
   const doi = v => { const n = parseFloat(v)||0; const cls = n>0?'up':n<0?'dn':''; const s = n>0?'+':''; return `<span class="doi ${cls}">${s}${Math.round(n).toLocaleString('en-IN')}</span>`; };
@@ -955,7 +1005,8 @@ async function loadChain() {
     if (!rows.length) { document.getElementById('chBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--dim2)">no chain (BANKNIFTY may lack a live chain feed)</td></tr>'; return; }
     document.getElementById('chBody').innerHTML = rows.map(r => {
       const ce = r.ce||{}, pe = r.pe||{};
-      return `<tr class="${r.isATM?'atm':''}">
+      const sel = Number(r.strike)===Number(LINK.strike) ? ' selstrike' : '';
+      return `<tr class="clk${r.isATM?' atm':''}${sel}" onclick="linkStrike(${r.strike})" title="click → link strike ${r.strike}">
         <td>${doi(ce.changeOI)}</td><td class="ce">${fmt(ce.oi,0)}</td><td class="ce ltp">${fmt(ce.ltp)}</td><td class="hl" style="font-size:.58rem">${hl(ce)}</td>
         <td class="strike">${fmt(r.strike,0)}</td>
         <td class="hl" style="font-size:.58rem">${hl(pe)}</td><td class="pe ltp">${fmt(pe.ltp)}</td><td class="pe">${fmt(pe.oi,0)}</td><td>${doi(pe.changeOI)}</td>
@@ -1006,11 +1057,7 @@ async function loadHL() {
 
 // ── Technical indicators panel (live multi-confirm) ──
 let IND_INST = 'NIFTY';
-function setIndInst(i) {
-  IND_INST = i;
-  document.querySelectorAll('#indSel .isbtn').forEach(b => b.classList.toggle('on', b.textContent === i));
-  loadIndicators();
-}
+function setIndInst(i) { linkInst(i); }
 // classify a bull/bear layer into a display state
 function indState(o) {
   if (!o) return ['off', '—'];
