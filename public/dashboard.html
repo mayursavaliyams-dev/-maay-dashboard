@@ -792,9 +792,14 @@ async function loadSignalEngine() {
   } catch (_) { document.getElementById('planBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 
   try {
-    const h = await (await fetch(`${API}/api/signal-health`, { cache: 'no-store' })).json();
+    const [h, sp] = await Promise.all([
+      fetch(`${API}/api/signal-health`, { cache: 'no-store' }).then(r=>r.json()),
+      fetch(`${API}/api/signal-paper/status`, { cache: 'no-store' }).then(r=>r.json()).catch(()=>null),
+    ]);
     const st = (h.status || 'LEARNING').toLowerCase();
     const rec = h.recent || {}; const cal = h.metaCalibration || h.calibration || {};
+    const at = sp && sp.allTime || {};
+    const openTxt = sp ? (sp.open||[]).map(p=>`${p.inst} ${p.structure.replace(/_/g,' ')} <b class="${p.mtm>=0?'up':'dn'}">${inr(p.mtm||0)}</b>`).join(' · ') : '';
     document.getElementById('healthBox').innerHTML = `
       <span class="hbadge ${st}">${st==='healthy'?'✅':st==='degraded'?'⚠️':'⏳'} ${(h.status||'LEARNING')}</span>
       <div class="hmet">
@@ -802,7 +807,11 @@ async function loadSignalEngine() {
         <div class="m"><div class="l">Win rate</div><div class="v">${rec.winRate!=null?Math.round(rec.winRate*100)+'%':'—'}</div></div>
         <div class="m"><div class="l">Brier</div><div class="v">${cal.brier ?? '—'}</div></div>
       </div>
-      <div class="hreason">${(h.reasons||[]).join(' · ') || h.advice || 'gathering forward-test outcomes'}</div>`;
+      <div class="hreason">${(h.reasons||[]).join(' · ') || h.advice || 'gathering forward-test outcomes'}</div>
+      <div class="hreason" style="margin-top:9px;border-top:1px solid var(--line);padding-top:8px">
+        🔁 <b>Forward-test loop</b> ${sp ? (sp.enabled?'<span class="up">ON · paper</span>':'<span class="dn">OFF</span>') : '—'}
+        · ${at.trades||0} closed${at.winRate!=null?' · '+at.winRate+'% win':''} · net <b class="${(at.netPnl||0)>=0?'up':'dn'}">${inr(at.netPnl||0)}</b>
+        · ${sp?(sp.open||[]).length:0} open${openTxt?'<br>'+openTxt:''}</div>`;
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 }
 

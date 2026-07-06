@@ -5795,6 +5795,59 @@ catch (_) { _signalTracker = signalHealth.newTracker({ window: 300, minSamples: 
 // seed the meta-calibrator from any persisted outcomes so calibration survives restarts
 try { for (const o of _signalTracker.outcomes) metaLabel.recordOutcome(_metaCalibrator, o.rawP, o.won); } catch (_) {}
 
+// ── Signal-engine PAPER executor (closes the loop: plan → paper position → calibration) ──
+const { SignalPaperEngine } = require('./signal-paper-engine');
+const _SIG_PAPER_PATH = _sigPath.join(__dirname, 'data', 'signal-paper-positions.json');
+const signalPaperEngine = new SignalPaperEngine({ enabled: String(process.env.SIGNAL_PAPER_ENABLED || 'true') !== 'false' });
+try { signalPaperEngine.load(JSON.parse(_sigFs.readFileSync(_SIG_PAPER_PATH, 'utf8'))); } catch (_) {}
+// apply persisted on/off from config-overrides if present
+try { if (_strangleCfg && typeof _strangleCfg.SIGNAL_PAPER_ENABLED === 'boolean') signalPaperEngine.enabled = _strangleCfg.SIGNAL_PAPER_ENABLED; } catch (_) {}
+function _persistSignalPaper() { try { _sigFs.writeFileSync(_SIG_PAPER_PATH, JSON.stringify(signalPaperEngine.toJSON(), null, 2)); } catch (_) {} }
+
+// One forward-test tick: open new defined-risk paper positions from the live plan,
+// mark open ones to market, close on target/stop/expiry, and feed realized outcomes
+// into signal-health + the meta-label calibrator. 100% PAPER.
+let _signalPaperBusy = false;
+async function signalPaperTick() {
+  if (_signalPaperBusy || !signalPaperEngine.enabled) return;
+  // Manage (mark/close) open positions any time; only OPEN new ones during market hours.
+  if (!getMarketSession().inMarketHours && !signalPaperEngine.positions.length) return;
+  const canOpen = getMarketSession().inMarketHours;
+  _signalPaperBusy = true;
+  const now = Date.now();
+  const quoteByInst = {}, dteByInst = {}, regimeByInst = {};
+  try {
+    for (const inst of (agentsEngine.instruments || ['NIFTY', 'SENSEX', 'BANKNIFTY'])) {
+      try {
+        const ctx = await _assembleSignalContext(inst);
+        quoteByInst[inst] = ctx.quote; dteByInst[inst] = ctx.dte; regimeByInst[inst] = ctx.regime.verdict;
+        if (canOpen && !signalPaperEngine.hasOpen(inst)) {
+          const metaScore = metaLabel.scoreConfluence(_metaInputFrom(ctx), _metaCalibrator);
+          const plan = tradePlanner.planTrade({
+            regime: ctx.regime.verdict, regimeScore: ctx.regime.score,
+            decision: ctx.master ? ctx.master.decision : 'HOLD', probability: metaScore.probabilityPct,
+            skew: ctx.gex && ctx.gex.ok ? ctx.gex.skew : 0, ivp: ctx.regime.components?.ivPercentile,
+            emPts: ctx.emPts, spot: ctx.spot, step: ctx.step, vix: ctx.vix,
+            capital: Number(process.env.SIGNAL_CAPITAL) || 700000, riskPct: 0.05, lotSize: ctx.lotSize, dte: ctx.dte,
+          });
+          const pos = signalPaperEngine.open(inst, plan, ctx.quote, { now, lotSize: ctx.lotSize, rawP: metaScore.rawProbability, probability: metaScore.probabilityPct });
+          if (pos) console.log(`[signal-paper] OPEN ${inst} ${pos.structure} [${pos.legs.map(l => l.strike + l.type).join('/')}] net ${pos.entryNet} × ${pos.lots} lot`);
+        }
+      } catch (e) { /* skip this inst this tick */ }
+    }
+    const closed = signalPaperEngine.step(i => quoteByInst[i], i => dteByInst[i], i => regimeByInst[i], now);
+    for (const o of closed) {
+      signalHealth.logOutcome(_signalTracker, { t: now, inst: o.inst, structure: o.structure, rawP: o.rawP, prob: o.prob, won: o.won, pnl: o.pnl });
+      metaLabel.recordOutcome(_metaCalibrator, o.rawP, o.won);
+      console.log(`[signal-paper] CLOSE ${o.inst} ${o.structure} ${o.reason} P&L ₹${o.pnl} (${o.won ? 'win' : 'loss'})`);
+    }
+    if (closed.length) signalHealth.saveState(_signalTracker, _sigFs, _SIG_HEALTH_PATH);
+    _persistSignalPaper();
+  } finally { _signalPaperBusy = false; }
+}
+setInterval(() => { signalPaperTick().catch(() => {}); }, Number(process.env.SIGNAL_PAPER_TICK_MS) || 90000);
+setTimeout(() => { signalPaperTick().catch(() => {}); }, 15000);   // first run shortly after boot
+
 // Assemble everything a trade plan needs for one instrument (single fetch pass).
 async function _assembleSignalContext(inst) {
   const meta = getInstrumentMeta(inst);
@@ -5828,7 +5881,9 @@ async function _assembleSignalContext(inst) {
   let master = null;
   try { master = await gatherMasterSignal(inst, { track: false }); } catch (_) {}
 
-  return { inst, spot, atm, step, lotSize, dte, regime, em, emPts, atmStraddle, gex, master, vix: vixVal };
+  // live leg-quote fn for the paper executor (falls back to 0 for strikes outside the fetched chain)
+  const quote = (strike, type) => { const r = rows.find(x => Number(x.strike) === Number(strike)); return r ? (type === 'CE' ? r.ceLtp : r.peLtp) : 0; };
+  return { inst, spot, atm, step, lotSize, dte, regime, em, emPts, atmStraddle, gex, master, vix: vixVal, quote };
 }
 
 // Build the meta-label input from an assembled context.
@@ -5910,6 +5965,16 @@ app.post('/api/signal-health/outcome', (req, res) => {
     signalHealth.saveState(_signalTracker, _sigFs, _SIG_HEALTH_PATH);
     res.json({ ok: true, logged: o, health: signalHealth.assessHealth(_signalTracker) });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Signal-engine PAPER executor — status + on/off (the forward-test loop)
+app.get('/api/signal-paper/status', (req, res) => res.json({ ok: true, ...signalPaperEngine.status(), generatedAt: new Date().toISOString() }));
+app.post('/api/signal-paper/enable', (req, res) => {
+  const enabled = !!(req.body || {}).enabled;
+  signalPaperEngine.enabled = enabled;
+  _persistEngineOverride({ SIGNAL_PAPER_ENABLED: enabled });
+  _persistSignalPaper();
+  res.json({ ok: true, enabled });
 });
 
 // 6th agent — Stock Analyst: ask about ANY stock → live quote + news + deal
