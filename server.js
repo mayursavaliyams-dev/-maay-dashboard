@@ -5795,6 +5795,19 @@ catch (_) { _signalTracker = signalHealth.newTracker({ window: 300, minSamples: 
 // seed the meta-calibrator from any persisted outcomes so calibration survives restarts
 try { for (const o of _signalTracker.outcomes) metaLabel.recordOutcome(_metaCalibrator, o.rawP, o.won); } catch (_) {}
 
+// ── Scheduled-Event Exclusion Filter (research #1: cut event/vol-spike tail risk) ──
+const eventRiskFilter = require('./event-risk-filter');
+const _EVENT_CAL_PATH = _sigPath.join(__dirname, 'data', 'event-calendar.json');
+let _eventCalendar = eventRiskFilter.loadCalendar(_sigFs, _EVENT_CAL_PATH);
+function _reloadEventCalendar() { _eventCalendar = eventRiskFilter.loadCalendar(_sigFs, _EVENT_CAL_PATH); return _eventCalendar; }
+// assess the current selling environment for an instrument from an assembled ctx
+function _eventFilterFor(ctx) {
+  return eventRiskFilter.assess({
+    dateISO: _istDateStr(), calendar: _eventCalendar,
+    vix: ctx.regime?.components?.ivImplied, eventRiskScore: ctx.regime?.components?.eventRisk,
+  });
+}
+
 // ── Signal-engine PAPER executor (closes the loop: plan → paper position → calibration) ──
 const { SignalPaperEngine } = require('./signal-paper-engine');
 const _SIG_PAPER_PATH = _sigPath.join(__dirname, 'data', 'signal-paper-positions.json');
@@ -5830,8 +5843,16 @@ async function signalPaperTick() {
             emPts: ctx.emPts, spot: ctx.spot, step: ctx.step, vix: ctx.vix,
             capital: Number(process.env.SIGNAL_CAPITAL) || 700000, riskPct: 0.05, lotSize: ctx.lotSize, dte: ctx.dte,
           });
-          const pos = signalPaperEngine.open(inst, plan, ctx.quote, { now, lotSize: ctx.lotSize, rawP: metaScore.rawProbability, probability: metaScore.probabilityPct });
-          if (pos) console.log(`[signal-paper] OPEN ${inst} ${pos.structure} [${pos.legs.map(l => l.strike + l.type).join('/')}] net ${pos.entryNet} × ${pos.lots} lot`);
+          // Event-risk exclusion (research #1) — gate SELLING near events / vol spikes.
+          const isCreditPlan = plan.structure === 'IRON_CONDOR' || String(plan.structure).startsWith('CREDIT');
+          const ef = _eventFilterFor(ctx);
+          if (isCreditPlan && ef.verdict === 'BLOCK') {
+            console.log(`[signal-paper] SKIP ${inst} ${plan.structure} — event filter BLOCK: ${ef.reason}`);
+          } else {
+            if (isCreditPlan && ef.sizeScale < 1 && plan.sizing) plan.sizing.lots = Math.max(1, Math.floor((plan.sizing.lots || 1) * ef.sizeScale));
+            const pos = signalPaperEngine.open(inst, plan, ctx.quote, { now, lotSize: ctx.lotSize, rawP: metaScore.rawProbability, probability: metaScore.probabilityPct });
+            if (pos) console.log(`[signal-paper] OPEN ${inst} ${pos.structure} [${pos.legs.map(l => l.strike + l.type).join('/')}] net ${pos.entryNet} × ${pos.lots} lot${ef.verdict === 'REDUCE' ? ' (event REDUCE ½)' : ''}`);
+          }
         }
       } catch (e) { /* skip this inst this tick */ }
     }
@@ -5944,6 +5965,7 @@ app.get('/api/trade-plan/:inst(nifty|sensex|banknifty)', async (req, res) => {
       direction: ctx.master ? { decision: ctx.master.decision, net: ctx.master.net, conviction: ctx.master.conviction } : null,
       gex: ctx.gex && ctx.gex.ok ? { regimeLabel: ctx.gex.regimeLabel, skew: ctx.gex.skew, callWall: ctx.gex.callWall, putWall: ctx.gex.putWall } : null,
       metaLabel: { probability: metaScore.probabilityPct, raw: metaScore.rawProbability, calibrationSamples: metaScore.calibrationSamples },
+      eventFilter: _eventFilterFor(ctx),
       expectedMove: ctx.em, plan,
     });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -5966,6 +5988,17 @@ app.post('/api/signal-health/outcome', (req, res) => {
     res.json({ ok: true, logged: o, health: signalHealth.assessHealth(_signalTracker) });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
+
+// Event-risk exclusion filter — per-instrument verdict + the loaded calendar
+app.get('/api/event-filter', async (req, res) => {
+  try {
+    const insts = agentsEngine.instruments || ['NIFTY', 'SENSEX', 'BANKNIFTY'];
+    const out = {};
+    for (const i of insts) { try { out[i] = _eventFilterFor(await _assembleSignalContext(i)); } catch (_) { out[i] = { verdict: 'n/a' }; } }
+    res.json({ ok: true, verdicts: out, calendar: _eventCalendar, calendarCount: _eventCalendar.length, generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+app.post('/api/event-filter/reload', (req, res) => { const c = _reloadEventCalendar(); res.json({ ok: true, calendarCount: c.length, calendar: c }); });
 
 // Signal-engine PAPER executor — status + on/off (the forward-test loop)
 app.get('/api/signal-paper/status', (req, res) => res.json({ ok: true, ...signalPaperEngine.status(), generatedAt: new Date().toISOString() }));

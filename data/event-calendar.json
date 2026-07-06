@@ -1,0 +1,8 @@
+{
+  "_readme": "Scheduled high-impact events for the event-risk filter (event-risk-filter.js). Fill in REAL dates as you learn them. The filter BLOCKS new premium selling within 1 day of a HIGH event and REDUCES to half size within 3 days; MEDIUM events only REDUCE within 3 days. Even with an empty list, the filter still blocks/reduces on live India VIX spikes and the news event-risk score. Types: RBI_MPC, UNION_BUDGET, ELECTION, FED_FOMC, CPI, GDP, EARNINGS, RESULTS. severity: HIGH | MEDIUM | LOW.",
+  "_example": [
+    { "date": "2026-08-06", "type": "RBI_MPC", "severity": "HIGH" },
+    { "date": "2026-08-12", "type": "CPI", "severity": "MEDIUM" }
+  ],
+  "events": []
+}
