@@ -260,13 +260,17 @@ function miniCandle(bar){
   const bt=y(Math.max(o,c)), bb=y(Math.min(o,c)); const bh=Math.max(2.5, bb-bt);
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="${cx}" y1="${y(h).toFixed(1)}" x2="${cx}" y2="${y(l).toFixed(1)}" stroke="${col}" stroke-width="1.6"/><rect x="${cx-7}" y="${bt.toFixed(1)}" width="14" height="${bh.toFixed(1)}" rx="1.6" fill="${col}"/></svg>`;
 }
-function legHtml(leg){
+function openStrikeRec(inst, strike){
+  if(!strike) return;
+  window.open(`/strike-history.html?inst=${encodeURIComponent(inst||'NIFTY')}&strike=${encodeURIComponent(strike)}`, 'hlrec', 'width=1040,height=780');
+}
+function legHtml(leg, inst){
   if(!leg) return `<div class="leg empty">no clean directional buy</div>`;
   const klass = leg.action==='BUY'?'buy':'sell';
   const isCredit = leg.action==='SELL';
   const pair = leg.pair ? `<div class="kv"><span>+ ${leg.pair.action} ${leg.pair.strike} ${leg.pair.type}</span><b>${money(leg.pair.ltp)}</b></div>` : '';
-  return `<div class="leg ${klass}">
-    <div class="lh"><span class="act">${leg.action}</span><span><span class="strike">${leg.strike}</span> <span class="opt">${leg.type}</span></span></div>
+  return `<div class="leg ${klass}" style="cursor:pointer" onclick="openStrikeRec('${inst||''}',${leg.strike})" title="click → ${leg.strike} high/low record">
+    <div class="lh"><span class="act">${leg.action}</span><span><span class="strike">${leg.strike}</span> <span class="opt">${leg.type}</span> 🔍</span></div>
     <div class="kv"><span>LTP</span><b>${money(leg.ltp)}</b></div>
     <div class="kv"><span>${isCredit?'Credit':'Cost'} ×${leg.lot}</span><b>${money(leg.value)}</b></div>
     ${pair}
@@ -316,8 +320,8 @@ function renderCards(signals){
         <div class="v-conf ${k}"><div class="bar"><i style="width:${b.confidence}%"></i></div><div class="lab">${b.confidence}% confidence · ${b.agreeN||0}/4 agree · ${s.tfLabel} reliability ${Math.round((b.tfRel||1)*100)}%</div></div>
       </div>
       <div class="legs">
-        ${legHtml(s.reco && s.reco.buy)}
-        ${legHtml(s.reco && s.reco.sell)}
+        ${legHtml(s.reco && s.reco.buy, s.inst)}
+        ${legHtml(s.reco && s.reco.sell, s.inst)}
       </div>
       <div class="facts">${factChips(s)}</div>
       ${s.reco && s.reco.idea ? `<div class="idea">${s.reco.idea}</div>` : ''}

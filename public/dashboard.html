@@ -923,17 +923,21 @@ function recModalSide(leg, strike, type){
   </div>`;
 }
 function closeRecModal(){ document.getElementById('recModal').classList.remove('show'); }
-async function openRecModal(){
+async function openRecModal(inst, strike){
+  const useInst = inst || STK_INST, useStrike = strike || STK_STRIKE;
+  if (!useStrike) return;
   const m=document.getElementById('recModal'); m.classList.add('show');
-  document.getElementById('recModalTtl').textContent = `${STK_INST} ${STK_STRIKE} — full High/Low record`;
+  document.getElementById('recModalTtl').textContent = `${useInst} ${useStrike} — full High/Low record`;
   document.getElementById('recModalSub').textContent = 'loading…';
   document.getElementById('recModalBody').innerHTML = '<div class="flat" style="font-size:.75rem;padding:30px;text-align:center">loading…</div>';
   try{
-    const j = await (await fetch(`${API}/api/option-strike-history?inst=${STK_INST}&strike=${STK_STRIKE}&type=CE`,{cache:'no-store'})).json();
+    const j = await (await fetch(`${API}/api/option-strike-history?inst=${useInst}&strike=${useStrike}&type=CE`,{cache:'no-store'})).json();
     document.getElementById('recModalSub').textContent = `spot ${j.spot?Math.round(j.spot):'—'} · dte ${j.dte??'—'}${j.isATM?' · ATM':''} · ${j.marketStatus||''}`;
-    document.getElementById('recModalBody').innerHTML = `<div class="stkcols">${recModalSide(j.ce,STK_STRIKE,'CE')}${recModalSide(j.pe,STK_STRIKE,'PE')}</div>`;
+    document.getElementById('recModalBody').innerHTML = `<div class="stkcols">${recModalSide(j.ce,useStrike,'CE')}${recModalSide(j.pe,useStrike,'PE')}</div>`;
   }catch(e){ document.getElementById('recModalBody').innerHTML='<div class="flat" style="font-size:.75rem;padding:30px;text-align:center">unavailable</div>'; }
 }
+// click a strike anywhere → link it everywhere + pop the high/low record box
+function strikeClick(inst, strike){ if (inst && inst!==LINK.inst) linkInst(inst); linkStrike(strike); openRecModal(inst||LINK.inst, strike); }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeRecModal(); });
 
 async function loadStrikeTimeline(){
@@ -1056,7 +1060,7 @@ function renderWatchlist(){
     if (lowN>0) MQ_PREV_LOW[key] = lowN;
     if (highN>0) MQ_PREV_HIGH[key] = highN;
     const lowCls = newLower ? 'newlow' : (atLow ? 'hit' : '');
-    return `<tr class="clk ${r.type==='CE'?'ce':'pe'}${sel}" onclick="linkStrike(${r.strike})" title="click → link strike ${r.strike}">
+    return `<tr class="clk ${r.type==='CE'?'ce':'pe'}${sel}" onclick="strikeClick('${MQ_INST}',${r.strike})" title="click → strike ${r.strike} high/low record">
       <td class="lbl">${r.label||(r.strike+' '+r.type)}</td>
       <td class="ltp">${fmt(r.ltp)}<span class="lowtag ${lowCls}" title="day low${newLower?' · NEW LOW':atLow?' · at low':''}">L ${fmt(r.low)}</span></td>
       <td>₹${big(perLot)}</td>
@@ -1066,7 +1070,7 @@ function renderWatchlist(){
       <td>${fmt(r.bid)}</td><td>${fmt(r.ask)}</td><td>${big(r.volume)}</td><td>${big(r.oi)}</td>
       <td>${fmt(r.prevClose)}</td><td>${fmt(r.ucl)}</td><td>${fmt(r.lcl)}</td>
       <td>${fmt(r.wkHigh)}</td><td>${fmt(r.wkLow)}</td><td>${fmt(r.avgPrice)}</td>
-      <td><button class="buybtn ${r.type==='CE'?'ce':'pe'}" onclick="mqBuy('${MQ_INST}',${r.strike},'${r.type}',${parseFloat(r.ltp)||0})">BUY ${r.type}</button></td>
+      <td><button class="buybtn ${r.type==='CE'?'ce':'pe'}" onclick="event.stopPropagation(); mqBuy('${MQ_INST}',${r.strike},'${r.type}',${parseFloat(r.ltp)||0})">BUY ${r.type}</button></td>
     </tr>`;
   }).join('');
   renderHLRecord();
@@ -1107,7 +1111,7 @@ async function loadChain() {
     document.getElementById('chBody').innerHTML = rows.map(r => {
       const ce = r.ce||{}, pe = r.pe||{};
       const sel = Number(r.strike)===Number(LINK.strike) ? ' selstrike' : '';
-      return `<tr class="clk${r.isATM?' atm':''}${sel}" onclick="linkStrike(${r.strike})" title="click → link strike ${r.strike}">
+      return `<tr class="clk${r.isATM?' atm':''}${sel}" onclick="strikeClick('${CH_INST}',${r.strike})" title="click → strike ${r.strike} high/low record">
         <td>${doi(ce.changeOI)}</td><td class="ce">${fmt(ce.oi,0)}</td><td class="ce ltp">${fmt(ce.ltp)}</td><td class="hl" style="font-size:.58rem">${hl(ce)}</td>
         <td class="strike">${fmt(r.strike,0)}</td>
         <td class="hl" style="font-size:.58rem">${hl(pe)}</td><td class="pe ltp">${fmt(pe.ltp)}</td><td class="pe">${fmt(pe.oi,0)}</td><td>${doi(pe.changeOI)}</td>
