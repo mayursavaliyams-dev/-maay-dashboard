@@ -103,6 +103,7 @@
   .linkbar{ position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:linear-gradient(180deg,var(--panel),var(--bg2)); border:1px solid var(--line2); border-radius:13px; padding:10px 14px; margin:2px 0 16px; box-shadow:0 6px 20px rgba(0,0,0,.35); }
   .linkbar .lb{ font-size:0.66rem; font-weight:900; color:#cfe0ff; letter-spacing:.3px; }
   .linkbar .lstrike{ background:var(--bg2); border:1px solid var(--line2); color:#fff; font-size:0.68rem; font-weight:900; padding:5px 12px; border-radius:8px; cursor:pointer; font-family:ui-monospace,Menlo,monospace; }
+  .moneychip{ font-size:0.6rem; font-weight:900; letter-spacing:.3px; padding:4px 10px; border-radius:999px; background:rgba(255,194,75,.14); color:var(--amber); }
   .linkbar .lpx{ margin-left:auto; display:flex; gap:14px; align-items:baseline; font-family:ui-monospace,Menlo,monospace; }
   .linkbar .lpx .u{ font-size:0.9rem; font-weight:900; } .linkbar .lpx .u small{ font-size:0.5rem; color:var(--mut); font-weight:700; }
   .linkbar .lpx .ce{ color:#8fdcc0; font-weight:900; font-size:0.72rem; } .linkbar .lpx .pe{ color:#f5a9b6; font-weight:900; font-size:0.72rem; }
@@ -370,6 +371,7 @@
       <button class="isbtn" onclick="linkInst('BANKNIFTY')">BANKNIFTY</button>
     </div>
     <select class="lstrike" id="linkStrike" onchange="linkStrike(+this.value)"></select>
+    <span class="moneychip" id="linkMoney" title="strike distance from ATM — kept the same when you switch index">ATM</span>
     <div class="lpx" id="linkPx"><span class="u">—</span></div>
   </div>
 
@@ -546,7 +548,7 @@
           <button class="isbtn" onclick="setStkInst('SENSEX')">SENSEX</button>
           <button class="isbtn" onclick="setStkInst('BANKNIFTY')">BANKNIFTY</button>
         </div>
-        <select class="stksel" id="stkStrike" onchange="STK_STRIKE=+this.value; loadStrikeTimeline()"></select>
+        <select class="stksel" id="stkStrike" onchange="linkStrike(+this.value)"></select>
         <button class="fullrecbtn" onclick="openRecModal()">📋 Full high/low record</button>
         <span class="indsig" id="stkMeta" style="margin-left:auto">—</span>
       </div>
@@ -630,7 +632,10 @@
 <script>
 const API = '';
 // ── Linked selection: one instrument + strike drives every panel ──
-const LINK = { inst: 'NIFTY', strike: 0 };
+// offset = strike distance from ATM in steps (moneyness). Preserved across instruments
+// so the SAME index-relative strike (e.g. ATM+2) stays selected when you switch NIFTY↔SENSEX↔BANKNIFTY.
+const LINK = { inst: 'NIFTY', strike: 0, offset: 0, atm: 0, step: 50 };
+function moneynessLabel(off){ return off===0?'ATM':`ATM${off>0?'+':''}${off}`; }
 function syncInstButtons(i){
   ['linkSel','indSel','chSel','mqSel','posSel','stkSel'].forEach(id=>{
     const el = document.getElementById(id); if (!el) return;
@@ -638,7 +643,7 @@ function syncInstButtons(i){
   });
 }
 function linkInst(i){
-  LINK.inst = i; LINK.strike = 0;
+  LINK.inst = i; LINK.strike = 0;      // keep LINK.offset — new inst re-selects the same ATM±N strike
   IND_INST = CH_INST = MQ_INST = POS_INST = STK_INST = i; STK_STRIKE = 0;
   syncInstButtons(i);
   if (typeof loadIndicators==='function') loadIndicators();
@@ -649,7 +654,9 @@ function linkInst(i){
 }
 function linkStrike(s){
   s = +s; if (!s) return; LINK.strike = s; STK_STRIKE = s;
+  if (LINK.atm && LINK.step) LINK.offset = Math.round((s - LINK.atm) / LINK.step);  // remember moneyness (ATM±N)
   ['stkStrike','linkStrike'].forEach(id=>{ const el=document.getElementById(id); if (el) el.value = s; });
+  const mm = document.getElementById('linkMoney'); if (mm) mm.textContent = moneynessLabel(LINK.offset);
   if (typeof loadStrikeTimeline==='function') loadStrikeTimeline();
   if (typeof loadChain==='function') loadChain();          // re-highlight the selected strike
 }
@@ -861,8 +868,20 @@ async function loadStrikeList(){
   try {
     const j = await (await fetch(`${API}/api/option-chain-full?inst=${STK_INST}&depth=8`, { cache:'no-store' })).json();
     const atm = Number(j.atm)||0; const strikes = (j.rows||[]).map(r=>Number(r.strike)).filter(Boolean).sort((a,b)=>a-b);
-    if (!STK_STRIKE) STK_STRIKE = atm || strikes[Math.floor(strikes.length/2)] || 0;
+    // step = smallest gap between adjacent strikes (falls back to interval)
+    let step = Number(j.interval)||0;
+    if (!step && strikes.length>1) step = Math.min(...strikes.slice(1).map((s,i)=>s-strikes[i]));
+    step = step || 50;
+    LINK.atm = atm; LINK.step = step;
+    if (!STK_STRIKE) {
+      // apply the preserved moneyness offset → same ATM±N strike on this instrument
+      let target = atm + (LINK.offset||0)*step;
+      if (strikes.length) target = strikes.reduce((best,s)=>Math.abs(s-target)<Math.abs(best-target)?s:best, strikes[0]);
+      STK_STRIKE = target || atm || strikes[Math.floor(strikes.length/2)] || 0;
+    }
     LINK.strike = STK_STRIKE;
+    if (atm && step) LINK.offset = Math.round((STK_STRIKE - atm)/step);
+    const mm = document.getElementById('linkMoney'); if (mm) mm.textContent = moneynessLabel(LINK.offset);
     const opts = strikes.map(s=>`<option value="${s}" ${s===STK_STRIKE?'selected':''}>${s}${s===atm?' (ATM)':''}</option>`).join('');
     ['stkStrike','linkStrike'].forEach(id=>{ const el=document.getElementById(id); if (el) el.innerHTML = opts; });
     loadStrikeTimeline();
