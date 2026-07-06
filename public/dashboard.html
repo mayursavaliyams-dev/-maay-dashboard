@@ -136,6 +136,29 @@
   .oibadge.uw{ background:rgba(120,132,150,.12); color:#9aa7ba; border:1px solid var(--line2); }
   .oilbl{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px; }
 
+  /* strike price timeline */
+  .stkctl{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .stksel{ background:var(--bg2); border:1px solid var(--line2); color:#cfe0ff; font-size:0.62rem; font-weight:800; padding:5px 10px; border-radius:8px; cursor:pointer; }
+  .stkcols{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:760px){ .stkcols{ grid-template-columns:1fr; } }
+  .stkside{ border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .stkside .hd{ padding:9px 12px; border-bottom:1px solid var(--line); display:flex; gap:14px; align-items:baseline; }
+  .stkside.ce .hd{ background:rgba(38,208,160,.06); } .stkside.pe .hd{ background:rgba(255,84,112,.06); }
+  .stkside .hd .nm{ font-size:0.7rem; font-weight:900; }
+  .stkside.ce .hd .nm{ color:#8fdcc0; } .stkside.pe .hd .nm{ color:#f5a9b6; }
+  .stkside .hd .ba{ font-family:ui-monospace,Menlo,monospace; font-size:0.66rem; font-weight:800; }
+  .stkside .hd .mini{ font-size:0.5rem; color:var(--mut); }
+  .stklive{ padding:9px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+  .stklive .p{ font-size:0.95rem; font-weight:900; } .stklive .t{ font-size:0.54rem; color:var(--mut); }
+  .stkrec{ padding:8px 12px; }
+  .stkrec .lbl{ font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+  .stkrec.lo .lbl{ color:var(--blue); } .stkrec.hi .lbl{ color:var(--amber); }
+  .stkscroll{ max-height:190px; overflow-y:auto; }
+  .rec{ display:grid; grid-template-columns:auto 1fr auto auto; gap:8px; align-items:center; font-family:ui-monospace,Menlo,monospace; font-size:0.6rem; padding:4px 6px; border-bottom:1px solid #0e1622; }
+  .rec .ar{ font-size:0.5rem; } .rec.lo .ar{ color:var(--blue); } .rec.hi .ar{ color:var(--amber); }
+  .rec .pr{ font-weight:800; } .rec .dl{ font-weight:800; } .rec .dl.up{ color:var(--up); } .rec .dl.dn{ color:var(--dn); } .rec .dl.z{ color:var(--mut); }
+  .rec .tm{ color:var(--mut); }
+
   /* high/low levels panel */
   .hlrow{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
   @media(max-width:820px){ .hlrow{ grid-template-columns:1fr; } }
@@ -422,6 +445,25 @@
     </div>
   </div>
 
+  <div class="sec-h">Strike price timeline <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">CE/PE live price · high &amp; low record timeline</small></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="stkctl">
+        <div class="instsel" id="stkSel">
+          <button class="isbtn on" onclick="setStkInst('NIFTY')">NIFTY</button>
+          <button class="isbtn" onclick="setStkInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setStkInst('BANKNIFTY')">BANKNIFTY</button>
+        </div>
+        <select class="stksel" id="stkStrike" onchange="STK_STRIKE=+this.value; loadStrikeTimeline()"></select>
+        <span class="indsig" id="stkMeta" style="margin-left:auto">—</span>
+      </div>
+      <div class="stkcols">
+        <div class="stkside ce" id="stkCE"><div class="stkrec"><div class="flat" style="font-size:.72rem">loading…</div></div></div>
+        <div class="stkside pe" id="stkPE"><div class="stkrec"><div class="flat" style="font-size:.72rem">loading…</div></div></div>
+      </div>
+    </div>
+  </div>
+
   <div class="sec-h">Trade plan & engine health <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">signal-engine · defined-risk only</small></div>
   <div class="grid2">
     <div class="card">
@@ -628,6 +670,53 @@ async function loadSignalEngine() {
       </div>
       <div class="hreason">${(h.reasons||[]).join(' · ') || h.advice || 'gathering forward-test outcomes'}</div>`;
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
+}
+
+// ── Strike price timeline (CE/PE live price + high/low record timeline) ──
+let STK_INST = 'NIFTY', STK_STRIKE = 0, STK_STEP = 50;
+function setStkInst(i){ STK_INST = i; STK_STRIKE = 0; document.querySelectorAll('#stkSel .isbtn').forEach(b=>b.classList.toggle('on',b.textContent===i)); loadStrikeList(); }
+async function loadStrikeList(){
+  try {
+    const j = await (await fetch(`${API}/api/option-chain-full?inst=${STK_INST}&depth=8`, { cache:'no-store' })).json();
+    const atm = Number(j.atm)||0; const strikes = (j.rows||[]).map(r=>Number(r.strike)).filter(Boolean).sort((a,b)=>a-b);
+    if (!STK_STRIKE) STK_STRIKE = atm || strikes[Math.floor(strikes.length/2)] || 0;
+    const sel = document.getElementById('stkStrike');
+    sel.innerHTML = strikes.map(s=>`<option value="${s}" ${s===STK_STRIKE?'selected':''}>${s}${s===atm?' (ATM)':''}</option>`).join('');
+    loadStrikeTimeline();
+  } catch(_){ document.getElementById('stkCE').innerHTML = '<div class="stkrec"><div class="flat" style="font-size:.72rem">no chain feed for '+STK_INST+'</div></div>'; document.getElementById('stkPE').innerHTML=''; }
+}
+function renderStrikeSide(el, leg, strike, type){
+  const fmt = (v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
+  if (!leg){ el.innerHTML = `<div class="stkrec"><div class="flat" style="font-size:.72rem">no data</div></div>`; return; }
+  // build a record list with delta vs the PREVIOUS record (oldest→newest), then show newest first
+  const recRows = (hist, cls, arrow) => {
+    const arr = (hist||[]).slice();
+    const withDelta = arr.map((r,i)=>({ ...r, delta: i>0 ? +(r.price - arr[i-1].price).toFixed(2) : null }));
+    return withDelta.slice().reverse().map(r=>{
+      const dc = r.delta==null?'z':r.delta>0?'up':r.delta<0?'dn':'z';
+      const ds = r.delta==null?'':(r.delta>0?'+':'')+r.delta;
+      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span><span class="tm">${r.time}</span></div>`;
+    }).join('') || '<div class="rec"><span></span><span class="tm">no records yet</span><span></span><span></span></div>';
+  };
+  el.innerHTML = `
+    <div class="hd">
+      <span class="nm">${strike} ${type}</span>
+      <span><span class="ba">${fmt(leg.bid)} / ${fmt(leg.ask)}</span><br><span class="mini">BID / ASK</span></span>
+      <span><span class="ba">${leg.iv!=null?fmt(leg.iv,2)+'%':'--'}</span><br><span class="mini">IV</span></span>
+      <span style="margin-left:auto"><span class="ba">${leg.changeOI!=null?(leg.changeOI>0?'+':'')+Math.round(leg.changeOI).toLocaleString('en-IN'):'--'}</span><br><span class="mini">CHANGE OI</span></span>
+    </div>
+    <div class="stklive"><span class="p">₹${fmt(leg.ltp)}</span><span class="t">LTP · H ${fmt(leg.high)} / L ${fmt(leg.low)}</span></div>
+    <div class="stkrec hi"><div class="lbl">▲ High record timeline</div><div class="stkscroll">${recRows(leg.highHistory,'hi','▲')}</div></div>
+    <div class="stkrec lo"><div class="lbl">▼ Low record timeline</div><div class="stkscroll">${recRows(leg.lowHistory,'lo','▼')}</div></div>`;
+}
+async function loadStrikeTimeline(){
+  if (!STK_STRIKE) return;
+  try {
+    const j = await (await fetch(`${API}/api/option-strike-history?inst=${STK_INST}&strike=${STK_STRIKE}&type=CE`, { cache:'no-store' })).json();
+    document.getElementById('stkMeta').textContent = `${STK_INST} ${STK_STRIKE}${j.isATM?' · ATM':''} · spot ${j.spot?Math.round(j.spot):'—'} · ${j.marketStatus||''}`;
+    renderStrikeSide(document.getElementById('stkCE'), j.ce, STK_STRIKE, 'CE');
+    renderStrikeSide(document.getElementById('stkPE'), j.pe, STK_STRIKE, 'PE');
+  } catch(_){ document.getElementById('stkMeta').textContent = 'unavailable'; }
 }
 
 // ── Live signals & positioning (signal orb · max-pain/PCR · trend tactics · OI buildup) ──
@@ -899,11 +988,12 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning(); loadStrikeList();
 setInterval(loadHL, 4000);
 setInterval(loadChain, 5000);
 setInterval(loadWatchlist, 6000);
 setInterval(loadPositioning, 6000);
+setInterval(loadStrikeTimeline, 5000);
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);
