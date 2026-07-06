@@ -123,6 +123,23 @@
   .hmet .m .v{ font-size:1.05rem; font-weight:900; margin-top:3px; }
   .hreason{ font-size:0.56rem; color:var(--dim2); margin-top:11px; line-height:1.55; }
 
+  /* gamma-blast */
+  .gbwrap{ display:grid; grid-template-columns:1.3fr 1fr; gap:16px; }
+  @media(max-width:820px){ .gbwrap{ grid-template-columns:1fr; } }
+  .gbdet{ padding:9px 0; border-bottom:1px solid #101a28; }
+  .gbdet:last-child{ border-bottom:0; }
+  .gbdet .r1{ display:flex; align-items:center; gap:9px; }
+  .gbdet .in{ font-size:0.74rem; font-weight:900; width:86px; }
+  .wstate{ font-size:0.55rem; font-weight:900; letter-spacing:.3px; padding:3px 8px; border-radius:999px; }
+  .wstate.active{ background:rgba(38,208,160,.14); color:var(--up); }
+  .wstate.armed{ background:rgba(255,194,75,.14); color:var(--amber); }
+  .wstate.closed,.wstate.idle{ background:rgba(120,132,150,.13); color:#9aa7ba; }
+  .gbdet .sc{ margin-left:auto; font-size:0.6rem; color:var(--mut); }
+  .gbdet .meta{ font-size:0.54rem; color:var(--dim2); margin-top:3px; }
+  .gbcfg{ display:flex; flex-wrap:wrap; gap:6px; }
+  .cfgpill{ font-size:0.54rem; font-weight:800; color:#b7c4d6; background:var(--bg2); border:1px solid var(--line); border-radius:8px; padding:5px 9px; }
+  .cfgpill b{ color:#fff; }
+
   /* engines / agents */
   .row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #101a28; font-size:0.72rem; }
   .row:last-child{ border-bottom:0; }
@@ -193,6 +210,19 @@
     </div>
   </div>
 
+  <div class="sec-h">⚡ Gamma-Blast <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">expiry-day option BUYING · the only buy strategy with a rationale · paper</small></div>
+  <div class="card">
+    <div class="card-h">⚡ Gamma-Blast Engine <small id="gbState">—</small></div>
+    <div class="card-b gbwrap">
+      <div id="gbDetect"><div class="flat" style="font-size:.72rem">loading…</div></div>
+      <div>
+        <div style="font-size:.56rem;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Params &amp; today</div>
+        <div class="gbcfg" id="gbCfg"></div>
+        <div class="hmet" id="gbToday" style="margin-top:11px"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="grid2" style="margin-top:14px">
     <div class="card">
       <div class="card-h">⚙️ Execution Pipeline <small>6-agent · live stage</small></div>
@@ -205,7 +235,7 @@
     </div>
   </div>
 
-  <div class="sec-h">Quick access</div>
+  <div class="sec-h">Quick access <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">every feature</small></div>
   <div class="links">
     <a class="lk" href="/chart.html"><span class="e">📈</span>Chart<div class="d">TradingView · indicators · backtest</div></a>
     <a class="lk" href="/charts4.html"><span class="e">▦</span>4 Charts<div class="d">multi-timeframe grid</div></a>
@@ -213,6 +243,16 @@
     <a class="lk" href="/quant.html"><span class="e">⚡</span>Quant Center<div class="d">live P&L · swarm</div></a>
     <a class="lk" href="/payoff.html"><span class="e">📐</span>Payoff<div class="d">multi-leg · Greeks · PoP</div></a>
     <a class="lk" href="/signals4.html"><span class="e">✅</span>4 Engines<div class="d">confirmed signals</div></a>
+    <a class="lk" href="/pattern-signals.html"><span class="e">🕯️</span>Patterns<div class="d">candlestick × OI × trend</div></a>
+    <a class="lk" href="/oi.html"><span class="e">🧱</span>OI Analysis<div class="d">open-interest walls · PCR</div></a>
+    <a class="lk" href="/strategy.html"><span class="e">🧪</span>Strategy<div class="d">Pine-style backtester</div></a>
+    <a class="lk" href="/pop.html"><span class="e">🎲</span>PoP<div class="d">probability of profit</div></a>
+    <a class="lk" href="/signal-heatmap.html"><span class="e">🔥</span>Signal Heatmap<div class="d">strike-wise heat</div></a>
+    <a class="lk" href="/heatmap.html"><span class="e">🗺️</span>Heatmap<div class="d">market heat grid</div></a>
+    <a class="lk" href="/strike-history.html"><span class="e">🕘</span>Strike History<div class="d">option premium candles</div></a>
+    <a class="lk" href="/trade.html"><span class="e">🎛️</span>Trade Desk<div class="d">manual paper desk</div></a>
+    <a class="lk" href="/ami-heatmap.html"><span class="e">📊</span>Ami Heatmap<div class="d">AmiBroker signals</div></a>
+    <a class="lk" href="/login.html"><span class="e">🔐</span>Login<div class="d">JWT/RBAC (opt-in auth)</div></a>
   </div>
 
   <div class="note" id="note">Paper / educational — not investment advice. Restart-safe: this command center reads the aggregate paper feeds and guards against a stale server.</div>
@@ -366,6 +406,36 @@ async function loadSignalEngine() {
   } catch (_) { document.getElementById('healthBox').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
 }
 
+async function loadGammaBlast() {
+  try {
+    const g = await (await fetch(`${API}/api/gamma-blast/status`, { cache: 'no-store' })).json();
+    document.getElementById('gbState').innerHTML = g.enabled
+      ? '<span style="color:var(--up);font-weight:900">● ON · paper</span>'
+      : '<span style="color:#4c586b;font-weight:900">○ OFF</span>';
+    const det = g.detect || {};
+    document.getElementById('gbDetect').innerHTML = Object.keys(det).length ? Object.keys(det).map(k => {
+      const x = det[k]; const ws = (x.windowState || 'idle').toLowerCase();
+      const wcls = ws==='active'?'active': ws==='armed'?'armed':'closed';
+      return `<div class="gbdet">
+        <div class="r1"><span class="in">${k}</span>
+          <span class="wstate ${wcls}">${(x.windowState||'idle').toUpperCase()}</span>
+          <span class="sc">score ${x.score ?? '—'}${x.signal?' · '+x.signal:''}</span></div>
+        <div class="meta">expiry ${x.expiry||'—'}${x.isExpiryToday?' · TODAY':''}${x.minsLeft!=null?' · '+x.minsLeft+'m left':''}${x.reason?' · '+x.reason:''}</div>
+      </div>`;
+    }).join('') : '<div class="flat" style="font-size:.72rem">no detection windows (non-expiry)</div>';
+    const c = g.config || {};
+    document.getElementById('gbCfg').innerHTML = [
+      ['TP', c.tpPct+'%'], ['SL', c.slPct+'%'], ['Trail@', c.trailAtPct+'%'], ['Giveback', c.trailGiveback+'%'],
+      ['Qty', c.qty], ['Sq-off', c.squareOff], ['Max/day', c.maxTradesPerDay],
+    ].map(([l,v]) => `<span class="cfgpill">${l} <b>${v ?? '—'}</b></span>`).join('');
+    const t = g.today || {};
+    document.getElementById('gbToday').innerHTML = `
+      <div class="m"><div class="l">Trades</div><div class="v">${t.trades ?? 0}</div></div>
+      <div class="m"><div class="l">Win rate</div><div class="v">${t.trades?Math.round(t.winRate)+'%':'—'}</div></div>
+      <div class="m"><div class="l">Net P&L</div><div class="v ${(t.netPnl||0)>=0?'up':'dn'}">${inr(t.netPnl||0)}</div></div>`;
+  } catch (_) { document.getElementById('gbDetect').innerHTML = '<div class="flat" style="font-size:.72rem">unavailable</div>'; }
+}
+
 async function loadBot() {
   try { const b = await (await fetch('/api/bot/status', { cache: 'no-store' })).json();
     document.getElementById('botDot').className = 'dot ' + (b.running ? 'live' : 'off');
@@ -374,11 +444,12 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast();
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);
 setInterval(loadSignalEngine, 15000);   // heavier full-pass — refresh slower
+setInterval(loadGammaBlast, 8000);
 
 // bootId auto-reload on server restart
 (function () { let bid = null;
