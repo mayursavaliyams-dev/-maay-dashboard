@@ -163,6 +163,17 @@
   .oibadge.uw{ background:rgba(120,132,150,.12); color:#9aa7ba; border:1px solid var(--line2); }
   .oilbl{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px; }
 
+  /* modal — full high/low record */
+  .modal-ov{ position:fixed; inset:0; background:rgba(3,7,14,.72); backdrop-filter:blur(3px); z-index:100; display:none; align-items:flex-start; justify-content:center; padding:36px 16px; overflow-y:auto; }
+  .modal-ov.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--line2); border-radius:16px; max-width:920px; width:100%; box-shadow:0 24px 70px rgba(0,0,0,.6); }
+  .modal-h{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .modal-h .ttl{ font-size:0.88rem; font-weight:900; }
+  .modal-h .sub{ font-size:0.56rem; color:var(--mut); }
+  .modal-x{ margin-left:auto; cursor:pointer; font-size:0.95rem; color:var(--mut); background:none; border:1px solid var(--line2); border-radius:8px; width:28px; height:28px; }
+  .modal-x:hover{ color:#fff; border-color:var(--dn); }
+  .modal-b{ padding:16px 18px; }
+
   /* strike price timeline */
   .stkctl{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
   .stksel{ background:var(--bg2); border:1px solid var(--line2); color:#cfe0ff; font-size:0.62rem; font-weight:800; padding:5px 10px; border-radius:8px; cursor:pointer; }
@@ -603,6 +614,16 @@
   <div class="note" id="note">Paper / educational — not investment advice. Restart-safe: this command center reads the aggregate paper feeds and guards against a stale server.</div>
 </div>
 
+<div class="modal-ov" id="recModal" onclick="if(event.target===this)closeRecModal()">
+  <div class="modal">
+    <div class="modal-h">
+      <div><div class="ttl" id="recModalTtl">—</div><div class="sub" id="recModalSub">—</div></div>
+      <button class="modal-x" onclick="closeRecModal()" title="close (Esc)">✕</button>
+    </div>
+    <div class="modal-b" id="recModalBody"></div>
+  </div>
+</div>
+
 <script>
 const API = '';
 // ── Linked selection: one instrument + strike drives every panel ──
@@ -859,7 +880,7 @@ function renderStrikeSide(el, leg, strike, type){
   };
   el.innerHTML = `
     <div class="hd">
-      <span class="nm">${strike} ${type}</span>
+      <span class="nm" style="cursor:pointer" onclick="openRecModal()" title="click → full high/low record">${strike} ${type} 🔍</span>
       <span><span class="ba">${fmt(leg.bid)} / ${fmt(leg.ask)}</span><br><span class="mini">BID / ASK</span></span>
       <span><span class="ba">${leg.iv!=null?fmt(leg.iv,2)+'%':'--'}</span><br><span class="mini">IV</span></span>
       <span style="margin-left:auto"><span class="ba">${leg.changeOI!=null?(leg.changeOI>0?'+':'')+Math.round(leg.changeOI).toLocaleString('en-IN'):'--'}</span><br><span class="mini">CHANGE OI</span></span>
@@ -880,6 +901,38 @@ function renderStrikeSide(el, leg, strike, type){
     <div class="stkrec hi"><div class="lbl">▲ High record timeline</div><div class="stkscroll">${recRows(leg.highHistory,'hi','▲')}</div></div>
     <div class="stkrec lo"><div class="lbl">▼ Low record timeline</div><div class="stkscroll">${recRows(leg.lowHistory,'lo','▼')}</div></div>`;
 }
+// Full high/low record modal for the selected strike (CE + PE, all records)
+function recModalSide(leg, strike, type){
+  const fmt=(v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
+  if(!leg) return `<div class="stkside ${type==='CE'?'ce':'pe'}"><div class="stkrec"><div class="flat" style="font-size:.72rem">no data</div></div></div>`;
+  const rows=(hist,cls,arrow)=>{
+    const arr=(hist||[]).slice();
+    const wd=arr.map((r,i)=>({...r,delta:i>0?+(r.price-arr[i-1].price).toFixed(2):null}));
+    return wd.slice().reverse().map(r=>{ const dc=r.delta==null?'z':r.delta>0?'up':r.delta<0?'dn':'z'; const ds=r.delta==null?'':(r.delta>0?'+':'')+r.delta;
+      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span><span class="tm">${r.time}</span></div>`;
+    }).join('') || '<div class="rec"><span></span><span class="tm">no records yet</span><span></span><span></span></div>';
+  };
+  const nH=(leg.highHistory||[]).length, nL=(leg.lowHistory||[]).length;
+  return `<div class="stkside ${type==='CE'?'ce':'pe'}">
+    <div class="hd"><span class="nm">${strike} ${type}</span><span class="mini">LTP ₹${fmt(leg.ltp)} · L ${fmt(leg.low)} / H ${fmt(leg.high)}${leg.greeks?' · Δ '+fmt(leg.greeks.delta,3):''}</span></div>
+    <div class="stkrec hi"><div class="lbl">▲ High record — all ${nH} prints</div><div class="stkscroll" style="max-height:340px">${rows(leg.highHistory,'hi','▲')}</div></div>
+    <div class="stkrec lo"><div class="lbl">▼ Low record — all ${nL} prints</div><div class="stkscroll" style="max-height:340px">${rows(leg.lowHistory,'lo','▼')}</div></div>
+  </div>`;
+}
+function closeRecModal(){ document.getElementById('recModal').classList.remove('show'); }
+async function openRecModal(){
+  const m=document.getElementById('recModal'); m.classList.add('show');
+  document.getElementById('recModalTtl').textContent = `${STK_INST} ${STK_STRIKE} — full High/Low record`;
+  document.getElementById('recModalSub').textContent = 'loading…';
+  document.getElementById('recModalBody').innerHTML = '<div class="flat" style="font-size:.75rem;padding:30px;text-align:center">loading…</div>';
+  try{
+    const j = await (await fetch(`${API}/api/option-strike-history?inst=${STK_INST}&strike=${STK_STRIKE}&type=CE`,{cache:'no-store'})).json();
+    document.getElementById('recModalSub').textContent = `spot ${j.spot?Math.round(j.spot):'—'} · dte ${j.dte??'—'}${j.isATM?' · ATM':''} · ${j.marketStatus||''}`;
+    document.getElementById('recModalBody').innerHTML = `<div class="stkcols">${recModalSide(j.ce,STK_STRIKE,'CE')}${recModalSide(j.pe,STK_STRIKE,'PE')}</div>`;
+  }catch(e){ document.getElementById('recModalBody').innerHTML='<div class="flat" style="font-size:.75rem;padding:30px;text-align:center">unavailable</div>'; }
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeRecModal(); });
+
 async function loadStrikeTimeline(){
   if (!STK_STRIKE) return;
   try {
