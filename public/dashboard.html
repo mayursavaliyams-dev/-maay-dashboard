@@ -255,7 +255,15 @@
   /* low-beside-LTP + blink */
   .lowtag{ display:inline-block; font-size:0.54rem; font-weight:900; color:var(--dn); margin-left:7px; padding:1px 5px; border-radius:5px; font-family:ui-monospace,Menlo,monospace; }
   .lowtag.hit{ background:rgba(255,84,112,.16); animation:blinkHit 0.7s ease-in-out infinite; }
-  .lowtag.newlow{ background:rgba(255,84,112,.3); color:#fff; animation:blink3 0.45s ease-in-out 3; }
+  .lowtag.newlow{ background:rgba(255,84,112,.3); color:#fff; border:1.5px solid var(--dn); box-shadow:0 0 0 2px rgba(255,84,112,.25); animation:blink3 0.45s ease-in-out 3; }
+  /* high/low record log */
+  .hlrecwrap{ margin-top:12px; }
+  .hlrechead{ font-size:0.5rem; font-weight:800; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+  .hlreclog{ display:flex; gap:7px; overflow-x:auto; padding-bottom:4px; }
+  .hlr{ flex:0 0 auto; display:flex; align-items:center; gap:7px; font-size:0.56rem; font-family:ui-monospace,Menlo,monospace; padding:5px 9px; border-radius:8px; background:var(--bg2); border:1px solid var(--line); }
+  .hlr.lo{ border-left:2px solid var(--dn); } .hlr.hi{ border-left:2px solid var(--up); }
+  .hlr .k{ font-weight:900; font-size:0.5rem; } .hlr.lo .k{ color:var(--dn); } .hlr.hi .k{ color:var(--up); }
+  .hlr .c{ color:#cfe0ff; font-weight:700; } .hlr .p{ font-weight:900; } .hlr .t{ color:var(--mut); }
   @keyframes blinkHit{ 0%,100%{ opacity:1; } 50%{ opacity:.2; } }
   @keyframes blink3{ 0%,100%{ opacity:1; box-shadow:0 0 0 rgba(255,84,112,0); transform:scale(1); } 50%{ opacity:.15; box-shadow:0 0 12px rgba(255,84,112,.95); transform:scale(1.12); } }
 
@@ -508,6 +516,10 @@
           </tr></thead>
           <tbody id="mqBody"><tr><td colspan="19" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
         </table>
+      </div>
+      <div class="hlrecwrap">
+        <div class="hlrechead">📋 High / Low record — new prints (live)</div>
+        <div class="hlreclog" id="hlRecord"><div class="hlr" style="color:var(--dim2)">watching for new highs / lows…</div></div>
       </div>
     </div>
   </div>
@@ -951,7 +963,20 @@ let MQ_INST = 'SENSEX', MQ_FILT = 'ATM', MQ_LOT = 1;
 function setMqInst(i){ linkInst(i); }
 function setMqFilt(f){ MQ_FILT = f; document.querySelectorAll('#mqFilt .isbtn').forEach(b=>b.classList.toggle('on',b.textContent.startsWith(f))); loadWatchlist(); }
 let MQ_ROWS = [];
-const MQ_PREV_LOW = {};   // per-contract last-seen day low → detect new lower lows
+const MQ_PREV_LOW = {};    // per-contract last-seen day low → detect new lower lows
+const MQ_PREV_HIGH = {};   // per-contract last-seen day high → detect new higher highs
+const HL_RECORD = [];      // live log of new-high / new-low prints (newest first)
+function pushHL(kind, inst, strike, type, price){
+  const t = new Date().toLocaleTimeString('en-GB', { timeZone:'Asia/Kolkata' });
+  HL_RECORD.unshift({ kind, c:`${inst} ${strike} ${type}`, price, t });
+  if (HL_RECORD.length > 60) HL_RECORD.length = 60;
+}
+function renderHLRecord(){
+  const el = document.getElementById('hlRecord'); if (!el) return;
+  el.innerHTML = HL_RECORD.length ? HL_RECORD.map(r=>
+    `<div class="hlr ${r.kind==='LOW'?'lo':'hi'}"><span class="k">${r.kind==='LOW'?'▼ NEW LOW':'▲ NEW HIGH'}</span><span class="c">${r.c}</span><span class="p">₹${r.price}</span><span class="t">${r.t}</span></div>`
+  ).join('') : '<div class="hlr" style="color:var(--dim2)">watching for new highs / lows…</div>';
+}
 function renderWatchlist(){
   const fmt = (v,d=1)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
   const big = v=>{ const n=parseFloat(v)||0; if(n>=1e7) return (n/1e7).toFixed(2)+'Cr'; if(n>=1e5) return (n/1e5).toFixed(2)+'L'; return Math.round(n).toLocaleString('en-IN'); };
@@ -964,12 +989,16 @@ function renderWatchlist(){
     const cc = r.chng>=0?'up':'dn';
     const perLot = (parseFloat(r.ltp)||0)*MQ_LOT;
     const sel = Number(r.strike)===Number(LINK.strike) ? ' selstrike' : '';
-    // Low-beside-LTP + blink: hit = LTP at day low; newlow = day low just dropped (3× blink)
-    const ltpN = parseFloat(r.ltp)||0, lowN = parseFloat(r.low)||0;
-    const key = `${MQ_INST} ${r.strike} ${r.type}`, prevLow = MQ_PREV_LOW[key];
+    // Low-beside-LTP + blink + high/low record tracking
+    const ltpN = parseFloat(r.ltp)||0, lowN = parseFloat(r.low)||0, highN = parseFloat(r.high)||0;
+    const key = `${MQ_INST} ${r.strike} ${r.type}`, prevLow = MQ_PREV_LOW[key], prevHigh = MQ_PREV_HIGH[key];
     const newLower = prevLow!=null && lowN>0 && lowN < prevLow - 1e-6;
+    const newHigher = prevHigh!=null && highN>0 && highN > prevHigh + 1e-6;
     const atLow = ltpN>0 && lowN>0 && ltpN <= lowN*1.0008;
+    if (newLower) pushHL('LOW', MQ_INST, r.strike, r.type, fmt(r.low));
+    if (newHigher) pushHL('HIGH', MQ_INST, r.strike, r.type, fmt(r.high));
     if (lowN>0) MQ_PREV_LOW[key] = lowN;
+    if (highN>0) MQ_PREV_HIGH[key] = highN;
     const lowCls = newLower ? 'newlow' : (atLow ? 'hit' : '');
     return `<tr class="clk ${r.type==='CE'?'ce':'pe'}${sel}" onclick="linkStrike(${r.strike})" title="click → link strike ${r.strike}">
       <td class="lbl">${r.label||(r.strike+' '+r.type)}</td>
@@ -984,6 +1013,7 @@ function renderWatchlist(){
       <td><button class="buybtn ${r.type==='CE'?'ce':'pe'}" onclick="mqBuy('${MQ_INST}',${r.strike},'${r.type}',${parseFloat(r.ltp)||0})">BUY ${r.type}</button></td>
     </tr>`;
   }).join('');
+  renderHLRecord();
 }
 async function loadWatchlist(){
   try {
