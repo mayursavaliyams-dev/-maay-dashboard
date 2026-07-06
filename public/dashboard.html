@@ -150,6 +150,11 @@
   .stkside .hd .mini{ font-size:0.5rem; color:var(--mut); }
   .stklive{ padding:9px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
   .stklive .p{ font-size:0.95rem; font-weight:900; } .stklive .t{ font-size:0.54rem; color:var(--mut); }
+  .odet{ display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line); border-bottom:1px solid var(--line); }
+  .odet .og{ background:var(--panel); padding:6px 8px; text-align:center; }
+  .odet .og .l{ display:block; font-size:0.46rem; color:var(--mut); text-transform:uppercase; letter-spacing:.3px; }
+  .odet .og .v{ display:block; font-size:0.66rem; font-weight:900; margin-top:2px; font-family:ui-monospace,Menlo,monospace; }
+  .odet .og .v.up{ color:var(--up); } .odet .og .v.dn{ color:var(--dn); }
   .stkrec{ padding:8px 12px; }
   .stkrec .lbl{ font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
   .stkrec.lo .lbl{ color:var(--blue); } .stkrec.hi .lbl{ color:var(--amber); }
@@ -706,6 +711,18 @@ function renderStrikeSide(el, leg, strike, type){
       <span style="margin-left:auto"><span class="ba">${leg.changeOI!=null?(leg.changeOI>0?'+':'')+Math.round(leg.changeOI).toLocaleString('en-IN'):'--'}</span><br><span class="mini">CHANGE OI</span></span>
     </div>
     <div class="stklive"><span class="p">₹${fmt(leg.ltp)}</span><span class="t">LTP · H ${fmt(leg.high)} / L ${fmt(leg.low)}</span></div>
+    <div class="odet">
+      <div class="og"><span class="l">Delta</span><span class="v">${leg.greeks?fmt(leg.greeks.delta,3):'--'}</span></div>
+      <div class="og"><span class="l">Gamma</span><span class="v">${leg.greeks?fmt(leg.greeks.gamma,4):'--'}</span></div>
+      <div class="og"><span class="l">Theta</span><span class="v ${leg.greeks&&leg.greeks.theta<0?'dn':''}">${leg.greeks?fmt(leg.greeks.theta,1):'--'}</span></div>
+      <div class="og"><span class="l">Vega</span><span class="v">${leg.greeks?fmt(leg.greeks.vega,2):'--'}</span></div>
+      <div class="og"><span class="l">OI</span><span class="v">${leg.oi?(leg.oi/1e5).toFixed(1)+'L':'--'}</span></div>
+      <div class="og"><span class="l">Volume</span><span class="v">${leg.volume?(leg.volume/1e5).toFixed(1)+'L':'--'}</span></div>
+      <div class="og"><span class="l">Intrinsic</span><span class="v">${fmt(leg.intrinsic)}</span></div>
+      <div class="og"><span class="l">Time val</span><span class="v">${fmt(leg.timeValue)}</span></div>
+      <div class="og"><span class="l">Breakeven</span><span class="v">${fmt(leg.breakeven,0)}</span></div>
+      <div class="og"><span class="l">Moneyness</span><span class="v ${leg.moneyness==='ITM'?'up':''}">${leg.moneyness||'--'}</span></div>
+    </div>
     <div class="stkrec hi"><div class="lbl">▲ High record timeline</div><div class="stkscroll">${recRows(leg.highHistory,'hi','▲')}</div></div>
     <div class="stkrec lo"><div class="lbl">▼ Low record timeline</div><div class="stkscroll">${recRows(leg.lowHistory,'lo','▼')}</div></div>`;
 }

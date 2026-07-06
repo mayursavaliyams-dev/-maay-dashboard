@@ -6543,6 +6543,29 @@ app.get('/api/opthl-archive', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Black-Scholes greeks + option details from REAL per-strike IV (honest, model-derived).
+function _optionDetails(spot, strike, ltp, ivPct, dteDays, type) {
+  const S = Number(spot), K = Number(strike), sigma = (Number(ivPct) || 0) / 100;
+  const T = Math.max(Number(dteDays) || 0.5, 0.25) / 365, r = 0.065;
+  const intrinsic = type === 'CE' ? Math.max(0, S - K) : Math.max(0, K - S);
+  const timeValue = Math.max(0, (Number(ltp) || 0) - intrinsic);
+  const breakeven = type === 'CE' ? K + (Number(ltp) || 0) : K - (Number(ltp) || 0);
+  let greeks = null;
+  if (S > 0 && K > 0 && sigma > 0 && T > 0) {
+    const ncdf = x => { const b1=0.319381530,b2=-0.356563782,b3=1.781477937,b4=-1.821255978,b5=1.330274429,p=0.2316419,c=0.39894228;
+      if (x >= 0){ const t=1/(1+p*x); return 1-c*Math.exp(-x*x/2)*t*(t*(t*(t*(t*b5+b4)+b3)+b2)+b1); }
+      return 1-ncdf(-x); };
+    const d1 = (Math.log(S/K)+(r+sigma*sigma/2)*T)/(sigma*Math.sqrt(T)), d2 = d1-sigma*Math.sqrt(T);
+    const pdf = Math.exp(-d1*d1/2)/Math.sqrt(2*Math.PI);
+    const gamma = pdf/(S*sigma*Math.sqrt(T)), vega = S*Math.sqrt(T)*pdf/100;
+    let delta, theta;
+    if (type === 'CE'){ delta = ncdf(d1); theta = (-(S*pdf*sigma)/(2*Math.sqrt(T)) - r*K*Math.exp(-r*T)*ncdf(d2))/365; }
+    else { delta = ncdf(d1)-1; theta = (-(S*pdf*sigma)/(2*Math.sqrt(T)) + r*K*Math.exp(-r*T)*ncdf(-d2))/365; }
+    greeks = { delta:+delta.toFixed(4), gamma:+gamma.toFixed(4), theta:+theta.toFixed(2), vega:+vega.toFixed(2) };
+  }
+  return { intrinsic:+intrinsic.toFixed(2), timeValue:+timeValue.toFixed(2), breakeven:+breakeven.toFixed(2), moneyness: type==='CE'?(S>=K?'ITM':'OTM'):(S<=K?'ITM':'OTM'), greeks };
+}
+
 app.get('/api/option-strike-history', async (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
   const strike = parseInt(req.query.strike, 10);
@@ -6559,19 +6582,19 @@ app.get('/api/option-strike-history', async (req, res) => {
     if (!row) {
       return res.status(404).json({ error: 'Strike not found', inst, strike, atm, spot: +spot.toFixed(2) });
     }
+    // days-to-expiry from the gamma-blast detector (falls back to 3) for greeks
+    let dte = 3;
+    try { const exp = (gammaBlastEngine.status().detect || {})[inst]?.expiry; if (exp) dte = Math.max(0.5, (Date.parse(exp + 'T15:30:00+05:30') - Date.now()) / 86400000); } catch (_) {}
     const buildLeg = (leg, type) => {
       if (!leg) return null;
-      return _withLegHistory(inst, strike, {
-        ltp: +Number(leg.ltp || 0).toFixed(2),
-        high: +Number(leg.high || 0).toFixed(2),
-        low: +Number(leg.low || 0).toFixed(2),
-        bid: +Number(leg.bid || 0).toFixed(2),
-        ask: +Number(leg.ask || 0).toFixed(2),
-        oi: Number(leg.oi || 0),
-        changeOI: Number(leg.changeOI || 0),
-        volume: Number(leg.volume || 0),
-        iv: +Number(leg.iv || 0).toFixed(2)
+      const ltp = +Number(leg.ltp || 0).toFixed(2), iv = +Number(leg.iv || 0).toFixed(2);
+      const base = _withLegHistory(inst, strike, {
+        ltp, high: +Number(leg.high || 0).toFixed(2), low: +Number(leg.low || 0).toFixed(2),
+        bid: +Number(leg.bid || 0).toFixed(2), ask: +Number(leg.ask || 0).toFixed(2),
+        oi: Number(leg.oi || 0), changeOI: Number(leg.changeOI || 0),
+        volume: Number(leg.volume || 0), iv
       }, type);
+      return { ...base, ...(_optionDetails(spot, strike, ltp, iv, dte, type)) };
     };
     // Reconcile with today's one-minute candles before returning the cards.
     // Calls are coalesced and limited to once per minute per contract.
@@ -6587,6 +6610,7 @@ app.get('/api/option-strike-history', async (req, res) => {
       atm,
       interval,
       isATM: strike === atm,
+      dte: +dte.toFixed(1),
       ce: buildLeg(row.ce, 'CE'),
       pe: buildLeg(row.pe, 'PE'),
       marketStatus: session.status,
