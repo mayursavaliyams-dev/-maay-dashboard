@@ -5808,6 +5808,22 @@ function _eventFilterFor(ctx) {
   });
 }
 
+// ── Net-of-cost VRP monitor (research #2: verify the premium is really there before selling) ──
+const { VRPMonitor } = require('./vrp-monitor');
+const _VRP_PATH = _sigPath.join(__dirname, 'data', 'vrp-monitor.json');
+const vrpMonitor = new VRPMonitor({ window: 40, costDrag: Number(process.env.VRP_COST_DRAG) || 1.5 });
+try { vrpMonitor.load(JSON.parse(_sigFs.readFileSync(_VRP_PATH, 'utf8'))); } catch (_) {}
+const _vrpLastRecord = {};
+function _recordVRP(ctx) {
+  const c = ctx.regime && ctx.regime.components;
+  if (!c || c.ivImplied == null || c.realizedVol == null) return;
+  const today = _istDateStr();
+  if (_vrpLastRecord[ctx.inst] === today) return;               // one IV-vs-realized sample per trading day
+  vrpMonitor.record(ctx.inst, c.ivImplied, c.realizedVol, Date.now());
+  _vrpLastRecord[ctx.inst] = today;
+  try { _sigFs.writeFileSync(_VRP_PATH, JSON.stringify(vrpMonitor.toJSON(), null, 2)); } catch (_) {}
+}
+
 // ── Signal-engine PAPER executor (closes the loop: plan → paper position → calibration) ──
 const { SignalPaperEngine } = require('./signal-paper-engine');
 const _SIG_PAPER_PATH = _sigPath.join(__dirname, 'data', 'signal-paper-positions.json');
@@ -5834,6 +5850,7 @@ async function signalPaperTick() {
       try {
         const ctx = await _assembleSignalContext(inst);
         quoteByInst[inst] = ctx.quote; dteByInst[inst] = ctx.dte; regimeByInst[inst] = ctx.regime.verdict;
+        _recordVRP(ctx);                                          // one net-of-cost VRP sample per day
         if (canOpen && !signalPaperEngine.hasOpen(inst)) {
           const metaScore = metaLabel.scoreConfluence(_metaInputFrom(ctx), _metaCalibrator);
           const plan = tradePlanner.planTrade({
@@ -5843,11 +5860,15 @@ async function signalPaperTick() {
             emPts: ctx.emPts, spot: ctx.spot, step: ctx.step, vix: ctx.vix,
             capital: Number(process.env.SIGNAL_CAPITAL) || 700000, riskPct: 0.05, lotSize: ctx.lotSize, dte: ctx.dte,
           });
-          // Event-risk exclusion (research #1) — gate SELLING near events / vol spikes.
+          // Gate SELLING: event-risk exclusion (#1) + net-of-cost VRP present (#2).
           const isCreditPlan = plan.structure === 'IRON_CONDOR' || String(plan.structure).startsWith('CREDIT');
           const ef = _eventFilterFor(ctx);
+          const vrp = vrpMonitor.assess(inst);
+          const vrpBlocks = isCreditPlan && vrp.n >= 10 && !vrp.favorable;   // only gate once we have enough samples
           if (isCreditPlan && ef.verdict === 'BLOCK') {
             console.log(`[signal-paper] SKIP ${inst} ${plan.structure} — event filter BLOCK: ${ef.reason}`);
+          } else if (vrpBlocks) {
+            console.log(`[signal-paper] SKIP ${inst} ${plan.structure} — VRP not favorable: ${vrp.reason}`);
           } else {
             if (isCreditPlan && ef.sizeScale < 1 && plan.sizing) plan.sizing.lots = Math.max(1, Math.floor((plan.sizing.lots || 1) * ef.sizeScale));
             const pos = signalPaperEngine.open(inst, plan, ctx.quote, { now, lotSize: ctx.lotSize, rawP: metaScore.rawProbability, probability: metaScore.probabilityPct });
@@ -5966,6 +5987,7 @@ app.get('/api/trade-plan/:inst(nifty|sensex|banknifty)', async (req, res) => {
       gex: ctx.gex && ctx.gex.ok ? { regimeLabel: ctx.gex.regimeLabel, skew: ctx.gex.skew, callWall: ctx.gex.callWall, putWall: ctx.gex.putWall } : null,
       metaLabel: { probability: metaScore.probabilityPct, raw: metaScore.rawProbability, calibrationSamples: metaScore.calibrationSamples },
       eventFilter: _eventFilterFor(ctx),
+      vrp: vrpMonitor.assess(inst),
       expectedMove: ctx.em, plan,
     });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -5999,6 +6021,9 @@ app.get('/api/event-filter', async (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 app.post('/api/event-filter/reload', (req, res) => { const c = _reloadEventCalendar(); res.json({ ok: true, calendarCount: c.length, calendar: c }); });
+
+// Net-of-cost VRP monitor — is the premium actually there to sell?
+app.get('/api/vrp-monitor', (req, res) => res.json({ ok: true, ...vrpMonitor.status(), generatedAt: new Date().toISOString() }));
 
 // Signal-engine PAPER executor — status + on/off (the forward-test loop)
 app.get('/api/signal-paper/status', (req, res) => res.json({ ok: true, ...signalPaperEngine.status(), generatedAt: new Date().toISOString() }));
