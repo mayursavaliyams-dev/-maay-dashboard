@@ -5822,6 +5822,17 @@ function _recordVRP(ctx) {
   vrpMonitor.record(ctx.inst, c.ivImplied, c.realizedVol, Date.now());
   _vrpLastRecord[ctx.inst] = today;
   try { _sigFs.writeFileSync(_VRP_PATH, JSON.stringify(vrpMonitor.toJSON(), null, 2)); } catch (_) {}
+  _recordGexVix(ctx, c, today);
+}
+
+// research #4 — accumulate one GEX/VIX/realized-vol row per instrument per day so the
+// India-specific "is GEX just VIX?" backtest can run once ~20+ sessions are collected.
+const gexVsVix = require('./bt-gex-vs-vix');
+const _GEXVIX_PATH = _sigPath.join(__dirname, 'data', 'gex-vix-history.json');
+function _recordGexVix(ctx, c, today) {
+  const gex = ctx.gex && ctx.gex.ok ? ctx.gex.netGEX : null;
+  if (gex == null || c.ivImplied == null || c.realizedVol == null) return;
+  gexVsVix.appendDaily(_sigFs, _GEXVIX_PATH, { date: today, inst: ctx.inst, gex, vix: c.ivImplied, rv: c.realizedVol });
 }
 
 // ── Signal-engine PAPER executor (closes the loop: plan → paper position → calibration) ──
@@ -6024,6 +6035,18 @@ app.post('/api/event-filter/reload', (req, res) => { const c = _reloadEventCalen
 
 // Net-of-cost VRP monitor — is the premium actually there to sell?
 app.get('/api/vrp-monitor', (req, res) => res.json({ ok: true, ...vrpMonitor.status(), generatedAt: new Date().toISOString() }));
+
+// GEX-vs-VIX India backtest (research #4) — does GEX carry signal beyond VIX on NIFTY?
+app.get('/api/gex-vs-vix', (req, res) => {
+  try {
+    const rows = gexVsVix.loadHistory(_sigFs, _GEXVIX_PATH);
+    const byInst = {};
+    for (const r of rows) (byInst[r.inst || 'NIFTY'] = byInst[r.inst || 'NIFTY'] || []).push(r);
+    const out = {};
+    for (const i of Object.keys(byInst)) out[i] = gexVsVix.analyze(byInst[i]);
+    res.json({ ok: true, recordedRows: rows.length, analysis: out, generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
 
 // Signal-engine PAPER executor — status + on/off (the forward-test loop)
 app.get('/api/signal-paper/status', (req, res) => res.json({ ok: true, ...signalPaperEngine.status(), generatedAt: new Date().toISOString() }));
