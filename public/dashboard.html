@@ -180,6 +180,27 @@
   .stksel{ background:var(--bg2); border:1px solid var(--line2); color:#cfe0ff; font-size:0.62rem; font-weight:800; padding:5px 10px; border-radius:8px; cursor:pointer; }
   .fullrecbtn{ background:rgba(91,156,255,.14); border:1px solid var(--blue); color:#cfe0ff; font-size:0.62rem; font-weight:900; padding:5px 12px; border-radius:8px; cursor:pointer; }
   .fullrecbtn:hover{ background:rgba(91,156,255,.28); }
+  .autobtn{ background:rgba(255,194,75,.12); border:1px solid rgba(255,194,75,.5); color:var(--amber); font-size:0.62rem; font-weight:900; padding:5px 12px; border-radius:8px; cursor:pointer; }
+  .autobtn.on{ background:var(--amber); color:#1a1400; }
+  /* auto fast-movers 4-box grid */
+  .automovers{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  @media(max-width:820px){ .automovers{ grid-template-columns:repeat(2,1fr); } }
+  .ambox{ background:var(--bg2); border:1px solid var(--line); border-radius:13px; padding:12px 14px; position:relative; overflow:hidden; }
+  .ambox.ce{ border-left:3px solid var(--up); } .ambox.pe{ border-left:3px solid var(--dn); }
+  .ambox.flash{ animation:amflash .5s ease-out; }
+  @keyframes amflash{ 0%{ background:rgba(38,208,160,.22); } 100%{ background:var(--bg2); } }
+  .amh{ display:flex; align-items:center; gap:8px; }
+  .amstk{ font-size:0.74rem; font-weight:900; } .ambox.ce .amstk{ color:#8fdcc0; } .ambox.pe .amstk{ color:#f5a9b6; }
+  .amrank{ font-size:0.5rem; font-weight:900; color:var(--amber); background:rgba(255,194,75,.14); padding:1px 6px; border-radius:5px; }
+  .amchg{ margin-left:auto; font-size:0.6rem; font-weight:900; }
+  .amltp{ font-size:1.5rem; font-weight:900; margin:8px 0 2px; letter-spacing:-.5px; }
+  .amvel{ font-size:0.62rem; font-weight:900; font-family:ui-monospace,Menlo,monospace; }
+  .amvel.up{ color:var(--up); } .amvel.dn{ color:var(--dn); }
+  .ammeta{ font-size:0.5rem; color:var(--mut); margin-top:3px; }
+  .ambtns{ display:flex; gap:6px; margin-top:10px; }
+  .ambtns .buybtn{ flex:1; text-align:center; padding:6px; font-size:0.58rem; }
+  .minibtn{ font-size:0.52rem; font-weight:800; color:#93a2b8; background:transparent; border:1px solid var(--line2); border-radius:6px; padding:6px 9px; cursor:pointer; }
+  .minibtn:hover{ color:#cfe0ff; border-color:var(--blue); }
   .stkcols{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   @media(max-width:760px){ .stkcols{ grid-template-columns:1fr; } }
   .stkside{ border:1px solid var(--line); border-radius:12px; overflow:hidden; }
@@ -550,12 +571,14 @@
         </div>
         <select class="stksel" id="stkStrike" onchange="linkStrike(+this.value)"></select>
         <button class="fullrecbtn" onclick="openRecModal()">📋 Full high/low record</button>
+        <button class="autobtn" id="autoBtn" onclick="toggleAuto()">⚡ Auto movers</button>
         <span class="indsig" id="stkMeta" style="margin-left:auto">—</span>
       </div>
-      <div class="stkcols">
+      <div class="stkcols" id="stkCols">
         <div class="stkside ce" id="stkCE"><div class="stkrec"><div class="flat" style="font-size:.72rem">loading…</div></div></div>
         <div class="stkside pe" id="stkPE"><div class="stkrec"><div class="flat" style="font-size:.72rem">loading…</div></div></div>
       </div>
+      <div class="automovers" id="autoMovers" style="display:none"></div>
     </div>
   </div>
 
@@ -932,6 +955,57 @@ function renderStrikeSide(el, leg, strike, type){
     <div class="stkrec hi"><div class="lbl">▲ High record timeline</div><div class="stkscroll">${recRows(leg.highHistory,'hi','▲')}</div></div>
     <div class="stkrec lo"><div class="lbl">▼ Low record timeline</div><div class="stkscroll">${recRows(leg.lowHistory,'lo','▼')}</div></div>`;
 }
+// ── Auto fast-movers: 4 boxes of the fastest-rising premiums, live, one-click order ──
+let AUTO_ON = false;
+const AUTO_HIST = {};              // "strikeType" → [{t, ltp}]  (for premium velocity)
+const AUTO_PREVLTP = {};           // "strikeType" → last ltp (for flash on uptick)
+function toggleAuto(){
+  AUTO_ON = !AUTO_ON;
+  document.getElementById('autoBtn').classList.toggle('on', AUTO_ON);
+  document.getElementById('autoMovers').style.display = AUTO_ON ? 'grid' : 'none';
+  document.getElementById('stkCols').style.display = AUTO_ON ? 'none' : 'grid';
+  document.getElementById('stkStrike').style.display = AUTO_ON ? 'none' : '';
+  if (AUTO_ON) loadAutoMovers(); else loadStrikeTimeline();
+}
+async function loadAutoMovers(){
+  if (!AUTO_ON) return;
+  const fmt = (v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
+  try {
+    const j = await (await fetch(`${API}/api/watchlist?inst=${STK_INST}`, { cache:'no-store' })).json();
+    const now = Date.now();
+    const rows = (j.rows||[]).filter(r => parseFloat(r.ltp) > 0);
+    const scored = rows.map(r => {
+      const key = `${r.strike}${r.type}`, ltp = parseFloat(r.ltp)||0;
+      const h = (AUTO_HIST[key] = AUTO_HIST[key] || []);
+      h.push({ t: now, ltp }); if (h.length > 10) h.shift();
+      const first = h[0], last = h[h.length-1], dt = (last.t - first.t)/1000;
+      const velSec = dt > 0 ? (last.ltp - first.ltp)/dt : 0;     // ₹/sec over the tracked window
+      return { ...r, ltpN: ltp, velMin: velSec*60, key };
+    });
+    // rank by fastest UPSIDE premium velocity (then by day %chng as tiebreak)
+    scored.sort((a,b) => (b.velMin - a.velMin) || (b.chngPct - a.chngPct));
+    const top = scored.slice(0, 4);
+    document.getElementById('stkMeta').textContent = `${STK_INST} · auto fast-movers · spot ${j.spot?Math.round(j.spot):'—'}`;
+    document.getElementById('autoMovers').innerHTML = top.map((r,idx) => {
+      const cls = r.type==='CE'?'ce':'pe';
+      const up = r.velMin >= 0;
+      const flash = (AUTO_PREVLTP[r.key]!=null && r.ltpN > AUTO_PREVLTP[r.key]) ? ' flash' : '';
+      AUTO_PREVLTP[r.key] = r.ltpN;
+      return `<div class="ambox ${cls}${flash}">
+        <div class="amh"><span class="amrank">#${idx+1}</span><span class="amstk">${r.strike} ${r.type}</span>
+          <span class="amchg ${r.chng>=0?'up':'dn'}">${r.chngPct>=0?'+':''}${fmt(r.chngPct,1)}%</span></div>
+        <div class="amltp">₹${fmt(r.ltpN)}</div>
+        <div class="amvel ${up?'up':'dn'}">${up?'▲':'▼'} ${fmt(Math.abs(r.velMin),1)} ₹/min</div>
+        <div class="ammeta">H ${fmt(r.high)} / L ${fmt(r.low)} · OI ${r.oi?(r.oi/1e5).toFixed(1)+'L':'—'} · PoP ${r.pop!=null?Math.round(r.pop)+'%':'—'}</div>
+        <div class="ambtns">
+          <button class="buybtn ${cls}" onclick="event.stopPropagation(); mqBuy('${STK_INST}',${r.strike},'${r.type}',${r.ltpN})">BUY ${r.type}</button>
+          <button class="minibtn" onclick="strikeClick('${STK_INST}',${r.strike})">record</button>
+        </div>
+      </div>`;
+    }).join('') || '<div class="flat" style="font-size:.72rem;grid-column:1/-1">no live premiums</div>';
+  } catch(_){ document.getElementById('autoMovers').innerHTML = '<div class="flat" style="font-size:.72rem;grid-column:1/-1">unavailable</div>'; }
+}
+
 // Full high/low record modal for the selected strike (CE + PE, all records)
 function recModalSide(leg, strike, type){
   const fmt=(v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
@@ -1279,7 +1353,8 @@ setInterval(loadHL, 4000);
 setInterval(loadChain, 5000);
 setInterval(loadWatchlist, 6000);
 setInterval(loadPositioning, 6000);
-setInterval(loadStrikeTimeline, 5000);
+setInterval(() => { if (AUTO_ON) loadAutoMovers(); else loadStrikeTimeline(); }, 5000);
+setInterval(() => { if (AUTO_ON) loadAutoMovers(); }, 2000);   // fast refresh for the live premium movers
 setInterval(load, 5000);
 setInterval(loadBot, 10000);
 setInterval(() => loadSparks(), 30000);
