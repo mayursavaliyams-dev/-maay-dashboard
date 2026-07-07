@@ -2164,6 +2164,16 @@ setInterval(() => { _probeDataHealth().catch(() => {}); }, 60 * 1000);
 
 app.get('/api/data-health', (req, res) => res.json(_dataHealth));
 
+// ==================== CRASH LOG ANALYTICS ====================
+const CrashAnalyzer = require('./crash-analyzer');
+const crashAnalyzer = new CrashAnalyzer();
+
+app.get('/api/crashes/report', (req, res) => {
+  const hours = parseInt(req.query.hours || '24', 10);
+  const report = crashAnalyzer.report(hours);
+  res.json(report);
+});
+
 // ==================== AI ADVISOR HIT-RATE ====================
 // Mature logged AI signals against the latest spot every 2 min (15-min hold
 // window) so the otherwise-unbacktested advisors get a real, measured win-rate.
@@ -6045,6 +6055,22 @@ app.get('/api/gex-vs-vix', (req, res) => {
     const out = {};
     for (const i of Object.keys(byInst)) out[i] = gexVsVix.analyze(byInst[i]);
     res.json({ ok: true, recordedRows: rows.length, analysis: out, generatedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// #9 ⭐ Forward-test validation report — THE quantified gate-to-live verdict
+const forwardTestReport = require('./forward-test-report');
+app.get('/api/forward-test-report', (req, res) => {
+  try {
+    const trades = (signalPaperEngine.closed || []).map(t => ({ pnl: t.pnl, won: t.won, structure: t.structure, inst: t.inst, reason: t.reason }));
+    const cal = metaLabel.health(_metaCalibrator);
+    const shares = Object.values((vrpMonitor.status().monitors) || {}).map(m => m.positiveShare).filter(x => x != null);
+    const vrpPos = shares.length ? shares.reduce((s, x) => s + x, 0) / shares.length : null;
+    const report = forwardTestReport.buildReport({
+      trades, calibration: cal, vrp: { positiveShare: vrpPos },
+      nTrials: 5, thesis: req.query.minTrades ? { minTrades: Number(req.query.minTrades) } : undefined,
+    });
+    res.json({ ok: true, ...report, generatedAt: new Date().toISOString() });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
