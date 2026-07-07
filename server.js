@@ -6058,6 +6058,25 @@ app.get('/api/gex-vs-vix', (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// #6 Consolidated ops health (foundation module — see docs/OPS-PLAYBOOK.md)
+const { opsHealthSnapshot } = require('./ops-health');
+app.get('/api/ops/health', (req, res) => {
+  const snap = opsHealthSnapshot({
+    bootAt: _bootAt,
+    getMarketSession,
+    signalHealth: () => signalHealth.assessHealth(_signalTracker),
+    forwardTest: () => forwardTestReport.buildReport({ trades: (signalPaperEngine.closed || []).map(t => ({ pnl: t.pnl, won: t.won })) }),
+    signalPaper: () => signalPaperEngine.status(),
+    engines: () => [
+      { label: 'signal-paper', enabled: signalPaperEngine.enabled },
+      { label: 'strangle', enabled: !!(strangleEngine && strangleEngine.enabled) },
+      { label: 'gamma-blast', enabled: !!(gammaBlastEngine && gammaBlastEngine.status && gammaBlastEngine.status().enabled) },
+      { label: 'ai-agents', enabled: !!agentsEngine.enabled },
+    ],
+  }, Date.now());
+  res.json({ ok: true, ...snap, generatedAt: new Date().toISOString() });
+});
+
 // #9 ⭐ Forward-test validation report — THE quantified gate-to-live verdict
 const forwardTestReport = require('./forward-test-report');
 app.get('/api/forward-test-report', (req, res) => {
