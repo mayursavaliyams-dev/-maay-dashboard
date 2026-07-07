@@ -6058,6 +6058,15 @@ app.get('/api/gex-vs-vix', (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// #7 Broker connector interface — read-only conformance/capability introspection of the
+// active connector (no behavior change to the live data path).
+const { BrokerRegistry: _BrokerRegistry, CORE: _BROKER_CORE } = require('./broker-connector');
+app.get('/api/brokers', (req, res) => {
+  const reg = new _BrokerRegistry();
+  try { reg.register((live && live.constructor && live.constructor.name) || 'active', live, { activate: true }); } catch (_) {}
+  res.json({ ok: true, active: reg.activeName, contract: _BROKER_CORE, connectors: reg.list(), generatedAt: new Date().toISOString() });
+});
+
 // #6 Consolidated ops health (foundation module — see docs/OPS-PLAYBOOK.md)
 const { opsHealthSnapshot } = require('./ops-health');
 app.get('/api/ops/health', (req, res) => {
