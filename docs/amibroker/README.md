@@ -21,16 +21,24 @@ Content-Type: application/json
 ```
 No auth by default. `instrument` ∈ {NIFTY, SENSEX, BANKNIFTY}.
 
-## Setup
+## Setup (v2 — native GET, no curl)
 
-1. Copy [`antigravity-bridge.afl`](antigravity-bridge.afl) into AmiBroker's `Formulas`
-   folder. Add it to a chart, or run it in **Analysis → Scan/Exploration** with
-   **Auto-Repeat (Real-Time)** on.
-2. Edit `BOT_URL` — `127.0.0.1:3000` if AmiBroker is on the same PC, else the bot
-   machine's LAN IP (open port 3000 on that machine).
-3. Replace the **SIGNAL LOGIC** block with your own strategy; keep the send plumbing.
-4. It sends at most once per new bar per symbol (CALL/PUT only unless `SEND_WAIT=True`).
-   Uses `curl.exe` (built into Windows 10/11) — no ActiveX, no installs.
+The v2 script sends via AmiBroker's built-in **`InternetOpenURL`** (a GET) to
+`/api/amibroker/push-signal?...` — no curl, no ShellExecute, no console flash, no
+quote-escaping, and it works in a **Chart pane OR Analysis Scan/Exploration** (the old
+v1 had a `Status("action")==actionIndicator` gate that silently blocked Scan mode — that
+was the usual "nothing arrives" cause; removed in v2).
+
+1. The file is already at `C:\Program Files (x86)\AmiBroker\Formulas\Custom\antigravity-bridge.afl`.
+2. **`TEST_MODE = True`** is set — it force-sends a CALL on every new bar so you can confirm
+   the pipe. Apply it to a NIFTY chart (or Analysis → Scan, Auto-Repeat RT).
+3. Watch `GET http://127.0.0.1:3000/api/amibroker/status` → `signalsReceived` should climb.
+   In AmiBroker, Tools → **Trace** shows `Antigravity OK → ...` or a FAIL reason.
+4. Once it's climbing, set **`TEST_MODE = False`** and replace the SIGNAL LOGIC block with
+   your own. Edit `BOT_HOST` if AmiBroker is on a different PC than the bot.
+
+If the Trace shows `InternetOpenURL could not reach ...`: the server isn't running, the
+`BOT_HOST` is wrong, or Windows Firewall is blocking port 3000 on the bot machine.
 
 ## Verify it's landing
 

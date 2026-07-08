@@ -1,40 +1,36 @@
 // ============================================================================
-//  antigravity-bridge.afl  —  AmiBroker → Antigravity bot signal sender
+//  antigravity-bridge.afl  —  AmiBroker → Antigravity bot signal sender  (v2, GET)
 //
-//  Sends signals to the bot in the EXACT format it accepts (verified against the
-//  live server):   POST /api/amibroker/signal
-//    { "signal":"CALL"|"PUT"|"WAIT", "instrument":"NIFTY", "confidence":N,
-//      "strike":N, "price":N, "strategy":"..." }
+//  Sends via AmiBroker's NATIVE InternetOpenURL (a GET) to the bot's push endpoint:
+//    GET /api/amibroker/push-signal?signal=CALL|PUT|WAIT&instrument=NIFTY&confidence=..
+//        &strike=..&price=..&strategy=..&barId=..
+//  No curl, no ShellExecute, no console flash, no quote-escaping. Verified accepted.
 //
-//  The bot REJECTS action=BUY/SELL ("invalid_signal") — the key field is `signal`
-//  = CALL / PUT / WAIT. This script always uses that.
+//  The bot needs the `signal` field = CALL / PUT / WAIT (it REJECTS action=BUY/SELL).
 //
-//  HOW TO USE
-//   1. Copy this file into AmiBroker's Formulas folder and add it as a chart study,
-//      or run it in the Analysis > Exploration/Scan (Auto-Repeat, RT).
-//   2. Set BOT_URL to your bot host (127.0.0.1 if AmiBroker is on the same PC, else the
-//      bot machine's LAN IP). No auth needed by default.
-//   3. Replace the SIGNAL LOGIC block with your own; the plumbing below stays as-is.
-//   4. It fires at most once per bar per symbol (dedup via StaticVar), only on the last
-//      (real-time) bar.
+//  >>> FIRST-RUN VERIFICATION <<<
+//  TEST_MODE is ON below — it force-sends a CALL on every new bar so you can confirm the
+//  pipe. Apply this to a NIFTY chart (or Analysis > Scan, Auto-Repeat RT) and watch
+//  GET http://127.0.0.1:3000/api/amibroker/status  →  signalsReceived should climb.
+//  Once you see it climbing, set  TEST_MODE = False  and use your real signal logic.
 //
-//  Requires curl.exe (built into Windows 10/11). No ActiveX / no extra installs.
+//  Works in a Chart pane OR Analysis Scan/Exploration (no action-type gate).
 // ============================================================================
 
 // ---- CONFIG ---------------------------------------------------------------
-BOT_URL    = "http://127.0.0.1:3000/api/amibroker/signal";
-INSTRUMENT = "NIFTY";          // NIFTY | SENSEX | BANKNIFTY  (or auto-detect from Name())
-STRIKE_STEP = 50;              // 50 for NIFTY, 100 for SENSEX/BANKNIFTY
-SEND_WAIT   = False;           // True = also send WAIT bars (noisier); False = only CALL/PUT
+BOT_HOST    = "127.0.0.1:3000";   // bot host:port. Same PC = 127.0.0.1. Else = bot LAN IP.
+INSTRUMENT  = "NIFTY";            // NIFTY | SENSEX | BANKNIFTY (auto-detected below)
+STRIKE_STEP = 50;
+SEND_WAIT   = False;              // also send WAIT bars?
+TEST_MODE   = True;               // <<< force-send to verify the pipe; set False when confirmed
 
-// auto-detect instrument from the symbol name if it matches
+// auto-detect instrument from the symbol
 nm = StrToUpper(Name());
 if (StrFind(nm, "BANKNIFTY")) { INSTRUMENT = "BANKNIFTY"; STRIKE_STEP = 100; }
 else if (StrFind(nm, "SENSEX")) { INSTRUMENT = "SENSEX"; STRIKE_STEP = 100; }
 else if (StrFind(nm, "NIFTY"))  { INSTRUMENT = "NIFTY";  STRIKE_STEP = 50;  }
 
 // ---- SIGNAL LOGIC (replace with your own) ---------------------------------
-//  Produce three things:  sig ("CALL"/"PUT"/"WAIT"),  conf (0..100).
 e9  = EMA(Close, 9);
 e21 = EMA(Close, 21);
 goLong  = Cross(e9, e21);
@@ -45,44 +41,42 @@ conf = 60;
 if (LastValue(goLong))  { sig = "CALL"; conf = 75; }
 if (LastValue(goShort)) { sig = "PUT";  conf = 75; }
 
+if (TEST_MODE) { sig = "CALL"; conf = 66; }   // verification override
+
 px     = LastValue(Close);
 strike = round(px / STRIKE_STEP) * STRIKE_STEP;
 
-// ---- SEND (dedup: once per new bar, real-time last bar only) ---------------
-isLastBar = (BarIndex() == LastValue(BarIndex()));
-lastKey   = "ag_lastbar_" + Name();
-lastSent  = Nz(StaticVarGet(lastKey), -1);
-curBar    = LastValue(BarIndex());
-fresh     = curBar != lastSent;
+// ---- SEND via native GET (once per new bar) -------------------------------
+curBar   = LastValue(BarIndex());
+lastKey  = "ag_lastbar_" + Name();
+lastSent = Nz(StaticVarGet(lastKey), -1);
+fresh    = curBar != lastSent;
+doSend   = fresh AND (sig != "WAIT" OR SEND_WAIT OR TEST_MODE);
 
-doSend = LastValue(isLastBar) AND fresh AND (sig != "WAIT" OR SEND_WAIT);
-
-if (Status("action") == actionIndicator AND doSend)
+if (doSend)
 {
-    Q = Chr(34);   // a double-quote character
+    url = "http://" + BOT_HOST + "/api/amibroker/push-signal?signal=" + sig +
+          "&instrument=" + INSTRUMENT +
+          "&confidence=" + NumToStr(conf, 0, False) +
+          "&strike="     + NumToStr(strike, 0, False) +
+          "&price="      + NumToStr(px, 2, False) +
+          "&strategy=AFL&barId=" + NumToStr(curBar, 0, False);
 
-    // JSON in the bot's exact schema
-    json = "{" +
-        Q+"signal"+Q     + ":" + Q+sig+Q          + "," +
-        Q+"instrument"+Q + ":" + Q+INSTRUMENT+Q   + "," +
-        Q+"confidence"+Q + ":" + NumToStr(conf, 0, False)   + "," +
-        Q+"strike"+Q     + ":" + NumToStr(strike, 0, False) + "," +
-        Q+"price"+Q      + ":" + NumToStr(px, 2, False)     + "," +
-        Q+"strategy"+Q   + ":" + Q+"AFL_EMA"+Q    + "," +
-        Q+"barId"+Q      + ":" + Q + NumToStr(curBar,0,False) + Q +
-        "}";
-
-    // shell-escape the inner quotes for curl on Windows cmd:  "  ->  \"
-    shellJson = StrReplace(json, Q, "\\" + Q);
-
-    cmd = "/c curl.exe -s -m 5 -X POST " + BOT_URL +
-          " -H " + Q + "Content-Type: application/json" + Q +
-          " -d " + Q + shellJson + Q;
-
-    ShellExecute("cmd.exe", cmd, "");
-    StaticVarSet(lastKey, curBar);
-
-    _TRACE("Antigravity → sent " + sig + " " + INSTRUMENT + " " + NumToStr(strike,0) + " conf " + NumToStr(conf,0));
+    ih = InternetOpenURL(url);
+    if (ih)
+    {
+        resp = "";
+        chunk = InternetReadString(ih);
+        while (chunk != "") { resp = resp + chunk; chunk = InternetReadString(ih); }
+        InternetClose(ih);
+        StaticVarSet(lastKey, curBar);
+        _TRACE("Antigravity OK → " + sig + " " + INSTRUMENT + " " + NumToStr(strike,0) + "  resp=" + resp);
+    }
+    else
+    {
+        _TRACE("Antigravity FAIL → InternetOpenURL could not reach " + url +
+               "  (check BOT_HOST, that the server is running, and Windows firewall)");
+    }
 }
 
 // ---- chart cosmetics ------------------------------------------------------
@@ -91,5 +85,6 @@ Plot(e9,  "EMA9",  colorYellow);
 Plot(e21, "EMA21", colorAqua);
 PlotShapes(goLong  * shapeUpArrow,   colorGreen, 0, Low,  -12);
 PlotShapes(goShort * shapeDownArrow, colorRed,   0, High,  12);
-Title = "Antigravity bridge · " + INSTRUMENT + " · signal=" + sig + " conf=" + NumToStr(conf,0) +
-        " · strike=" + NumToStr(strike,0) + " · " + WriteIf(SEND_WAIT,"WAIT-on","CALL/PUT-only");
+Title = "Antigravity bridge v2 · " + INSTRUMENT + " · signal=" + sig +
+        " conf=" + NumToStr(conf,0) + " strike=" + NumToStr(strike,0) +
+        WriteIf(TEST_MODE, " · TEST_MODE ON (force CALL)", "");
