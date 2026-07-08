@@ -1,0 +1,95 @@
+// ============================================================================
+//  antigravity-bridge.afl  —  AmiBroker → Antigravity bot signal sender
+//
+//  Sends signals to the bot in the EXACT format it accepts (verified against the
+//  live server):   POST /api/amibroker/signal
+//    { "signal":"CALL"|"PUT"|"WAIT", "instrument":"NIFTY", "confidence":N,
+//      "strike":N, "price":N, "strategy":"..." }
+//
+//  The bot REJECTS action=BUY/SELL ("invalid_signal") — the key field is `signal`
+//  = CALL / PUT / WAIT. This script always uses that.
+//
+//  HOW TO USE
+//   1. Copy this file into AmiBroker's Formulas folder and add it as a chart study,
+//      or run it in the Analysis > Exploration/Scan (Auto-Repeat, RT).
+//   2. Set BOT_URL to your bot host (127.0.0.1 if AmiBroker is on the same PC, else the
+//      bot machine's LAN IP). No auth needed by default.
+//   3. Replace the SIGNAL LOGIC block with your own; the plumbing below stays as-is.
+//   4. It fires at most once per bar per symbol (dedup via StaticVar), only on the last
+//      (real-time) bar.
+//
+//  Requires curl.exe (built into Windows 10/11). No ActiveX / no extra installs.
+// ============================================================================
+
+// ---- CONFIG ---------------------------------------------------------------
+BOT_URL    = "http://127.0.0.1:3000/api/amibroker/signal";
+INSTRUMENT = "NIFTY";          // NIFTY | SENSEX | BANKNIFTY  (or auto-detect from Name())
+STRIKE_STEP = 50;              // 50 for NIFTY, 100 for SENSEX/BANKNIFTY
+SEND_WAIT   = False;           // True = also send WAIT bars (noisier); False = only CALL/PUT
+
+// auto-detect instrument from the symbol name if it matches
+nm = StrToUpper(Name());
+if (StrFind(nm, "BANKNIFTY")) { INSTRUMENT = "BANKNIFTY"; STRIKE_STEP = 100; }
+else if (StrFind(nm, "SENSEX")) { INSTRUMENT = "SENSEX"; STRIKE_STEP = 100; }
+else if (StrFind(nm, "NIFTY"))  { INSTRUMENT = "NIFTY";  STRIKE_STEP = 50;  }
+
+// ---- SIGNAL LOGIC (replace with your own) ---------------------------------
+//  Produce three things:  sig ("CALL"/"PUT"/"WAIT"),  conf (0..100).
+e9  = EMA(Close, 9);
+e21 = EMA(Close, 21);
+goLong  = Cross(e9, e21);
+goShort = Cross(e21, e9);
+
+sig  = "WAIT";
+conf = 60;
+if (LastValue(goLong))  { sig = "CALL"; conf = 75; }
+if (LastValue(goShort)) { sig = "PUT";  conf = 75; }
+
+px     = LastValue(Close);
+strike = round(px / STRIKE_STEP) * STRIKE_STEP;
+
+// ---- SEND (dedup: once per new bar, real-time last bar only) ---------------
+isLastBar = (BarIndex() == LastValue(BarIndex()));
+lastKey   = "ag_lastbar_" + Name();
+lastSent  = Nz(StaticVarGet(lastKey), -1);
+curBar    = LastValue(BarIndex());
+fresh     = curBar != lastSent;
+
+doSend = LastValue(isLastBar) AND fresh AND (sig != "WAIT" OR SEND_WAIT);
+
+if (Status("action") == actionIndicator AND doSend)
+{
+    Q = Chr(34);   // a double-quote character
+
+    // JSON in the bot's exact schema
+    json = "{" +
+        Q+"signal"+Q     + ":" + Q+sig+Q          + "," +
+        Q+"instrument"+Q + ":" + Q+INSTRUMENT+Q   + "," +
+        Q+"confidence"+Q + ":" + NumToStr(conf, 0, False)   + "," +
+        Q+"strike"+Q     + ":" + NumToStr(strike, 0, False) + "," +
+        Q+"price"+Q      + ":" + NumToStr(px, 2, False)     + "," +
+        Q+"strategy"+Q   + ":" + Q+"AFL_EMA"+Q    + "," +
+        Q+"barId"+Q      + ":" + Q + NumToStr(curBar,0,False) + Q +
+        "}";
+
+    // shell-escape the inner quotes for curl on Windows cmd:  "  ->  \"
+    shellJson = StrReplace(json, Q, "\\" + Q);
+
+    cmd = "/c curl.exe -s -m 5 -X POST " + BOT_URL +
+          " -H " + Q + "Content-Type: application/json" + Q +
+          " -d " + Q + shellJson + Q;
+
+    ShellExecute("cmd.exe", cmd, "");
+    StaticVarSet(lastKey, curBar);
+
+    _TRACE("Antigravity → sent " + sig + " " + INSTRUMENT + " " + NumToStr(strike,0) + " conf " + NumToStr(conf,0));
+}
+
+// ---- chart cosmetics ------------------------------------------------------
+Plot(Close, "Close", colorDefault, styleCandle);
+Plot(e9,  "EMA9",  colorYellow);
+Plot(e21, "EMA21", colorAqua);
+PlotShapes(goLong  * shapeUpArrow,   colorGreen, 0, Low,  -12);
+PlotShapes(goShort * shapeDownArrow, colorRed,   0, High,  12);
+Title = "Antigravity bridge · " + INSTRUMENT + " · signal=" + sig + " conf=" + NumToStr(conf,0) +
+        " · strike=" + NumToStr(strike,0) + " · " + WriteIf(SEND_WAIT,"WAIT-on","CALL/PUT-only");
