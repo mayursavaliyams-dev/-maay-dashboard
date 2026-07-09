@@ -52,29 +52,82 @@ const P = require('../pop-seller.js');
 const registry = require('../instrument-registry.js');
 
 // ════════════════════════════════════════════════════════════════════════════
-//  D1/D2 — lot size: pinned WRONG, so C1c-3 must change these lines visibly
+//  D1/D2/D3 — RESOLVED by migration C1c-3. The registry is the only source.
+//
+//  These assertions previously pinned the DEFECT (lotSize('NIFTY') === 75) so that
+//  the migration could not happen silently. The tripwire fired on cue. They now pin
+//  the FIX. Measured correction to every rupee figure this module emits:
+//      NIFTY      75 → 65   maxProfit −13.3%
+//      BANKNIFTY  35 → 30   maxProfit −14.3%
+//      SENSEX     20 → 20   unchanged
+//      FINNIFTY   65 → refused (registry knows it: lot 60, tradingEnabled:false)
+//      BANKEX     30 → refused          MIDCPNIFTY 75 → refused (true lot 120)
 // ════════════════════════════════════════════════════════════════════════════
 {
-  ok(P.lotSize('NIFTY') === 75, 'DEFECT D1: lotSize(NIFTY) is 75 today — broker says 65 (fix: C1c-3)');
-  ok(P.lotSize('BANKNIFTY') === 35, 'DEFECT D1: lotSize(BANKNIFTY) is 35 today — broker says 30 (fix: C1c-3)');
-  ok(P.lotSize('FINNIFTY') === 65, 'DEFECT D1: lotSize(FINNIFTY) is 65 today — broker says 60 (fix: C1c-3)');
-  ok(P.lotSize('SENSEX') === 20, 'lotSize(SENSEX) is 20 — agrees with the broker');
-  ok(P.lotSize('BANKEX') === 30, 'lotSize(BANKEX) is 30 — agrees with the broker');
+  ok(P.lotSize('NIFTY') === 65, 'C1c-3: lotSize(NIFTY) = 65, from the broker contract master');
+  ok(P.lotSize('BANKNIFTY') === 30, 'C1c-3: lotSize(BANKNIFTY) = 30');
+  ok(P.lotSize('SENSEX') === 20, 'C1c-3: lotSize(SENSEX) = 20 (was already correct)');
 
-  ok(P.lotSize('MIDCPNIFTY') === 75, 'DEFECT D2: unknown symbol silently prices at 75 (true lot 120) (fix: C1c-3)');
-  ok(P.lotSize('NIFTYNEXT50') === 75, 'DEFECT D2: any unknown symbol → 75, never a refusal (fix: C1c-3)');
-  ok(P.lotSize(undefined) === 75, 'DEFECT D2: undefined → 75 (fix: C1c-3)');
+  // Fail-closed: known-but-disabled instruments return null, they do NOT fall back to 75.
+  ok(P.lotSize('FINNIFTY') === null, 'C1c-3: FINNIFTY is disabled → null, NOT the old 65');
+  ok(P.lotSize('BANKEX') === null, 'C1c-3: BANKEX is disabled → null, NOT the old 30');
+  ok(P.lotSize('MIDCPNIFTY') === null, 'C1c-3: MIDCPNIFTY is disabled → null, NOT the fabricated 75');
 
-  // The registry already knows the truth. This documents the exact divergence.
-  const drift = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'SENSEX', 'BANKEX']
-    .map((i) => ({ i, popSeller: P.lotSize(i), broker: registry.catalog(i).lotSize }))
-    .filter((r) => r.popSeller !== r.broker);
-  ok(drift.length === 3 && drift.every((d) => ['NIFTY', 'BANKNIFTY', 'FINNIFTY'].includes(d.i)),
-    'DEFECT D1: exactly NIFTY/BANKNIFTY/FINNIFTY disagree with the broker contract master');
+  ok(P.lotSize('NIFTYNEXT50') === null, 'C1c-3: unknown symbol → null. The `|| 75` fallback is GONE');
+  ok(P.lotSize(undefined) === null && P.lotSize(null) === null && P.lotSize('') === null,
+    'C1c-3: undefined/null/empty → null, never a silent default');
+
+  // Every value this module reports must now equal the broker's.
+  for (const i of ['NIFTY', 'BANKNIFTY', 'SENSEX']) {
+    assert.strictEqual(P.lotSize(i), registry.catalog(i).lotSize, `${i} lot must equal the broker's`);
+  }
+  ok(true, 'C1c-3: zero drift between pop-seller and the broker contract master');
+
+  // The old constants must not survive anywhere in executable code.
+  const fs = require('fs'), path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'pop-seller.js'), 'utf8');
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').split(/\r?\n/).map((l) => l.replace(/^\s*\/\/.*$/, '')).join('\n');
+  ok(!/const\s+LOT_SIZE\s*=\s*\{/.test(code), 'C1c-3: the hardcoded LOT_SIZE map is gone from executable code');
+  ok(!/const\s+STEP\s*=\s*\{/.test(code), 'C1c-3: the hardcoded STEP map is gone from executable code');
+  ok(!/\|\|\s*75\b/.test(code), 'C1c-3: the `|| 75` silent fallback is gone');
+  ok(!/\|\|\s*50\b/.test(code), 'C1c-3: the `|| 50` strike-step fallback is gone');
+  ok(/require\(['"]\.\/instrument-registry/.test(src), 'C1c-3: pop-seller requires the Instrument Registry');
+}
+
+// ── C1c-3: explicit opt-in yields the BROKER lot, never the old constant ──
+{
+  process.env.FINNIFTY_TRADING_ENABLED = 'true';
+  delete require.cache[require.resolve('../instrument-registry.js')];
+  delete require.cache[require.resolve('../pop-seller.js')];
+  const P2 = require('../pop-seller.js');
+  ok(P2.lotSize('FINNIFTY') === 60, 'C1c-3: opting FINNIFTY in yields 60 (broker), NOT the old hardcoded 65');
+  delete process.env.FINNIFTY_TRADING_ENABLED;
+  delete require.cache[require.resolve('../instrument-registry.js')];
+  delete require.cache[require.resolve('../pop-seller.js')];
+}
+
+// ── C1c-3: every caller refuses rather than fabricating rupee figures ──
+{
+  ok(P.scanPoP({ inst: 'FINNIFTY', spot: 24000, chainStrikes: [], minPoP: 0 }).length === 0,
+    'C1c-3: scanPoP on a disabled instrument returns no candidates (no `premium × 75`)');
+  ok(P.scanPoP({ inst: 'NIFTYNEXT50', spot: 24000, chainStrikes: [], minPoP: 0 }).length === 0,
+    'C1c-3: scanPoP on an unknown instrument returns no candidates');
+  ok(P.buildIronCondor({ inst: 'FINNIFTY', spot: 24000, chainStrikes: [], minPoP: 0 }) === null,
+    'C1c-3: buildIronCondor refuses a disabled instrument');
+  ok(P.payoffCurve([{ action: 'SELL', type: 'CE', strike: 24500, premium: 40 }], 24000, null).length === 0,
+    'C1c-3: payoffCurve with a null lot returns [] — never a flat-zero curve that looks plausible');
+  ok(P.payoffCurve([{ action: 'SELL', type: 'CE', strike: 24500, premium: 40 }], 24000, 0).length === 0,
+    'C1c-3: payoffCurve with lot 0 returns []');
+
+  const r = P.sellPoP({ inst: 'FINNIFTY', side: 'SELL_CE', strike: 25000, type: 'CE', premium: 40 });
+  ok(r.ok === false && /No verified contract size/.test(r.reason), 'C1c-3: sellPoP refuses a disabled instrument');
+  ok(/FINNIFTY_TRADING_ENABLED=true/.test(r.reason), 'C1c-3: the refusal tells the operator exactly how to opt in');
+  ok(P.sellPoP({ inst: 'WHATEVER', side: 'SELL_CE', strike: 1, type: 'CE', premium: 1 }).ok === false,
+    'C1c-3: sellPoP refuses an unknown instrument');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  D3 — strike step (values correct, source duplicated)
+//  D3 — strike step now sourced from the registry
 // ════════════════════════════════════════════════════════════════════════════
 {
   // strikeStep is not exported; observe it through generateStrikes via scanPoP's ATM.
@@ -186,12 +239,12 @@ const registry = require('../instrument-registry.js');
   ok(res.every((r) => r.pop >= 80), 'every candidate clears minPoP');
   ok(res.every((r) => r.premium > 0.5), 'candidates with premium ≤ 0.5 are dropped');
   ok(res.every((r) => (r.side === 'SELL_CE' ? r.strike > 24000 : r.strike < 24000)), 'CE candidates are above spot, PE below');
-  ok(res.every((r) => r.lot === 75), 'DEFECT D1: every candidate carries lot 75 (fix: C1c-3)');
+  ok(res.every((r) => r.lot === 65), 'C1c-3: every candidate carries the registry lot 65');
 
   const ce = res.find((r) => r.strike === 24500 && r.side === 'SELL_CE');
   if (ce) {
     ok(ce.fromChain === true, 'scanPoP marks chain-sourced LTPs');
-    near(ce.maxProfit, 40 * 75, 1, 'DEFECT D1: maxProfit = premium × 75, not × 65 (fix: C1c-3)');
+    near(ce.maxProfit, 40 * 65, 1, 'C1c-3: maxProfit = premium × 65 (was × 75 — a +15.4% overstatement)');
     near(ce.breakeven, 24540, 0.01, 'CE breakeven = strike + premium');
     near(ce.distance, 500, 0.01, 'CE distance = strike − spot');
   }
@@ -224,8 +277,8 @@ const registry = require('../instrument-registry.js');
   ok(ic.legs.length === 2, 'DEFECT D6: only TWO legs — this is a short strangle, not an iron condor (backlog)');
   ok(ic.legs.every((l) => l.action === 'SELL'), 'DEFECT D6: both legs are SHORT, there are no protective wings (backlog)');
   ok(!('maxLoss' in ic), 'DEFECT D6: no maxLoss field — the structure has unbounded risk (backlog)');
-  ok(ic.lot === 75, 'DEFECT D1: condor lot is 75 (fix: C1c-3)');
-  near(ic.maxProfit, ic.credit * 75, 1, 'DEFECT D1: maxProfit = credit × 75 (fix: C1c-3)');
+  ok(ic.lot === 65, 'C1c-3: condor lot is the registry 65');
+  near(ic.maxProfit, ic.credit * 65, 1, 'C1c-3: condor maxProfit = credit × 65');
   near(ic.credit, ic.legs[0].premium + ic.legs[1].premium, 0.01, 'credit = sum of both premiums');
   near(ic.upperBreakeven, ic.legs[0].strike + ic.credit, 0.01, 'upper breakeven = CE strike + credit');
   near(ic.lowerBreakeven, ic.legs[1].strike - ic.credit, 0.01, 'lower breakeven = PE strike − credit');
@@ -264,16 +317,23 @@ const registry = require('../instrument-registry.js');
   const r = P.sellPoP({ inst: 'NIFTY', side: 'SELL_CE', strike: 24500, type: 'CE', premium: 40, pop: 92 });
   ok(r.ok && r.position.id > 0, 'sellPoP opens a paper position');
   ok(r.position.mode === 'PAPER', 'defaults to PAPER');
-  ok(r.position.lot === 75, 'DEFECT D1: position lot defaults to 75 (fix: C1c-3)');
-  near(r.position.creditCollected, 40 * 75, 1, 'DEFECT D1: creditCollected = premium × 75 (fix: C1c-3)');
+  ok(r.position.lot === 65, 'C1c-3: position lot defaults to the registry 65');
+  ok(r.position.lotSource === 'instrument-registry', 'C1c-3: the position records where its lot came from');
+  near(r.position.creditCollected, 40 * 65, 1, 'C1c-3: creditCollected = premium × 65');
 
   const c = P.closePoP(r.position.id, 10);
   ok(c.ok && c.position.status === 'CLOSED', 'closePoP closes it');
-  near(c.position.pnl, (40 - 10) * 75, 1, 'DEFECT D1: pnl = (entry − exit) × 75, and NO transaction charges are applied (fix: C1c-3)');
+  near(c.position.pnl, (40 - 10) * 65, 1, 'C1c-3: pnl = (entry − exit) × 65. NOTE: still NO transaction charges — a separate defect for a separate commit');
+
+  const explicit = P.sellPoP({ inst: 'NIFTY', side: 'SELL_CE', strike: 24600, type: 'CE', premium: 20, lot: 130 });
+  ok(explicit.position.lot === 130 && explicit.position.lotSource === 'caller-supplied',
+    'C1c-3: an explicitly supplied lot still wins, and is labelled as such');
 
   ok(P.closePoP(r.position.id, 10).ok === false, 'closing twice is refused');
   ok(P.closePoP(999999, 0).ok === false, 'closing an unknown id is refused');
-  ok(P.getBook().length === before + 1, 'DEFECT D8: _book is module-global and grows across requires');
+  // two positions were opened above (the registry-lot one and the explicit-lot one);
+  // the FINNIFTY/unknown attempts were refused and must NOT have entered the book.
+  ok(P.getBook().length === before + 2, 'DEFECT D8: _book is module-global and grows across requires (refused trades never enter it)');
   const snap = P.getBook();
   ok(snap[0] !== P.getBook()[0], 'getBook returns fresh copies, not live references');
   snap[0].premium = -1;

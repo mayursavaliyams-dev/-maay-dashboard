@@ -14,13 +14,34 @@
 
 const POP_LIVE_ENABLED = process.env.POP_LIVE_ENABLED === 'true';
 
-// ── Lot sizes ─────────────────────────────────────────────────────────────────
-const LOT_SIZE = { NIFTY: 75, BANKNIFTY: 35, SENSEX: 20, FINNIFTY: 65, BANKEX: 30 };
-function lotSize(inst) { return LOT_SIZE[inst] || 75; }
+// ── Contract metadata: the Instrument Registry is the single source of truth ───
+//
+// MIGRATION C1c-3 (2026-07-09). This module previously declared:
+//
+//   const LOT_SIZE = { NIFTY: 75, BANKNIFTY: 35, SENSEX: 20, FINNIFTY: 65, BANKEX: 30 };
+//   function lotSize(inst) { return LOT_SIZE[inst] || 75; }
+//   const STEP     = { NIFTY: 50, BANKNIFTY: 100, SENSEX: 100, FINNIFTY: 50, BANKEX: 100 };
+//   function strikeStep(inst) { return STEP[inst] || 50; }
+//
+// The broker contract master (GET /v2/option/contract, re-queried 2026-07-09) reports
+// NIFTY 65, BANKNIFTY 30, SENSEX 20, FINNIFTY 60, BANKEX 30. Because every rupee figure
+// this module emits is `premium × lot`, the wrong constants overstated maxProfit,
+// creditCollected and realised paper P&L by +15.4% (NIFTY), +16.7% (BANKNIFTY) and
+// +8.3% (FINNIFTY). The `|| 75` fallback priced ANY unknown symbol at 75 — MIDCPNIFTY,
+// whose true lot is 120, would have been off by −37.5% with no warning.
+//
+// There is now NO fallback. An instrument the registry does not know, or that ships
+// `tradingEnabled:false`, yields `null` — and every caller REFUSES rather than guesses.
+// FINNIFTY / BANKEX / MIDCPNIFTY are known to the registry but disabled by default;
+// enable one explicitly with `<INST>_TRADING_ENABLED=true` and it will use the
+// broker-verified lot, never the old constant.
+const instrumentRegistry = require('./instrument-registry.js');
 
-// ── Strike step ───────────────────────────────────────────────────────────────
-const STEP = { NIFTY: 50, BANKNIFTY: 100, SENSEX: 100, FINNIFTY: 50, BANKEX: 100 };
-function strikeStep(inst) { return STEP[inst] || 50; }
+/** Contract lot size, or null when the instrument is unknown/disabled. Never guesses. */
+function lotSize(inst) { return instrumentRegistry.lotSize(inst); }
+
+/** Strike interval, or null when the instrument is unknown/disabled. Never guesses. */
+function strikeStep(inst) { return instrumentRegistry.step(inst); }
 
 // ── Days to next weekly expiry ────────────────────────────────────────────────
 // NIFTY = Thursday, SENSEX = Tuesday
@@ -80,6 +101,7 @@ function realPoP(S, K, T, iv, type) {
  */
 function generateStrikes(spot, inst, rangePercent = 10) {
   const step = strikeStep(inst);
+  if (!step) return { strikes: [], atm: null };   // C1c-3: unknown/disabled → refuse, never guess
   const atm  = Math.round(spot / step) * step;
   const lo   = Math.round(spot * (1 - rangePercent/100) / step) * step;
   const hi   = Math.round(spot * (1 + rangePercent/100) / step) * step;
@@ -99,6 +121,9 @@ function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30
   const T    = daysToExpiry(inst);
   const lot  = lotSize(inst);
   const step = strikeStep(inst);
+  // C1c-3: an unknown or trading-disabled instrument has no verified contract size.
+  // Emitting `premium × 75` for it would be a fabricated rupee figure. Return nothing.
+  if (!lot || !step) return [];
   const atm  = Math.round(spot / step) * step;
 
   // Build IV map from chain (strike → {ceIV, peIV})
@@ -196,13 +221,15 @@ function estimatePremium(S, K, T, sigma, type) {
  * Build Iron Condor from best equidistant CE+PE candidates.
  */
 function buildIronCondor({ inst, spot, chainStrikes, minPoP=90, atmIV=null }) {
+  const lot = lotSize(inst);
+  if (!lot) return null;                          // C1c-3: unknown/disabled → refuse, never guess
+
   const cands = scanPoP({ inst, spot, chainStrikes, minPoP, maxResults:60, atmIV });
   // Prefer nearest OTM on each side (most premium, still high PoP)
   const bestCE = cands.filter(c=>c.side==='SELL_CE').sort((a,b)=>a.distance-b.distance)[0];
   const bestPE = cands.filter(c=>c.side==='SELL_PE').sort((a,b)=>a.distance-b.distance)[0];
   if (!bestCE || !bestPE) return null;
 
-  const lot    = lotSize(inst);
   const credit = +(bestCE.premium + bestPE.premium).toFixed(2);
   const combPoP = +((bestCE.pop/100)*(bestPE.pop/100)*100).toFixed(1);
   const T      = daysToExpiry(inst);
@@ -226,6 +253,12 @@ function buildIronCondor({ inst, spot, chainStrikes, minPoP=90, atmIV=null }) {
  * Payoff curve for a set of legs.
  */
 function payoffCurve(legs, spot, lot, points=41) {
+  // C1c-3: server.js:4170 passes `popSeller.lotSize(inst)` straight in. That is now null
+  // for an unknown/disabled instrument. Multiplying by null would silently yield a
+  // flat zero payoff curve — a plausible-looking lie. Return nothing instead.
+  const L = Number(lot);
+  if (!Number.isFinite(L) || L <= 0) return [];
+  lot = L;
   const lo=spot*0.96, hi=spot*1.04, step=(hi-lo)/(points-1);
   return Array.from({length:points}, (_,i) => {
     const px = lo+step*i;
@@ -247,12 +280,20 @@ function sellPoP({ inst, side, strike, type, premium, lot, pop, tradeMode='paper
   if (wantLive && (!POP_LIVE_ENABLED || !confirmLive)) {
     return { ok:false, reason:'LIVE blocked — POP_LIVE_ENABLED=true + confirmLive required. (IC backtest 0/26 wins — validate paper first.)' };
   }
+  // C1c-3: resolve the contract size before opening anything. `creditCollected` and the
+  // eventual `pnl` are both `× lot`, so an unverified lot fabricates every rupee figure
+  // on this position for the rest of its life.
+  const resolvedLot = Number(lot) > 0 ? Number(lot) : lotSize(inst);
+  if (!resolvedLot) {
+    return { ok:false, reason:`No verified contract size for ${inst}. The Instrument Registry does not know it, or it ships tradingEnabled:false. Set ${String(inst||'').toUpperCase()}_TRADING_ENABLED=true to opt in — the registry will supply the broker-verified lot.` };
+  }
   const pos = {
     id: _idSeq++, inst, side, strike, type,
     premium: +Number(premium).toFixed(2),
-    lot: lot || lotSize(inst),
+    lot: resolvedLot,
     pop: pop != null ? +Number(pop).toFixed(1) : null,
-    creditCollected: +(Number(premium)*(lot||lotSize(inst))).toFixed(0),
+    creditCollected: +(Number(premium)*resolvedLot).toFixed(0),
+    lotSource: Number(lot) > 0 ? 'caller-supplied' : 'instrument-registry',
     openAt: new Date().toISOString(),
     mode: wantLive ? 'LIVE' : 'PAPER',
     status: 'OPEN'
