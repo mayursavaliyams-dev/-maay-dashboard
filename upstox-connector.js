@@ -25,7 +25,12 @@ const IKEY = {
   BANKNIFTY: 'NSE_INDEX|Nifty Bank',
   SENSEX:    'BSE_INDEX|SENSEX',
 };
-const STEP = { NIFTY: 50, BANKNIFTY: 100, SENSEX: 100 };
+// C1c-7: the strike interval used to live here as
+//   const STEP = { NIFTY: 50, BANKNIFTY: 100, SENSEX: 100 };
+// a third copy of the same map (registry, pop-seller, here). It now comes from the
+// Instrument Registry via strike-resolver, so MIDCPNIFTY's interval of 25 can never be
+// silently rounded to 50.
+const strikeResolver = require('./strike-resolver.js');
 
 function enc(k) { return encodeURIComponent(k); }
 
@@ -137,8 +142,8 @@ class UpstoxConnector {
       pe: this._leg(r.put_options),
     })).sort((a, b) => a.strike - b.strike);
     const spot = Number((rows[0] && rows[0].underlying_spot_price) || spotPrice || 0);
-    const step = STEP[inst] || 50;
-    const atmStrike = Math.round(spot / step) * step;
+    // C1c-7: interval from the registry; null (not a fabricated 0) when spot is unusable.
+    const atmStrike = strikeResolver.atm(inst, spot);
     const data = { spotPrice: spot, atmStrike, strikes, timestamp: new Date(), source: 'upstox', expiry };
     this._chainCache[inst] = { at: Date.now(), data };
     return data;
