@@ -262,4 +262,78 @@ function ledgerContract(name, mk, file, load, save, corrupt) {
   ok(/safe-write/.test(src), 'database: writes go through safe-write');
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  C3 remaining writers (2026-07-09 batch)
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── pop-seller book (P2): was MEMORY-ONLY — every restart erased all positions ──
+{
+  console.log('\n  ── pop-seller book (P2) ──');
+  const P = require('../pop-seller.js');
+  const bookFile = path.join(__dirname, '..', 'data', 'pop-book.json');
+
+  const before = P.getBook().length;
+  const r = P.sellPoP({ inst: 'NIFTY', side: 'SELL_CE', strike: 24500, type: 'CE', premium: 40 });
+  ok(r.ok === true, 'pop-seller: a paper sell still opens');
+  ok(fs.existsSync(bookFile), 'pop-seller (P2): the book NOW PERSISTS to disk — the sixth book finally exists');
+  const onDisk = S.readJsonSync(bookFile);
+  ok(Array.isArray(onDisk.book) && onDisk.book.length === before + 1,
+    'pop-seller: the position is on disk, not just in memory');
+  ok(Number.isFinite(onDisk.idSeq) && onDisk.idSeq > 1, 'pop-seller: idSeq persists so ids never collide after restart');
+  ok(P.popStatus().bookCorrupt === false, 'pop-seller: popStatus surfaces book health');
+
+  P.closePoP(r.position.id, 10);
+  ok(S.readJsonSync(bookFile).book.find((p) => p.id === r.position.id).status === 'CLOSED',
+    'pop-seller: the close is persisted too');
+
+  // leave no trace in the real data/ directory
+  fs.unlinkSync(bookFile);
+  try { fs.unlinkSync(bookFile + '.bak'); } catch (_) {}
+}
+
+// ── afternoon-engine: the risk brake must FAIL CLOSED ──
+{
+  console.log('\n  ── afternoon-engine risk brake ──');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'afternoon-engine.js'), 'utf8');
+  ok(/EQUITY_STATE_CORRUPT/.test(src) && /autoEnabled = false/.test(src),
+    'afternoon-engine: an unrecoverable equity file now HALTS the engine (fail closed)');
+  ok(/safe-write/.test(src) && /backup: true/.test(src),
+    'afternoon-engine: equity state (capital + consecLosses) is written atomically with a .bak');
+  // The old behaviour silently reset consecLosses to 0 — disarming the
+  // halt-after-N-losses brake. Pin that it is gone:
+  ok(!/catch \(e\) \{ console\.warn\(`\[\$\{this\.instrumentName\}-AFT\] equity restore failed/.test(src),
+    'afternoon-engine: the silent restore-failure swallow is gone');
+}
+
+// ── confluence-learner: learned weights must never silently reset ──
+{
+  console.log('\n  ── confluence-learner ──');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'confluence-learner.js'), 'utf8');
+  ok(/safe-write/.test(src) && /backup: true/.test(src), 'confluence-learner: learned weights write atomically with .bak');
+  ok(!/catch \(_\) \{ return d; \}/.test(src),
+    'confluence-learner: corrupt weights no longer silently return the fallback (they recover or THROW)');
+}
+
+// ── the sweep: NO production ledger writer bypasses safe-write any more ──
+{
+  console.log('\n  ── final sweep ──');
+  const MIGRATED = ['strangle-engine.js', 'agents-engine.js', 'gamma-blast-engine.js',
+    'forward-test-logger.js', 'signal-health.js', 'database.js', 'pop-seller.js',
+    'ai-logger.js', 'confirmed-signals.js', 'confluence-learner.js', 'event-engine.js',
+    'afternoon-engine.js', 'crash-analyzer.js', 'pine-converter.js'];
+  const offenders = [];
+  for (const f of MIGRATED) {
+    const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+    // strip comments before scanning (migration notes quote the old code verbatim)
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').split(/\r?\n/)
+      .map((l) => l.replace(/^\s*\/\/.*$/, '').replace(/\s+\/\/.*$/, '')).join('\n');
+    if (/fs\.writeFileSync|_fs\.writeFileSync/.test(code)) offenders.push(f);
+    if (!/safe-write/.test(src)) offenders.push(f + ' (no safe-write import)');
+  }
+  // signal-health legitimately keeps ONE writeFileSync: the injected-fake branch.
+  const real = offenders.filter((f) => f !== 'signal-health.js');
+  ok(real.length === 0,
+    `every migrated writer goes through safe-write${real.length ? ' — OFFENDERS: ' + real.join(', ') : ''}`);
+}
+
 console.log(`\n${pass} assertions passed`);

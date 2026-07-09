@@ -312,8 +312,38 @@ function payoffCurve(legs, spot, lot, points=41) {
 }
 
 // ── Paper position book ───────────────────────────────────────────────────────
-const _book = [];
+//
+// MIGRATION C3 / P2 (2026-07-09). This book was module-global MEMORY ONLY — every
+// restart erased all open paper positions, and no portfolio engine could ever see
+// them (the "sixth book" finding). It now persists through safe-write with the same
+// contract as every other ledger: atomic + .bak, recover on corruption, and if the
+// file is unrecoverable REFUSE to save so the corrupt bytes survive for forensics.
+const _BOOK_FILE = require('path').join(__dirname, 'data', 'pop-book.json');
+const _safeWrite = require('./safe-write.js');
+let _book = [];
 let _idSeq = 1;
+let _bookCorrupt = false;
+
+(function _loadBook() {
+  try {
+    const s = _safeWrite.readJsonSync(_BOOK_FILE, {
+      fallback: { book: [], idSeq: 1 },
+      onRecover: (reason, bak) => console.warn(`[pop-seller] book was corrupt (${reason}); recovered from ${bak}.`),
+    });
+    _book = Array.isArray(s.book) ? s.book : [];
+    _idSeq = Number.isFinite(s.idSeq) && s.idSeq > 0 ? s.idSeq : (_book.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1);
+  } catch (e) {
+    _bookCorrupt = true;
+    console.error(`[pop-seller] BOOK UNRECOVERABLE: ${e.message}`);
+    console.error('[pop-seller] Saving is DISABLED for the book. The file is untouched.');
+  }
+})();
+
+function _saveBook() {
+  if (_bookCorrupt) return;   // never write over a book we could not read
+  try { _safeWrite.writeJsonSync(_BOOK_FILE, { book: _book.slice(-2000), idSeq: _idSeq }, { backup: true }); }
+  catch (e) { console.error(`[pop-seller] book save failed: ${e.message}`); }
+}
 
 function sellPoP({ inst, side, strike, type, premium, lot, pop, tradeMode='paper', confirmLive=false }) {
   const wantLive = tradeMode === 'live';
@@ -339,6 +369,7 @@ function sellPoP({ inst, side, strike, type, premium, lot, pop, tradeMode='paper
     status: 'OPEN'
   };
   _book.push(pos);
+  _saveBook();
   return { ok:true, position:pos };
 }
 
@@ -349,6 +380,7 @@ function closePoP(id, exitPremium=0) {
   pos.exitPremium = +Number(exitPremium).toFixed(2);
   pos.exitAt = new Date().toISOString();
   pos.pnl = +((pos.premium - pos.exitPremium)*pos.lot).toFixed(0);
+  _saveBook();
   return { ok:true, position:pos };
 }
 
@@ -356,8 +388,9 @@ function getBook() { return _book.map(p=>({...p})); }
 
 function popStatus() {
   const open = _book.filter(p=>p.status==='OPEN');
-  return {
+  return {    
     liveEnabled: POP_LIVE_ENABLED,
+    bookCorrupt: _bookCorrupt,
     openPositions: open.length,
     totalCredit: open.reduce((s,p)=>s+(p.creditCollected||0),0),
     book: getBook()

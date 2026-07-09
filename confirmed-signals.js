@@ -44,8 +44,18 @@ function agree(votes = {}, opts = {}) {
   return { confirmed, direction, agreeN, bull, bear, oppose, engines, votes };
 }
 
-function readJson(f, d) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) { return d; } }
-function writeJson(f, o) { try { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(o, null, 1)); } catch (_) {} }
+// C3: missing → fallback; corrupt → recover from .bak; unrecoverable → THROW.
+// Returning the fallback for a corrupt file is the read half of the data-loss chain.
+function readJson(f, d) {
+  return require('./safe-write.js').readJsonSync(f, {
+    fallback: d,
+    onRecover: (reason, bak) => console.warn(`[confirmed-signals] ${f} was corrupt (${reason}); recovered from ${bak}.`),
+  });
+}
+function writeJson(f, o) {
+  try { require('./safe-write.js').writeJsonSync(f, o, { pretty: 1, backup: true }); }
+  catch (e) { console.error(`[confirmed-signals] write failed for ${f}: ${e.message}`); }
+}
 
 class ConfirmedTracker {
   constructor(opts = {}) {

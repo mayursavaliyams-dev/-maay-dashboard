@@ -741,12 +741,13 @@ class AfternoonEngine {
 
     // Persist
     try {
-      const _fs = require('fs'); const _path = require('path');
+      const _path = require('path');
       const file = _path.resolve(`./data/equity-${this.instrumentName.toLowerCase()}-afternoon.json`);
-      _fs.writeFileSync(file, JSON.stringify({
+      // C3: this is RISK-BRAKE state (capital + consecLosses). Atomic + .bak.
+      require('./safe-write.js').writeJsonSync(file, {
         capital: this.capital, reserve: this.reserve,
         consecLosses: this._consecLosses, updatedAt: new Date().toISOString()
-      }, null, 2));
+      }, { pretty: true, backup: true });
     } catch (e) { console.warn(`[${this.instrumentName}-AFT] equity persist failed: ${e.message}`); }
 
     // Consecutive loss tracking
@@ -765,18 +766,29 @@ class AfternoonEngine {
 
   // ── Restore equity from disk ────────────────────────────────
   restoreEquity() {
+    // C3, FAIL-CLOSED FIX. The old code swallowed a corrupt equity file, which reset
+    // consecLosses to 0 — SILENTLY DISARMING the halt-after-N-losses brake. For a risk
+    // brake, "state unknown" must mean "brake ON": if the file exists but cannot be
+    // read or recovered, the engine HALTS and says so, instead of trading on.
     try {
       const _fs = require('fs'); const _path = require('path');
       const file = _path.resolve(`./data/equity-${this.instrumentName.toLowerCase()}-afternoon.json`);
       if (!_fs.existsSync(file)) return;
-      const s = JSON.parse(_fs.readFileSync(file, 'utf8'));
+      const s = require('./safe-write.js').readJsonSync(file, {
+        onRecover: (reason, bak) => console.warn(`[${this.instrumentName}-AFT] equity state was corrupt (${reason}); recovered from ${bak}.`),
+      });
       const ageMs = Date.now() - new Date(s.updatedAt || 0).getTime();
       if (ageMs > 30 * 24 * 3600 * 1000) return;
       if (Number.isFinite(s.capital))      this.capital      = s.capital;
       if (Number.isFinite(s.reserve))      this.reserve      = s.reserve;
       if (Number.isFinite(s.consecLosses)) this._consecLosses = s.consecLosses;
       console.log(`[${this.instrumentName}-AFT] 📥 Restored afternoon equity: active ₹${this.capital.toFixed(0)} + reserve ₹${(this.reserve||0).toFixed(0)}`);
-    } catch (e) { console.warn(`[${this.instrumentName}-AFT] equity restore failed: ${e.message}`); }
+    } catch (e) {
+      this._haltedReason = 'EQUITY_STATE_CORRUPT';
+      this.autoEnabled = false;
+      console.error(`[${this.instrumentName}-AFT] ⛔ EQUITY STATE UNRECOVERABLE: ${e.message}`);
+      console.error(`[${this.instrumentName}-AFT] ⛔ Cannot know the loss streak — HALTING (fail closed). resetHalt() clears after manual review.`);
+    }
   }
 
   // ── Manual reset of halt ────────────────────────────────────

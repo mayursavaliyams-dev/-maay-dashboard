@@ -35,8 +35,20 @@ const TRADES_KEEP = 500;
 
 const sgn = v => (v > 0 ? 1 : v < 0 ? -1 : 0);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-function readJson(f, d) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) { return d; } }
-function writeJson(f, o) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(f, JSON.stringify(o, null, 1)); return true; } catch (_) { return false; } }
+// C3: these files hold LEARNED WEIGHTS — reliability evidence accumulated from real
+// wins/losses. Silently resetting them to defaults because the file is truncated is
+// how a calibrated engine quietly becomes uncalibrated. Corrupt → recover; if
+// unrecoverable → THROW (the caller must not pretend it has fresh weights).
+function readJson(f, d) {
+  return require('./safe-write.js').readJsonSync(f, {
+    fallback: d,
+    onRecover: (reason, bak) => console.warn(`[confluence-learner] ${f} was corrupt (${reason}); recovered from ${bak}.`),
+  });
+}
+function writeJson(f, o) {
+  try { require('./safe-write.js').writeJsonSync(f, o, { pretty: 1, backup: true }); return true; }
+  catch (e) { console.error(`[confluence-learner] write failed for ${f}: ${e.message}`); return false; }
+}
 
 const baselineSum = LEARNABLE.reduce((s, k) => s + (DEFAULT_WEIGHTS[k] || 8), 0);
 const freshInst = () => {

@@ -160,7 +160,8 @@ class CrashAnalyzer {
    */
   clearLog() {
     try {
-      fs.writeFileSync(this.logFile, '');
+      // C3: atomic even for a clear — a crash mid-truncate must not leave a torn log.
+      require('./safe-write.js').writeFileAtomicSync(this.logFile, '');
       return true;
     } catch {
       return false;

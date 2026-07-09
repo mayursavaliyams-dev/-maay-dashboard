@@ -15,9 +15,27 @@ const path = require('path');
 const FILE = path.join(__dirname, 'data', 'ai-signals.json');
 const MAX_ROWS = 2000;
 
-function _load() { try { return JSON.parse(fs.readFileSync(FILE, 'utf8')) || []; } catch { return []; } }
+// C3: audit log. Missing → []; corrupt → recover from .bak; unrecoverable → refuse
+// to append (never overwrite the evidence) and say so.
+let _corrupt = false;
+function _load() {
+  _corrupt = false;
+  try {
+    const rows = require('./safe-write.js').readJsonSync(FILE, {
+      fallback: [],
+      onRecover: (reason, bak) => console.warn(`[ai-logger] log was corrupt (${reason}); recovered from ${bak}.`),
+    });
+    return Array.isArray(rows) ? rows : [];
+  } catch (e) {
+    _corrupt = true;
+    console.error(`[ai-logger] LOG UNRECOVERABLE: ${e.message}. Appending disabled; file untouched.`);
+    return [];
+  }
+}
 function _save(arr) {
-  try { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(arr.slice(-MAX_ROWS))); } catch (_) {}
+  if (_corrupt) return;   // never write over an audit log we could not read
+  try { require('./safe-write.js').writeJsonSync(FILE, arr.slice(-MAX_ROWS), { backup: true }); }
+  catch (e) { console.error(`[ai-logger] append failed: ${e.message}`); }
 }
 
 let _signals = _load();

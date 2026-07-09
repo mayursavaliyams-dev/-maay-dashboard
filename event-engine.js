@@ -23,8 +23,21 @@ const TYPE_WEIGHT = {
   IIP: 55, PMI: 50, RESULTS: 50, GLOBAL: 55, CORPORATE_ACTION: 25, DIVIDEND: 20, BONUS: 25, SPLIT: 20, OTHER: 30,
 };
 
-function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { return fallback; } }
-function writeJson(file, obj) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(file, JSON.stringify(obj, null, 1)); return true; } catch (_) { return false; } }
+// C3: this cache is REGENERABLE (VIX/FII-DII/calendar are re-fetched), so corruption
+// falls back rather than throwing — but the WRITE is atomic so a crash can never
+// leave a torn file for the next boot to trip on. Different data, different policy.
+function readJson(file, fallback) {
+  try {
+    return require('./safe-write.js').readJsonSync(file, { fallback });
+  } catch (e) {
+    console.warn(`[event-engine] ${file} unreadable (${e.message}); refetching from source.`);
+    return fallback;
+  }
+}
+function writeJson(file, obj) {
+  try { require('./safe-write.js').writeJsonSync(file, obj, { pretty: 1 }); return true; }
+  catch (e) { console.error(`[event-engine] write failed for ${file}: ${e.message}`); return false; }
+}
 
 class EventEngine {
   constructor() {

@@ -866,3 +866,72 @@ home palette), end with `dashboard.html`.
 **Not addressed yet (needs design decisions, not just tokens):** the 16-timer polling storm (a shared
 poller or SSE/WebSocket bridge is a server.js-adjacent change — approval needed) · workspace save/restore ·
 resizable panels · option-chain institutional layout · alert system.
+
+---
+
+## 18. C3 COMPLETE (non-protected surface) — 2026-07-09 batch 2
+
+### Audit — every writer, final state
+
+| writer | data class | policy applied |
+|---|---|---|
+| strangle-engine | trade ledger | atomic + `.bak` + refuse-on-corrupt ✅ (C3-02) |
+| agents-engine ×3 | trades, archive, **open positions** | same; open-corrupt ⇒ never pretend flat ✅ (C3-03) |
+| gamma-blast-engine | forward-test evidence | same ✅ (C3-04) |
+| forward-test-logger | live-approval gate | atomic + `.bak`, recover ✅ (C3-05) |
+| signal-health | calibration outcomes | atomic when real `fs`; injected-fake seam preserved ✅ (C3-05) |
+| database.js | generic store | TD-5 closed: recover or THROW ✅ (C3-06) |
+| **ai-logger** | AI-decision audit log | atomic + `.bak`; corrupt ⇒ appending disabled ✅ **(new)** |
+| **confirmed-signals** | signal outcomes | atomic + `.bak`; corrupt ⇒ recover or THROW ✅ **(new)** |
+| **confluence-learner** | **learned weights** (H15 reliability evidence) | atomic + `.bak`; never silently reset ✅ **(new)** |
+| **event-engine** | regenerable fetch cache | atomic; corrupt ⇒ refetch (different data, different policy) ✅ **(new)** |
+| **afternoon-engine** | **risk-brake state** | **fail-open bug fixed**: corrupt equity ⇒ `EQUITY_STATE_CORRUPT` + HALT, not `consecLosses=0` ✅ **(new)** |
+| **pop-seller book** | **P2 closed** | was memory-only; now `data/pop-book.json`, atomic + `.bak` + idSeq persistence ✅ **(new)** |
+| crash-analyzer, pine-converter | text log / generated code | atomic (no `.bak` — not ledgers) ✅ **(new)** |
+| **execution-engine** | risk-brake state | ⛔ **PROTECTED — approval package below, not touched** |
+| **server.js** ×10 | mixed | ⛔ **PROTECTED — classified below, not touched** |
+
+### Coverage
+`test/ledger-safety.test.js` **44 → 56 assertions**: pop-seller persistence round-trip (open + close on
+disk, idSeq survives), afternoon-engine fail-closed halt, confluence-learner no-silent-reset, and a
+**final sweep** asserting no migrated writer bypasses safe-write (comment-stripped scan; signal-health's
+injected-fake branch is the one legitimate exception). Full suite **36/36 ×2**.
+
+### The crash-survival claim, stated honestly
+`safe-write.test.js` proves the **mechanism**: 6× `SIGKILL` mid-write, 3 concurrent writers + reader
+(2,585 reads, 0 corrupt), injected `ENOSPC`/`EIO`. `ledger-safety.test.js` proves each **engine** recovers
+from `.bak` and refuses to overwrite what it cannot read. **Windows reboot / power loss:** `fsync` on the
+file fd runs before the rename; directory-entry fsync is `EPERM` on Windows (reported as
+`dirDurable:false`, never pretended). Within those OS limits, survival is tested, not assumed.
+
+### Performance
+Measured cost per ledger write: **2.91 ms** (atomic+fsync) / **4.93 ms** (+`.bak`) vs 1.80 ms fair baseline.
+Every migrated writer fires on trade close or engine halt — a handful per day. Worst new cost ≈ **+3 ms/day
+per engine**. The only high-frequency writers are `server.js:539/576` (5 s candle-cache timers) — flagged
+in the package below with `fsync:false` recommended.
+
+### C3-07 — execution-engine (PROTECTED, awaiting approval)
+**Defect (identical to afternoon-engine, verified):** `:177` non-atomic equity persist;
+`:370` `catch (e) { console.warn }` on restore ⇒ a corrupt `data/equity-<inst>.json` silently keeps
+`consecLosses = 0` — **the halt-after-N-losses brake disarms exactly when a crash just happened.**
+**Proposed diff (2 hunks, ~14 lines):** persist via `writeJsonSync(..., {pretty:true, backup:true})`;
+restore via `readJsonSync` with `onRecover`, and on unrecoverable ⇒ `_haltedReason='EQUITY_STATE_CORRUPT'`,
+`autoEnabled=false`, loud log (resume via existing `POST /api/engine/reset`).
+**Risk:** low — same pattern already live in afternoon-engine; smoke: construct + restoreEquity on
+missing/corrupt/recovered fixtures. **Rollback:** `git checkout HEAD -- execution-engine.js`.
+
+### server.js — 10 sites classified (PROTECTED, for a later package)
+| lines | what | class | recommendation |
+|---|---|---|---|
+| 3675, 3747 | `config-overrides.json` — engine on/off, capital | **ledger-grade** | atomic + `.bak` (highest value) |
+| 5859 | signal-paper positions | ledger-grade | atomic + `.bak` |
+| 5838 | VRP monitor state | state | atomic |
+| 1330, 3575 | persist blobs | state | atomic |
+| 4229 | EOD snapshot | archive | atomic |
+| 539, 576 | option H/L + candle cache, **5 s timers** | hot cache | atomic with `fsync:false` |
+| 2028 | **rewrites `.env`** | ⚠ config w/ secrets | atomic + `mode:0o600`; deserves its own review |
+
+### Future plan
+1. C3-07 on approval → 2. server.js package (start with `config-overrides.json`) → 3. TD-4 lost-update
+half: boot-time advisory lock on `data/` (`withLock` already exists) → 4. daily NAV series (P3) on the
+now-safe write path → 5. quarterly `cleanupTemp()` sweep in preflight.

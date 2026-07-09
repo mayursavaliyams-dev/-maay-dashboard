@@ -144,7 +144,8 @@ async function convert(pineSource, suggestedName) {
   const file = path.join(OUT_DIR, `${slug}.js`);
   const header = `// ⚠️ AI-GENERATED from a Pine Script on ${new Date().toISOString()}.\n` +
                  `// UNREVIEWED. Read it, backtest it, and enable it deliberately. Do NOT auto-trade blind.\n\n`;
-  fs.writeFileSync(file, header + code);
+  // C3: a half-written strategy file is executable garbage. Atomic or nothing.
+  require('./safe-write.js').writeFileAtomicSync(file, header + code);
 
   return {
     ok: true,
