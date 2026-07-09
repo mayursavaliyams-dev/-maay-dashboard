@@ -46,6 +46,7 @@
  */
 const { roundTripCharges } = require('./charges.js');
 const instrumentRegistry = require('./instrument-registry.js');
+const safeWrite = require('./safe-write.js');   // C3-02: atomic, fail-closed ledger writes
 
 // Human-readable calculation-method labels recorded on every trade + report.
 const PNL_CALC_V1 = 'v1-legacy: pnlPerUnit × lots (NO lot multiplier, NO charges)';
@@ -120,11 +121,63 @@ class StrangleEngine {
     this._ftLogger = new ForwardTestLogger();
   }
 
-  // ── IV-regime helpers ──────────────────────────────────────────────────────
-  _loadIv() { try { this._ivHist = JSON.parse(require('fs').readFileSync(this._ivFile, 'utf8')) || {}; } catch { this._ivHist = {}; } }
-  _saveIv() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._ivFile), { recursive: true }); fs.writeFileSync(this._ivFile, JSON.stringify(this._ivHist)); } catch (_) {} }
-  _loadTrades() { try { return JSON.parse(require('fs').readFileSync(this._tradesFile, 'utf8')) || []; } catch { return []; } }
-  _saveTrades() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._tradesFile), { recursive: true }); fs.writeFileSync(this._tradesFile, JSON.stringify(this._allTrades.slice(-5000))); } catch (_) {} }
+  // ── persistence (MIGRATION C3-02: atomic + fail-closed) ────────────────────
+  //
+  // These four methods used to be:
+  //   _loadTrades() { try { return JSON.parse(readFileSync(...)) || []; } catch { return []; } }
+  //   _saveTrades() { try { writeFileSync(file, JSON.stringify(...)); } catch (_) {} }
+  //
+  // `writeFileSync` truncates before it writes, so a crash mid-write leaves a partial
+  // file. On the next boot `_loadTrades` parsed it, threw, and silently returned `[]` —
+  // and the first save of the day then wrote `[]` over the ledger. Every prior trade
+  // gone, no error anywhere. Measured in C3-01: 94% of concurrent reads of a naive
+  // write were corrupt or empty.
+  //
+  // The dangerous step is the SAVE, not the load. So:
+  //   • writes are atomic (temp → fsync → rename) and keep a `.bak` of the last good file
+  //   • a corrupt ledger is recovered from `.bak`
+  //   • if it cannot be recovered, the engine marks itself `_ledgerCorrupt` and REFUSES
+  //     to save. The corrupt bytes stay on disk for forensics; nothing is overwritten.
+  //   • `status().ledgerCorrupt` surfaces it. Nothing is swallowed.
+  _loadIv() {
+    try { this._ivHist = safeWrite.readJsonSync(this._ivFile, { fallback: {} }) || {}; }
+    catch (e) {
+      // IV history is regenerable from the market — losing it is not fatal.
+      console.warn(`[strangle] IV history unreadable (${e.message}); starting empty.`);
+      this._ivHist = {};
+    }
+  }
+
+  _saveIv() {
+    try { safeWrite.writeJsonSync(this._ivFile, this._ivHist); }
+    catch (e) { this._lastSaveError = `iv: ${e.message}`; console.error(`[strangle] IV save failed: ${e.message}`); }
+  }
+
+  /** Never returns [] for a ledger that exists but cannot be read. It sets `_ledgerCorrupt`. */
+  _loadTrades() {
+    this._ledgerCorrupt = false;
+    try {
+      const rows = safeWrite.readJsonSync(this._tradesFile, {
+        fallback: [],
+        onRecover: (reason, bak) =>
+          console.warn(`[strangle] trade ledger was corrupt (${reason}); recovered from ${bak}. A writer crashed, or a second process wrote it.`),
+      });
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      // Unrecoverable: no backup, or the backup is corrupt too. Do NOT overwrite it.
+      this._ledgerCorrupt = true;
+      this._ledgerCorruptReason = e.message;
+      console.error(`[strangle] TRADE LEDGER UNRECOVERABLE: ${e.message}`);
+      console.error('[strangle] Saving is DISABLED for this ledger. The file is untouched. Investigate before restarting.');
+      return [];
+    }
+  }
+
+  _saveTrades() {
+    if (this._ledgerCorrupt) return;   // refuse to write [] over a ledger we could not read
+    try { safeWrite.writeJsonSync(this._tradesFile, this._allTrades.slice(-5000), { backup: true }); this._lastSaveError = null; }
+    catch (e) { this._lastSaveError = `trades: ${e.message}`; console.error(`[strangle] trade ledger save failed: ${e.message}`); }
+  }
   // Annualized ATM-straddle IV proxy: straddle / (0.8 * spot * sqrt(DTE/365)).
   _ivProxy(chain) {
     const atm = chain.atm; if (!atm) return null;
@@ -418,6 +471,10 @@ class StrangleEngine {
         since: allDates.sort()[0] || null,
         calc: calcBreakdown,
       },
+      // C3-02: ledger health is part of the engine's public status. Nothing is swallowed.
+      ledgerCorrupt: this._ledgerCorrupt === true,
+      ledgerCorruptReason: this._ledgerCorrupt ? this._ledgerCorruptReason : null,
+      lastSaveError: this._lastSaveError || null,
       pnlCalcVersion: 2,
       pnlCalcMethod: PNL_CALC_V2,
       recent: this._closed.slice(-12).reverse(),
