@@ -17,7 +17,41 @@
  * ⚠️ PREMIUM SELLING = UNDEFINED RISK on a naked strangle. PAPER ONLY by design;
  * never places a live order. Validated on a single favorable 120-day window —
  * forward-test in paper before trusting. Off by default (STRANGLE_ENGINE_ENABLED).
+ *
+ * ── MIGRATION C1 (2026-07-09): P&L CALCULATION v2 ──────────────────────────
+ * DEFECT (v1): closed-trade P&L was `pnlPerUnit × qty`, where `qty` is LOTS. It
+ *   omitted the contract multiplier (lotSize) entirely, and applied ZERO transaction
+ *   costs — unlike every other engine (gamma-blast-engine.js:116-118,
+ *   agents-engine.js:522-525) which compute `units = qty × lot` and subtract
+ *   `roundTripCharges(...)`. Strangle ₹P&L was therefore understated ~65×/30×/20×
+ *   and reported GROSS, making it non-comparable to the engines sharing the dashboard.
+ *
+ * FIX (v2): pnl = (pnlPerUnit × qty × lotSize) − charges, where lotSize comes from
+ *   instrument-registry.js (broker contract master, not a hardcoded guess) and charges
+ *   use the SAME per-leg method as agents-engine._closeCondor.
+ *
+ * LEGACY PRESERVATION (approved migration Option A):
+ *   • Historical records in data/strangle-trades.json are NEVER rewritten.
+ *   • Existing records carry no `calcVersion` and are therefore v1 by definition.
+ *   • New records carry `calcVersion: 2`, the corrected `pnlAbs`, AND `pnlAbsLegacy`
+ *     (exactly what v1 would have produced) plus `gross`, `charges`, `lot`, `units`.
+ *   • status().allTime.calc splits legacy vs current so every report can label them.
+ *   • Every v2 close appends to data/migrations/C1-strangle-pnl.jsonl.
+ *
+ * KNOWN LIMITATION (engine-wide, not introduced here): `charges.roundTripCharges` is
+ *   modelled for a LONG option (STT on the sell leg, stamp on the buy leg). For a SHORT
+ *   structure the open leg is the sell. We deliberately reuse the exact per-leg method
+ *   agents-engine already uses so the engines stay comparable; correcting the STT/stamp
+ *   side is a separate, engine-wide change.
  */
+const { roundTripCharges } = require('./charges.js');
+const instrumentRegistry = require('./instrument-registry.js');
+
+// Human-readable calculation-method labels recorded on every trade + report.
+const PNL_CALC_V1 = 'v1-legacy: pnlPerUnit × lots (NO lot multiplier, NO charges)';
+const PNL_CALC_V2 = 'v2: (pnlPerUnit × lots × lotSize) − per-leg roundTripCharges';
+const PNL_CALC_V1_FALLBACK = 'v1-fallback: lot size unknown for instrument — legacy math retained and flagged';
+
 class StrangleEngine {
   constructor(cfg = {}) {
     this.enabled    = String(cfg.enabled ?? process.env.STRANGLE_ENGINE_ENABLED ?? 'false').toLowerCase() === 'true';
@@ -71,6 +105,19 @@ class StrangleEngine {
     this._tradesFile = require('path').join(__dirname, 'data', 'strangle-trades.json');
     this._allTrades = this._loadTrades();
     this.onTrade = null;       // optional callback(event, data)
+
+    // Forward-test logger: if FORWARD_TEST_DATE_FROM is set, isolates trades
+    // from that date onward into a separate shard (data/forward-test/{date}-*.jsonl/json)
+    // for independent validation before live approval.
+    //
+    // MIGRATION C1a (2026-07-09): forward-test-logger.js exports a CLASS. This line
+    // previously assigned the constructor itself, so `_ftLogger.status()` threw
+    // (TypeError → HTTP 500 on GET /api/strangle/status) and `_ftLogger.logTrade()`
+    // threw into a silent catch, meaning no strangle trade was ever written to the
+    // forward-test shard. Instantiate it. Constructing is side-effect-free unless
+    // FORWARD_TEST_DATE_FROM is set.
+    const ForwardTestLogger = require('./forward-test-logger.js');
+    this._ftLogger = new ForwardTestLogger();
   }
 
   // ── IV-regime helpers ──────────────────────────────────────────────────────
@@ -110,6 +157,35 @@ class StrangleEngine {
     const win = sp.slice(-this.trendSmaN);
     const avg = win.reduce((a, b) => a + b, 0) / win.length;
     return avg > 0 ? Math.abs(spot - avg) / spot : null;
+  }
+
+  // ── MIGRATION C1 helpers ───────────────────────────────────────────────────
+  /**
+   * Round-trip transaction cost for the whole short structure.
+   * Each leg pays its own round trip on (entry, exit) premium — the identical method
+   * agents-engine._closeCondor uses (agents-engine.js:596-601), so the two engines'
+   * ₹ figures remain directly comparable. Floor at 0.05 so a leg that decays to zero
+   * still pays brokerage rather than vanishing from the cost model.
+   */
+  _structureCharges(pos, units) {
+    const legs = [pos.ce, pos.pe];
+    if (pos.structure === 'CONDOR' && pos.ceWing && pos.peWing) legs.push(pos.ceWing, pos.peWing);
+    const total = legs.reduce((s, l) => {
+      const entry = Math.max(0.05, Number(l && l.entry) || 0);
+      const exit = Math.max(0.05, Number(l && l.ltp) || Number(l && l.entry) || 0);
+      return s + roundTripCharges(entry, exit, units).total;
+    }, 0);
+    return +total.toFixed(2);
+  }
+
+  /** Append one immutable line to the C1 migration log. Never throws. */
+  _logMigration(rec) {
+    try {
+      const fs = require('fs'), p = require('path');
+      const dir = p.join(__dirname, 'data', 'migrations');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.appendFileSync(p.join(dir, 'C1-strangle-pnl.jsonl'), JSON.stringify(rec) + '\n');
+    } catch (_) { /* logging must never break a trade close */ }
   }
 
   _today() { return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10); }
@@ -230,18 +306,54 @@ class StrangleEngine {
       let pnlPerUnit = pos.credit - netCloseCost;
       // A condor can never lose more than its defined max loss — enforce the cap.
       if (pos.structure === 'CONDOR' && pos.maxLoss != null) pnlPerUnit = Math.max(pnlPerUnit, -pos.maxLoss);
-      const pnlAbs = +(pnlPerUnit * pos.qty).toFixed(2);
+
+      // ── MIGRATION C1: P&L v2 ────────────────────────────────────────────────
+      const qty = Number(pos.qty) || 1;                       // lots
+      // exactly what v1 produced — preserved on every record, never recomputed later
+      const pnlAbsLegacy = +(pnlPerUnit * qty).toFixed(2);
+      const lot = instrumentRegistry.lotSize(inst);
+
+      let pnlAbs, gross, charges, units, calcVersion, calcMethod;
+      if (lot) {
+        units = qty * lot;
+        gross = +(pnlPerUnit * units).toFixed(2);
+        charges = this._structureCharges(pos, units);
+        pnlAbs = +(gross - charges).toFixed(2);
+        calcVersion = 2; calcMethod = PNL_CALC_V2;
+      } else {
+        // Unknown instrument → we do NOT guess a lot size. Keep legacy math and say so.
+        units = qty; gross = pnlAbsLegacy; charges = 0;
+        pnlAbs = pnlAbsLegacy;
+        calcVersion = 1; calcMethod = PNL_CALC_V1_FALLBACK;
+      }
+
       const closed = {
         inst, expiry: pos.expiry, entryAt: pos.entryAt, exitAt: this._hms(), structure: pos.structure,
         ce: { ...pos.ce }, pe: { ...pos.pe }, ceWing: pos.ceWing, peWing: pos.peWing,
         credit: pos.credit, exitPrem: +netCloseCost.toFixed(2),
         pnlPerUnit: +pnlPerUnit.toFixed(2), pnlAbs,
         pnlPct: +(captured * 100).toFixed(1),
-        reason: stopHit ? 'STOP' : 'TAKE_PROFIT'
+        reason: stopHit ? 'STOP' : 'TAKE_PROFIT',
+        // v2 additive fields (absent on historical v1 records — readers must tolerate)
+        qty, lot: lot ?? null, units, gross, charges,
+        pnlAbsLegacy, calcVersion, calcMethod,
       };
+
+      this._logMigration({
+        ts: new Date().toISOString(), migration: 'C1-strangle-pnl',
+        inst, structure: pos.structure, expiry: pos.expiry, reasonForExit: closed.reason,
+        legacyPnl: pnlAbsLegacy, newPnl: pnlAbs,
+        gross, charges, qty, lot: lot ?? null, units,
+        calculationMethod: calcMethod, calcVersion,
+        reasonForChange: 'v1 omitted the contract lot multiplier and all transaction costs; v2 applies broker-verified lotSize and per-leg roundTripCharges (see strangle-engine.js header).',
+      });
+
       this._closed.push(closed);
       this._allTrades.push({ ...closed, date: this._date, closedAt: Date.now() });
       this._saveTrades();
+      // Log to forward-test shard if enabled
+      const tradeWithDate = { ...closed, date: this._date, closedAt: Date.now() };
+      try { this._ftLogger.logTrade(tradeWithDate); } catch (_) {}
       this._open.delete(inst);
       if (this.onTrade) try { this.onTrade('SELL_CLOSE', { ...closed }); } catch (_) {}
     }
@@ -253,6 +365,19 @@ class StrangleEngine {
     const allW = this._allTrades.filter(t => t.pnlAbs > 0).length;
     const allNet = this._allTrades.reduce((s, t) => s + (Number(t.pnlAbs) || 0), 0);
     const allDates = [...new Set(this._allTrades.map(t => t.date).filter(Boolean))];
+    // ── MIGRATION C1: label every reported figure as legacy or current ──
+    // Records written before the migration carry no `calcVersion` → v1 by definition.
+    const sumPnl = arr => +arr.reduce((s, t) => s + (Number(t.pnlAbs) || 0), 0).toFixed(2);
+    const v2Trades = this._allTrades.filter(t => t.calcVersion === 2);
+    const v1Trades = this._allTrades.filter(t => t.calcVersion !== 2);
+    const calcBreakdown = {
+      mixed: v1Trades.length > 0 && v2Trades.length > 0,
+      legacy:  { trades: v1Trades.length, netPnl: sumPnl(v1Trades), method: PNL_CALC_V1 },
+      current: { trades: v2Trades.length, netPnl: sumPnl(v2Trades), method: PNL_CALC_V2,
+                 grossPnl: +v2Trades.reduce((s, t) => s + (Number(t.gross) || 0), 0).toFixed(2),
+                 charges:  +v2Trades.reduce((s, t) => s + (Number(t.charges) || 0), 0).toFixed(2) },
+      note: 'allTime.netPnl is the raw sum of pnlAbs across BOTH calculation versions and is therefore mixed while `mixed` is true. Legacy trades are pre-migration-C1 records (no lot multiplier, gross of costs) and are preserved unmodified. Compare like-for-like using calc.current only.',
+    };
     // Current IV-regime snapshot (highest-history instrument shown if multiple).
     const ivState = {};
     for (const [inst, v] of Object.entries(this._lastIv)) {
@@ -286,9 +411,13 @@ class StrangleEngine {
         netPnl: +allNet.toFixed(2),
         avgPerTrade: this._allTrades.length ? +(allNet / this._allTrades.length).toFixed(2) : 0,
         since: allDates.sort()[0] || null,
+        calc: calcBreakdown,
       },
+      pnlCalcVersion: 2,
+      pnlCalcMethod: PNL_CALC_V2,
       recent: this._closed.slice(-12).reverse(),
-      note: 'PAPER-only premium seller. Regime ladder: skip <50% IV / strangle 50-80% / tail-safe condor ≥80%. Sizing is margin-aware fractional-Kelly. Forward-test before trusting.'
+      forwardTest: this._ftLogger.status(),
+      note: 'PAPER-only premium seller. Regime ladder: skip <50% IV / strangle 50-80% / tail-safe condor ≥80%. Sizing is margin-aware fractional-Kelly. Forward-test before trusting. P&L v2 (migration C1) applies the broker-verified lot multiplier and per-leg transaction costs; pre-migration trades are preserved as legacy — see allTime.calc.'
     };
   }
 }
