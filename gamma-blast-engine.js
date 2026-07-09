@@ -25,7 +25,24 @@
 const gammaBlastDetect = require('./gamma-blast-detect.js');
 const { roundTripCharges } = require('./charges.js');
 
-const LOT = { NIFTY: 75, BANKNIFTY: 35, SENSEX: 20 };
+// ── MIGRATION C1b (2026-07-09) ─────────────────────────────────────────────────
+// This module previously hardcoded a LOT map of NIFTY 75 / BANKNIFTY 35 / SENSEX 20 and
+// fell back to 75 for unknown instruments. Those values are WRONG: the broker's contract
+// master (Upstox GET /v2/option/contract) reports NIFTY 65, BANKNIFTY 30, SENSEX 20.
+// P&L here is `units = qty × lot`, so realized ₹P&L was OVERSTATED by +15.4% (NIFTY) and
+// +16.7% (BANKNIFTY). The formula was always right; only the constant was wrong.
+//
+// Lot size now comes from the single source of truth. No hardcoded lot, no silent
+// fallback: an unknown instrument yields null and the engine refuses to open.
+//
+// Legacy preservation: historical trades embed the lot they were opened with and are never
+// rewritten. Positions opened before this migration close on their stored lot as
+// calcVersion 1; new positions use the registry → calcVersion 2.
+const instrumentRegistry = require('./instrument-registry.js');
+const lotOf = (inst) => instrumentRegistry.lotSize(inst);   // null when unknown — never guess
+const LOT_SOURCE_REGISTRY = 'instrument-registry';
+const LOT_SOURCE_LEGACY_OPEN = 'legacy-open-position';
+
 const hhmm = s => { const [a, b] = String(s).split(':').map(Number); return a * 60 + b; };
 
 class GammaBlastEngine {
@@ -83,10 +100,12 @@ class GammaBlastEngine {
     const ltp = det.side === 'CE' ? Number(sideRow.ce?.ltp || 0) : Number(sideRow.pe?.ltp || 0);
     if (!(ltp > 0)) return;
 
-    const lot = LOT[inst] || 75;
+    const lot = lotOf(inst);                    // C1b: registry, never a hardcoded fallback
+    if (!lot) return;                           // unknown contract size → refuse, do not guess
     const position = {
       inst, side: det.side, strike: det.atmStrike, entry: +ltp.toFixed(2), last: ltp, peak: ltp,
-      qty: this.qty, lot, openMins: istMins, expiry: det.expiry, score: det.score, level: det.level,
+      qty: this.qty, lot, lotSource: LOT_SOURCE_REGISTRY, calcVersion: 2,
+      openMins: istMins, expiry: det.expiry, score: det.score, level: det.level,
     };
     this._open.set(inst, position);
     this._tradesToday[inst] = (this._tradesToday[inst] || 0) + 1;
@@ -112,17 +131,47 @@ class GammaBlastEngine {
     this._close(inst, pos, ltp, reason, istMins);
   }
 
+  /**
+   * MIGRATION C1b — classify a closing position as legacy (pre-registry lot) or current.
+   * A position opened before the migration persists with its old lot and no calcVersion; we
+   * do NOT retroactively re-lot it (that would change the entry basis mid-position). Its pnl
+   * IS the legacy value. New positions carry calcVersion 2 and have no legacy counterpart,
+   * so pnlLegacy is null rather than an invented counterfactual.
+   */
+  _closeCalcMeta(pos, pnl) {
+    const calcVersion = pos.calcVersion ?? 1;
+    const lotSource = pos.lotSource ?? LOT_SOURCE_LEGACY_OPEN;
+    return { calcVersion, lotSource, pnlLegacy: calcVersion === 1 ? pnl : null };
+  }
+
+  /** MIGRATION C1b — split reported P&L into legacy vs current so reports can label them. */
+  _calcBreakdown(all) {
+    const sum = a => +a.reduce((s, t) => s + (Number(t.pnl) || 0), 0).toFixed(2);
+    const v2 = all.filter(t => t.calcVersion === 2);
+    const v1 = all.filter(t => t.calcVersion !== 2);
+    return {
+      mixed: v1.length > 0 && v2.length > 0,
+      legacy: { trades: v1.length, netPnl: sum(v1),
+        method: 'v1-legacy: units = qty × hardcoded lot (NIFTY 75 / BANKNIFTY 35) — overstated' },
+      current: { trades: v2.length, netPnl: sum(v2),
+        method: 'v2: units = qty × instrument-registry lotSize (broker contract master)' },
+      note: 'allTime.netPnl is the raw sum across BOTH versions and is therefore mixed while `mixed` is true. Legacy trades are pre-migration-C1b records whose lot was hardcoded 75/35; they are preserved unmodified. Compare like-for-like using calc.current only.',
+    };
+  }
+
   _close(inst, pos, exitLtp, reason, istMins) {
     const units = pos.qty * pos.lot;
     const gross = (exitLtp - pos.entry) * units;
     const ch = roundTripCharges(pos.entry, exitLtp, units).total;
     const pnl = +(gross - ch).toFixed(2);
+    const { calcVersion, lotSource, pnlLegacy } = this._closeCalcMeta(pos, pnl);   // C1b
     const rec = {
       date: this._day, inst, side: pos.side, strike: pos.strike,
       entry: pos.entry, exit: +Number(exitLtp).toFixed(2), qty: pos.qty, lot: pos.lot,
       reason, pnl, pnlPct: +(((exitLtp - pos.entry) / pos.entry) * 100).toFixed(1),
       charges: +ch.toFixed(2), score: pos.score, level: pos.level,
       openMins: pos.openMins, closeMins: istMins,
+      calcVersion, lotSource, pnlLegacy,
     };
     this._open.delete(inst);
     this._closed.push(rec);
@@ -155,7 +204,10 @@ class GammaBlastEngine {
       openPositions: open,
       today: this._summary(this._closed),
       allTime: { ...this._summary(this._allTrades), since: this._allTrades[0]?.date || null,
-        days: new Set(this._allTrades.map(t => t.date)).size },
+        days: new Set(this._allTrades.map(t => t.date)).size,
+        calc: this._calcBreakdown(this._allTrades) },
+      lotSource: LOT_SOURCE_REGISTRY,
+      lotSizes: Object.fromEntries(instrumentRegistry.instruments().map(i => [i, lotOf(i)])),
       recent: this._allTrades.slice(-15).reverse(),
       detect: this._lastDetect,
       note: 'PAPER expiry-day gamma-blast option BUYER. Asymmetric: many small stops, rare big winners — judge on net over many expiries. Not backtestable here; forward-test only.',
