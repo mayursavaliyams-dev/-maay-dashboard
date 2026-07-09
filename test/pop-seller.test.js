@@ -150,7 +150,10 @@ const registry = require('../instrument-registry.js');
 //  BANKNIFTY/FINNIFTY/BANKEX, which have none.
 // ════════════════════════════════════════════════════════════════════════════
 {
-  ok(P.daysToExpiry('NIFTY') === registry.timeToExpiryYears('NIFTY'),
+  // FLAKE FIX: both sides used to call new Date() independently, so this assertion failed
+  // whenever the two calls straddled a millisecond tick (2 failures in 40 runs). Pin the clock.
+  const clock = new Date('2026-07-09T04:00:00Z');
+  ok(P.daysToExpiry('NIFTY', clock) === registry.timeToExpiryYears('NIFTY', clock),
     'C1c-3a: daysToExpiry delegates to the Instrument Registry');
   ok(P.daysToExpiry('NIFTY') > 0, 'daysToExpiry is strictly positive (T never reaches the bsDelta T<=0 branch)');
   ok(P.daysToExpiry('NIFTY') * 365 >= 0.5, 'daysToExpiry floors at 0.5 days');

@@ -66,8 +66,12 @@ function strikeStep(inst) { return instrumentRegistry.step(inst); }
 // instruments take the next such weekday, monthly-only take the LAST of the month.
 // Contracts stop trading at 15:30 IST.
 
-/** Time to expiry in years. null when the instrument is unknown/disabled. */
-function daysToExpiry(inst) { return instrumentRegistry.timeToExpiryYears(inst); }
+/**
+ * Time to expiry in years. null when the instrument is unknown/disabled.
+ * @param {Date} [now] injectable clock — without it a test cannot compare this against the
+ *                     registry without both sides reading `new Date()` at different instants.
+ */
+function daysToExpiry(inst, now = new Date()) { return instrumentRegistry.timeToExpiryYears(inst, now); }
 
 // ── Black-Scholes helpers ─────────────────────────────────────────────────────
 function normalCDF(x) {
