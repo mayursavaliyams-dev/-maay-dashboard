@@ -172,13 +172,16 @@ class ExecutionEngine {
     // Persist active/reserve across restarts. Half-compound only works if the
     // reserve pile carries forward — losing it every restart resets sizing back
     // to baseline and breaks the multi-month compounding curve.
+    // C3-07: this is RISK STATE (capital + reserve + consecLosses), not a cache.
+    // Atomic write + .bak, so a crash mid-write can never truncate the one file the
+    // halt-after-N-losses brake depends on.
     try {
-      const _fs = require('fs'); const _path = require('path');
+      const _path = require('path');
       const file = _path.resolve(`./data/equity-${this.instrumentName.toLowerCase()}.json`);
-      _fs.writeFileSync(file, JSON.stringify({
+      require('./safe-write.js').writeJsonSync(file, {
         capital: this.capital, reserve: this.reserve,
         consecLosses: this._consecLosses, updatedAt: new Date().toISOString()
-      }, null, 2));
+      }, { pretty: true, backup: true });
     } catch (e) { console.warn(`[${this.instrumentName}] equity persist failed: ${e.message}`); }
 
     if (pnl > 0) {
@@ -351,12 +354,25 @@ class ExecutionEngine {
 
   // Restore active capital + reserve from disk (called by server after construct).
   // No-op if file missing or stale (>30 days old — fresh paper run instead).
+  //
+  // C3-07, FAIL-CLOSED FIX. This used to end with
+  //     catch (e) { console.warn(`equity restore failed: ${e.message}`); }
+  // so a corrupt data/equity-<inst>.json was swallowed and `_consecLosses` stayed at
+  // its default 0 — SILENTLY DISARMING the halt-after-N-consecutive-losses brake,
+  // precisely when a crash had just happened and the file was most likely to be torn.
+  //
+  // For a risk brake, "state unknown" must mean "brake ON". A corrupt file now
+  // recovers from .bak; if it cannot be recovered the engine HALTS and says so rather
+  // than trading on with a fabricated clean slate. Resume via POST /api/engine/reset
+  // after manual review. (Same fix already live in afternoon-engine.js.)
   restoreEquity() {
     try {
       const _fs = require('fs'); const _path = require('path');
       const file = _path.resolve(`./data/equity-${this.instrumentName.toLowerCase()}.json`);
       if (!_fs.existsSync(file)) return;
-      const s = JSON.parse(_fs.readFileSync(file, 'utf8'));
+      const s = require('./safe-write.js').readJsonSync(file, {
+        onRecover: (reason, bak) => console.warn(`[${this.instrumentName}] equity state was corrupt (${reason}); recovered from ${bak}.`),
+      });
       const ageMs = Date.now() - new Date(s.updatedAt || 0).getTime();
       if (ageMs > 30 * 24 * 3600 * 1000) {
         console.log(`[${this.instrumentName}] equity file stale (${Math.round(ageMs/86400000)} days) — keeping baseline ₹${this.capital}`);
@@ -366,7 +382,12 @@ class ExecutionEngine {
       if (Number.isFinite(s.reserve))      this.reserve      = s.reserve;
       if (Number.isFinite(s.consecLosses)) this._consecLosses = s.consecLosses;
       console.log(`[${this.instrumentName}] 📥 Restored equity: active ₹${this.capital.toFixed(0)} + reserve ₹${(this.reserve||0).toFixed(0)} = ₹${((this.capital + (this.reserve||0))).toFixed(0)} (consec losses: ${this._consecLosses})`);
-    } catch (e) { console.warn(`[${this.instrumentName}] equity restore failed: ${e.message}`); }
+    } catch (e) {
+      this._haltedReason = 'EQUITY_STATE_CORRUPT';
+      this.autoEnabled = false;
+      console.error(`[${this.instrumentName}] ⛔ EQUITY STATE UNRECOVERABLE: ${e.message}`);
+      console.error(`[${this.instrumentName}] ⛔ Cannot know the loss streak — HALTING (fail closed). POST /api/engine/reset after manual review.`);
+    }
   }
 
   // ── Find option security ID and LTP from live chain ────────────

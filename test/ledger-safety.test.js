@@ -314,6 +314,86 @@ function ledgerContract(name, mk, file, load, save, corrupt) {
     'confluence-learner: corrupt weights no longer silently return the fallback (they recover or THROW)');
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  C3-07 — execution-engine (PROTECTED file, owner-approved)
+//
+//  The IDENTICAL brake-disarm bug afternoon-engine had:
+//    restoreEquity() { try { JSON.parse(readFileSync(file)) ... }
+//                      catch (e) { console.warn('equity restore failed'); } }
+//
+//  A corrupt data/equity-<inst>.json was swallowed, leaving `consecLosses` at its
+//  default 0 — silently DISARMING the halt-after-N-consecutive-losses brake, exactly
+//  when a crash has just happened and the file is most likely to be torn.
+//
+//  For a risk brake, "state unknown" must mean "brake ON".
+// ════════════════════════════════════════════════════════════════════════════
+{
+  console.log('\n  ── execution-engine risk brake (C3-07) ──');
+  const ExecutionEngine = require('../execution-engine.js');
+  const eqFile = path.resolve(`./data/equity-c3test.json`);
+  const mk = () => new ExecutionEngine({ instrumentName: 'C3TEST', capital: 100000, maxConsecLosses: 3 });
+  const clean = () => { for (const p of [eqFile, eqFile + '.bak']) { try { fs.unlinkSync(p); } catch (_) {} } };
+  clean();
+
+  // A. missing equity file ⇒ fresh baseline, brake armed but not tripped
+  {
+    const e = mk();
+    e.restoreEquity();
+    ok(e._consecLosses === 0 && e._haltedReason == null,
+      'execution-engine: a MISSING equity file is a fresh start (not an error)');
+  }
+
+  // B. good file ⇒ the loss streak is restored, so the brake knows where it stands
+  {
+    S.writeJsonSync(eqFile, { capital: 90000, reserve: 5000, consecLosses: 2, updatedAt: new Date().toISOString() });
+    const e = mk();
+    e.restoreEquity();
+    ok(e._consecLosses === 2, 'execution-engine: a good file restores the loss streak (2), not 0');
+    ok(e.capital === 90000 && e.reserve === 5000, 'execution-engine: capital and reserve carry forward');
+  }
+
+  // C. corrupt WITH a .bak ⇒ recover the streak, keep trading
+  {
+    S.writeJsonSync(eqFile, { capital: 90000, reserve: 5000, consecLosses: 2, updatedAt: new Date().toISOString() }, { backup: true });
+    fs.writeFileSync(eqFile, '{"capital":90000,"consecL');
+    const e = mk();
+    e.restoreEquity();
+    ok(e._consecLosses === 2 && e._haltedReason == null,
+      'execution-engine: a corrupt equity file recovers from .bak — the loss streak is not forgotten');
+  }
+
+  // D. THE ONE THAT MATTERS — corrupt with NO .bak ⇒ HALT, never assume zero losses
+  {
+    clean();
+    const poison = '{"capital":90000,"consecL';
+    fs.writeFileSync(eqFile, poison);
+    const e = mk();
+    e.restoreEquity();
+    ok(e._haltedReason === 'EQUITY_STATE_CORRUPT',
+      'execution-engine (C3-07): an unrecoverable equity file HALTS the engine');
+    ok(e.autoEnabled === false,
+      'execution-engine (C3-07): auto-trading is DISABLED — the brake fails CLOSED, not open');
+    ok(e._consecLosses === 0,
+      'execution-engine (C3-07): consecLosses stays 0 in memory — but the halt, not the counter, is what stops trading');
+    ok(fs.readFileSync(eqFile, 'utf8') === poison,
+      'execution-engine (C3-07): the corrupt bytes survive for forensics — nothing is overwritten');
+  }
+
+  // E. persistence is atomic + backed up
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'execution-engine.js'), 'utf8');
+    ok(/safe-write/.test(src) && /backup: true/.test(src),
+      'execution-engine: equity state is written atomically with a .bak (it is risk state, not a cache)');
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').split(/\r?\n/)
+      .map((l) => l.replace(/^\s*\/\/.*$/, '')).join('\n');
+    ok(!/_fs\.writeFileSync/.test(code), 'execution-engine: no raw writeFileSync survives in executable code');
+    ok(!/catch \(e\) \{ console\.warn\(`\[\$\{this\.instrumentName\}\] equity restore failed/.test(src),
+      'execution-engine: the silent restore-failure swallow is gone');
+  }
+
+  clean();
+}
+
 // ── the sweep: NO production ledger writer bypasses safe-write any more ──
 {
   console.log('\n  ── final sweep ──');
