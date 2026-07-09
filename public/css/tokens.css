@@ -30,8 +30,11 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── surfaces (dashboard.html family) ────────────────────────────────── */
-  --bg:        #070a10;   /* app background          */
+  /* ── surfaces ─────────────────────────────────────────────────────────
+     --bg is PURE BLACK by owner decision (2026-07-09: "background black
+     joie che"). Panels stay dark blue-grey so elevation hierarchy survives
+     on black — the Bloomberg/Bookmap pattern: black canvas, lifted panels. */
+  --bg:        #000000;   /* app background — owner-decided black    */
   --panel:     #0d1420;   /* primary panel surface   */
   --panel2:    #111a29;   /* nested / raised surface */
   --border:    #1c2735;   /* hairlines, dividers     */

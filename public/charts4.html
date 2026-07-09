@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>4 Charts · Antigravity Pro</title>
 <script src="/vendor/highstock.js"></script>
+<!-- UI-02: core tokens (--bg/--panel/--border/--muted/--amber/--blue) come from the
+     shared design-token sheet. Only page-specific tokens remain below. -->
+<link rel="stylesheet" href="/css/tokens.css">
 <style>
-  :root{ --bg:#0a0e14; --panel:#0e1520; --border:#1c2735; --muted:#7c8aa0; --up:#26a69a; --dn:#ef5350; --amber:#fcd34d; --blue:#5b9cff; --ema9:#ffd400; --ema21:#1565c0; }
+  :root{ --up:#26a69a; --dn:#ef5350; --ema9:#ffd400; --ema21:#1565c0; }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--bg); color:#d1d4dc; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
   .wrap{ padding:0 12px 20px; max-width:1900px; margin:0 auto; }
