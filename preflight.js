@@ -111,6 +111,40 @@ async function main() {
     return `₹${(risk.capital || 0).toLocaleString('en-IN')} capital, daily loss cap ₹${(risk.dailyLossLimit || 0).toLocaleString('en-IN')}`;
   });
 
+  // ── 7b. Instrument Registry vs live broker contract master ──
+  // Migration C1c-6 / requirement 15. The registry drives `pnl = points × lots × lotSize`
+  // in every engine; if it has silently gone stale, every rupee is wrong and no test fails.
+  // Comparison logic lives in registry-drift.js (pure, unit-tested). Deeper CLI:
+  //   npm run preflight:registry     (needs no server — only a broker token)
+  await check('Instrument Registry vs broker', async () => {
+    if (!process.env.UPSTOX_ACCESS_TOKEN) return { warn: 'UPSTOX_ACCESS_TOKEN unset — registry NOT verified' };
+    const registry = require('./instrument-registry.js');
+    const { checkDrift } = require('./registry-drift.js');
+
+    const fetchContracts = (inst) => new Promise((resolve, reject) => {
+      const key = registry.catalog(inst).underlyingKey;
+      const req = require('https').get(
+        `https://api.upstox.com/v2/option/contract?instrument_key=${encodeURIComponent(key)}`,
+        { headers: { Accept: 'application/json', Authorization: `Bearer ${process.env.UPSTOX_ACCESS_TOKEN}` }, timeout: 12000 },
+        (res) => { let d = ''; res.on('data', (x) => (d += x)); res.on('end', () => { try { const j = JSON.parse(d); j.status === 'success' ? resolve(j.data) : reject(new Error(`HTTP ${res.statusCode}`)); } catch { reject(new Error('bad JSON')); } }); }
+      );
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    });
+
+    let report;
+    try { report = await checkDrift({ fetchContracts }); }
+    catch (e) { return { warn: `could not verify: ${e.message}` }; }
+
+    if (report.ok) return `${report.checked} instruments match the broker contract master`;
+    if (report.drifted > 0) {
+      const first = report.results.find((r) => !r.ok && !r.error);
+      const d = first.diffs[0];
+      return { fail: `DRIFT: ${first.inst} ${d.field} registry=${JSON.stringify(d.expected)} broker=${JSON.stringify(d.found)} — run \`npm run preflight:registry\`` };
+    }
+    return { warn: `${report.errored} instrument(s) unreachable — registry NOT verified` };
+  });
+
   // ── 8. AmiBroker bridge ──
   await check('AmiBroker bridge', async () => {
     const r = await http_get('/api/amibroker/status');
