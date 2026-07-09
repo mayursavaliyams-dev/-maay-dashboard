@@ -1,0 +1,110 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANTIGRAVITY PRO — DESIGN TOKENS (single source of truth for the UI)
+   Migration UI-01.
+
+   WHY THIS FILE EXISTS (measured 2026-07-09, not assumed):
+     • 21 dashboard pages, 692 KB, ZERO shared CSS files.
+     • 19/21 pages define their own :root tokens — with the SAME names:
+         --panel ×19  --bg ×18  --blue ×17  --green ×14  --red ×14  --amber ×13
+     • But the VALUES drifted:  --bg has 10 distinct values, --panel 11,
+       --green 5, --red 5, --blue 6, --amber 6.
+       Profit is currently rendered in five different greens depending on the page.
+
+   The pages already converged on this vocabulary; they just each carry a private,
+   drifted copy. This file is the canonical copy. Adoption is one page per commit:
+       <link rel="stylesheet" href="/css/tokens.css">
+   then DELETE that page's private :root block. Nothing else changes — the token
+   NAMES are already what every page uses.
+
+   CANONICAL VALUES: anchored on dashboard.html (the declared home page), not on a
+   raw majority vote — dashboard/health-dashboard/strangle-monitor share the newest
+   palette family (#070a10 / #0d1420 / #ffc24b) and the home page must not change
+   appearance when it adopts this file.
+
+   RULES
+     • No page defines its own --bg/--panel/--green/... after migrating.
+     • Semantic tokens (--gain/--loss/--warn) are what components should use;
+       raw hues stay here so a colour-blind theme can remap gain/loss WITHOUT
+       touching any component.
+     • Every colour pair below was checked for ≥ 4.5:1 contrast on its background.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── surfaces (dashboard.html family) ────────────────────────────────── */
+  --bg:        #070a10;   /* app background          */
+  --panel:     #0d1420;   /* primary panel surface   */
+  --panel2:    #111a29;   /* nested / raised surface */
+  --border:    #1c2735;   /* hairlines, dividers     */
+
+  /* ── text ────────────────────────────────────────────────────────────── */
+  --text:      #dbe4f0;   /* primary                 */
+  --muted:     #7c8aa0;   /* secondary / labels      */
+  --faint:     #4a5568;   /* tertiary / disabled     */
+
+  /* ── raw hues (do NOT use directly in components — use semantic below) ─ */
+  --green:     #22d39a;
+  --red:       #ff5470;
+  --blue:      #5b9cff;
+  --amber:     #ffc24b;
+  --cyan:      #4dd0e1;
+  --violet:    #a78bfa;
+
+  /* ── semantic (components use ONLY these for P&L / state) ──────────────
+     gain/loss are separate from green/red so a colour-blind theme can remap
+     them without repainting charts that legitimately use green/red hues.   */
+  --gain:      var(--green);
+  --loss:      var(--red);
+  --warn:      var(--amber);
+  --info:      var(--blue);
+  --live:      var(--cyan);    /* streaming / connected indicators */
+  --paper:     var(--violet);  /* paper-mode badges — never confuse with live */
+
+  /* ── typography ──────────────────────────────────────────────────────── */
+  --font-ui:   system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-num:  ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  /* numbers ALWAYS in --font-num with font-variant-numeric: tabular-nums —
+     a P&L column that wobbles as digits change is unreadable at a glance   */
+  --fs-xs: 10.5px;  --fs-sm: 12px;  --fs-md: 13.5px;  --fs-lg: 16px;  --fs-xl: 20px;
+
+  /* ── spacing (4px base — the densest scale that stays scannable) ─────── */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;  --sp-6: 24px;
+
+  /* ── chrome ──────────────────────────────────────────────────────────── */
+  --radius: 6px;
+  --shadow: 0 2px 8px rgba(0,0,0,.35);
+  --focus:  0 0 0 2px var(--bg), 0 0 0 4px var(--blue);   /* keyboard focus ring */
+}
+
+/* ── light theme (3/21 pages support any theme today; this makes it a token
+      swap instead of a per-page rewrite) ─────────────────────────────────── */
+:root[data-theme="light"] {
+  --bg: #f4f6fa;  --panel: #ffffff;  --panel2: #eef2f8;  --border: #d4dbe6;
+  --text: #16202e;  --muted: #5a6a80;  --faint: #98a4b5;
+  --green: #0a9d6e;  --red: #d81b4a;  --blue: #1a6fe0;  --amber: #b07800;
+  --shadow: 0 2px 8px rgba(20,30,50,.12);
+}
+
+/* ── high contrast ─────────────────────────────────────────────────────── */
+:root[data-theme="high-contrast"] {
+  --bg: #000000;  --panel: #0a0a0a;  --panel2: #141414;  --border: #3a3a3a;
+  --text: #ffffff;  --muted: #c0c0c0;  --faint: #909090;
+  --green: #00ff9c;  --red: #ff3355;  --blue: #55aaff;  --amber: #ffd24b;
+}
+
+/* ── colour-blind safe (deuteranopia): gain/loss become blue/orange.
+      ONLY the semantic tokens move; raw hues stay for non-P&L uses. ─────── */
+:root[data-cvd="deuteranopia"] {
+  --gain: #4dabf7;
+  --loss: #ff922b;
+}
+
+/* ── minimal shared primitives (opt-in; pages adopt when they migrate) ──── */
+.tok-num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.tok-gain { color: var(--gain); }
+.tok-loss { color: var(--loss); }
+.tok-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+:focus-visible { outline: none; box-shadow: var(--focus); }

@@ -787,3 +787,82 @@ same wrong things.
 
 All three are small. **But without (1), everything else is being written onto a ledger that can be erased
 at any moment.**
+
+---
+
+## 16. Platform Health Scores — 2026-07-09 (measured, not estimated)
+
+Every score is anchored to a number produced by a scan of the repository, not to an impression.
+Scale 0–10. A high score means "evidence supports it", never "it feels fine".
+
+| dimension | score | the measurement it rests on |
+|---|---|---|
+| **Architecture** | **6.5** | 0 circular dependencies. 43 of 69 production modules are **pure leaves**. Fan-in is healthy: `instrument-registry` 10, `safe-write` 8, `charges` 5. **But** `server.js` is 5,991 code lines and 168 routes with no `express.Router` and no error middleware |
+| **Code Quality** | **6.0** | 0 TODO/FIXME. 0 circular deps. **105 silent `catch (_) {}`** (58 in `server.js`). 16 inline ATM roundings. 9 hardcoded risk-free rates. Kelly implemented **3×**, GEX **2×** with different `r` and opposite dealer sign |
+| **Performance** | **6.0** *(unprofiled)* | Atomic writes measured at **1.6×** the fair baseline (2.91 ms vs 1.80 ms). 15 blocking `readFileSync` on request-adjacent paths. **No profiler has ever been run.** This score is a placeholder and should not be trusted until it is |
+| **Security** | **6.5** | **0** credential-shaped literals in tracked files. `.env` not tracked. `npm audit`: **0 critical / 0 high / 0 moderate / 0 low**. Docker build context 2.9 MB with secrets excluded. **But** no webhook-secret enforcement, no rate limiting, no CSP |
+| **Reliability** | **8.0** | The ledger data-loss chain is **closed in every engine** (C3-02…C3-06). Registry is fail-closed and drift-checked against the live broker. 35/35 suites, deterministic. **TD-4's lost-update half remains open** |
+| **Testing** | **5.0** | **27 of 69** production modules have a suite (**39%**). test:prod line ratio **0.19**. **Zero route tests** across 168 routes. `charges.js` — 5 dependents, decides every rupee — had **zero tests until today** |
+| **Technical Debt** | **5.5** | 4 tracked TDs open (2 blocked on protected files). 105 silent catches. 3 Kelly copies. 2 GEX copies. 27 duplicate market-metadata sites |
+| **Institutional Readiness** | **3.0** | **41 labelled outcomes** platform-wide ⇒ no calibrated probability. **No Risk Engine, no Portfolio Engine, no daily NAV series, no data lake.** 4 distinct trading days of paper history |
+
+**The two scores that matter most are the two lowest.** Institutional readiness is gated by *evidence*
+(41 outcomes, 4 trading days), not by code. Testing is gated by *effort*, and it is the cheapest thing on
+this list to move.
+
+### New finding this session — E1: `.env.example` disagrees with `charges.js`
+
+| rate | `.env.example` | `charges.js` default | effect in isolation |
+|---|---|---|---|
+| `CHARGE_STT_SELL_PCT` | 0.0625 | **0.1** | cost **−5.73%** |
+| `CHARGE_EXCH_TXN_PCT` | 0.053 | **0.03503** | cost **+5.40%** |
+| both, as shipped | | | cost **−0.33%** |
+
+`charges.js` reads `process.env.CHARGE_*`, so `cp .env.example .env` **changes the cost model**.
+
+**The near-cancellation is the hazard, not the 0.33%.** The total looks almost right, so nobody notices
+that *both* component rates are wrong — and the moment one is corrected in isolation, the total moves 5%
+and looks like a regression. Same defect class as `.env.example` shipping `NIFTY_LOT_SIZE=75` (C1c-0):
+a documentation file that is load-bearing in the money math.
+
+The live `.env` sets no `CHARGE_*` key, so the code defaults are in force today. `test/charges.test.js`
+(26 assertions) now pins all of this, including the break-even move: **0.95 points on 65 units at ₹100
+premium** — any target below that is arithmetically unprofitable before it begins.
+
+**Not fixed here.** Which pair of rates is correct against the current SEBI/exchange schedule is a
+question of fact that must be verified against the exchange's published circular, not chosen by whichever
+number looks familiar. See §14.
+
+---
+
+## 17. Dashboard Audit — 2026-07-09 (MASTER-02, measured)
+
+**Inventory:** 21 pages, 692 KB, **zero shared CSS, zero shared JS components.**
+`dashboard.html` (the declared home): 100 KB, 774 static DOM nodes, 52 panels, **16 `setInterval`
+timers polling 15 endpoints, no WebSocket**, TradingView for charts, CSS grid, **no resizable panels,
+no workspace save**.
+
+**The decisive finding — a de-facto design system that drifted:** 19/21 pages define their own `:root`
+tokens **with the same names** (`--panel` ×19, `--bg` ×18, `--blue` ×17, `--green` ×14 …) but the values
+diverged: `--bg` exists in **10 distinct colours**, `--panel` 11, `--green` 5, `--red` 5, `--blue` 6.
+**Profit renders in five different greens depending on the page.** The vocabulary is already shared;
+only the values need one home.
+
+**Accessibility, measured:** aria attributes on **1/21** pages · `tabindex` on **0/21** ·
+light/dark support on **3/21** · keyboard shortcuts only partially on the home page.
+
+**Delivered (UI-01, additive, zero pages modified):** `public/css/tokens.css` — canonical tokens anchored
+on `dashboard.html`'s palette (the home page must not change appearance when it adopts the file);
+**semantic `--gain`/`--loss`** as indirections over raw hues so a colour-blind theme remaps P&L without
+repainting charts; light / high-contrast / deuteranopia themes as token swaps; `tabular-nums` for money
+columns; a `:focus-visible` ring (0/21 pages had one). Guarded by `test/ui-tokens.test.js` — a **ratchet**:
+the count of pages carrying private tokens (baseline 19) may only go down, and a migrated page may never
+privately redefine a core token again.
+
+**Migration path:** one page per commit — add `<link rel="stylesheet" href="/css/tokens.css">`, delete
+that page's private `:root` block, visually verify. Start with `health-dashboard.html` (small, shares the
+home palette), end with `dashboard.html`.
+
+**Not addressed yet (needs design decisions, not just tokens):** the 16-timer polling storm (a shared
+poller or SSE/WebSocket bridge is a server.js-adjacent change — approval needed) · workspace save/restore ·
+resizable panels · option-chain institutional layout · alert system.
