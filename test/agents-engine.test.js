@@ -186,4 +186,117 @@ const item = (over = {}) => ({
   ok(off.tick({}).skipped === 'disabled', 'disabled engine skips tick');
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  MIGRATION C1b — REGRESSION GUARD: lot size must come from instrument-registry.
+//  Bug that shipped: `const LOT = { NIFTY: 75, BANKNIFTY: 35, SENSEX: 20 }` plus
+//  `LOT[inst] || 75` silent fallbacks. The broker contract master says 65/30/20.
+//  Since P&L is `units = qty × lot`, realized ₹P&L was overstated +15.4% (NIFTY)
+//  and +16.7% (BANKNIFTY). These assertions fail loudly if a lot is ever hardcoded.
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  const fs = require('fs'), path = require('path');
+  for (const k of ['NIFTY_LOT_SIZE', 'BANKNIFTY_LOT_SIZE', 'SENSEX_LOT_SIZE']) delete process.env[k];
+  const registry = require('../instrument-registry');
+
+  // ── source-level guard: no hardcoded lot map, no LOT[] lookups ──
+  // Scan EXECUTABLE code only — the migration comments quote the old constants verbatim.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'agents-engine.js'), 'utf8');
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  ok(/require\(['"]\.\/instrument-registry/.test(src), 'C1b: agents-engine requires instrument-registry');
+  ok(!/LOT\[/.test(code), 'C1b: no LOT[...] lookups remain in executable code');
+  ok(!/const\s+LOT\s*=\s*\{/.test(code), 'C1b: the hardcoded LOT map is gone from executable code');
+  ok(!/lot:\s*(75|35|65|30)\b/.test(code), 'C1b: no `lot: <literal>` assignment survives');
+  ok(!/\|\|\s*75\b/.test(code), 'C1b: the `|| 75` silent fallback is gone');
+
+  // ── lot really comes from the registry ──
+  const eng = new ag.AgentsEngine({ enabled: 'true', minProb: 60, qty: 1 });
+  const s0 = eng.status();
+  ok(s0.lotSource === 'instrument-registry', 'C1b: status() advertises the registry as the lot source');
+  ok(s0.lotSizes.NIFTY === registry.lotSize('NIFTY') && s0.lotSizes.NIFTY === 65, 'C1b: NIFTY lot 65 from registry');
+  ok(s0.lotSizes.SENSEX === 20 && s0.lotSizes.BANKNIFTY === 30, 'C1b: SENSEX 20, BANKNIFTY 30 from registry');
+
+  // ── directional open stamps the registry lot + calcVersion 2 ──
+  {
+    const chain = { atm: 24000, rows: [{ strike: 24000, ce: { ltp: 100 }, pe: { ltp: 95 } }] };
+    const pos = eng._enter('NIFTY', { decision: 'BUY', probability: 72, aligned: true }, chain, 600);
+    ok(pos && pos.lot === 65, 'C1b: _enter uses lot 65 (was 75)');
+    ok(pos.lotSource === 'instrument-registry' && pos.calcVersion === 2, 'C1b: _enter stamps lotSource + calcVersion 2');
+  }
+
+  // ── unknown instrument: refuse, never guess ──
+  {
+    const e2 = new ag.AgentsEngine({ enabled: 'true', minProb: 60, qty: 1 });
+    const chain = { atm: 50000, rows: [{ strike: 50000, ce: { ltp: 100 }, pe: { ltp: 95 } }] };
+    ok(e2._enter('FINNIFTY', { decision: 'BUY', probability: 90 }, chain, 600) === null,
+      'C1b: unknown instrument → _enter refuses (no `|| 75` guess)');
+    ok(registry.lotSize('FINNIFTY') === null, 'C1b: registry itself returns null for FINNIFTY');
+  }
+
+  // ── condor open: registry lot + maxLossDefined built from units ──
+  // NOTE: _enterCondor returns a SUMMARY ({action, strategy, credit, ...}); the position
+  // itself lives in _openCondor. Read it from there, as the suite's condor test does.
+  {
+    const e3 = new ag.AgentsEngine({ enabled: 'true', qty: 1 });
+    e3._tradesFile = require('path').join(require('os').tmpdir(), 'agents-c1b-trades.json');
+    e3._openFile = require('path').join(require('os').tmpdir(), 'agents-c1b-open.json');
+    e3._allTrades = [];
+    const chain = { atm: 24000, step: 50, rows: [
+      { strike: 24100, ce: { ltp: 60 } }, { strike: 23900, pe: { ltp: 55 } },
+      { strike: 24200, ce: { ltp: 25 } }, { strike: 23800, pe: { ltp: 22 } },
+    ] };
+    const summary = e3._enterCondor('NIFTY', chain, '2026-07-02', 600, { ivp: 62, expiry: '2026-07-09' });
+    ok(summary && summary.strategy === 'IRON_CONDOR', 'C1b: condor opened');
+    const pos = e3._openCondor.get('NIFTY');
+    ok(pos && pos.lot === 65, 'C1b: _enterCondor uses lot 65 (was 75)');
+    ok(pos.calcVersion === 2 && pos.lotSource === 'instrument-registry', 'C1b: condor stamps calcVersion 2');
+    const units = pos.qty * pos.lot;
+    const expected = +(((e3.wingSteps - e3.shortSteps) * pos.step * units) - pos.credit * units).toFixed(2);
+    ok(Math.abs(pos.maxLossDefined - expected) < 0.011, 'C1b: maxLossDefined derived from units (qty × registry lot)');
+  }
+
+  // ── legacy preservation: a pre-migration open position closes as v1 ──
+  {
+    const e4 = new ag.AgentsEngine({ enabled: 'true' });
+    const m = e4._closeCalcMeta({ inst: 'NIFTY', qty: 1, lot: 75 }, 1234.5);   // no calcVersion/lotSource
+    ok(m.calcVersion === 1, 'C1b: pre-migration position → calcVersion 1');
+    ok(m.lotSource === 'legacy-open-position', 'C1b: flagged as a legacy open position');
+    ok(m.pnlLegacy === 1234.5, 'C1b: its pnl IS the legacy value');
+
+    const m2 = e4._closeCalcMeta({ inst: 'NIFTY', qty: 1, lot: 65, calcVersion: 2, lotSource: 'instrument-registry' }, 900);
+    ok(m2.calcVersion === 2 && m2.lotSource === 'instrument-registry', 'C1b: new position → calcVersion 2');
+    ok(m2.pnlLegacy === null, 'C1b: new trade has NO invented legacy counterfactual (pnlLegacy null)');
+  }
+
+  // ── reports label legacy vs current ──
+  {
+    const e5 = new ag.AgentsEngine({ enabled: 'true' });
+    const hist = [
+      { inst: 'NIFTY', kind: 'DIR', lot: 75, pnl: 1141.62 },        // pre-migration, no calcVersion
+      { inst: 'SENSEX', kind: 'DIR', lot: 20, pnl: -935.14 },
+    ];
+    const before = JSON.stringify(hist);
+    let c = e5._calcBreakdown(hist);
+    ok(JSON.stringify(hist) === before, 'C1b: _calcBreakdown does not mutate historical records');
+    ok(c.legacy.trades === 2 && c.current.trades === 0, 'C1b: legacy-only data → all in the legacy bucket');
+    ok(c.mixed === false, 'C1b: not mixed when no v2 trades exist');
+    ok(/hardcoded lot/.test(c.legacy.method), 'C1b: legacy method string names the defect');
+
+    c = e5._calcBreakdown([...hist, { inst: 'NIFTY', kind: 'DIR', lot: 65, pnl: 500, calcVersion: 2 }]);
+    ok(c.mixed === true, 'C1b: mixed flag flips once both versions exist');
+    ok(c.current.trades === 1 && c.current.netPnl === 500, 'C1b: current bucket isolates v2');
+    ok(/mixed/.test(c.note), 'C1b: note warns the raw netPnl is mixed');
+  }
+
+  // ── backward compatibility: status() shape preserved ──
+  {
+    const s = new ag.AgentsEngine({ enabled: 'true' }).status();
+    for (const k of ['enabled', 'config', 'agents', 'open', 'condors', 'closedToday', 'dayPnl', 'allTime', 'disclaimer']) {
+      ok(k in s, `C1b: status().${k} still present (backward compatible)`);
+    }
+    for (const k of ['trades', 'wins', 'winRate', 'netPnl', 'directional', 'condor']) {
+      ok(k in s.allTime, `C1b: status().allTime.${k} still present`);
+    }
+  }
+}
+
 console.log(`\n${pass} assertions passed`);

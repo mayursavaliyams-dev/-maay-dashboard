@@ -26,7 +26,25 @@
 'use strict';
 const { roundTripCharges } = require('./charges.js');
 
-const LOT = { NIFTY: 75, BANKNIFTY: 35, SENSEX: 20 };
+// ── MIGRATION C1b (2026-07-09) ─────────────────────────────────────────────────
+// This module previously hardcoded `const LOT = { NIFTY: 75, BANKNIFTY: 35, SENSEX: 20 }`
+// and fell back to `|| 75` for unknown instruments. Those values are WRONG: the broker's
+// contract master (Upstox GET /v2/option/contract) reports NIFTY 65, BANKNIFTY 30,
+// SENSEX 20. Since P&L here is `units = qty × lot`, realized ₹P&L was OVERSTATED by
+// +15.4% (NIFTY) and +16.7% (BANKNIFTY).
+//
+// Lot size is now obtained dynamically from the single source of truth. There is NO
+// hardcoded lot size and NO silent fallback: an unknown instrument yields null and the
+// engine refuses to open rather than guessing.
+//
+// Legacy preservation: historical trades already embed the lot they were opened with and
+// are never rewritten. Positions opened before this migration restore with their stored
+// lot and close as calcVersion 1; new positions use the registry → calcVersion 2.
+const instrumentRegistry = require('./instrument-registry.js');
+const lotOf = (inst) => instrumentRegistry.lotSize(inst);   // null when unknown — never guess
+const LOT_SOURCE_REGISTRY = 'instrument-registry';
+const LOT_SOURCE_LEGACY_OPEN = 'legacy-open-position';
+
 const hhmm = s => { const [a, b] = String(s).split(':').map(Number); return a * 60 + b; };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round = (v, d = 2) => +(+v).toFixed(d);
@@ -229,7 +247,7 @@ class AgentsEngine {
     this.qty = parseInt(cfg.qty ?? process.env.AGENTS_QTY ?? 1);
     // instruments the whole pipeline runs on — NIFTY + SENSEX + BANKNIFTY by default
     this.instruments = (cfg.instruments || (process.env.AGENTS_INSTRUMENTS || 'NIFTY,SENSEX,BANKNIFTY').split(','))
-      .map(s => String(s).trim().toUpperCase()).filter(i => LOT[i]);
+      .map(s => String(s).trim().toUpperCase()).filter(i => lotOf(i) != null);   // C1b: registry is the whitelist
 
     // ── the VALIDATED edge: defined-risk premium selling (iron condor) ──
     this.sellEnabled = String(cfg.sellEnabled ?? process.env.AGENTS_SELL_ENABLED ?? 'true').toLowerCase() === 'true';
@@ -489,9 +507,12 @@ class AgentsEngine {
     const row = (chain.rows || []).find(r => Number(r.strike) === Number(chain.atm));
     const ltp = side === 'CE' ? Number(row?.ce?.ltp || 0) : Number(row?.pe?.ltp || 0);
     if (!(ltp > 0)) return null;
+    const lot = lotOf(inst);                    // C1b: registry, never a hardcoded fallback
+    if (!lot) return null;                      // unknown contract size → refuse, do not guess
     const pos = {
       inst, kind: 'DIR', side, strike: Number(chain.atm), entry: round(ltp), last: ltp, peak: ltp,
-      qty: this.qty, lot: LOT[inst] || 75, openMins: mins, openedAt: new Date().toISOString(),
+      qty: this.qty, lot, lotSource: LOT_SOURCE_REGISTRY, calcVersion: 2,
+      openMins: mins, openedAt: new Date().toISOString(),
       probability: sig.probability, newsAligned: !!sig.aligned, mode: 'PAPER',
       factors: factors && Object.keys(factors).length ? factors : null,   // for the learner on close
     };
@@ -518,12 +539,47 @@ class AgentsEngine {
     return this._close(inst, pos, ltp, reason);
   }
 
+  /**
+   * MIGRATION C1b — classify a closing position as legacy (pre-registry lot) or current.
+   * Positions opened before the migration persist with their old lot and no calcVersion;
+   * we do NOT retroactively re-lot them (that would change the entry basis mid-position).
+   * Their pnl IS the legacy value. New positions carry calcVersion 2 from the registry and
+   * have no legacy counterpart, so pnlLegacy is null rather than an invented counterfactual.
+   */
+  _closeCalcMeta(pos, pnl) {
+    const calcVersion = pos.calcVersion ?? 1;
+    const lotSource = pos.lotSource ?? LOT_SOURCE_LEGACY_OPEN;
+    return { calcVersion, lotSource, pnlLegacy: calcVersion === 1 ? pnl : null };
+  }
+
+  /**
+   * MIGRATION C1b — split reported P&L into legacy (pre-registry lot) vs current so every
+   * report can label its numbers. Historical records carry no calcVersion → legacy.
+   */
+  _calcBreakdown(all) {
+    const sum = a => round(a.reduce((s, t) => s + (Number(t.pnl) || 0), 0));
+    const v2 = all.filter(t => t.calcVersion === 2);
+    const v1 = all.filter(t => t.calcVersion !== 2);
+    return {
+      mixed: v1.length > 0 && v2.length > 0,
+      legacy: { trades: v1.length, netPnl: sum(v1),
+        method: 'v1-legacy: units = qty × hardcoded lot (NIFTY 75 / BANKNIFTY 35) — overstated' },
+      current: { trades: v2.length, netPnl: sum(v2),
+        method: 'v2: units = qty × instrument-registry lotSize (broker contract master)' },
+      note: 'allTime.netPnl is the raw sum across BOTH versions and is therefore mixed while `mixed` is true. Legacy trades are pre-migration-C1b records whose lot was hardcoded 75/35; they are preserved unmodified. Compare like-for-like using calc.current only.',
+    };
+  }
+
   _close(inst, pos, exitLtp, reason) {
     const units = pos.qty * pos.lot;
     const gross = (exitLtp - pos.entry) * units;
     const charges = roundTripCharges(pos.entry, exitLtp, units).total;
     const pnl = round(gross - charges);
-    const rec = { ...pos, exit: round(exitLtp), exitAt: new Date().toISOString(), reason, gross: round(gross), charges: round(charges), pnl };
+    // C1b: a position opened before this migration restored with its pre-registry lot and
+    // no calcVersion. Close it on the lot it was opened with (entry/exit consistency) and
+    // mark it legacy; its pnl IS the legacy value. New positions are calcVersion 2.
+    const { calcVersion, lotSource, pnlLegacy } = this._closeCalcMeta(pos, pnl);
+    const rec = { ...pos, exit: round(exitLtp), exitAt: new Date().toISOString(), reason, gross: round(gross), charges: round(charges), pnl, calcVersion, lotSource, pnlLegacy };
     this._open.delete(inst);
     this._closedToday.push(rec);
     this._allTrades.push(rec);
@@ -563,11 +619,15 @@ class AgentsEngine {
     if (!(credit > 0)) return null;
     legs.shortCE.entry = round(L.sce); legs.shortPE.entry = round(L.spe);
     legs.wingCE.entry = round(L.wce); legs.wingPE.entry = round(L.wpe);
+    const lot = lotOf(inst);                    // C1b: registry, never a hardcoded fallback
+    if (!lot) return null;                      // unknown contract size → refuse, do not guess
+    const units = this.qty * lot;
     const pos = {
       inst, kind: 'CONDOR', legs, atm, step, credit: round(credit), lastCost: round(credit),
-      qty: this.qty, lot: LOT[inst] || 75, openedAt: new Date().toISOString(), openDate: date, openMins: mins,
+      qty: this.qty, lot, lotSource: LOT_SOURCE_REGISTRY, calcVersion: 2,
+      openedAt: new Date().toISOString(), openDate: date, openMins: mins,
       expiry: extra.expiry || null, ivpAtEntry: extra.ivp ?? null, mode: 'PAPER',
-      maxLossDefined: round((this.wingSteps - this.shortSteps) * step * this.qty * (LOT[inst] || 75) - credit * this.qty * (LOT[inst] || 75)),
+      maxLossDefined: round((this.wingSteps - this.shortSteps) * step * units - credit * units),
     };
     this._openCondor.set(inst, pos);
     this._sellsToday[inst] = (this._sellsToday[inst] || 0) + 1;
@@ -600,11 +660,13 @@ class AgentsEngine {
     try {
       charges = Object.entries(pos.legs).reduce((s, [k, leg]) =>
         s + roundTripCharges(Math.max(0.05, leg.entry), Math.max(0.05, Number(legExit[k]) || leg.entry), units).total, 0);
-    } catch (_) { charges = 4 * 65 * pos.qty; }
+    } catch (_) { charges = 4 * 65 * pos.qty; }   // ₹65 charge-per-leg × 4 legs × lots (a COST estimate, not a lot size)
     const pnl = round(gross - charges);
+    const { calcVersion, lotSource, pnlLegacy } = this._closeCalcMeta(pos, pnl);   // C1b
     const rec = { inst, kind: 'CONDOR', legs: pos.legs, credit: pos.credit, exitCost: round(exitCost),
       qty: pos.qty, lot: pos.lot, openedAt: pos.openedAt, exitAt: new Date().toISOString(),
-      ivpAtEntry: pos.ivpAtEntry, reason, gross: round(gross), charges: round(charges), pnl, mode: 'PAPER' };
+      ivpAtEntry: pos.ivpAtEntry, reason, gross: round(gross), charges: round(charges), pnl, mode: 'PAPER',
+      calcVersion, lotSource, pnlLegacy };
     this._openCondor.delete(inst);
     this._closedToday.push(rec);
     this._allTrades.push(rec);
@@ -633,7 +695,10 @@ class AgentsEngine {
       closedToday: this._closedToday, dayPnl: round(this._dailyPnl()),
       allTime: { trades: all.length, wins, winRate: all.length ? round(wins / all.length * 100, 1) : null,
         netPnl: round(all.reduce((s, t) => s + (t.pnl || 0), 0)),
-        directional: bucket('DIR'), condor: bucket('CONDOR') },
+        directional: bucket('DIR'), condor: bucket('CONDOR'),
+        calc: this._calcBreakdown(all) },
+      lotSource: LOT_SOURCE_REGISTRY,
+      lotSizes: Object.fromEntries(this.instruments.map(i => [i, lotOf(i)])),
       disclaimer: 'Paper auto-trading. Impact probability is a disclosed-parameter heuristic, not a promise. Directional buying backtested weak — high probability floor + caps applied; the condor play follows the backtested selling edge (81% win, defined risk) with an IVP≥50 filter. Educational, not advice.',
     };
   }
