@@ -252,6 +252,7 @@ class StrangleEngine {
     // Tier-2 sizing — margin-aware fractional-Kelly, IV-scaled. Paper still uses
     // qtyPerLeg unless useSizer; the recommendation is always surfaced.
     const sizing = this._sizer.recommend({
+      inst,                                    // C1c-5: the sizer resolves the lot from the registry
       capital: this.capital, structure, maxLossPerUnit: maxLoss || undefined,
       winRate: this._stats.winRate, avgWin: this._stats.avgWin, avgLoss: this._stats.avgLoss,
       ivPct: ivPct ?? 0.5,
@@ -387,10 +388,14 @@ class StrangleEngine {
     // Tier-2 sizing snapshot — what real-capital lot count each structure warrants
     // right now (uses the live IV percentile of the most-tracked instrument).
     const anyIv = Object.values(this._lastIv)[0];
+    // C1c-5: the snapshot must name the instrument it is sizing for. Use the most-tracked
+    // one rather than defaulting to a guessed 'NIFTY'. With no tracked instrument yet the
+    // condor sizer refuses, and says why, instead of inventing a lot size.
+    const anyInst = Object.keys(this._lastIv)[0] || null;
     const sizing = {
-      capital: this.capital, useSizer: this.useSizer,
-      strangle: this._sizer.recommend({ capital: this.capital, structure: 'STRANGLE', ...this._stats, ivPct: anyIv?.pct ?? 0.5 }),
-      condor:   this._sizer.recommend({ capital: this.capital, structure: 'CONDOR', maxLossPerUnit: this.wingPts * 0.85, ...this._stats, ivPct: anyIv?.pct ?? 0.5 }),
+      capital: this.capital, useSizer: this.useSizer, inst: anyInst,
+      strangle: this._sizer.recommend({ inst: anyInst, capital: this.capital, structure: 'STRANGLE', ...this._stats, ivPct: anyIv?.pct ?? 0.5 }),
+      condor:   this._sizer.recommend({ inst: anyInst, capital: this.capital, structure: 'CONDOR', maxLossPerUnit: this.wingPts * 0.85, ...this._stats, ivPct: anyIv?.pct ?? 0.5 }),
     };
     return {
       enabled: this.enabled,
