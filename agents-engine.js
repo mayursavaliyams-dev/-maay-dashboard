@@ -41,6 +41,7 @@ const { roundTripCharges } = require('./charges.js');
 // are never rewritten. Positions opened before this migration restore with their stored
 // lot and close as calcVersion 1; new positions use the registry → calcVersion 2.
 const instrumentRegistry = require('./instrument-registry.js');
+const safeWrite = require('./safe-write.js');   // C3-03: atomic, fail-closed ledger writes
 const lotOf = (inst) => instrumentRegistry.lotSize(inst);   // null when unknown — never guess
 const LOT_SOURCE_REGISTRY = 'instrument-registry';
 const LOT_SOURCE_LEGACY_OPEN = 'legacy-open-position';
@@ -296,12 +297,58 @@ class AgentsEngine {
     });
   }
 
-  _loadTrades() { try { return JSON.parse(require('fs').readFileSync(this._tradesFile, 'utf8')) || []; } catch { return []; } }
-  _saveTrades() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._tradesFile), { recursive: true }); fs.writeFileSync(this._tradesFile, JSON.stringify(this._allTrades.slice(-5000))); } catch (_) {} }
+  // ── persistence (MIGRATION C3-03: atomic + fail-closed) ────────────────────
+  //
+  // Was: `catch { return [] }` on load and `catch (_) {}` on a non-atomic writeFileSync.
+  // A crash mid-write truncated the ledger; the next boot read it as empty; the first
+  // save of the day overwrote it. Every trade gone, silently.
+  //
+  // The dangerous step is the SAVE. So: atomic write + .bak, recover a corrupt ledger
+  // from .bak, and if it is unrecoverable mark `_ledgerCorrupt` and REFUSE to save.
+  // The corrupt bytes stay on disk for forensics. status() surfaces it.
+  _loadTrades() {
+    this._ledgerCorrupt = false;
+    try {
+      const rows = safeWrite.readJsonSync(this._tradesFile, {
+        fallback: [],
+        onRecover: (reason, bak) => console.warn(`[agents] trade ledger was corrupt (${reason}); recovered from ${bak}.`),
+      });
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      this._ledgerCorrupt = true;
+      this._ledgerCorruptReason = e.message;
+      console.error(`[agents] TRADE LEDGER UNRECOVERABLE: ${e.message}`);
+      console.error('[agents] Saving is DISABLED for this ledger. The file is untouched.');
+      return [];
+    }
+  }
+  _saveTrades() {
+    if (this._ledgerCorrupt) return;   // never write [] over a ledger we could not read
+    try { safeWrite.writeJsonSync(this._tradesFile, this._allTrades.slice(-5000), { backup: true }); this._lastSaveError = null; }
+    catch (e) { this._lastSaveError = `trades: ${e.message}`; console.error(`[agents] trade ledger save failed: ${e.message}`); }
+  }
 
   // ── stock-analysis archive: every deal-radar analysis is saved once and kept forever ──
-  _loadImpactHistory() { try { return JSON.parse(require('fs').readFileSync(this._impactFile, 'utf8')) || []; } catch { return []; } }
-  _saveImpactHistory() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._impactFile), { recursive: true }); fs.writeFileSync(this._impactFile, JSON.stringify(this._impactHistory.slice(-4000))); } catch (_) {} }
+  _loadImpactHistory() {
+    this._impactCorrupt = false;
+    try {
+      const rows = safeWrite.readJsonSync(this._impactFile, {
+        fallback: [],
+        onRecover: (reason, bak) => console.warn(`[agents] impact archive was corrupt (${reason}); recovered from ${bak}.`),
+      });
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      // "Saved once and kept forever" — never overwrite an archive we cannot read.
+      this._impactCorrupt = true;
+      console.error(`[agents] IMPACT ARCHIVE UNRECOVERABLE: ${e.message}. Saving disabled; file untouched.`);
+      return [];
+    }
+  }
+  _saveImpactHistory() {
+    if (this._impactCorrupt) return;
+    try { safeWrite.writeJsonSync(this._impactFile, this._impactHistory.slice(-4000), { backup: true }); }
+    catch (e) { this._lastSaveError = `impact: ${e.message}`; console.error(`[agents] impact archive save failed: ${e.message}`); }
+  }
   // append newly-analysed stock events (deduped by stable event key) so old analysis stays available
   _archiveImpacts(hits, date) {
     let added = 0;
@@ -393,19 +440,34 @@ class AgentsEngine {
     };
   }
 
+  // OPEN POSITIONS. Condors hold across restarts, so a truncated file here loses track of
+  // REAL open risk: the engine would believe it is flat and could open a second condor on
+  // top of a live one. Recover from .bak; if unrecoverable, refuse to save and leave the
+  // file alone for manual reconciliation.
   _loadOpen() {
+    this._openCorrupt = false;
+    let o;
     try {
-      const o = JSON.parse(require('fs').readFileSync(this._openFile, 'utf8'));
-      for (const p of o.condors || []) this._openCondor.set(p.inst, p);
-      for (const p of o.directional || []) this._open.set(p.inst, p);
-    } catch (_) {}
+      o = safeWrite.readJsonSync(this._openFile, {
+        fallback: { condors: [], directional: [] },
+        onRecover: (reason, bak) => console.warn(`[agents] open-positions file was corrupt (${reason}); recovered from ${bak}.`),
+      });
+    } catch (e) {
+      this._openCorrupt = true;
+      console.error(`[agents] OPEN POSITIONS UNRECOVERABLE: ${e.message}`);
+      console.error('[agents] The engine cannot know what is open. Saving disabled; file untouched. Reconcile by hand.');
+      return;
+    }
+    for (const p of (o && o.condors) || []) this._openCondor.set(p.inst, p);
+    for (const p of (o && o.directional) || []) this._open.set(p.inst, p);
   }
   _saveOpen() {
+    if (this._openCorrupt) return;
     try {
-      const fs = require('fs'), p = require('path');
-      fs.mkdirSync(p.dirname(this._openFile), { recursive: true });
-      fs.writeFileSync(this._openFile, JSON.stringify({ condors: [...this._openCondor.values()], directional: [...this._open.values()] }));
-    } catch (_) {}
+      safeWrite.writeJsonSync(this._openFile,
+        { condors: [...this._openCondor.values()], directional: [...this._open.values()] }, { backup: true });
+      this._lastSaveError = null;
+    } catch (e) { this._lastSaveError = `open: ${e.message}`; console.error(`[agents] open-positions save failed: ${e.message}`); }
   }
   _ist() { const d = new Date(Date.now() + 5.5 * 3600 * 1000); return { date: d.toISOString().slice(0, 10), mins: d.getUTCHours() * 60 + d.getUTCMinutes() }; }
   _resetIfNewDay(date) { if (this._day !== date) { this._day = date; this._tradesToday = {}; this._sellsToday = {}; this._closedToday = []; } }

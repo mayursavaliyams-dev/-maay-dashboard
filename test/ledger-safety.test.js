@@ -127,4 +127,51 @@ function ledgerContract(name, mk, file, load, save, corrupt) {
     (e) => e._ledgerCorrupt === true);
 }
 
+// ── agents-engine: trade ledger ──
+{
+  const { AgentsEngine } = require('../agents-engine.js');
+  const file = tmp('ai-agents-trades.json');
+  const mk = () => {
+    const e = new AgentsEngine({ enabled: false });
+    e._tradesFile = file;
+    e._allTrades = e._loadTrades();
+    return e;
+  };
+  ledgerContract('agents-engine', mk, file,
+    (e) => e._allTrades, (e) => e._saveTrades(), (e) => e._ledgerCorrupt === true);
+}
+
+// ── agents-engine: OPEN POSITIONS — the file that tracks real open risk ──
+{
+  console.log('\n  ── agents-engine open positions ──');
+  const { AgentsEngine } = require('../agents-engine.js');
+  const file = tmp('ai-agents-open.json');
+
+  // recoverable
+  S.writeJsonSync(file, { condors: [{ inst: 'NIFTY' }], directional: [] }, { backup: false });
+  S.writeJsonSync(file, { condors: [{ inst: 'NIFTY' }], directional: [{ inst: 'SENSEX' }] }, { backup: true });
+  fs.writeFileSync(file, '{"condors":[{"inst":"NIF');
+  {
+    const e = new AgentsEngine({ enabled: false });
+    e._openFile = file; e._openCorrupt = false;
+    e._openCondor.clear(); e._open.clear();
+    e._loadOpen();
+    ok(e._openCorrupt === false && e._openCondor.size === 1,
+      'agents-engine: a corrupt open-positions file recovers from .bak — the live condor is not forgotten');
+  }
+
+  // unrecoverable
+  try { fs.unlinkSync(file + '.bak'); } catch (_) {}
+  const poison = '{"condors":[{"inst":"NIF';
+  fs.writeFileSync(file, poison);
+  const e = new AgentsEngine({ enabled: false });
+  e._openFile = file; e._openCorrupt = false;
+  e._openCondor.clear(); e._open.clear();
+  e._loadOpen();
+  ok(e._openCorrupt === true, 'agents-engine: an unrecoverable OPEN-POSITIONS file marks the engine corrupt');
+  e._saveOpen();
+  ok(fs.readFileSync(file, 'utf8') === poison,
+    'agents-engine: and it REFUSES to save — the engine never pretends it is flat while a condor may be live');
+}
+
 console.log(`\n${pass} assertions passed`);
