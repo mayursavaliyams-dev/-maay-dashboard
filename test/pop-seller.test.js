@@ -144,35 +144,34 @@ const registry = require('../instrument-registry.js');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  D4 — daysToExpiry: the weekday rule, pinned exactly as it is today
+//  D4 — RESOLVED by C1c-3a. daysToExpiry now delegates to the registry's
+//  broker-derived expiry calendar. Previously it asserted NIFTY=Thursday and
+//  SENSEX=Tuesday, which is exactly backwards, and assumed a weekly expiry for
+//  BANKNIFTY/FINNIFTY/BANKEX, which have none.
 // ════════════════════════════════════════════════════════════════════════════
 {
-  // Independent reference implementation of the rule AS WRITTEN (pop-seller.js:27-38).
-  // If someone changes targetDay, this fails — which is the point.
-  const ref = (inst) => {
-    const ist = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-    const dow = ist.getDay();
-    const hour = ist.getHours();
-    const targetDay = (inst === 'SENSEX' || inst === 'BANKEX') ? 2 : 4;
-    let days = (targetDay - dow + 7) % 7;
-    if (days === 0 && hour >= 15) days = 7;
-    return Math.max(days + (1 - hour / 24), 0.5) / 365;
-  };
-
-  for (const inst of ['NIFTY', 'BANKNIFTY', 'SENSEX', 'FINNIFTY', 'BANKEX']) {
-    near(P.daysToExpiry(inst) * 365, ref(inst) * 365, 0.05, `daysToExpiry(${inst}) matches the rule as written`);
-  }
-
-  ok(P.daysToExpiry('NIFTY') > 0, 'daysToExpiry is strictly positive (T never hits the bsDelta T<=0 branch)');
+  ok(P.daysToExpiry('NIFTY') === registry.timeToExpiryYears('NIFTY'),
+    'C1c-3a: daysToExpiry delegates to the Instrument Registry');
+  ok(P.daysToExpiry('NIFTY') > 0, 'daysToExpiry is strictly positive (T never reaches the bsDelta T<=0 branch)');
   ok(P.daysToExpiry('NIFTY') * 365 >= 0.5, 'daysToExpiry floors at 0.5 days');
-  ok(P.daysToExpiry('NIFTY') * 365 <= 8, 'daysToExpiry never exceeds 8 days (weekly assumption)');
+  ok(P.daysToExpiry('FINNIFTY') === null, 'C1c-3a: a disabled instrument yields null, not a fabricated DTE');
 
-  // The rule itself is wrong. Pinned, not fixed.
+  // The expiry date must land on the weekday the BROKER uses, not the old folklore.
   const dow = (iso) => new Date(iso + 'T00:00:00Z').getUTCDay();
-  ok(dow('2026-07-14') === 2 && dow('2026-07-09') === 4,
-    'DEFECT D4: broker says NIFTY expiry is a TUESDAY and SENSEX a THURSDAY — pop-seller has them swapped (fix: C1c-3a)');
+  ok(dow(registry.nextExpiry('NIFTY')) === 2, 'C1c-3a: NIFTY expiry falls on a TUESDAY (was assumed Thursday)');
+  ok(dow(registry.nextExpiry('SENSEX')) === 4, 'C1c-3a: SENSEX expiry falls on a THURSDAY (was assumed Tuesday)');
+  ok(dow(registry.nextExpiry('BANKNIFTY')) === 2, 'C1c-3a: BANKNIFTY expiry falls on a Tuesday');
+
+  // BANKNIFTY is MONTHLY-only. The old code capped its DTE at 8 days; the truth is ~19.
+  // Understating T shrinks |delta|, which INFLATES PoP — positions looked safer than they were.
+  const at = new Date('2026-07-09T04:00:00Z');   // 09:30 IST, market open
+  near(registry.timeToExpiryYears('BANKNIFTY', at) * 365, 19.25, 0.02,
+    'C1c-3a: BANKNIFTY DTE is 19.25 days (monthly), not the ≤8 the weekly assumption forced');
+  near(registry.timeToExpiryYears('NIFTY', at) * 365, 5.25, 0.02, 'C1c-3a: NIFTY DTE 5.25 days to 2026-07-14');
+  near(registry.timeToExpiryYears('SENSEX', at) * 365, 0.5, 0.02, 'C1c-3a: SENSEX expires today → floored at 0.5 days');
+
   ok(registry.catalog('BANKNIFTY').expiryType === 'MONTHLY' && registry.catalog('BANKEX').expiryType === 'MONTHLY',
-    'DEFECT D4: BANKNIFTY/BANKEX have NO weekly expiry, yet daysToExpiry assumes one (fix: C1c-3a)');
+    'C1c-3a: BANKNIFTY/BANKEX are MONTHLY-only and the calendar now honours that');
 }
 
 // ════════════════════════════════════════════════════════════════════════════

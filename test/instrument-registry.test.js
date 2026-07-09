@@ -10,6 +10,7 @@ const assert = require('assert');
 
 let pass = 0;
 const ok = (c, m) => { assert.ok(c, m); console.log('  ✓ ' + m); pass++; };
+const near = (a, b, tol, m) => { assert.ok(Math.abs(a - b) <= tol, `${m} (got ${a}, want ~${b})`); console.log('  ✓ ' + m); pass++; };
 
 console.log('instrument-registry');
 
@@ -247,6 +248,55 @@ const FRESH = () => { delete require.cache[require.resolve('../instrument-regist
     assert.strictEqual(Rc.catalog(i).expiryType, 'MONTHLY', `${i} expiryType`);
   }
   ok(true, 'C1c-1: BANKNIFTY/FINNIFTY/MIDCPNIFTY/BANKEX are MONTHLY-only (no weekly, post-SEBI)');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MIGRATION C1c-3a — expiry calendar, derived from the broker's own expiry lists
+//    NIFTY      2026-07-14 Tue wk · 07-21 Tue wk · 07-28 Tue MONTHLY · 08-04 Tue wk
+//    BANKNIFTY  2026-07-28 · 08-25 · 09-29 · 12-29   (all LAST Tuesday of month)
+//    SENSEX     2026-07-09 Thu wk · 07-16 · 07-23 · 07-30 Thu MONTHLY
+//    BANKEX     2026-07-30 · 08-27 · 09-24           (all LAST Thursday of month)
+//  Rule: NSE expires Tuesday, BSE expires Thursday. Weekly ⇒ next such weekday.
+//        Monthly-only ⇒ LAST such weekday of the month. Close at 15:30 IST.
+// ════════════════════════════════════════════════════════════════════════════
+{
+  const Rc = FRESH();
+  const dow = (iso) => new Date(iso + 'T00:00:00Z').getUTCDay();
+
+  ok(Rc.expiryDow('NIFTY') === 2 && Rc.expiryDow('BANKNIFTY') === 2, 'C1c-3a: NSE instruments expire on a Tuesday');
+  ok(Rc.expiryDow('SENSEX') === 4, 'C1c-3a: BSE instruments expire on a Thursday');
+  ok(Rc.expiryDow('FINNIFTY') === null, 'C1c-3a: expiryDow is on the fail-closed trading surface');
+  ok(Rc.catalog('BANKEX').expiryDow === 4, 'C1c-3a: the catalog still exposes it for disabled instruments');
+
+  // Broker ground truth, replayed at 09:30 IST on 2026-07-09 (before the 15:30 close).
+  const at = new Date('2026-07-09T04:00:00Z');
+  ok(Rc.nextExpiry('NIFTY', at) === '2026-07-14', 'C1c-3a: NIFTY next expiry 2026-07-14 (matches broker)');
+  ok(Rc.nextExpiry('BANKNIFTY', at) === '2026-07-28', 'C1c-3a: BANKNIFTY next expiry 2026-07-28, last Tue (matches broker)');
+  ok(Rc.nextExpiry('SENSEX', at) === '2026-07-09', 'C1c-3a: SENSEX expires today (matches broker)');
+  for (const i of ['NIFTY', 'BANKNIFTY']) assert.strictEqual(dow(Rc.nextExpiry(i, at)), 2, `${i} expiry weekday`);
+  assert.strictEqual(dow(Rc.nextExpiry('SENSEX', at)), 4, 'SENSEX expiry weekday');
+  ok(true, 'C1c-3a: every computed expiry lands on the broker\'s weekday');
+
+  // 15:30 IST close rollover
+  ok(Rc.nextExpiry('SENSEX', new Date('2026-07-09T09:59:00Z')) === '2026-07-09', 'C1c-3a: 15:29 IST → still today');
+  ok(Rc.nextExpiry('SENSEX', new Date('2026-07-09T10:00:00Z')) === '2026-07-16', 'C1c-3a: 15:30 IST → rolls to the next Thursday');
+
+  // monthly + month/year boundary rollover
+  ok(Rc.nextExpiry('BANKNIFTY', new Date('2026-07-28T09:59:00Z')) === '2026-07-28', 'C1c-3a: monthly expiry holds until the close');
+  ok(Rc.nextExpiry('BANKNIFTY', new Date('2026-07-28T10:00:00Z')) === '2026-08-25', 'C1c-3a: after the close → 2026-08-25 (matches broker)');
+  ok(Rc.nextExpiry('BANKNIFTY', new Date('2026-12-29T10:00:00Z')) === '2027-01-26', 'C1c-3a: year boundary → last Tue of Jan 2027');
+
+  // timeToExpiryYears
+  near(Rc.timeToExpiryYears('BANKNIFTY', at) * 365, 19.25, 0.02, 'C1c-3a: BANKNIFTY DTE 19.25 days (monthly, not a fake weekly ≤8)');
+  near(Rc.timeToExpiryYears('NIFTY', at) * 365, 5.25, 0.02, 'C1c-3a: NIFTY DTE 5.25 days');
+  near(Rc.timeToExpiryYears('SENSEX', at) * 365, 0.5, 0.02, 'C1c-3a: expiry day → floored at 0.5 days, never ≤0');
+  ok(Rc.timeToExpiryYears('SENSEX', at) > 0, 'C1c-3a: T is always > 0 so Black-Scholes never sees T<=0');
+  ok(Rc.nextExpiry('FINNIFTY') === null && Rc.timeToExpiryYears('FINNIFTY') === null,
+    'C1c-3a: disabled instrument → null expiry, never a fabricated date');
+  ok(Rc.nextExpiry('NIFTYNEXT50') === null, 'C1c-3a: unknown instrument → null');
+
+  // purity: `now` is injected, so the calendar is deterministic under test
+  ok(Rc.nextExpiry('NIFTY', at) === Rc.nextExpiry('NIFTY', at), 'C1c-3a: nextExpiry is pure for a fixed `now`');
 }
 
 // ── provenance on every record (auditability) ──

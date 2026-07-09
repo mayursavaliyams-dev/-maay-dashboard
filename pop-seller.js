@@ -43,20 +43,31 @@ function lotSize(inst) { return instrumentRegistry.lotSize(inst); }
 /** Strike interval, or null when the instrument is unknown/disabled. Never guesses. */
 function strikeStep(inst) { return instrumentRegistry.step(inst); }
 
-// ── Days to next weekly expiry ────────────────────────────────────────────────
-// NIFTY = Thursday, SENSEX = Tuesday
-function daysToExpiry(inst) {
-  const ist = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-  const dow = ist.getDay(); // 0=Sun..6=Sat
-  const hour = ist.getHours();
-  const targetDay = (inst === 'SENSEX' || inst === 'BANKEX') ? 2 : 4; // Tue or Thu
-  let days = (targetDay - dow + 7) % 7;
-  // If today is expiry day and past 3:30PM, use next week
-  if (days === 0 && hour >= 15) days = 7;
-  // Minimum 0.5 day (half-day buffer)
-  const dte = Math.max(days + (1 - hour / 24), 0.5);
-  return dte / 365; // in years
-}
+// ── Time to expiry ────────────────────────────────────────────────────────────
+//
+// MIGRATION C1c-3a (2026-07-09). This function previously read:
+//
+//   const targetDay = (inst === 'SENSEX' || inst === 'BANKEX') ? 2 : 4;  // Tue or Thu
+//
+// i.e. "NIFTY expires Thursday, SENSEX expires Tuesday". The broker contract master says
+// the exact opposite: NIFTY's expiries fall on TUESDAYS (2026-07-14, -21, -28) and
+// SENSEX's on THURSDAYS (2026-07-09, -16, -23, -30). The two were SWAPPED.
+//
+// Worse, it assumed a WEEKLY expiry for every instrument. BANKNIFTY, FINNIFTY,
+// MIDCPNIFTY and BANKEX are MONTHLY-only (post-SEBI single-weekly-per-exchange), so
+// their DTE was capped at 8 days when the truth was ~19. Understated T shrinks |delta|,
+// which INFLATES the reported PoP — every position looked safer than it was.
+//
+// T feeds Black-Scholes, so this corrupted every delta, every PoP, every premium
+// estimate and every iron-condor breakeven this module produced.
+//
+// The expiry calendar now lives in the Instrument Registry, derived from the broker's
+// own expiry lists: NSE instruments expire on a Tuesday, BSE on a Thursday; weekly
+// instruments take the next such weekday, monthly-only take the LAST of the month.
+// Contracts stop trading at 15:30 IST.
+
+/** Time to expiry in years. null when the instrument is unknown/disabled. */
+function daysToExpiry(inst) { return instrumentRegistry.timeToExpiryYears(inst); }
 
 // ── Black-Scholes helpers ─────────────────────────────────────────────────────
 function normalCDF(x) {
