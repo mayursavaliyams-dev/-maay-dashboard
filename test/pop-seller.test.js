@@ -190,11 +190,26 @@ const registry = require('../instrument-registry.js');
      || Math.abs((P.bsDelta(24000, 24000, 30 / 365, 0.15, 'CE') - P.bsDelta(24000, 24000, 30 / 365, 0.15, 'PE')) - 1) < 1e-9,
     'put-call delta parity: Δcall − Δput = 1');
 
-  // D5 — the T<=0 branch is moneyness-blind and INVERTED
-  ok(P.bsDelta(24000, 30000, 0, 0.15, 'CE') === 1,
-    'DEFECT D5: at T=0 a deep-OTM call reports delta 1 (→ PoP 0%) instead of 0 (→ PoP 100%) (fix: C1c-3a)');
-  ok(P.bsDelta(24000, 18000, 0, 0.15, 'PE') === -1, 'DEFECT D5: at T=0 a deep-OTM put reports delta -1 (fix: C1c-3a)');
-  ok(P.bsDelta(24000, 24000, 30 / 365, 0, 'CE') === 1, 'DEFECT D5: sigma=0 also trips the ±1 branch (fix: C1c-3a)');
+  // ── D5 RESOLVED by C1c-3b: at T=0 the delta is the expiry payoff slope ──
+  ok(P.bsDelta(24000, 30000, 0, 0.15, 'CE') === 0, 'C1c-3b: T=0 deep-OTM call → delta 0 (PoP 100%), was 1 (PoP 0%)');
+  ok(P.bsDelta(24000, 18000, 0, 0.15, 'CE') === 1, 'C1c-3b: T=0 deep-ITM call → delta 1');
+  ok(P.bsDelta(24000, 18000, 0, 0.15, 'PE') === 0, 'C1c-3b: T=0 deep-OTM put → delta 0 (PoP 100%), was -1');
+  ok(P.bsDelta(24000, 30000, 0, 0.15, 'PE') === -1, 'C1c-3b: T=0 deep-ITM put → delta -1');
+  ok(P.bsDelta(24000, 24000, 0, 0.15, 'CE') === 0.5, 'C1c-3b: T=0 exactly ATM → 0.5, the conventional limit');
+  ok(P.bsDelta(24000, 24000, 0, 0.15, 'CE') - P.bsDelta(24000, 24000, 0, 0.15, 'PE') === 1,
+    'C1c-3b: put-call delta parity holds in the degenerate branch too');
+
+  // sigma = 0 ⇒ deterministic forward S·e^(rT), not a blind ±1
+  ok(P.bsDelta(24000, 30000, 30 / 365, 0, 'CE') === 0, 'C1c-3b: sigma=0, OTM call → delta 0 (forward never reaches K)');
+  ok(P.bsDelta(24000, 18000, 30 / 365, 0, 'CE') === 1, 'C1c-3b: sigma=0, ITM call → delta 1');
+
+  // nonsensical inputs must not fabricate exposure
+  ok(P.bsDelta(0, 24000, 0.1, 0.15, 'CE') === 0 && P.bsDelta(24000, 0, 0.1, 0.15, 'PE') === 0,
+    'C1c-3b: S<=0 or K<=0 → delta 0, never ±1');
+
+  // the PoP consequence, stated directly
+  ok(P.popFromDelta(P.bsDelta(24000, 30000, 0, 0.15, 'CE')) === 100,
+    'C1c-3b: a worthless deep-OTM call at expiry is now correctly reported as 100% PoP');
 }
 
 // ── popFromDelta ──

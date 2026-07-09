@@ -79,10 +79,35 @@ function normalCDF(x) {
   return 0.5 * (1 + sign * y);
 }
 
+const RISK_FREE = 0.065; // 6.5%
+
+/**
+ * Black-Scholes delta.
+ *
+ * MIGRATION C1c-3b (2026-07-09). The degenerate branch previously read:
+ *
+ *     if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) return type === 'CE' ? 1 : -1;
+ *
+ * which returns |delta| = 1 for EVERY option, ignoring moneyness. Since
+ * PoP = (1 − |delta|) × 100, a deep-OTM call at expiry reported delta 1 → PoP 0%,
+ * when the truth is delta ≈ 0 → PoP ≈ 100%. Exactly inverted, and inverted in the
+ * dangerous direction only for the ITM case (a certain loser shown as a certain winner
+ * would be worse, but the OTM case hid genuinely safe strikes).
+ *
+ * At T = 0 the option's delta IS its expiry payoff slope: a call is worth 1 unit of
+ * spot exposure iff it finishes in the money. With sigma = 0 the underlying is
+ * deterministic, so the same rule applies to the forward S·e^(rT). Exactly at the money
+ * the slope is undefined; 0.5 is the conventional limit and the only value that keeps
+ * put-call delta parity (Δcall − Δput = 1) intact.
+ */
 function bsDelta(S, K, T, sigma, type) {
-  if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) return type === 'CE' ? 1 : -1;
-  const r = 0.065; // 6.5% risk-free
-  const d1 = (Math.log(S/K) + (r + sigma*sigma/2)*T) / (sigma*Math.sqrt(T));
+  if (!(S > 0) || !(K > 0)) return 0;                 // nonsensical inputs → no exposure
+  if (T <= 0 || sigma <= 0) {
+    const fwd = T > 0 ? S * Math.exp(RISK_FREE * T) : S;   // sigma=0 ⇒ deterministic forward
+    const itm = fwd > K ? 1 : fwd < K ? 0 : 0.5;           // ATM: conventional 0.5
+    return type === 'CE' ? itm : itm - 1;                  // preserves Δcall − Δput = 1
+  }
+  const d1 = (Math.log(S/K) + (RISK_FREE + sigma*sigma/2)*T) / (sigma*Math.sqrt(T));
   return type === 'CE' ? normalCDF(d1) : normalCDF(d1) - 1;
 }
 
