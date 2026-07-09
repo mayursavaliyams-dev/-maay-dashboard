@@ -604,7 +604,11 @@ class AgentsEngine {
   }
 
   _enterCondor(inst, chain, date, mins, extra = {}) {
-    const step = Number(chain.step) || (inst === 'NIFTY' ? 50 : 100);
+    // C1c-7: was `(inst === 'NIFTY' ? 50 : 100)` — the last hardcoded strike interval in
+    // this module. Correct for the three enabled indices, but it silently mis-rounds
+    // MIDCPNIFTY (interval 25). The registry is the source of truth.
+    const step = Number(chain.step) || instrumentRegistry.step(inst);
+    if (!step) return null;                     // unknown/disabled instrument → refuse
     const atm = Number(chain.atm);
     if (!atm) return null;
     const legs = {
