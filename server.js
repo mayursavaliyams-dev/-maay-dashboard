@@ -2266,7 +2266,11 @@ async function _buildOptionSnapshot(instrument = 'NIFTY') {
           if (sig > 0.001 && sig < 5) { iv = +(sig * 100).toFixed(2); bsm = optionAnalyzer._rawGreeks(spot, strike, _bsmT, 0.065, sig, type); }
         } catch (_) {}
       }
-      const fallback = bsm || optionAnalyzer.calculateGreeks(strike, type, spot);
+      // C1c-9: pass `inst` so the fallback greeks use THIS instrument's real expiry
+      // calendar. Previously getTimeToExpiry() hardcoded a "next Tuesday" ladder (SENSEX
+      // expires Thursday), giving T = 5 days on expiry morning when the truth was 0.5.
+      // `inst` is an argument, not instance state — this analyzer is a shared singleton.
+      const fallback = bsm || optionAnalyzer.calculateGreeks(strike, type, spot, inst);
       const metric = (name) => { const v = Number(leg[name]); return (Number.isFinite(v) && v !== 0) ? v : Number(fallback[name] || 0); };
       return {
         ...leg,

@@ -2,7 +2,30 @@
  * SENSIBULL-STYLE OPTION ANALYZER
  * Complete options analytics suite
  * Features: Option Chain, Greeks, OI Analysis, IV, PCR, Max Pain, Payoff
+ *
+ * ── MIGRATION C1c-9 (2026-07-09) ────────────────────────────────────────────
+ * `getTimeToExpiry()` used to hardcode "SENSEX weekly expiry: Tuesday" and derive T from
+ * a day-of-week ladder. The broker contract master says SENSEX expires THURSDAY
+ * (2026-07-09, -16, -23, -30). The value was wrong on EVERY day of the week; on expiry
+ * day it reported 5.00 days when the truth was 0.50 — a 10x error. ATM gamma scales as
+ * 1/sqrt(T), so gamma was understated ~3.16x and vega overstated ~3.16x on the one day
+ * gamma dominates.
+ *
+ * T now comes from the Instrument Registry's broker-derived expiry calendar. The
+ * instrument is passed as an ARGUMENT, never stored on the instance: `server.js:198`
+ * builds ONE shared OptionAnalyzer and mutates it per request (`spotPrice`,
+ * `strikePitch`), so adding `this.inst` would extend that pre-existing race to the expiry
+ * calendar — i.e. to every greek. Threading the argument touches no shared state.
+ *
+ * SCOPE: this affects only the FALLBACK greeks (server.js:2269), used when the broker
+ * supplies an IV but no greeks. The primary path already derives T from the chain's real
+ * expiry (`_bsmT`, server.js:2252) and is untouched.
  */
+
+const instrumentRegistry = require('./instrument-registry.js');
+
+/** The instrument assumed when a caller does not name one (this class is SENSEX-shaped). */
+const DEFAULT_INST = 'SENSEX';
 
 class OptionAnalyzer {
   constructor() {
@@ -158,13 +181,27 @@ class OptionAnalyzer {
   }
 
   /**
-   * Calculate Greeks (Black-Scholes simplified)
+   * Calculate Greeks (Black-Scholes simplified) — the FALLBACK path.
+   *
+   * C1c-9: `inst` is threaded through so T comes from that instrument's real expiry
+   * calendar. It is a parameter, not instance state, because the analyzer is a shared
+   * singleton mutated per request by server.js.
+   *
+   * @param {string} [inst] — defaults to SENSEX for backward compatibility with the two
+   *                          internal callers in generateOptionChain(), which are SENSEX paths.
    */
-  calculateGreeks(strike, type, spotPrice) {
-    const timeToExpiry = this.getTimeToExpiry();
+  calculateGreeks(strike, type, spotPrice, inst = DEFAULT_INST) {
+    const timeToExpiry = this.getTimeToExpiry(inst);
+    // An unknown or trading-disabled instrument has no verified expiry. Emitting greeks
+    // computed from a fabricated T would be worse than emitting none: server.js:2269 does
+    // `Number(fallback[name] || 0)`, so zeros surface as "no data" rather than as a lie.
+    if (!timeToExpiry || !(timeToExpiry > 0)) {
+      return { delta: 0, gamma: 0, theta: 0, vega: 0, unresolved: true, inst };
+    }
     const riskFreeRate = 0.065; // 6.5% RBI rate
+    // TD-1 (tracked): hardcoded fallback vol, ignores the live IV. Not fixed in C1c-9.
     const volatility = 0.15; // 15% typical for SENSEX
-    
+
     // Calculate d1 and d2
     const d1 = this.calculateD1(spotPrice, strike, timeToExpiry, riskFreeRate, volatility);
     const d2 = d1 - volatility * Math.sqrt(timeToExpiry);
@@ -223,23 +260,17 @@ class OptionAnalyzer {
   }
 
   /**
-   * Get time to expiry in years
-   * SENSEX weekly expiry: Tuesday post-Oct 2024 cutover
+   * Time to expiry in YEARS, from the Instrument Registry's broker-derived calendar.
+   *
+   * C1c-9: this was a hardcoded "next Tuesday" day-of-week ladder. SENSEX expires on a
+   * THURSDAY. The ladder was wrong on every day of the week (10x on expiry day).
+   *
+   * @param {string} [inst] — instrument. Defaults to SENSEX; this class is SENSEX-shaped.
+   * @param {Date}   [now]  — injected for determinism under test.
+   * @returns {number|null} null when the instrument is unknown or trading-disabled.
    */
-  getTimeToExpiry() {
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun,1=Mon,2=Tue,...
-    let daysUntilExpiry;
-
-    if (dayOfWeek === 2) { // Tuesday — expiry day
-      daysUntilExpiry = 0.5; // ~half day remaining (conservative)
-    } else if (dayOfWeek < 2) {
-      daysUntilExpiry = 2 - dayOfWeek;
-    } else {
-      daysUntilExpiry = 9 - dayOfWeek; // Next Tuesday
-    }
-
-    return Math.max(daysUntilExpiry, 0.5) / 365;
+  getTimeToExpiry(inst = DEFAULT_INST, now = new Date()) {
+    return instrumentRegistry.timeToExpiryYears(inst, now);
   }
 
   /**
