@@ -40,7 +40,12 @@ class ForwardTestLogger {
   _loadStats() {
     if (!fs.existsSync(this.statsFile)) return;
     try {
-      this.stats = JSON.parse(fs.readFileSync(this.statsFile, 'utf8')) || {};
+      // C3-05: recover from .bak rather than silently starting empty. This file is the
+      // live-approval gate; an empty stats file reads as "no forward test has happened".
+      this.stats = require('./safe-write.js').readJsonSync(this.statsFile, {
+        fallback: {},
+        onRecover: (reason, bak) => console.warn(`[forward-test] stats were corrupt (${reason}); recovered from ${bak}.`),
+      }) || {};
     } catch (_) {
       this.stats = {};
     }
@@ -115,7 +120,8 @@ class ForwardTestLogger {
   _saveStats() {
     try {
       this._ensureDir();
-      fs.writeFileSync(this.statsFile, JSON.stringify(this.stats, null, 2));
+      // C3-05: atomic + .bak. A truncated stats file would understate the forward test.
+      require('./safe-write.js').writeJsonSync(this.statsFile, this.stats, { pretty: true, backup: true });
     } catch (err) {
       console.error('[forward-test-logger] Error saving stats:', err.message);
     }

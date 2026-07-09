@@ -39,6 +39,7 @@ const { roundTripCharges } = require('./charges.js');
 // rewritten. Positions opened before this migration close on their stored lot as
 // calcVersion 1; new positions use the registry → calcVersion 2.
 const instrumentRegistry = require('./instrument-registry.js');
+const safeWrite = require('./safe-write.js');   // C3-04: atomic, fail-closed ledger writes
 const lotOf = (inst) => instrumentRegistry.lotSize(inst);   // null when unknown — never guess
 const LOT_SOURCE_REGISTRY = 'instrument-registry';
 const LOT_SOURCE_LEGACY_OPEN = 'legacy-open-position';
@@ -66,8 +67,30 @@ class GammaBlastEngine {
     this.onTrade = null;         // (event, data) => void   event: 'open' | 'close'
   }
 
-  _loadTrades() { try { return JSON.parse(require('fs').readFileSync(this._tradesFile, 'utf8')) || []; } catch { return []; } }
-  _saveTrades() { try { const fs = require('fs'), p = require('path'); fs.mkdirSync(p.dirname(this._tradesFile), { recursive: true }); fs.writeFileSync(this._tradesFile, JSON.stringify(this._allTrades.slice(-5000))); } catch (_) {} }
+  // ── persistence (MIGRATION C3-04: atomic + fail-closed) ────────────────────
+  // gamma-blast is FORWARD-TEST ONLY: this ledger is the entire evidence base for a
+  // strategy that cannot be backtested. Losing it loses the experiment.
+  _loadTrades() {
+    this._ledgerCorrupt = false;
+    try {
+      const rows = safeWrite.readJsonSync(this._tradesFile, {
+        fallback: [],
+        onRecover: (reason, bak) => console.warn(`[gamma-blast] trade ledger was corrupt (${reason}); recovered from ${bak}.`),
+      });
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      this._ledgerCorrupt = true;
+      this._ledgerCorruptReason = e.message;
+      console.error(`[gamma-blast] TRADE LEDGER UNRECOVERABLE: ${e.message}`);
+      console.error('[gamma-blast] Saving is DISABLED. The file is untouched. This is the forward-test record.');
+      return [];
+    }
+  }
+  _saveTrades() {
+    if (this._ledgerCorrupt) return;
+    try { safeWrite.writeJsonSync(this._tradesFile, this._allTrades.slice(-5000), { backup: true }); this._lastSaveError = null; }
+    catch (e) { this._lastSaveError = `trades: ${e.message}`; console.error(`[gamma-blast] trade ledger save failed: ${e.message}`); }
+  }
 
   _ist() { const d = new Date(Date.now() + 5.5 * 3600 * 1000); return { date: d.toISOString().slice(0, 10), mins: d.getUTCHours() * 60 + d.getUTCMinutes() }; }
   _resetIfNewDay(date) { if (this._day !== date) { this._day = date; this._tradesToday = {}; this._closed = []; } }

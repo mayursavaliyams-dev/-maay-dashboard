@@ -66,3 +66,9 @@ data/ai-agents-trades.json
 data/ai-agents-open.json
 data/watchdog.ps1
 backtest-tv-sell-results-*.json
+
+# C3: safe-write artefacts. .bak is the last-known-good copy of a ledger —
+# it is operational state, not source. Never commit it, never delete it by hand.
+*.bak
+.*.tmp-*
+*.lock

@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const safeWrite = require('./safe-write.js');   // C3-06: atomic writes, no silent failures
 
 class SimpleDB {
   constructor(dataDir = './data') {
@@ -41,37 +42,33 @@ class SimpleDB {
    */
   initFile(filename) {
     const filepath = path.join(this.dataDir, filename);
-    if (!fs.existsSync(filepath)) {
-      fs.writeFileSync(filepath, JSON.stringify([], null, 2));
-    }
+    if (!fs.existsSync(filepath)) safeWrite.writeJsonSync(filepath, [], { pretty: true });
   }
 
   /**
    * Read data from file
    */
-  read(filename) {
-    try {
-      const filepath = path.join(this.dataDir, filename);
-      const data = fs.readFileSync(filepath, 'utf8');
-      return JSON.parse(data);
-    } catch (error) {
-      console.error(`Error reading ${filename}:`, error.message);
-      return [];
-    }
+  // C3-06 / TD-5. This used to `return []` on ANY error — including a corrupt file —
+  // which is the read half of the data-loss chain: read [], then write [] over it.
+  // Now: a MISSING file yields the fallback; a CORRUPT one recovers from .bak; an
+  // unrecoverable one THROWS. The caller must decide, not this module.
+  read(filename, fallback = []) {
+    const filepath = path.join(this.dataDir, filename);
+    return safeWrite.readJsonSync(filepath, {
+      fallback,
+      onRecover: (reason, bak) => console.warn(`[db] ${filename} was corrupt (${reason}); recovered from ${bak}.`),
+    });
   }
 
   /**
    * Write data to file
    */
+  // C3-06 / TD-5. This used to swallow the error and `return false` — a return value
+  // nobody checked. Writes are now atomic, and a failure THROWS. Fail closed.
   write(filename, data) {
-    try {
-      const filepath = path.join(this.dataDir, filename);
-      fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
-      return true;
-    } catch (error) {
-      console.error(`Error writing ${filename}:`, error.message);
-      return false;
-    }
+    const filepath = path.join(this.dataDir, filename);
+    safeWrite.writeJsonSync(filepath, data, { pretty: true });
+    return true;
   }
 
   /**

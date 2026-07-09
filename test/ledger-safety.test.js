@@ -174,4 +174,92 @@ function ledgerContract(name, mk, file, load, save, corrupt) {
     'agents-engine: and it REFUSES to save — the engine never pretends it is flat while a condor may be live');
 }
 
+// ── gamma-blast-engine ──
+{
+  const GammaBlastEngine = require('../gamma-blast-engine.js');
+  const file = tmp('gamma-blast-trades.json');
+  const mk = () => {
+    const e = new GammaBlastEngine({ enabled: false });
+    e._tradesFile = file;
+    e._allTrades = e._loadTrades();
+    return e;
+  };
+  ledgerContract('gamma-blast-engine', mk, file,
+    (e) => e._allTrades, (e) => e._saveTrades(), (e) => e._ledgerCorrupt === true);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  signal-health: the calibration evidence. 41 outcomes exist platform-wide.
+//
+//  The `fs` argument is an INJECTION SEAM for unit tests. An earlier version of this
+//  migration ignored it and called safe-write directly — the suite still passed, while
+//  writing `x.json` into the project root. These assertions make that impossible.
+// ════════════════════════════════════════════════════════════════════════════
+{
+  console.log('\n  ── signal-health ──');
+  const H = require('../signal-health.js');
+  const realFs = require('fs');
+
+  // 1. the injected fake must be honoured; nothing may touch the real disk
+  {
+    const store = {};
+    let realWrites = 0;
+    const spyFs = {
+      writeFileSync: (p, d) => { store[p] = d; },
+      readFileSync: (p) => { if (!(p in store)) throw new Error('nofile'); return store[p]; },
+    };
+    const tk = H.newTracker({ minSamples: 5 });
+    for (let i = 0; i < 10; i++) H.logOutcome(tk, { p: 0.7, win: i % 2 === 0, pnl: i % 2 === 0 ? 100 : -50 });
+    ok(H.saveState(tk, spyFs, 'INJECTED-ONLY.json') === true, 'signal-health: saveState honours an injected fs');
+    ok(!realFs.existsSync(path.join(__dirname, '..', 'INJECTED-ONLY.json')),
+      'signal-health: an injected fs NEVER writes to the real disk (this caught a real bug)');
+    const tk2 = H.loadState(spyFs, 'INJECTED-ONLY.json', {});
+    ok(tk2.outcomes.length === 10, 'signal-health: round-trips through the injected fs');
+    void realWrites;
+  }
+
+  // 2. with the real fs: missing ⇒ fresh, corrupt ⇒ NOT fresh
+  {
+    const p = tmp('sig-health.json');
+    const fresh = H.loadState(realFs, p, {});
+    ok(fresh.outcomes.length === 0 && fresh.stateCorrupt === false, 'signal-health: a MISSING state file is a fresh start');
+
+    const tk = H.newTracker({ minSamples: 5 });
+    for (let i = 0; i < 8; i++) H.logOutcome(tk, { p: 0.6, win: true, pnl: 10 });
+    H.saveState(tk, realFs, p);                       // creates the file
+    H.saveState(tk, realFs, p);                       // creates the .bak
+    fs.writeFileSync(p, '{"outcomes":[{"p":0.6');     // truncate
+    const rec = H.loadState(realFs, p, {});
+    ok(rec.outcomes.length === 8 && rec.stateCorrupt === false, 'signal-health: a corrupt state file recovers from .bak');
+
+    try { fs.unlinkSync(p + '.bak'); } catch (_) {}
+    fs.writeFileSync(p, '{"outcomes":[{"p":0.6');
+    const lost = H.loadState(realFs, p, {});
+    ok(lost.stateCorrupt === true,
+      'signal-health: an unrecoverable state file is flagged, NOT silently treated as "no history"');
+    ok(lost.outcomes.length === 0, 'signal-health: …and no fabricated outcomes are invented');
+  }
+}
+
+// ── database.js (TD-5): the two silent failures are gone ──
+{
+  console.log('\n  ── database.js (TD-5) ──');
+  const SimpleDB = require('../database.js');
+  const dir = fs.mkdtempSync(path.join(TMP, 'db-'));
+  const db = new SimpleDB(dir);
+
+  ok(JSON.stringify(db.read('absent.json')) === '[]', 'database: a MISSING file yields the fallback');
+  db.write('x.json', [{ a: 1 }]);
+  ok(db.read('x.json').length === 1, 'database: write → read round-trips');
+
+  fs.writeFileSync(path.join(dir, 'bad.json'), '[{"a":');
+  let threw = false;
+  try { db.read('bad.json'); } catch (_) { threw = true; }
+  ok(threw, 'database: TD-5 — read() on a CORRUPT file now THROWS instead of silently returning []');
+
+  const src = fs.readFileSync(path.join(__dirname, '..', 'database.js'), 'utf8');
+  ok(!/return false;/.test(src), 'database: TD-5 — write() no longer swallows the error and returns false');
+  ok(/safe-write/.test(src), 'database: writes go through safe-write');
+}
+
 console.log(`\n${pass} assertions passed`);

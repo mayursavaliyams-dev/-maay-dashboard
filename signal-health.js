@@ -97,22 +97,66 @@ function assessHealth(tk) {
   };
 }
 
-// ── optional fs persistence (thin wrapper) ──
+// ── optional fs persistence ──────────────────────────────────────────────────
+//
+// MIGRATION C3-05. These outcomes are the platform's ENTIRE calibration evidence —
+// 41 of them across every engine. Silently discarding all of them because the file was
+// truncated is how a "70% confidence" model quietly stops being 70% and nobody notices.
+//
+// This module takes `fs` as an argument ON PURPOSE: its unit tests inject an in-memory
+// fake. That contract is preserved. Atomicity is applied only when the caller passed the
+// REAL fs module — a fake object has no openSync/fsyncSync/renameSync, so there is
+// nothing to be atomic about, and hijacking it would silently write to the real disk.
+// (An earlier version of this migration did exactly that, and its test wrote `x.json`
+// into the project root while still passing. The injection seam is load-bearing.)
+const _realFs = require('fs');
+const _isRealFs = (f) => f === _realFs;
+
 function saveState(tk, fs, path) {
-  try { fs.writeFileSync(path, JSON.stringify({ outcomes: tk.outcomes, window: tk.window, driftBrier: tk.driftBrier, minSamples: tk.minSamples }, null, 2)); return true; }
-  catch (e) { return false; }
+  const payload = { outcomes: tk.outcomes, window: tk.window, driftBrier: tk.driftBrier, minSamples: tk.minSamples };
+  try {
+    if (_isRealFs(fs)) require('./safe-write.js').writeJsonSync(path, payload, { pretty: true, backup: true });
+    else fs.writeFileSync(path, JSON.stringify(payload, null, 2));   // injected fake: no atomicity to give
+    return true;
+  } catch (e) {
+    console.error(`[signal-health] state save failed: ${e.message}`);
+    return false;
+  }
 }
+
+/**
+ * @returns {object} tracker. `tracker.stateCorrupt` is true when a state file EXISTED but
+ *          could not be read or recovered. The caller must not treat that as "no history
+ *          yet": a missing file is a fresh start; a corrupt file is a loss.
+ */
 function loadState(fs, path, opts = {}) {
   const tk = newTracker(opts);
-  try {
-    const raw = JSON.parse(fs.readFileSync(path, 'utf8'));
-    if (raw && Array.isArray(raw.outcomes)) {
-      if (raw.window) tk.window = raw.window;
-      if (raw.driftBrier) tk.driftBrier = raw.driftBrier;
-      if (raw.minSamples) tk.minSamples = raw.minSamples;
-      for (const o of raw.outcomes.slice(-tk.window)) logOutcome(tk, o);
+  tk.stateCorrupt = false;
+
+  let raw = null;
+  if (_isRealFs(fs)) {
+    try {
+      raw = require('./safe-write.js').readJsonSync(path, {
+        fallback: null,   // a missing file is genuinely fresh
+        onRecover: (reason, bak) => console.warn(`[signal-health] state was corrupt (${reason}); recovered from ${bak}.`),
+      });
+    } catch (e) {
+      tk.stateCorrupt = true;
+      tk.stateCorruptReason = e.message;
+      console.error(`[signal-health] CALIBRATION STATE UNRECOVERABLE: ${e.message}`);
+      console.error('[signal-health] Treating confidence as UNCALIBRATED. The file is untouched.');
+      return tk;
     }
-  } catch (e) { /* fresh */ }
+  } else {
+    try { raw = JSON.parse(fs.readFileSync(path, 'utf8')); } catch (_) { raw = null; }
+  }
+
+  if (raw && Array.isArray(raw.outcomes)) {
+    if (raw.window) tk.window = raw.window;
+    if (raw.driftBrier) tk.driftBrier = raw.driftBrier;
+    if (raw.minSamples) tk.minSamples = raw.minSamples;
+    for (const o of raw.outcomes.slice(-tk.window)) logOutcome(tk, o);
+  }
   return tk;
 }
 
