@@ -191,9 +191,9 @@ Each must pair the atomic write with `readJsonSync(..., { fallback: [] })` so a 
 | TD-1 | Fallback Greeks hardcode `volatility = 0.15`, discarding the live IV the caller already solved for two lines earlier | `option-analyzer.js:166` |
 | TD-2 | **One shared `OptionAnalyzer`, mutated per request.** Violates "no mutable singleton state". C1c-9 deliberately passed `inst` as an *argument* rather than adding `optionAnalyzer.inst`, which would have moved the race onto every Greek | `server.js:198, 2248-2249` |
 | TD-3 | `bt-data` mounted `:ro` but `bt-*.js` CLIs write `bt-data/result-*.json` into it | `docker-compose.yml` |
-| TD-4 | Container + local server share one bind-mounted ledger → lost updates. **Downgraded High→Medium after C3, not closed.** Remedy: boot-time advisory lock on `data/` so a second server refuses to start | |
-| TD-5 | `database.js:69` `write()` swallows the error and returns `false`; `read()` returns `[]` on a parse failure. Two silent failures in the module named "database" | `database.js` |
-| TD-6 | The `catch { return [] }` loaders are the actual mechanism of data loss. Atomic writing stops *creating* corruption; it does not stop these loaders overwriting an already-corrupt ledger | 3 engines |
+| TD-4 | Container + local server share one bind-mounted ledger → lost updates. **Downgraded High→Medium; corruption half closed by C3, lost-update half remains.** Remedy: boot-time advisory lock on `data/` so a second server refuses to start | |
+| ~~TD-5~~ | **CLOSED (C3-06).** `database.js` `read()` recovers from `.bak` and throws when unrecoverable; `write()` is atomic and throws | `database.js` |
+| ~~TD-6~~ | **CLOSED (C3-02…C3-06).** Every ledger loader now recovers from `.bak`; an unrecoverable ledger marks the engine corrupt and **saving is refused**, so the corrupt bytes survive | all engines |
 | — | **`pop-seller.buildIronCondor` returns two short legs and no wings** — a short strangle with unbounded loss and **no `maxLoss` field**, under a name that promises defined risk | `pop-seller.js:198` |
 | — | `combinedPoP = popCE × popPE` assumes the two breaches are independent; spot cannot pierce both sides, so it **understates** PoP | `pop-seller.js:207` |
 | — | `closePoP` applies **no transaction charges**, while three other engines use `charges.js` | |
@@ -371,22 +371,49 @@ the `analytics:api` npm script would fail today.
 
 ---
 
-## 6. Engines: 16 of 26 exist
+## 6. Engines — corrected inventory
 
-**Exist and tested:** `instrument-registry`, `strike-resolver`, `registry-drift`, `broker-connector`
-(contract only, **not wired into the live data path**), `gamma-blast-detect`, `gamma-blast-engine`,
-`option-analyzer`, `vrp-monitor`, `gex-skew`, `vol-context`, `candlestick-patterns`, `position-sizer`,
-`trade-planner`, `meta-label` (Platt/isotonic calibrator), `signal-health` (Brier + calibration drift),
-`agents-engine`, `forward-test-logger`, `bt-validate` (**deflated Sharpe, PSR, purged k-fold** — reuse it,
-never reimplement), `strangle-engine`, `pop-seller`, `charges`.
+> **CORRECTION (2026-07-09, after C3).** An earlier module scan in this document searched for
+> filenames that do not exist in this repo and therefore reported several engines as **absent when
+> they are present**. The corrected inventory is below. The H15 and H17 designs in §7 were written on
+> the wrong premise and are annotated accordingly. This is recorded rather than quietly fixed.
 
-**Absent:** Historical Data Lake, Feature Store, **Risk Engine**, **Portfolio Engine**, **Event Engine**,
-**Market Regime**, Smart Money, Dealer Hedging, Replay Engine, Strategy Library,
-**AI Probability**, **Meta Decision**, **Explainability**.
+### Present, and tested
+`instrument-registry` · `strike-resolver` · `registry-drift` · `safe-write` · `broker-connector`
+(contract only, **not wired into the live data path**) · `gamma-blast-detect` · `gamma-blast-engine` ·
+`option-analyzer` · `vrp-monitor` · `gex-skew` · `vol-context` · `candlestick-patterns` ·
+**`smart-money`** (224 lines: swings, marketStructure, structureBreaks, orderBlock — pure, OHLC-only) ·
+**`event-risk-filter`** · `position-sizer` · `trade-planner` · `meta-label` (Platt/isotonic calibrator) ·
+`signal-health` (Brier + reliability bins + drift) · `agents-engine` · `forward-test-logger` ·
+`bt-validate` (**deflated Sharpe, PSR, purged k-fold** — reuse, never reimplement) · `strangle-engine` ·
+`pop-seller` · `charges`
+
+### Present, but **untested**
+**`event-engine`** (136 lines: India VIX, FII/DII flows, macro calendar) ·
+**`confluence-learner`** (183 lines: re-weights factors from realised wins/losses — this is the
+*reliability learning* H15 needs) · `ai-logger` · `confirmed-signals` · `afternoon-engine` ·
+`crash-analyzer` · `database`
+
+### Genuinely absent
+**Risk Engine** · **Portfolio Engine** · Historical Data Lake · Feature Store · Dealer Hedging ·
+Replay Engine · Market Regime · Strategy Library · **AI Probability** · **Meta Decision** ·
+**Explainability**
 
 *(Symbol Resolver, Expiry Service and Tick Size Service already live **inside** `instrument-registry.js` —
 they need extraction, not invention.)*
 
+### What the correction changes
+
+- **H15** claimed "8 of 24 declared inputs do not exist", listing Event Engine and Smart Money among
+  them. Both exist. The genuinely missing `critical` inputs are **Risk Engine** and **Portfolio Engine**.
+  H15 would still `ABSTAIN` today — because every engine has `reliability: null` (M2: 41 outcomes) —
+  but the *reason* is calibration, not absence.
+- **H17** proposed building a Smart Money engine from scratch. **`smart-money.js` already exists and is
+  tested**, and it is already OHLC-only and pure — which is exactly what finding V1 (zero underlying
+  volume) demands. H17 should therefore be scoped as *(a)* extending the existing module, *(b)* adding
+  the **Option-Flow Participation** engine that genuinely does not exist, and *(c)* deleting nothing.
+- **`confluence-learner.js`** is the closest thing to H15's reliability estimator and it is **untested**.
+  Testing it is cheaper than building H20.
 ---
 
 ## 7. Designed but NOT built — H13 … H18
@@ -695,6 +722,9 @@ You now have the complete context. Before you propose anything:
    - *"Use Bayesian methods for small n"* → correct in principle, but the posterior on n=41 is the prior with a slight tilt. Report the credible interval; never a point estimate.
 3. **Classify every claim** you make: Verified / Probable / Hypothesis / Unknown. If the data is absent,
    say so and stop.
+3b. **Verify a module is absent before saying so.** This document previously reported `event-engine.js`,
+   `smart-money.js`, `event-risk-filter.js` and `confluence-learner.js` as missing. They exist. A scan
+   that searches for a guessed filename proves nothing. `git ls-files` and read the header.
 4. **Prefer refusing over guessing.** `null ≠ 0`.
 
 ### If the owner asks you for a Master Prompt
