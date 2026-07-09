@@ -18,6 +18,16 @@ services:
       - "3000:3000"
     env_file:
       - .env            # UPSTOX_ACCESS_TOKEN, AUTH_* etc. (local, gitignored)
+    volumes:
+      # Mutable runtime state. NOT baked into the image — .dockerignore excludes `data`.
+      # A BIND mount, not a named volume: data/config-overrides.json carries
+      # STRANGLE_ENGINE_ENABLED, STRANGLE_CAPITAL and AI_AGENTS_ENABLED, so an empty
+      # named volume would silently start every engine on env defaults. The bind also
+      # means the container and a local `node server.js` share one ledger — run only
+      # one of them at a time.
+      - ./data:/app/data
+      # Research datasets: 187 MB, read-only, never copied into the image.
+      - ./bt-data:/app/bt-data:ro
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
