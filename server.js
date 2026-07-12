@@ -3137,7 +3137,7 @@ engine._getDailyPnl = () => {
 // Trend gate — engine refuses entries that contradict H/L trend (see execution-engine.js).
 engine.setTrendProvider(() => _computeTrendFromHL('SENSEX',
   prices.at?.(-1) ?? null, orbHigh, orbLow, vwap));
-engine.restoreEquity();
+// restoreEquity() moved below _loadConfigOverrides() — see the ORDER MATTERS note there.
 
 // Engine control endpoints — SENSEX
 app.post('/api/engine/auto', (req, res) => {
@@ -3301,7 +3301,7 @@ niftyEngine._getDailyPnl = () => {
 };
 niftyEngine.setTrendProvider(() => _computeTrendFromHL('NIFTY',
   niftyPrices.at?.(-1) ?? null, niftyOrbHigh, niftyOrbLow, niftyVwap));
-niftyEngine.restoreEquity();
+// restoreEquity() moved below _loadConfigOverrides() — see the ORDER MATTERS note there.
 
 // Engine control endpoints — NIFTY
 function amiEngineForInstrument(instrument) {
@@ -3569,11 +3569,20 @@ app.post('/api/gamma-blast/enable', (req, res) => {
   try {
     const fs = require('fs'), p = require('path');
     const f = p.join(__dirname, 'data', 'config-overrides.json');
-    let o = {}; try { o = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) {}
+    // P1-T2: same defect as _persistEngineOverride — a corrupt file read as `{}`, then written
+    // back, erasing STRANGLE_CAPITAL and MAX_DAILY_LOSS_PERCENT. Also keeps the .bak in step:
+    // after P1-T1 a raw write here would leave the backup stale.
+    const o = require('./safe-write.js').readJsonSync(f, {
+      fallback: {},
+      onRecover: (reason, bak) => console.warn(`[gamma-blast] overrides were corrupt (${reason}); recovered from ${bak}.`),
+    });
     o.GAMMA_BLAST_ENGINE_ENABLED = gammaBlastEngine.enabled;
     fs.mkdirSync(p.dirname(f), { recursive: true });
-    fs.writeFileSync(f, JSON.stringify(o, null, 2));
-  } catch (e) { console.warn('[gamma-blast] persist enable failed:', e.message); }
+    require('./safe-write.js').writeJsonSync(f, o, { pretty: true, backup: true });
+  } catch (e) {
+    console.error(`[gamma-blast] REFUSING to persist enable=${gammaBlastEngine.enabled}: ${e.message}`);
+    console.error('[gamma-blast] config-overrides.json is unreadable. File untouched. Setting NOT saved.');
+  }
   res.json({ ok: true, enabled: gammaBlastEngine.enabled });
 });
 
@@ -3668,13 +3677,21 @@ function _persistEngineOverride(patch) {
     const fs = require('fs');
     const dir = require('path').dirname(CONFIG_OVERRIDE_PATH);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    let existing = {};
-    if (fs.existsSync(CONFIG_OVERRIDE_PATH)) {
-      try { existing = JSON.parse(fs.readFileSync(CONFIG_OVERRIDE_PATH, 'utf8')); } catch (_) {}
-    }
-    fs.writeFileSync(CONFIG_OVERRIDE_PATH, JSON.stringify({ ...existing, ...patch }, null, 2));
+    // P1-T1: the data was destroyed on the READ, not the write. `catch (_) {}` collapsed
+    // "the file is corrupt" into "the file is empty", and the next line spread that empty
+    // object back to disk. One toggle erased 11 keys, including STRANGLE_CAPITAL and
+    // MAX_DAILY_LOSS_PERCENT. Recover from .bak; if unrecoverable, REFUSE to write.
+    const existing = require('./safe-write.js').readJsonSync(CONFIG_OVERRIDE_PATH, {
+      fallback: {},
+      onRecover: (reason, bak) => console.warn(`[config] overrides were corrupt (${reason}); recovered from ${bak}.`),
+    });
+    require('./safe-write.js').writeJsonSync(CONFIG_OVERRIDE_PATH, { ...existing, ...patch },
+      { pretty: true, backup: true });
     console.log('[config] persisted engine state:', patch);
-  } catch (err) { console.warn('[config] engine-state persist failed:', err.message); }
+  } catch (err) {
+    console.error(`[config] REFUSING to persist ${JSON.stringify(patch)}: ${err.message}`);
+    console.error('[config] config-overrides.json is unreadable. File untouched. Engine state NOT saved.');
+  }
 }
 
 function _loadConfigOverrides() {
@@ -3693,6 +3710,15 @@ function _loadConfigOverrides() {
   return {};
 }
 const _cfgOverrides = _loadConfigOverrides();
+
+// ORDER MATTERS. `CAPITAL_TOTAL` in config-overrides.json is a BALANCE, not a setting, and
+// setConfig() writes it straight onto `this.capital` (execution-engine.js:113). Restoring equity
+// BEFORE the overrides meant ₹88,011 of real SENSEX equity was overwritten with the stored
+// ₹1,00,000 on every boot — inflating both the per-trade budget and the daily-loss brake
+// (execution-engine.js:302), so a bleeding account never tightened its own risk, and a growing one
+// could never compound across a restart. Restored state is the account. It must be the last word.
+engine.restoreEquity();
+niftyEngine.restoreEquity();
 
 // Safe numeric bounds for each field
 const CONFIG_SPEC = {

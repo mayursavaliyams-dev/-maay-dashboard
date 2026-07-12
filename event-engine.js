@@ -129,6 +129,17 @@ class EventEngine {
     const up = this.upcoming(days);
     let base = 0; let driver = null;
     const todayMs = Date.now() + 330 * 60000;
+
+    // TASK C. `TYPE_WEIGHT[e.type] || TYPE_WEIGHT.OTHER` silently scores anything it does not
+    // recognise at 30 — a dividend. A budget day typed `BUDGET_2026` instead of `BUDGET` drops from
+    // 95 (HIGH) to 30 (LOW), and nothing says so. A renamed upstream feed, or a plain typo, quietly
+    // downgrades the most dangerous days on the calendar. This suite's own first draft typed `RBI`
+    // instead of `RBI_POLICY` and scored an RBI policy day as OTHER.
+    //
+    // We cannot invent a weight for a type we have never seen. So OTHER remains the floor, and the
+    // unknown is NAMED — and, as with an unreachable VIX, we withdraw the claim about the level.
+    const unknownTypes = [...new Set(up.map((e) => e.type).filter((t) => TYPE_WEIGHT[t] === undefined))];
+
     for (const e of up) {
       const w = TYPE_WEIGHT[e.type] || TYPE_WEIGHT.OTHER;
       const dd = Math.max(0, (Date.parse(e.date + 'T00:00:00Z') - todayMs) / 86400000);
@@ -137,10 +148,30 @@ class EventEngine {
       if (s > base) { base = s; driver = e; }
     }
     const vix = await this.getVix();
-    const vixLift = vix.value ? Math.min(20, Math.max(0, (vix.value - 14)) * 1.5) : 0;   // high VIX adds risk
-    const score = Math.round(Math.min(100, base + vixLift));
-    const level = score >= 75 ? 'HIGH' : score >= 45 ? 'MODERATE' : score >= 20 ? 'LOW' : 'CALM';
-    return { score, level, driver, upcoming: up, vix: { value: vix.value, regime: vix.regime }, days };
+
+    // TASK B. `vix.value ? … : 0` gave an UNREACHABLE India VIX a lift of zero — identical to a
+    // perfectly calm reading of 14. `getVix()` is a Yahoo network call inside `catch (_) {}`; when it
+    // fails, `value` is 0. India VIX is never 0, so a zero here means "no reading", not "no volatility".
+    //
+    // We do NOT invent a substitute lift. The event component IS measured, so `score` still reports it.
+    // What we refuse to do is *claim a level*: a composite risk level computed from a component we
+    // could not observe is a false statement dressed as a measurement. `level: 'UNKNOWN'` says so, and
+    // `unknowns` names exactly what is missing. Unknown is not zero, and it is not calm.
+    const vixKnown = Number.isFinite(vix.value) && vix.value > 0;
+    const vixLift = vixKnown ? Math.min(20, Math.max(0, vix.value - 14) * 1.5) : null;   // high VIX adds risk
+    const score = Math.round(Math.min(100, base + (vixLift || 0)));
+
+    const unknowns = [];
+    if (!vixKnown) unknowns.push('indiaVix');
+    if (unknownTypes.length) unknowns.push(...unknownTypes.map((t) => `eventType:${t}`));
+
+    const level = unknowns.length ? 'UNKNOWN'
+      : score >= 75 ? 'HIGH' : score >= 45 ? 'MODERATE' : score >= 20 ? 'LOW' : 'CALM';
+    return {
+      score, level, driver, upcoming: up, days,
+      vixUnknown: !vixKnown, unknownTypes, unknowns, vixLift,
+      vix: { value: vixKnown ? vix.value : null, regime: vix.regime },
+    };
   }
 
   status() { return { events: this.events.length, fiiDiiDays: this.fiiDii.length, vix: this._vixOut() }; }

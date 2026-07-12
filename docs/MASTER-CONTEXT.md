@@ -1,3 +1,9 @@
+> **SUPERSEDED — do not send this file.**
+> `docs/STATUS.md` is the single source of truth. It is self-contained.
+> This file is kept only as history / detail, and is referenced from STATUS.md when needed.
+
+---
+
 # ANTIGRAVITY PRO — MASTER CONTEXT
 ## The single document. Everything is here.
 
@@ -26,9 +32,9 @@ dashboard.
 |---|---|
 | `server.js` | **7,301 lines, 168 routes**, no `express.Router`, no error middleware. This is the monolith |
 | modules | 127 tracked JS files, mostly pure leaves |
-| tests | **33 suites** (23 at session start) |
+| tests | **36 suites** (23 at session start), gated on exit code |
 | brokers | **Dhan** (`live-connector.js`), **Upstox** (`upstox-connector.js`). AmiBroker is a **signal source only** |
-| HEAD | `9434467`, **16 commits this session, all local, nothing pushed** |
+| HEAD | `f8609ec`, **23 commits this session, all local, nothing pushed** |
 
 ### The validated edge
 **Volatility Risk Premium — option SELLING.** Directional option **buying has no edge**: a 1,200-trade
@@ -53,7 +59,7 @@ it is **forward-test only**.
 
 ---
 
-## 2. Work completed this session — 16 commits
+## 2. Work completed this session — 23 commits
 
 Each followed the same protocol: backup + `ROLLBACK.sh` → root cause → smallest change → characterization
 test proven to fail first → full suite gated on exit code → migration log + audit log → one concern per
@@ -114,7 +120,28 @@ Result: **5 of 6 production engines** read instrument metadata exclusively from 
 **27 duplicate market-metadata sites remain** outside the engines (`server.js` 17, `live-connector` 3,
 `option-analyzer` 3, `free-chain` 3, `sensibull-fetcher` 1).
 
-### 2.3 Corrections made against myself — recorded, not hidden
+### 2.3 The second batch — C3, tests, UI
+
+| commit | what |
+|---|---|
+| `1b3ed14` | `safe-write.js` — atomic, fail-closed JSON persistence (48 assertions) |
+| `58e53e6` | strangle-engine: atomic ledger; refuses to overwrite a corrupt ledger |
+| `101b34e` | agents-engine: atomic; **never forgets a live condor** |
+| `8a0fd7b` | gamma-blast, forward-test, signal-health, database.js (TD-5, TD-6 closed) |
+| `12f5d50` | docs correction — I had reported **present** modules as absent |
+| `027090c` | `public/css/tokens.css` + drift ratchet (21 pages, 10 backgrounds, 5 greens → one source) |
+| `fefd38b` | `test/charges.test.js` — the money math had **zero tests** and 5 dependents (26 assertions) |
+| `0d1acec` | C3 across the non-protected surface — 7 more writers, P2 closed, afternoon-engine risk brake |
+| `7e0631d` | UI-02 `charts4.html` on shared tokens; `--bg` pure black by owner decision |
+| `f8609ec` | **C3-07** — `execution-engine`: the risk brake failed **OPEN** on a corrupt equity file |
+
+**`charges.js` pinned defect E1 (unresolved, Unknown):** `.env.example` says `CHARGE_STT_SELL_PCT=0.0625`
+while the code default is `0.1`; `CHARGE_EXCH_TXN_PCT=0.053` vs `0.03503`. Changing **only** STT moves cost
+−5.73%; only exch-txn, +5.40%; **both, as shipped, −0.33%.** The near-cancellation *is* the hazard — the
+number looks right. Which pair is correct must be read off the **exchange's published circular**. I will
+not guess. Break-even move on 65 units at ₹100 premium: **0.95 points**.
+
+### 2.4 Corrections made against myself — recorded, not hidden
 
 - I claimed `Dockerfile COPY . .` could bake `.env` into an image. **Wrong** — `.dockerignore` already
   excluded `.env` and `.env.*`. A credential scan of the whole build context found nothing.
@@ -131,10 +158,24 @@ Result: **5 of 6 production engines** read instrument metadata exclusively from 
 - My scratch script wrote 182 files into a stray `x/` directory **inside the project root** because I
   passed the wrong `argv` index. Removed; verified via `git status` + 33/33 suites that nothing was
   corrupted.
+- I listed several modules as **absent** after scanning for *guessed* filenames. `smart-money.js` (224
+  lines, tested), `event-engine.js`, `event-risk-filter.js` and `confluence-learner.js` all exist.
+  Corrected in `12f5d50`. **Rule added: verify a module is absent before saying so.**
+- I reported E1 as "costs understated 5.7%" — measured by moving **only** the STT rate. With both wrong
+  rates the errors **cancel to −0.33%**.
+- I asserted a 1-point scalp is a **net loss**. It is not: ₹65 gross, ₹59.38 cost, **₹5.62 net**. The true
+  statement is that costs eat **91%** of it.
+- My first `signal-health` migration ignored that module's `fs` **injection seam** and wrote `x.json` /
+  `x.json.bak` into the project root **while the suite still passed**. Fixed with an `_isRealFs()` guard,
+  and a new assertion — *"an injected fs NEVER writes to the real disk"* — now exists **because** it caught
+  a real bug.
+- Two flaky tests, both mine: `calculateGreeks()` re-reads `new Date()` internally, so absolute theta
+  tolerances flaked 4 runs in 20 (switched to relative); `pop-seller.test.js:153` compared two independent
+  clock reads — 2 failures in 40 runs, latent since `6e9380a` — fixed by making the clock injectable.
 
 ---
 
-## 3. THE URGENT ITEM — C3, atomic writes (built, **uncommitted**, **no writer uses it**)
+## 3. C3 — atomic writes: **COMPLETE**, every production writer (protected one included)
 
 ### The defect, measured
 
@@ -157,7 +198,7 @@ Every ledger is written with `fs.writeFileSync(file, json)` inside `catch (_) {}
 `strangle-engine.js:126` and `agents-engine.js:299` both degrade a corrupt ledger to `[]` and then
 overwrite it. **A single mistimed Ctrl-C can destroy the forward-test evidence that gates live approval.**
 
-### What exists (uncommitted)
+### The module
 
 `safe-write.js` — pure leaf, **48 assertions, 12/12 deterministic runs**.
 `writeJsonSync` (serialize → **validate by re-parsing** → temp in the same dir → `fsync` → `chmod` →
@@ -173,14 +214,29 @@ Platform facts, probed: `renameSync` over an existing file **is** an atomic over
 the last `rename` wins and the other writers' updates are lost. This prevents **corruption**, not
 **lost updates**. The fix for that is a single writer per ledger, not a lock.
 
-### Not finished — this is the point
+### Finished — the chain is closed
 
-**The module exists; no writer uses it.** The data-loss chain is **still live**. Remaining, one commit each:
-`C3-02` strangle-engine · `C3-03` agents-engine · `C3-04` gamma-blast-engine ·
-`C3-05` forward-test-logger + signal-health · `C3-06` database.js · `C3-07` execution-engine (needs approval).
+**15 writers migrated.** strangle-engine · agents-engine ×3 (trades, impact archive, **open positions**) ·
+gamma-blast-engine · forward-test-logger · signal-health · database.js · ai-logger · confirmed-signals ·
+confluence-learner · event-engine · afternoon-engine · **pop-seller book** · crash-analyzer · pine-converter ·
+**execution-engine** (protected; owner-approved, commit `f8609ec`).
 
-Each must pair the atomic write with `readJsonSync(..., { fallback: [] })` so a **missing** ledger yields
-`[]` while a **corrupt** one raises. **That pairing is what actually closes the chain.**
+Every one pairs the atomic write with `readJsonSync`: a **missing** ledger yields the fallback, a
+**corrupt** one recovers from `.bak`, and an **unrecoverable** one marks the engine corrupt and
+**refuses to save**, so the bytes survive for forensics. **That pairing is what closes the chain**, not
+the atomic rename alone.
+
+### The worst thing C3 found: two risk brakes were failing OPEN
+
+`execution-engine.restoreEquity()` and `afternoon-engine.restoreEquity()` both swallowed a corrupt
+equity file inside `catch (e) { console.warn(...) }`. `_consecLosses` stayed **0** — silently disarming
+the halt-after-N-consecutive-losses brake, **exactly when a crash had just happened**. This machine's
+`data/equity-nifty.json` currently reads `consecLosses: 15`.
+
+Both now set `_haltedReason = 'EQUITY_STATE_CORRUPT'`, `autoEnabled = false`, and log loudly. For a risk
+brake, **"state unknown" must mean "brake ON"**.
+
+**Still raw:** `server.js`'s 10 write sites (protected — classified in §18).
 
 ---
 
@@ -191,13 +247,13 @@ Each must pair the atomic write with `readJsonSync(..., { fallback: [] })` so a 
 | TD-1 | Fallback Greeks hardcode `volatility = 0.15`, discarding the live IV the caller already solved for two lines earlier | `option-analyzer.js:166` |
 | TD-2 | **One shared `OptionAnalyzer`, mutated per request.** Violates "no mutable singleton state". C1c-9 deliberately passed `inst` as an *argument* rather than adding `optionAnalyzer.inst`, which would have moved the race onto every Greek | `server.js:198, 2248-2249` |
 | TD-3 | `bt-data` mounted `:ro` but `bt-*.js` CLIs write `bt-data/result-*.json` into it | `docker-compose.yml` |
-| TD-4 | Container + local server share one bind-mounted ledger → lost updates. **Downgraded High→Medium; corruption half closed by C3, lost-update half remains.** Remedy: boot-time advisory lock on `data/` so a second server refuses to start | |
+| TD-4 | Container + local server share one bind-mounted ledger → lost updates. **The corruption half is CLOSED by C3; the lost-update half is OPEN.** Remedy: boot-time advisory lock on `data/` so a second server refuses to start (`withLock` already exists in `safe-write.js`) | |
 | ~~TD-5~~ | **CLOSED (C3-06).** `database.js` `read()` recovers from `.bak` and throws when unrecoverable; `write()` is atomic and throws | `database.js` |
 | ~~TD-6~~ | **CLOSED (C3-02…C3-06).** Every ledger loader now recovers from `.bak`; an unrecoverable ledger marks the engine corrupt and **saving is refused**, so the corrupt bytes survive | all engines |
 | — | **`pop-seller.buildIronCondor` returns two short legs and no wings** — a short strangle with unbounded loss and **no `maxLoss` field**, under a name that promises defined risk | `pop-seller.js:198` |
 | — | `combinedPoP = popCE × popPE` assumes the two breaches are independent; spot cannot pierce both sides, so it **understates** PoP | `pop-seller.js:207` |
 | — | `closePoP` applies **no transaction charges**, while three other engines use `charges.js` | |
-| — | **`pop-seller`'s `_book` is module-global memory, never persisted.** Positions vanish on restart; no portfolio engine can see them | `pop-seller.js:242` |
+| ~~P2~~ | **CLOSED.** `pop-seller`'s `_book` was module-global memory that vanished on restart. It now persists to `data/pop-book.json` — atomic, `.bak`, `idSeq` preserved, `popStatus().bookCorrupt` surfaces failure | `pop-seller.js` |
 | — | **No daily portfolio NAV series exists.** `equity-*.json` are scalar snapshots, not time series | `data/` |
 | — | `position-sizer`: hardcoded default strategy stats; `minLot` forces ≥1 lot; `Math.max(1,\|avgLoss\|)` rupee-scale hack; **above the 25-lot cap IV scaling has no effect at all** | |
 | — | **Kelly exists three times and they disagree**: `position-sizer.js:30` (full), `trade-planner.js:28` (half), `vix-kelly-sizer.js:19` (half, clamped) | |
@@ -638,6 +694,16 @@ All are **read-only** with respect to trading state. All persist through `safe-w
 
 ## 9. The one contract every engine must satisfy
 
+> **RATIFIED BY THE OWNER, 2026-07-09 — the AI Architecture Rule.**
+>
+> - **No engine may directly recommend or execute trades.** Every engine returns only an `EngineVerdict`.
+> - **Only the Meta Decision Engine (future H15) may combine engine outputs.**
+> - Every engine must expose: `status`, `score`, `confidence`, `reliability`, `limitations`,
+>   `missingEvidence`, `assumptions`.
+> - **No engine may output BUY / SELL.** Decision belongs to Meta Decision alone.
+> - **Current state: no calibrated Meta Decision exists.** Therefore all strategy engines remain
+>   **advisory**; **no probabilities may be published**; **no execution is permitted.**
+
 ```jsonc
 {
   "engine": "smart-money", "engineVersion": "0.1.0",
@@ -657,16 +723,327 @@ All are **read-only** with respect to trading state. All persist through `safe-w
 
 **No engine has a `decision` field. Only H15 decides.**
 
+### 9.1 Compliance audit — measured 2026-07-09, the day the rule was ratified
+
+**The rule is a target. The code does not satisfy it today. Nothing here is a plan; it is a measurement.**
+
+`EngineVerdict` appears in **five documents and zero JavaScript files.** Across the whole non-test tree,
+`missingEvidence`, `assumptions`, `abstainReason` and `dataQuality` occur in **no module at all**.
+
+**15 index-platform modules emit a `BUY` / `SELL` / `BUY_CE` / `BUY_PE` literal** (`stock/` and the
+backtest strategies excluded, which would add 8 more):
+
+| module | of the 7 required fields, it exposes |
+|---|---|
+| `bounce-engine`, `payoff-engine`, `signal-paper-engine`, `trade-planner` | **none** |
+| `afternoon-engine`, `amibroker-bridge`, `execution-engine`, `pop-seller` | `status` |
+| `candlestick-patterns`, `confluence-learner`, `strategy` | `score` |
+| `signal-engine` | `confidence` |
+| `agents-engine`, `master-confluence` | `score`, `confidence` |
+| `server.js` | `status`, `score`, `confidence`, `reliability` |
+
+**Not one module exposes `limitations`, `missingEvidence` or `assumptions`.** The best-covered surface is
+`server.js` at 4 of 7 — and it is the protected monolith, not an engine.
+
+**Four engines act on their own signal**, which the rule forbids outright:
+`execution-engine._enter()` (`:348`, `:464`), `afternoon-engine._enter()` (`:404`),
+`agents-engine._enter()` / `._enterCondor()` (`:549`, `:552`), `signal-paper-engine.open()` (`:73`).
+All are **paper**; none places a broker order. **Whether "no execution is permitted" reaches paper
+execution is the open question in §9.2** — the answer decides whether these four are switched off.
+
+`pop-seller`'s entire published output is a probability (`combinedPoP`). Under the literal rule it must
+stop publishing until a calibrated Meta Decision exists. It is also the engine whose PoP was **measured
+wrong** (100.0% vs a true 91.8%) before commit `6e9380a` — evidence *for* the rule, not against it.
+
+**Migration shape (not started, no approval requested):** add `verdict()` to each engine **alongside** its
+existing method, returning the contract with `reliability: null` and honest `limitations`. Deprecate the
+BUY/SELL emitter only once a consumer exists. Never rewrite; never break a caller.
+
+### 9.2 The unresolved question this rule creates
+
+**"No execution is permitted" vs "outcomes are the only path to calibration."**
+
+Meta Decision needs `reliability`, which is **measured out-of-sample**. Out-of-sample outcomes come from
+running engines and recording what happened. The platform has **41 labelled outcomes**; ~200 are needed.
+Today those outcomes are produced by exactly the four paper self-executors the rule would silence.
+
+Read literally, the rule stops the forward tests that generate the evidence that unblocks the rule.
+That is a deadlock, and it was the owner's to resolve — **it was not resolved by guessing.**
+
+**OWNER DECISION, 2026-07-09 — the deadlock is resolved:**
+
+1. **Paper forward-test execution CONTINUES**, and is the **only sanctioned execution**. Nothing is
+   published as a recommendation or a probability. The outcomes it records are the evidence that will
+   eventually calibrate Meta Decision. The safety property is unweakened: no broker order, ever.
+2. **The migration is additive.** Add a `verdict()` method to each engine **alongside** its existing
+   method, returning the contract with `reliability: null` and honest `limitations`. The BUY/SELL emitter
+   stays until a consumer (H15) exists, then is deprecated. **No caller breaks. Never rewrite.**
+
+---
+
+## 9.3 The Dashboard Rule (ratified by the owner, 2026-07-09)
+
+> The dashboard is a **visualization layer**. It never computes market logic. All calculations originate
+> inside engines. The dashboard **may cache**. It **may aggregate**. It must **never duplicate business
+> logic**. The single source of truth remains inside engines.
+
+**Permitted, so that the rule stays usable:** formatting (`toLocaleString`, `toFixed`); aggregation over
+engine-supplied values (`sumNet += t.pnl`); and **reconciliation** — recomputing a figure *solely to
+cross-check the engine* and rendering ✗ when they disagree. Checking is not duplicating: reconciliation
+never replaces the engine's value, it audits it. `dashboard.html` already does this for closed trades and
+it is the reason the closed-trade P&L was never wrong.
+
+### The defect, measured the day the rule was ratified
+
+| page | declared | truth (registry) | effect |
+|---|---|---|---|
+| `dashboard.html:907` | `LOT = { NIFTY:75, SENSEX:20, BANKNIFTY:30 }` | NIFTY **65** | open NIFTY condor P&L **+15.38%** |
+| `dashboard.html:913` | recomputed short-spread P&L, **ignoring `qty`** | — | a 2-lot condor rendered at 1 lot |
+| `strategy.html:246` | `lotSize = { NIFTY:75, SENSEX:20, BANKNIFTY:35 }` | NIFTY **65**, BANKNIFTY **30** | every rupee figure and the whole payoff curve mis-scaled |
+| `strategy.html:254` | `lotSize[inst()] \|\| 75` | — | the guess silently extended to every future instrument |
+
+A live 2-lot NIFTY condor at entry 135 / now 105 rendered **₹2,250**. The truth is **₹3,900** — the page
+showed **58%** of the real figure. The two errors compounded in opposite directions, which is why it never
+looked absurd enough to notice.
+
+### Root cause: the engine, not the browser
+
+`strangle-engine` published the legs but neither the contract size nor a mark-to-market. The page had
+nothing to render and so reinvented the arithmetic. **The fix is to make the engine the source, not to make
+the browser smarter.** `_decorateOpen()` now emits `lot` (from the registry), `qty`, `entryNet`, `nowNet`,
+`unrealizedPnl` — and `null` **with a stated reason** when it cannot know:
+
+- a leg whose LTP has not arrived reads as `0`, which makes a **short** leg look maximally profitable.
+  `unrealizedPnlReason: 'a leg has no live LTP yet — a missing price is not a price of zero'`.
+- a trading-disabled instrument has no verified contract size ⇒ `lot: null`, `unrealizedPnl: null`.
+  *A rupee figure derived from a guessed contract size is a fabricated number wearing a currency symbol.*
+
+Browser-side metadata is now **generated** from the registry — `npm run gen:instrument-meta` writes
+`public/js/instrument-meta.js`, and `test/dashboard-rule.test.js` regenerates it in memory and fails on
+drift. A hand-maintained copy of the single source of truth is not a copy; it is a second, wrong source.
+
+**Ratchet:** pages carrying a lot table — **2 → 0. May only go down.**
+
+### Three test-authoring errors worth recording, all mine
+
+1. The scanner flagged **the comments documenting the removed defect**. A comment quoting `{ NIFTY:75 }`
+   is a warning, not a violation. Any scanner that reads commentary punishes the honest fix.
+2. The comment stripper **did nothing at all** and looked correct. These files are **CRLF**, and in
+   JavaScript `.` does not match `\r`, so `//.*$` never reaches the end of a line. There are now
+   self-check assertions proving the stripper still catches real code and still ignores prose.
+3. The same prose-vs-code confusion recurred on the `|| 75` assertion. Fixed by scanning stripped source.
+
+---
+
+## 9.4 The API Rule (ratified by the owner, 2026-07-09)
+
+> Every future module must expose: **REST API · WebSocket · Health · Metrics · Version ·
+> Configuration · OpenAPI documentation · Structured logging · Graceful shutdown · Health score.**
+
+### An engine is not a service
+
+`charges.js` is 29 lines of pure arithmetic. Forcing HTTP, sockets and shutdown hooks into a pure leaf
+destroys the property that makes it testable. So the rule is applied where it belongs:
+
+| | |
+|---|---|
+| **Engine** (pure) | returns an `EngineVerdict`. Knows nothing of HTTP. Governed by §9. |
+| **Service adapter** | wraps the engine and exposes the eleven surfaces. Governed by this rule. |
+
+`module-contract.js` builds all eleven from a single descriptor — 100 assertions, including an HTTP smoke
+test on an ephemeral port. `pop-seller` is the first adopter (`pop-seller.service`). Eleven surfaces ×
+N modules, hand-written, is how eleven surfaces drift.
+
+### Two structural blockers, measured — the rule cannot be fully satisfied today
+
+**1. Every route lives in the protected monolith.** `server.js` has **168 routes and zero
+`express.Router()`**. A module cannot mount its own route. `mountAll()` returns a fully-formed Router
+needing **exactly one approved line**:
+
+```js
+app.use('/api/m', require('./module-contract.js').mountAll());
+```
+
+One approved edit, and every present and future module has its surfaces at
+`/api/m/<name>/{health,metrics,version,config,openapi.json,ws}`. Until then the surfaces are real,
+tested, and simply **not reachable over HTTP**. That is a deployment gap, not a design gap — stated,
+not hidden.
+
+**2. There is no WebSocket server.** The `ws` dependency appears in exactly one file —
+`dhan-ws-feed.js` — as a **client** to the broker. No page calls `new WebSocket(...)`; `dashboard.html`
+runs 16 polling timers instead. Attaching a WS server needs the `http.Server` object, which
+`server.js:7228` never captures from `app.listen()`. So `wsChannel()` declares the channel contract and
+message envelope and reports **`attached: false`** with the reason, and `/ws` answers **501**.
+**An unimplemented surface that reports itself as present is worse than an absent one.**
+
+**Also found:** `_gracefulShutdown` (`server.js:7268`) flushes state, but never calls `server.close()` —
+it cannot, because `app.listen()`'s return value is discarded. In-flight HTTP requests are killed by a
+`setTimeout(() => process.exit(0), 400)` guess. Fix belongs in the same approved package.
+
+### What the contract refuses to do
+
+- **health with no evidence ⇒ `'unknown'`, never `'ok'`.** Silence is not health.
+- **`healthScore` with no measurable check ⇒ `null`, never 0 and never 1.** Rendering null as 0 turns
+  ignorance into an alarm; rendering it as 1 turns ignorance into comfort. Both are lies.
+- **An unknown check dilutes the score.** One `ok` check and one `unknown` scores **0.5**, not 1.
+- **`UNKNOWN` outranks `DEGRADED`** in the rollup: *"I cannot tell"* is a stronger reason to withhold
+  trust than *"it is working badly but I can see it"*.
+- **`/config` is a publication surface, not a debug dump.** `.env` holds `DHAN_ACCESS_TOKEN`,
+  `UPSTOX_ACCESS_TOKEN`, `ANTHROPIC_API_KEY`, `AUTH_SECRET`. Redaction is **deny-by-default**: any key
+  matching `/token|secret|key|auth|…/` is redacted, as is any long opaque string under an innocent key.
+  It may **over**-redact; it may never **under**-redact. Verified over real HTTP, not by inspection.
+- **Log fields are redacted too** — logs are shipped, indexed and cached.
+- **Metrics report only what was observed.** `NaN` and `Infinity` are omitted, never emitted as 0: an
+  absent counter and a zero counter mean different things.
+- **`shutdown()` never rejects**, so one bad module cannot abort the shutdown of the others.
+
+`pop-seller.service.health()` returns **`unknown`, score 0.5** — its book is fine, but its
+`reliability` check is `unknown` because it has never been measured out-of-sample. *A health check that
+reports `ok` for a thing it never checked is the most expensive kind of green light.*
+
+### A bug I introduced, and what it taught
+
+Self-registration at `require` time broke `pop-seller.test.js`, which busts `require.cache` for a fresh
+book. The throw was the *symptom*. The real hazard: the registry kept an adapter **closed over the
+discarded instance**, so `/health` and `/metrics` would have reported a dead object's state — a green
+light from a corpse. `defineModule` now requires an explicit `replace: true` to reclaim a name, and the
+behaviour is pinned by test.
+
+---
+
+## 9.5 The Testing Rule (ratified by the owner, 2026-07-09)
+
+> Every new module requires: **Characterization · Unit · Integration · Regression · Performance ·
+> Memory Leak · Failure · Rollback Validation.**
+
+Enforced by `test/testing-rule.test.js`. Suites declare coverage with markers (`@test:performance`,
+`@test:memory-leak`, …) and the meta-suite counts them. A rule nobody can check is a wish.
+
+### One honest amendment
+
+**A brand-new module cannot have a characterization test.** Characterization pins behaviour that
+*already exists*, so a change cannot silently alter it. For code written five minutes ago there is no
+prior behaviour to pin; writing one is theatre — it asserts that the code does what the code does, and
+it passes on the day it is written no matter what the code does. Every characterization test in this
+repo was written to **fail first**; that failure is the evidence, and a new module cannot produce it.
+
+So, precisely:
+
+| | |
+|---|---|
+| **Changing** existing code | characterization test **first**, proven to fail on the live bug |
+| **Creating** a new module | contract tests (unit + failure) instead; characterization becomes mandatory the moment anyone changes it |
+
+### What writing these suites found
+
+**1. The suite went red at midnight, with no code change.** `pop-seller.test.js` asserted
+`premium > 0.5`. `scanPoP` read `new Date()` internally; `T` feeds Black-Scholes; the expiry moved a day
+closer; an estimated premium landed on **0.504**; the raw filter `if (ltp > 0.5)` admitted it and
+`+ltp.toFixed(2)` then published it as **0.50**. *A candidate that violated the very rule that admitted
+it.* Fixed twice over: `scanPoP({ …, now })` **injects the clock**, and the filter now runs on the
+**published** premium. **A test whose verdict depends on the wall clock is not a test.**
+
+**2. `pop-seller`'s book grew without bound.** After 5,000 paper round-trips in one process,
+`popStatus()` returned a **1.4 MB JSON** holding 5,002 positions — of which exactly **one** was open.
+A dashboard timer polls that endpoint.
+
+**3. And underneath the leak, silent data loss — in code I wrote during C3.** `_saveBook()` persisted
+`_book.slice(-2000)`: the last 2,000 entries **by insertion order**. A position opened on Monday and
+still open sits at the **front** of the array. After 2,000 later round-trips it fell outside the window
+and was **silently dropped from disk**. On the next restart, the live position simply did not exist.
+
+> A cap meant to protect the file was deleting the only rows that cannot be reconstructed.
+> **Open positions are state. Closed positions are an audit trail.** `_bounded()` now caps only the
+> audit trail — 3,000 open positions are all kept — and `popStatus()` serves every open position plus
+> a bounded tail of closed ones, with `closedTotal` stating what was left out, so a truncated view can
+> never masquerade as a complete one.
+
+### How these tests are written, so they stay honest
+
+- **Performance thresholds are deliberately generous** and documented as such. They catch an
+  order-of-magnitude regression — someone putting a disk read inside a health check — not a 10% drift.
+  A perf test tuned to this machine becomes a flaky test on the next one.
+- **The primary memory-leak assertion is deterministic**, not heap-sampled: it asserts the *invariant
+  that bounds the memory*. A leak test that depends on GC timing is a flaky test. The heap measurement
+  runs only under `--expose-gc`, and when it is absent the suite **prints that it was skipped** rather
+  than reporting a pass. **A test that did not run must never look like a test that passed.**
+- **Rollback validation** is concrete: every pre-existing export still exists with the same shape, the
+  new argument is optional, and `server.js` contains no reference to any new module. The revert is a
+  file deletion, and the tests prove nothing downstream depends on the new surface.
+- **No suite may write to production state.** `pop-seller-book.test.js` asserts `data/pop-book.json` is
+  **byte-identical** after the run.
+
+### Coverage, stated as debt rather than hidden
+
+**5 of 41 suites declare categories. 36 predate the rule.** That number is a ratchet: it may only go
+down. It is written here so nobody can claim the rule is satisfied platform-wide when it is satisfied
+for four modules.
+
+---
+
+## 9.6 Performance Targets (ratified by the owner, 2026-07-09) — **1 verified, 4 missed, 3 unknown**
+
+> API <50 ms · WebSocket latency <100 ms · Dashboard refresh 250 ms · Memory leak 0 ·
+> CPU under 20% · All writes atomic · All reads validated · No silent catch
+
+`npm run perf:report` measures each one. `test/perf-budget.test.js` ratchets the countable ones.
+**A target is met, missed, or UNKNOWN — never met by silence.**
+
+| target | state | evidence |
+|---|---|---|
+| API < 50 ms | **UNKNOWN** | needs a running server: `PORT=3000 npm run perf:report`. The report **refuses to boot `server.js`** — requiring it starts the strangle/agents/gamma engines, writes `data/*.json` and appends to the forward-test ledger that gates live approval. Measured proxy: the `module-contract` router's `/health` p95 = **1.4 ms**. The **168 routes in `server.js` are unmeasured.** |
+| WebSocket < 100 ms | **UNKNOWN** | **no WebSocket server exists.** Cannot be missed; cannot be met. |
+| Dashboard refresh 250 ms | **MISSED** | 16 independent timers, fastest **1,000 ms**. See below. |
+| Memory leak 0 | **VERIFIED** | bounding invariants asserted; heap corroborated under `--expose-gc` |
+| CPU under 20% | **UNKNOWN** | `process.cpuUsage()` here measures the test process, not a server in market hours |
+| All writes atomic | **MISSED** | **6** raw `writeFileSync`: `server.js`(4, protected), `consolidate-ami-signals`(1), `signal-health`(1, fake-fs seam) |
+| All reads validated | **MISSED** | **13** unvalidated `JSON.parse(readFileSync)`: `server.js`(11, protected) + 2 fake-fs seams |
+| No silent catch | **MISSED** | **114** across 19 files. **73 in `server.js`.** |
+
+### 250 ms is a render budget, not a poll interval
+
+Sixteen timers at 250 ms is **64 HTTP requests per second per open tab**, against a single-threaded
+Node monolith with no WebSocket. Hitting the number that way would **miss the intent**. The target is
+reachable only by pushing over a socket — it is blocked on UI-03 and on the `server.js` mount package.
+
+### I previously reported "105 silent catches". The honest number is 114.
+
+The old figure came from a looser regex over a different file set. Not every silent catch is a bug —
+`safe-write.js:77,132` close a file descriptor while already unwinding an error, and `:229` best-effort
+unlinks an orphan temp — but **all three are still counted**, because *a rule with an unwritten
+exception list is a rule that erodes.* Annotate them, then the ratchet moves.
+
+### The fail-open this target found: `event-risk-filter.loadCalendar`
+
+```js
+catch (_) { return []; }        // a corrupt calendar became "no scheduled events"
+```
+
+An empty calendar means *"checked, nothing scheduled — trade on."* So a truncated JSON file — exactly
+what a crash mid-write produces — **silently disarmed the event-risk filter**, on the days that matter:
+RBI policy, budget, expiry-week CPI. The same fail-open shape as the equity-file bug in C3-07.
+**Unknown is not zero.**
+
+`loadCalendar` **cannot throw**: its only caller is `server.js:5815`, at module scope, in a protected
+file — throwing would turn a bad calendar into a boot failure. So the corruption rides on the returned
+array as a **non-enumerable** `corrupt` flag (invisible to `JSON.stringify`, to `length`, and to every
+existing consumer), and `assess()` reads it and returns **`REDUCE`, `sizeScale: 0.5`**, naming the
+missing evidence. **Absent vs corrupt is decided by the error code (`ENOENT`), not by `existsSync`** —
+an earlier version of this fix called `fs.existsSync` and broke every caller that injects a fake `fs`
+implementing only `readFileSync`. The suite caught it.
+
 ---
 
 ## 10. Recommended order of work
 
 | # | Task | Why |
 |---|---|---|
-| **1** | **C3-02 … C3-06** — make the ledger writers atomic | Five module designs now rest on `safe-write.js`, and **no engine uses it.** The data-loss chain is live |
+| ~~0~~ | ~~C3 — atomic ledger writers~~ | **DONE**, all 15 writers. `pop-seller`'s book now persists too |
+| **1** | **`server.js` write-site package**, smallest first: `config-overrides.json` (`:3675`, `:3747`) | It holds `STRANGLE_ENGINE_ENABLED` and `STRANGLE_CAPITAL: 700000`. A torn write silently reverts every engine to defaults. **PROTECTED — needs the owner's approval, one site at a time.** Last, and separately: `:2028` rewrites `.env`, which holds broker tokens (`mode: 0o600`) |
 | **2** | **Start capturing intraday option chains today** | The only path to gamma / dealer / option-flow research. Gates H14, H16 and H17 simultaneously. **Every day of delay is a day permanently lost** |
 | **3** | **Start logging outcomes for every engine's hypothetical call** | 41 → 200 gates all of H15 **and all of H20**. Cheapest item on the roadmap |
-| **3b** | **Start writing a daily NAV series** (per book, net of charges) and **persist `pop-seller`'s book** | Every portfolio statistic in H19 is computed from a series that does not exist. Cheap. Gates H19 entirely |
+| **3b** | **Start writing a daily NAV series** (per book, net of charges) | Every portfolio statistic in H19 is computed from a series that does not exist. Cheap. Gates H19 entirely |
+| **3c** | **TD-4** — boot-time advisory lock on `data/` | The lost-update half of TD-4. `withLock` already exists; atomicity is not mutual exclusion |
 | **4** | Resolve **F4** (`oi_unit`) against a live NSE chain | One afternoon. Unblocks GEX permanently |
 | **5** | **H18 Risk Engine** | The `critical` input H15 is blocked on. Mostly structural, needs no history |
 | **6** | **H14 Data Lake** (NIFTY depth-first) | 12 of 26 engines cannot be *validated* without it |
@@ -743,8 +1120,10 @@ same wrong things.
 ## Master Prompt
 
 ## Part A — Status (verify before trusting)
-- Which modules are BUILT vs DESIGNED-ONLY? (Today: H13–H18 are designs. C3 is uncommitted.)
-- Is C3 finished? If not, no new ledger may use fs.writeFileSync.
+- Which modules are BUILT vs DESIGNED-ONLY? (Today: H13–H20 are designs only.)
+- C3 is COMPLETE: safe-write.js exists and all 15 writers use it.
+  No new ledger may use fs.writeFileSync — write through safe-write.js or not at all.
+  The only remaining raw writers are the 10 sites in server.js (protected).
 - HEAD commit, suite count, anything uncommitted.
 
 ## Part B — Non-negotiable measured constraints (copy from MASTER-CONTEXT §3 and §5)
@@ -869,7 +1248,7 @@ resizable panels · option-chain institutional layout · alert system.
 
 ---
 
-## 18. C3 COMPLETE (non-protected surface) — 2026-07-09 batch 2
+## 18. C3 COMPLETE — including the protected `execution-engine.js`
 
 ### Audit — every writer, final state
 
@@ -888,14 +1267,14 @@ resizable panels · option-chain institutional layout · alert system.
 | **afternoon-engine** | **risk-brake state** | **fail-open bug fixed**: corrupt equity ⇒ `EQUITY_STATE_CORRUPT` + HALT, not `consecLosses=0` ✅ **(new)** |
 | **pop-seller book** | **P2 closed** | was memory-only; now `data/pop-book.json`, atomic + `.bak` + idSeq persistence ✅ **(new)** |
 | crash-analyzer, pine-converter | text log / generated code | atomic (no `.bak` — not ledgers) ✅ **(new)** |
-| **execution-engine** | risk-brake state | ⛔ **PROTECTED — approval package below, not touched** |
+| **execution-engine** | **risk-brake state** | **fail-open bug fixed** (owner-approved, `f8609ec`): corrupt equity ⇒ `EQUITY_STATE_CORRUPT` + HALT ✅ **(C3-07)** |
 | **server.js** ×10 | mixed | ⛔ **PROTECTED — classified below, not touched** |
 
 ### Coverage
-`test/ledger-safety.test.js` **44 → 56 assertions**: pop-seller persistence round-trip (open + close on
+`test/ledger-safety.test.js` **44 → 67 assertions**: pop-seller persistence round-trip (open + close on
 disk, idSeq survives), afternoon-engine fail-closed halt, confluence-learner no-silent-reset, and a
 **final sweep** asserting no migrated writer bypasses safe-write (comment-stripped scan; signal-health's
-injected-fake branch is the one legitimate exception). Full suite **36/36 ×2**.
+injected-fake branch is the one legitimate exception). Full suite **36/36 ×3**.
 
 ### The crash-survival claim, stated honestly
 `safe-write.test.js` proves the **mechanism**: 6× `SIGKILL` mid-write, 3 concurrent writers + reader
@@ -910,15 +1289,17 @@ Every migrated writer fires on trade close or engine halt — a handful per day.
 per engine**. The only high-frequency writers are `server.js:539/576` (5 s candle-cache timers) — flagged
 in the package below with `fsync:false` recommended.
 
-### C3-07 — execution-engine (PROTECTED, awaiting approval)
-**Defect (identical to afternoon-engine, verified):** `:177` non-atomic equity persist;
-`:370` `catch (e) { console.warn }` on restore ⇒ a corrupt `data/equity-<inst>.json` silently keeps
-`consecLosses = 0` — **the halt-after-N-losses brake disarms exactly when a crash just happened.**
-**Proposed diff (2 hunks, ~14 lines):** persist via `writeJsonSync(..., {pretty:true, backup:true})`;
-restore via `readJsonSync` with `onRecover`, and on unrecoverable ⇒ `_haltedReason='EQUITY_STATE_CORRUPT'`,
-`autoEnabled=false`, loud log (resume via existing `POST /api/engine/reset`).
-**Risk:** low — same pattern already live in afternoon-engine; smoke: construct + restoreEquity on
-missing/corrupt/recovered fixtures. **Rollback:** `git checkout HEAD -- execution-engine.js`.
+### C3-07 — execution-engine (PROTECTED, **owner-approved and DONE**, `f8609ec`)
+**Defect, verified:** `:177` non-atomic equity persist; `:370` `catch (e) { console.warn }` on restore ⇒
+a corrupt `data/equity-<inst>.json` silently kept `consecLosses = 0` — **the halt-after-N-losses brake
+disarmed exactly when a crash had just happened.**
+**Protocol:** backup + `ROLLBACK.sh` → baseline 36/36 → **characterization test written and run FIRST**,
+which failed on the live bug (`exit 1`) → 2 hunks / 8 functional lines → suite 36/36 ×3 → `server.js`
+verified untouched → real ledgers verified intact.
+**Shipped:** persist via `writeJsonSync(..., {pretty:true, backup:true})`; restore via `readJsonSync` with
+`onRecover`; unrecoverable ⇒ `_haltedReason='EQUITY_STATE_CORRUPT'`, `autoEnabled=false`, loud log.
+Resume via the existing `POST /api/engine/reset` after manual review.
+**Rollback:** `git revert f8609ec`.
 
 ### server.js — 10 sites classified (PROTECTED, for a later package)
 | lines | what | class | recommendation |
@@ -932,6 +1313,6 @@ missing/corrupt/recovered fixtures. **Rollback:** `git checkout HEAD -- executio
 | 2028 | **rewrites `.env`** | ⚠ config w/ secrets | atomic + `mode:0o600`; deserves its own review |
 
 ### Future plan
-1. C3-07 on approval → 2. server.js package (start with `config-overrides.json`) → 3. TD-4 lost-update
+1. ~~C3-07~~ **done** → 2. server.js package (start with `config-overrides.json`) → 3. TD-4 lost-update
 half: boot-time advisory lock on `data/` (`withLock` already exists) → 4. daily NAV series (P3) on the
 now-safe write path → 5. quarterly `cleanupTemp()` sweep in preflight.

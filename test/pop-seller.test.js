@@ -250,9 +250,17 @@ const registry = require('../instrument-registry.js');
     { strike: 24500, ce: { ltp: 40, iv: 14 }, pe: { ltp: 2, iv: 16 } },
     { strike: 23500, ce: { ltp: 2, iv: 16 }, pe: { ltp: 38, iv: 15 } },
   ];
-  const res = P.scanPoP({ inst: 'NIFTY', spot: 24000, chainStrikes: chain, minPoP: 80, maxResults: 50 });
+  // THE CLOCK IS INJECTED. This suite went red at midnight IST with no code change: `T` feeds
+  // Black-Scholes, the expiry moved a day closer, an estimated premium landed on 0.504, and
+  // `+ltp.toFixed(2)` published it as 0.50 — failing the `premium > 0.5` assertion that the raw
+  // filter had just admitted. A test whose verdict depends on the wall clock is not a test.
+  const NOW = new Date('2026-07-09T05:30:00.000Z');   // 11:00 IST; NIFTY expiry Tue 2026-07-14
+  const res = P.scanPoP({ inst: 'NIFTY', spot: 24000, chainStrikes: chain, minPoP: 80, maxResults: 50, now: NOW });
 
   ok(Array.isArray(res) && res.length > 0, 'scanPoP returns candidates');
+  ok(res.every((r) => r.premium === +r.premium.toFixed(2)),
+    'REGRESSION: the filter runs on the PUBLISHED premium, so no candidate is admitted at 0.504 ' +
+    'and then printed as 0.50');
   ok(res.every((r) => r.pop >= 80), 'every candidate clears minPoP');
   ok(res.every((r) => r.premium > 0.5), 'candidates with premium ≤ 0.5 are dropped');
   ok(res.every((r) => (r.side === 'SELL_CE' ? r.strike > 24000 : r.strike < 24000)), 'CE candidates are above spot, PE below');

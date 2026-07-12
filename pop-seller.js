@@ -157,8 +157,17 @@ function generateStrikes(spot, inst, rangePercent = 10) {
  * @param {object} opts
  *   inst, spot, chainStrikes (from API), minPoP (default 90), atmIV
  */
-function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30, atmIV=null }) {
-  const T    = daysToExpiry(inst);
+// The smallest premium worth publishing. Below this a "candidate" is noise: the tick size is
+// ₹0.05, so a ₹0.50 option is ten ticks from worthless and its bid-ask straddles its own value.
+const MIN_PUBLISHABLE_PREMIUM = 0.5;
+
+/**
+ * @param {Date} [now] - INJECT THE CLOCK. Without this, every caller and every test is at the
+ *   mercy of the wall clock: `T` feeds Black-Scholes, so a suite that passes at 23:59 IST can
+ *   fail at 00:01 when the expiry moves a day closer. That is exactly what happened.
+ */
+function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30, atmIV=null, now=undefined }) {
+  const T    = daysToExpiry(inst, now || new Date());
   const lot  = lotSize(inst);
   const step = strikeStep(inst);
   // C1c-3: an unknown or trading-disabled instrument has no verified contract size.
@@ -200,7 +209,9 @@ function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30
       const { pop, delta, sigma } = realPoP(spot, K, T, iv, 'CE');
       if (pop >= minPoP) {
         const ltp = ltpData.ceLtp || estimatePremium(spot, K, T, sigma/100, 'CE');
-        if (ltp > 0.5) {
+        // Filter the PUBLISHED premium, not the raw one. `ltp = 0.504` passed the raw filter and
+        // was then published as `0.50` — a candidate that violated the very rule that admitted it.
+        if (+ltp.toFixed(2) > MIN_PUBLISHABLE_PREMIUM) {
           out.push({
             side:'SELL_CE', strike:K, type:'CE',
             premium: +ltp.toFixed(2),
@@ -222,7 +233,7 @@ function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30
       const { pop, delta, sigma } = realPoP(spot, K, T, iv, 'PE');
       if (pop >= minPoP) {
         const ltp = ltpData.peLtp || estimatePremium(spot, K, T, sigma/100, 'PE');
-        if (ltp > 0.5) {
+        if (+ltp.toFixed(2) > MIN_PUBLISHABLE_PREMIUM) {   // see the CE branch: publish what you filtered
           out.push({
             side:'SELL_PE', strike:K, type:'PE',
             premium: +ltp.toFixed(2),
@@ -260,11 +271,11 @@ function estimatePremium(S, K, T, sigma, type) {
 /**
  * Build Iron Condor from best equidistant CE+PE candidates.
  */
-function buildIronCondor({ inst, spot, chainStrikes, minPoP=90, atmIV=null }) {
+function buildIronCondor({ inst, spot, chainStrikes, minPoP=90, atmIV=null, now=undefined }) {
   const lot = lotSize(inst);
   if (!lot) return null;                          // C1c-3: unknown/disabled → refuse, never guess
 
-  const cands = scanPoP({ inst, spot, chainStrikes, minPoP, maxResults:60, atmIV });
+  const cands = scanPoP({ inst, spot, chainStrikes, minPoP, maxResults:60, atmIV, now });
   // Prefer nearest OTM on each side (most premium, still high PoP)
   const bestCE = cands.filter(c=>c.side==='SELL_CE').sort((a,b)=>a.distance-b.distance)[0];
   const bestPE = cands.filter(c=>c.side==='SELL_PE').sort((a,b)=>a.distance-b.distance)[0];
@@ -339,9 +350,34 @@ let _bookCorrupt = false;
   }
 })();
 
+// How much history the book keeps. Closed positions are an audit trail, not state; open ones
+// ARE state and are never subject to a cap.
+const BOOK_CLOSED_CAP = 2000;
+
+/**
+ * Bound the book WITHOUT ever dropping an open position.
+ *
+ * THE BUG THIS REPLACES — found while writing the memory-leak test, and worse than the leak:
+ *   `_saveBook()` wrote `_book.slice(-2000)`. That is the last 2,000 entries by INSERTION order.
+ *   A position opened on Monday and still open sits at the FRONT of the array. After 2,000 later
+ *   round-trips it fell outside the window and was **silently dropped from disk**. On the next
+ *   restart the live position simply did not exist. A cap designed to protect the file was
+ *   quietly deleting the only rows that could not be reconstructed.
+ *
+ * Open positions are kept unconditionally. Only closed rows are trimmed, oldest first.
+ */
+function _bounded(book) {
+  const open = book.filter((p) => p.status === 'OPEN');
+  const closed = book.filter((p) => p.status !== 'OPEN');
+  if (closed.length <= BOOK_CLOSED_CAP) return book;
+  const kept = closed.slice(-BOOK_CLOSED_CAP);
+  return [...kept, ...open].sort((a, b) => (a.id || 0) - (b.id || 0));
+}
+
 function _saveBook() {
   if (_bookCorrupt) return;   // never write over a book we could not read
-  try { _safeWrite.writeJsonSync(_BOOK_FILE, { book: _book.slice(-2000), idSeq: _idSeq }, { backup: true }); }
+  _book = _bounded(_book);    // the in-memory book is bounded too: it used to grow forever
+  try { _safeWrite.writeJsonSync(_BOOK_FILE, { book: _book, idSeq: _idSeq }, { backup: true }); }
   catch (e) { console.error(`[pop-seller] book save failed: ${e.message}`); }
 }
 
@@ -386,20 +422,172 @@ function closePoP(id, exitPremium=0) {
 
 function getBook() { return _book.map(p=>({...p})); }
 
+// How many closed rows a status poll carries. Measured: after 5,000 paper round-trips in one
+// process, `popStatus()` returned a 1.4 MB JSON containing 5,002 positions — of which exactly
+// ONE was open. A dashboard timer polls this endpoint. The response grew without bound while
+// the information in it did not.
+const STATUS_CLOSED_ROWS = 200;
+
 function popStatus() {
-  const open = _book.filter(p=>p.status==='OPEN');
-  return {    
+  const open   = _book.filter(p=>p.status==='OPEN');
+  const closed = _book.filter(p=>p.status!=='OPEN');
+  return {
     liveEnabled: POP_LIVE_ENABLED,
     bookCorrupt: _bookCorrupt,
     openPositions: open.length,
     totalCredit: open.reduce((s,p)=>s+(p.creditCollected||0),0),
-    book: getBook()
+    // Every open position, always — they are state. Plus a bounded tail of closed rows, which
+    // are an audit trail. `closedTotal` says what was left out, so a truncated view never
+    // masquerades as a complete one.
+    closedTotal: closed.length,
+    closedShown: Math.min(closed.length, STATUS_CLOSED_ROWS),
+    book: [...closed.slice(-STATUS_CLOSED_ROWS), ...open]
+      .sort((a,b)=>(a.id||0)-(b.id||0))
+      .map(p=>({...p})),
   };
 }
+
+const ENGINE_ID = 'pop-seller';
+const ENGINE_VERSION = '0.1.0';
+
+/**
+ * verdict() — the AI Architecture Rule surface (ratified 2026-07-09).
+ *
+ * ADDITIVE. `scanPoP()` and every existing caller are untouched. This method exists
+ * beside them, not instead of them, and it is the ONLY surface the future Meta
+ * Decision Engine may read.
+ *
+ * WHY THIS ENGINE ABSTAINS TODAY, AND WILL KEEP ABSTAINING
+ *
+ *   1. The rule states: no probabilities may be published until a calibrated Meta
+ *      Decision exists. This engine's entire output IS a probability. So the verdict
+ *      surface carries no PoP at all — not in `score`, not in `evidence`.
+ *   2. `reliability` must be MEASURED out-of-sample. It never has been. A null
+ *      reliability means weight 0, which means veto-only, which means an `ok` verdict
+ *      would buy nothing and risk something.
+ *   3. This engine has already been measurably wrong in the direction that makes a
+ *      position look SAFER: before commit 6e9380a it reported BANKNIFTY at 5% OTM as
+ *      100.0% PoP when the truth was 91.8%, because the expiry weekdays were swapped.
+ *      That is the strongest argument for the rule, not against it.
+ *
+ * `reliability` is INJECTED, never self-reported. An engine grading its own homework
+ * is how `reliability: 0.95` appears next to a number nobody ever checked. When a
+ * measured value is supplied, the caller may re-read this method; until then it abstains.
+ *
+ * @param {object} [opts]
+ * @param {number|null} [opts.reliability] - measured out-of-sample; null ⇒ abstain
+ * @param {string} [opts.computedAt]       - ISO-8601, injected (this module reads no clock here)
+ */
+function verdict(opts = {}) {
+  const V = require('./engine-verdict.js');
+  const reliability = opts.reliability != null ? opts.reliability : null;
+
+  const limitations = [
+    'PoP = 1 - |Black-Scholes delta|, which is the risk-neutral probability of finishing OTM, ' +
+      'not the real-world probability. The two differ by the volatility risk premium — the very ' +
+      'edge this engine exists to harvest.',
+    'PoP is the probability of expiring OTM. It is NOT the probability of never being breached ' +
+      'intraday, which is materially lower. A stop is hit on the path, not at expiry.',
+    'combinedPoP = popCE x popPE assumes the two breaches are independent. Spot cannot pierce both ' +
+      'sides, so combined PoP is understated.',
+    'buildIronCondor() returns two short legs and no wings: unbounded loss, and no maxLoss field, ' +
+      'under a name that promises defined risk.',
+    'closePoP() applies no transaction charges, while three other engines use charges.js.',
+    'When the chain supplies no IV, realPoP() SYNTHESISES one from moneyness (0.14 + 0.5 x |K-S|/S). ' +
+      'That number was never observed in any market.',
+  ];
+
+  const missingEvidence = [
+    { input: 'out-of-sample outcome labels', reason: '41 labelled outcomes exist platform-wide; ~200 are needed to calibrate' },
+    { input: 'risk-engine', reason: 'module absent — no portfolio-level exposure check exists' },
+    { input: 'realised-vs-implied volatility series', reason: 'no daily NAV or RV series is captured' },
+  ];
+
+  const assumptions = {
+    r: RISK_FREE,
+    q: 0,
+    terminalDistribution: 'lognormal',
+    iv_when_chain_is_silent: 'SYNTHESISED from moneyness — not observed',
+    oi_unit: 'UNVERIFIED',
+  };
+
+  if (reliability == null) {
+    return V.abstain(ENGINE_ID, ENGINE_VERSION,
+      'reliability has never been measured out-of-sample; and the AI Architecture Rule forbids ' +
+      'publishing a probability until a calibrated Meta Decision Engine exists. This engine ' +
+      'produces nothing but probabilities, so it publishes nothing.',
+      { limitations, missingEvidence, assumptions, computedAt: opts.computedAt || null });
+  }
+
+  // Reachable only once reliability is a MEASURED number. Even then this engine holds no
+  // directional view — it sells premium in both directions — so `score` stays null rather
+  // than being coerced onto a -1..+1 direction axis it does not live on. null, never 0.
+  return V.build({
+    engine: ENGINE_ID, engineVersion: ENGINE_VERSION,
+    status: 'ok',
+    score: null,
+    confidence: null,
+    reliability,
+    sampleSize: opts.sampleSize != null ? opts.sampleSize : null,
+    limitations, missingEvidence, assumptions,
+    computedAt: opts.computedAt || null,
+  });
+}
+
+// ── API RULE (ratified 2026-07-09) ──────────────────────────────────────────
+// The engine core above stays pure and knows nothing of HTTP. The eleven surfaces live
+// in the SERVICE ADAPTER, built from a description. An engine is not a service.
+//
+// The health evidence is deliberately narrow. `bookCorrupt` is a fact this module owns and
+// can prove. Broker connectivity, data freshness and expiry-day state are NOT reported here,
+// because this module cannot observe them — and a health check that reports 'ok' for a thing
+// it never checked is the most expensive kind of green light.
+const _svc = require('./module-contract.js').defineModule({
+  name: 'pop-seller',
+  version: ENGINE_VERSION,
+  // This module is re-required with a busted cache by its own test suite to get a fresh book.
+  // Without `replace`, the registry would keep an adapter closed over the DISCARDED instance
+  // and report its health and metrics — a green light from a corpse.
+  replace: true,
+  checks: () => {
+    const { HEALTH } = require('./module-contract.js');
+    const open = _book.filter((p) => p.status === 'OPEN').length;
+    return [
+      { name: 'book',
+        status: _bookCorrupt ? HEALTH.DOWN : HEALTH.OK,
+        detail: _bookCorrupt ? 'data/pop-book.json unrecoverable — saving is refused so the bytes survive'
+                             : `${open} open position(s) restored` },
+      { name: 'reliability',
+        status: HEALTH.UNKNOWN,
+        detail: 'never measured out-of-sample; verdict() abstains. This is UNKNOWN, not ok — ' +
+                'the module works, but nobody has ever checked whether it is right' },
+    ];
+  },
+  metrics: () => ({
+    open_positions: _book.filter((p) => p.status === 'OPEN').length,
+    book_size: _book.length,
+    book_corrupt: _bookCorrupt ? 1 : 0,
+    credit_collected: _book.filter((p) => p.status === 'OPEN')
+      .reduce((s, p) => s + (p.creditCollected || 0), 0),
+  }),
+  config: () => ({
+    POP_LIVE_ENABLED,                 // false; live is hard-gated
+    RISK_FREE,
+    engineVersion: ENGINE_VERSION,
+  }),
+  channels: [{ name: 'book', description: 'open paper positions, on change' }],
+  onShutdown: () => { _saveBook(); },   // the book is already atomic; this flushes on SIGTERM
+});
 
 module.exports = {
   scanPoP, buildIronCondor, payoffCurve,
   sellPoP, closePoP, getBook, popStatus,
   lotSize, popFromDelta: (d) => +(1-Math.abs(Number(d)||0))*100,
-  daysToExpiry, realPoP, bsDelta
+  daysToExpiry, realPoP, bsDelta,
+  verdict,
+  service: _svc,
+  // Exported as a testable seam. The rule that bounds the book is the rule that must never
+  // evict an open position, so it is a pure function with its own tests rather than three
+  // lines hidden inside _saveBook() where nothing could reach them.
+  _bounded,
 };

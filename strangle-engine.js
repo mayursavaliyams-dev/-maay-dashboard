@@ -413,6 +413,54 @@ class StrangleEngine {
     }
   }
 
+  /**
+   * Decorate an open position with everything a viewer needs, so that no viewer has to
+   * derive it. This is the Dashboard Rule's engine-side obligation: if the engine does not
+   * publish the number, someone downstream will compute it — and they will get it wrong.
+   *
+   * FAIL CLOSED. An instrument with no broker-verified contract size yields `lot: null` and
+   * `unrealizedPnl: null` — NEVER a default lot, never 0. A rupee figure derived from a
+   * guessed contract size is a fabricated number wearing a currency symbol.
+   */
+  _decorateOpen(p) {
+    const lot = instrumentRegistry.lotSize(p.inst);          // null for unknown/disabled
+    const qty = p.qty || 0;                                  // lots the sizer actually chose
+    const leg = (l, f) => (l && Number.isFinite(l[f]) ? l[f] : null);
+
+    // Net credit received at entry, and what it costs to close right now. A short structure
+    // profits when the cost to close is below the credit taken in.
+    const parts = [
+      [leg(p.ce, 'entry'), leg(p.ce, 'ltp'), +1],
+      [leg(p.pe, 'entry'), leg(p.pe, 'ltp'), +1],
+      [leg(p.ceWing, 'entry'), leg(p.ceWing, 'ltp'), -1],    // wings are BOUGHT: they cost
+      [leg(p.peWing, 'entry'), leg(p.peWing, 'ltp'), -1],
+    ].filter(([e]) => e !== null);                            // a structure without wings has none
+
+    const priced = parts.every(([, now]) => now !== null);
+    let entryNet = 0, nowNet = 0;
+    for (const [e, now, sign] of parts) { entryNet += sign * e; nowNet += sign * (now || 0); }
+
+    // `priced` guards the one thing that silently corrupts a P&L: a leg whose LTP has not
+    // arrived yet reads as 0, which makes a short leg look maximally profitable.
+    const perUnit = priced ? entryNet - nowNet : null;
+    const unrealizedPnl = (perUnit !== null && lot && qty)
+      ? +(perUnit * lot * qty).toFixed(2)
+      : null;
+
+    return {
+      ...p,
+      lot,
+      qty,
+      entryNet: +entryNet.toFixed(2),
+      nowNet: priced ? +nowNet.toFixed(2) : null,
+      unrealizedPnl,
+      unrealizedPnlReason: unrealizedPnl !== null ? null
+        : !priced ? 'a leg has no live LTP yet — a missing price is not a price of zero'
+        : !lot ? `no broker-verified contract size for ${p.inst} (trading disabled or unknown)`
+        : 'qty is zero',
+    };
+  }
+
   status() {
     const wins = this._closed.filter(t => t.pnlAbs > 0).length;
     const net  = this._closed.reduce((s, t) => s + t.pnlAbs, 0);
@@ -458,7 +506,13 @@ class StrangleEngine {
         trendSkipPct: this.trendSkipPct, adjustMult: this.adjustMult },
       ivRegime: ivState,
       sizing,
-      openPositions: [...this._open.values()],
+      // DASHBOARD RULE (2026-07-09): the dashboard is a visualization layer and never computes
+      // market logic. It was recomputing open-condor P&L in the browser against its own
+      // `LOT = { NIFTY: 75 }` table — the registry says 65 — overstating every open NIFTY
+      // position by 15.38%, and dropping `qty` entirely. The root cause was HERE: the engine
+      // published the legs but neither the contract size nor the mark-to-market, so the page
+      // had nothing to render and reinvented the arithmetic. Publish it; the page renders it.
+      openPositions: [...this._open.values()].map((p) => this._decorateOpen(p)),
       closedToday: this._closed.length,
       wins, winRate: this._closed.length ? +(100 * wins / this._closed.length).toFixed(0) : 0,
       netPnl: +net.toFixed(2),

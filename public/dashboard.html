@@ -903,20 +903,25 @@ async function loadPnL(){
     <span class="big">${money(sumNet)}</span>
     <span>from ${trades.length} closed trade${trades.length!==1?'s':''}</span>
     <span class="sub">headline ${headline!=null?money(headline):'—'} · ${reconciles?'reconciles':'MISMATCH'} · math ${allMathOk?'ok':'MISMATCH'}</span>`;
-  // Open positions — live condors (mark-to-market)
-  const LOT = { NIFTY:75, SENSEX:20, BANKNIFTY:30 };
+  // Open positions — live condors, marked to market BY THE ENGINE.
+  // DASHBOARD RULE: this page renders; it does not compute. It used to carry its own
+  // `LOT = { NIFTY:75 }` (the registry says 65) and recompute the short-spread P&L here,
+  // overstating every open NIFTY position by 15.4% and ignoring `qty` altogether.
+  // `unrealizedPnl` is now the engine's number. When the engine cannot know it — a leg with
+  // no live LTP, or an instrument with no verified contract size — it sends null and says
+  // why, and we show that reason. A missing price is not a price of zero.
   const condors = (strg && strg.openPositions) || [];
   document.getElementById('pnlOpen').innerHTML = condors.length ? condors.map(c=>{
-    const lot = LOT[c.inst]||1;
-    const entryNet = ((c.ce?.entry||0)+(c.pe?.entry||0))-((c.ceWing?.entry||0)+(c.peWing?.entry||0));  // credit received
-    const nowNet   = ((c.ce?.ltp||0)+(c.pe?.ltp||0))-((c.ceWing?.ltp||0)+(c.peWing?.ltp||0));           // cost to close now
-    const pnl = (entryNet - nowNet) * lot;                          // short spread: profit when now < credit
+    const pnl = c.unrealizedPnl;                        // null ⇒ unknown, never 0
+    const known = pnl !== null && pnl !== undefined;
     const legs = `${c.pe?.strike}PE/${c.ce?.strike}CE`;
+    const lots = c.qty ? ` × ${c.qty} lot${c.qty>1?'s':''}` : '';
     return `<tr>
-      <td>${c.inst} <span style="color:var(--mut)">exp ${c.expiry||''}</span></td>
+      <td>${c.inst}${c.lot?` <span style="color:var(--mut)">${c.lot}${lots}</span>`:''} <span style="color:var(--mut)">exp ${c.expiry||''}</span></td>
       <td>${c.structure||'CONDOR'}</td><td style="color:var(--mut)">${legs}</td>
-      <td>₹${fmt(entryNet)}</td><td>₹${fmt(nowNet)}</td>
-      <td class="${pnl>=0?'up':'dn'}">${money(pnl)}</td>
+      <td>₹${fmt(c.entryNet)}</td><td>${c.nowNet!=null?'₹'+fmt(c.nowNet):'<span style="color:var(--mut)">—</span>'}</td>
+      <td class="${known?(pnl>=0?'up':'dn'):''}" ${known?'':`title="${c.unrealizedPnlReason||'unknown'}"`}>
+        ${known?money(pnl):'<span style="color:var(--mut)">—</span>'}</td>
     </tr>`;
   }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--dim2)">no open positions</td></tr>';
 }

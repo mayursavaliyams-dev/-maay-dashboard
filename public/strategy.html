@@ -239,11 +239,11 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
   </div>
 </div>
 
+<script src="/js/instrument-meta.js"></script>
 <script>
   // ── State ──────────────────────────────────────────────────────────────────
   let spot = 0, atm = 0, chainData = null;
   let legs = [];  // { action, type, strike, premium, lots }
-  let lotSize = { NIFTY:75, SENSEX:20, BANKNIFTY:35 };
   let maxCeOI = 1, maxPeOI = 1;
 
   const fmtN = v => Number(v).toLocaleString('en-IN');
@@ -251,7 +251,14 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
 
   function inst() { return document.getElementById('instSel').value; }
   function lots() { return Number(document.getElementById('lotsSel').value) || 1; }
-  function ls()   { return lotSize[inst()] || 75; }
+
+  // DASHBOARD RULE (2026-07-09). This page declared its own table:
+  //     let lotSize = { NIFTY:75, SENSEX:20, BANKNIFTY:35 };
+  // The broker-verified registry says NIFTY 65 and BANKNIFTY 30. Every rupee figure here —
+  // max profit, max loss, the whole payoff curve — was scaled by a wrong contract size, and
+  // the `|| 75` fallback quietly extended that guess to every future instrument.
+  // /js/instrument-meta.js is GENERATED from the registry. Unknown lot ⇒ null, never 75.
+  function ls()   { return window.instLot(inst()); }
 
   // ── Load Chain ─────────────────────────────────────────────────────────────
   async function loadChain() {
@@ -437,6 +444,13 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
       return;
     }
     const L = ls();
+    // FAIL CLOSED. No broker-verified contract size ⇒ no rupee figure. Rendering '--' is
+    // honest; `null * premium` silently renders ₹0, which reads as "this trade is free".
+    if (!L) {
+      ['sumMaxP','sumMaxL','sumNet','sumBE','sumRR','sumLot'].forEach(id=>document.getElementById(id).textContent='--');
+      document.getElementById('sumLot').textContent = 'no verified lot size';
+      return;
+    }
     // Net premium (positive = credit, negative = debit)
     let net = 0;
     legs.forEach(l => {
@@ -485,6 +499,10 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
     }
 
     const L = ls();
+    if (!L) {   // fail closed: a payoff curve drawn on a guessed lot size is a drawn lie
+      ctx.fillStyle='#4a4a6a'; ctx.font='13px Segoe UI'; ctx.textAlign='center';
+      ctx.fillText('no broker-verified lot size for '+inst(), W/2, H/2); return;
+    }
     const strikes = legs.map(l=>l.strike);
     const spotRef = spot || Math.round((Math.min(...strikes)+Math.max(...strikes))/2);
     const lo = spotRef*0.93, hi = spotRef*1.07;
@@ -561,6 +579,7 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
   async function executePaper() {
     if (!legs.length) { alert('Add legs first'); return; }
     const L=ls();
+    if (!L) { alert('No broker-verified lot size for '+inst()+' — refusing to size a paper trade on a guess.'); return; }
     const results = [];
     for (const l of legs) {
       if (l.action !== 'SELL') { results.push(`BUY ${l.type} ${l.strike} logged`); continue; }
