@@ -221,10 +221,16 @@
   .stkrec .lbl{ font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
   .stkrec.lo .lbl{ color:var(--blue); } .stkrec.hi .lbl{ color:var(--amber); }
   .stkscroll{ max-height:190px; overflow-y:auto; }
-  .rec{ display:grid; grid-template-columns:auto 1fr auto auto; gap:8px; align-items:center; font-family:ui-monospace,Menlo,monospace; font-size:0.6rem; padding:4px 6px; border-bottom:1px solid #0e1622; }
+  .rec{ display:grid; grid-template-columns:auto 1fr auto auto auto; gap:8px; align-items:center; font-family:ui-monospace,Menlo,monospace; font-size:0.6rem; padding:4px 6px; border-bottom:1px solid #0e1622; }
   .rec .ar{ font-size:0.5rem; } .rec.lo .ar{ color:var(--blue); } .rec.hi .ar{ color:var(--amber); }
   .rec .pr{ font-weight:800; } .rec .dl{ font-weight:800; } .rec .dl.up{ color:var(--up); } .rec .dl.dn{ color:var(--dn); } .rec .dl.z{ color:var(--mut); }
   .rec .tm{ color:var(--mut); }
+  /* COND-2: confirmation-tier badge — HOW the extreme was validated. EXCH (candle,
+     strongest) / FEED (next-poll). No badge = pre-verifier or merged history. */
+  .rec .cf{ font-size:0.48rem; font-weight:800; letter-spacing:.3px; padding:1px 4px; border-radius:4px; text-align:center; white-space:nowrap; }
+  .rec .cf.exch{ background:rgba(38,208,160,.13); color:var(--up); border:1px solid rgba(38,208,160,.32); }
+  .rec .cf.feed{ background:rgba(90,150,255,.12); color:var(--blue); border:1px solid rgba(90,150,255,.3); }
+  .rec .cf.none{ color:var(--mut); opacity:.4; }
 
   /* high/low levels panel */
   .hlrow{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
@@ -417,6 +423,88 @@
   <div class="sec-h">High / Low levels <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">day range · ORB · VWAP</small></div>
   <div class="hlrow" id="hlRow"></div>
 
+  <div class="sec-h" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Strike price timeline <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">CE/PE live price · high &amp; low record timeline</small>
+    <span style="margin-left:auto;display:inline-flex;gap:6px;align-items:center;font-size:.5rem;font-weight:600;color:var(--dim2)" title="Confirmation tier: how each recorded high/low was verified before it was saved">
+      confirmed: <span class="cf exch">EXCH</span><span style="color:var(--mut)">candle</span><span class="cf feed">FEED</span><span style="color:var(--mut)">next-poll</span></span></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="stkctl">
+        <div class="instsel" id="stkSel">
+          <button class="isbtn on" onclick="setStkInst('NIFTY')">NIFTY</button>
+          <button class="isbtn" onclick="setStkInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setStkInst('BANKNIFTY')">BANKNIFTY</button>
+        </div>
+        <select class="stksel" id="stkStrike" onchange="linkStrike(+this.value)"></select>
+        <button class="fullrecbtn" onclick="openRecModal()">📋 Full high/low record</button>
+        <button class="autobtn" id="autoBtn" onclick="toggleAuto()">⚡ Auto movers</button>
+        <span class="indsig" id="stkMeta" style="margin-left:auto">—</span>
+      </div>
+      <div class="stkcols" id="stkCols">
+        <div class="stkside ce" id="stkCE"><div class="stkrec"><div class="flat" style="font-size:.72rem">loading…</div></div></div>
+        <div class="stkside pe" id="stkPE"><div class="stkrec"><div class="flat" style="font-size:.72rem">loading…</div></div></div>
+      </div>
+      <div class="automovers" id="autoMovers" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="sec-h">Option chain · OI buildup <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">LTP · High/Low · OI increase/decrease</small></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="indhead">
+        <div class="instsel" id="chSel">
+          <button class="isbtn on" onclick="setChInst('NIFTY')">NIFTY</button>
+          <button class="isbtn" onclick="setChInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setChInst('BANKNIFTY')">BANKNIFTY</button>
+        </div>
+        <span class="indsig" id="chMeta">—</span>
+      </div>
+      <div class="chwrap">
+        <table class="chain">
+          <thead><tr>
+            <th>CE ΔOI</th><th>CE OI</th><th>CE LTP</th><th>CE H/L</th>
+            <th class="chsplit">STRIKE</th>
+            <th>PE H/L</th><th>PE LTP</th><th>PE OI</th><th>PE ΔOI</th>
+          </tr></thead>
+          <tbody id="chBody"><tr><td colspan="9" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-h">Market quotes <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">full option quote · LTP · H/L · OI · UCL/LCL · 52W · PoP</small></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="indhead">
+        <div class="instsel" id="mqSel">
+          <button class="isbtn on" onclick="setMqInst('NIFTY')">NIFTY</button>
+          <button class="isbtn" onclick="setMqInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setMqInst('BANKNIFTY')">BANKNIFTY</button>
+        </div>
+        <div class="mqfilt" id="mqFilt">
+          <button class="isbtn on" onclick="setMqFilt('ATM')">ATM±5</button>
+          <button class="isbtn" onclick="setMqFilt('ALL')">ALL</button>
+          <button class="isbtn" onclick="setMqFilt('CALL')">CALL</button>
+          <button class="isbtn" onclick="setMqFilt('PUT')">PUT</button>
+        </div>
+        <span class="indsig" id="mqMeta" style="margin-left:12px">—</span>
+      </div>
+      <div class="chwrap">
+        <table class="chain mq">
+          <thead><tr>
+            <th style="text-align:left">Contract</th><th>LTP</th><th>₹/Lot</th><th>PoP%</th><th>Low</th><th>High</th>
+            <th>Chng</th><th>%Chng</th><th>Bid</th><th>Ask</th><th>Volume</th><th>OI</th>
+            <th>Prev Cl</th><th>UCL</th><th>LCL</th><th>52W H</th><th>52W L</th><th>Avg</th><th>Trade</th>
+          </tr></thead>
+          <tbody id="mqBody"><tr><td colspan="19" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="hlrecwrap">
+        <div class="hlrechead">📋 High / Low record — new prints (live)</div>
+        <div class="hlreclog" id="hlRecord"><div class="hlr" style="color:var(--dim2)">watching for new highs / lows…</div></div>
+      </div>
+    </div>
+  </div>
+
   <div class="sec-h">Performance · paper</div>
   <div class="stats" id="stats"></div>
 
@@ -435,6 +523,12 @@
         <tbody id="pnlOpen"><tr><td colspan="6" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
       </table></div>
     </div>
+  </div>
+
+  <div class="sec-h">Open book</div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-h">📒 Positions <small id="posSub">every open paper position · all engines</small></div>
+    <div class="card-b" id="posBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
   </div>
 
   <div class="sec-h">Signals & regime</div>
@@ -518,86 +612,6 @@
     </div>
   </div>
 
-  <div class="sec-h">Option chain · OI buildup <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">LTP · High/Low · OI increase/decrease</small></div>
-  <div class="card">
-    <div class="card-b">
-      <div class="indhead">
-        <div class="instsel" id="chSel">
-          <button class="isbtn on" onclick="setChInst('NIFTY')">NIFTY</button>
-          <button class="isbtn" onclick="setChInst('SENSEX')">SENSEX</button>
-          <button class="isbtn" onclick="setChInst('BANKNIFTY')">BANKNIFTY</button>
-        </div>
-        <span class="indsig" id="chMeta">—</span>
-      </div>
-      <div class="chwrap">
-        <table class="chain">
-          <thead><tr>
-            <th>CE ΔOI</th><th>CE OI</th><th>CE LTP</th><th>CE H/L</th>
-            <th class="chsplit">STRIKE</th>
-            <th>PE H/L</th><th>PE LTP</th><th>PE OI</th><th>PE ΔOI</th>
-          </tr></thead>
-          <tbody id="chBody"><tr><td colspan="9" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="sec-h">Market quotes <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">full option quote · LTP · H/L · OI · UCL/LCL · 52W · PoP</small></div>
-  <div class="card">
-    <div class="card-b">
-      <div class="indhead">
-        <div class="instsel" id="mqSel">
-          <button class="isbtn on" onclick="setMqInst('NIFTY')">NIFTY</button>
-          <button class="isbtn" onclick="setMqInst('SENSEX')">SENSEX</button>
-          <button class="isbtn" onclick="setMqInst('BANKNIFTY')">BANKNIFTY</button>
-        </div>
-        <div class="mqfilt" id="mqFilt">
-          <button class="isbtn on" onclick="setMqFilt('ATM')">ATM±5</button>
-          <button class="isbtn" onclick="setMqFilt('ALL')">ALL</button>
-          <button class="isbtn" onclick="setMqFilt('CALL')">CALL</button>
-          <button class="isbtn" onclick="setMqFilt('PUT')">PUT</button>
-        </div>
-        <span class="indsig" id="mqMeta" style="margin-left:12px">—</span>
-      </div>
-      <div class="chwrap">
-        <table class="chain mq">
-          <thead><tr>
-            <th style="text-align:left">Contract</th><th>LTP</th><th>₹/Lot</th><th>PoP%</th><th>Low</th><th>High</th>
-            <th>Chng</th><th>%Chng</th><th>Bid</th><th>Ask</th><th>Volume</th><th>OI</th>
-            <th>Prev Cl</th><th>UCL</th><th>LCL</th><th>52W H</th><th>52W L</th><th>Avg</th><th>Trade</th>
-          </tr></thead>
-          <tbody id="mqBody"><tr><td colspan="19" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
-        </table>
-      </div>
-      <div class="hlrecwrap">
-        <div class="hlrechead">📋 High / Low record — new prints (live)</div>
-        <div class="hlreclog" id="hlRecord"><div class="hlr" style="color:var(--dim2)">watching for new highs / lows…</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="sec-h">Strike price timeline <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">CE/PE live price · high &amp; low record timeline</small></div>
-  <div class="card">
-    <div class="card-b">
-      <div class="stkctl">
-        <div class="instsel" id="stkSel">
-          <button class="isbtn on" onclick="setStkInst('NIFTY')">NIFTY</button>
-          <button class="isbtn" onclick="setStkInst('SENSEX')">SENSEX</button>
-          <button class="isbtn" onclick="setStkInst('BANKNIFTY')">BANKNIFTY</button>
-        </div>
-        <select class="stksel" id="stkStrike" onchange="linkStrike(+this.value)"></select>
-        <button class="fullrecbtn" onclick="openRecModal()">📋 Full high/low record</button>
-        <button class="autobtn" id="autoBtn" onclick="toggleAuto()">⚡ Auto movers</button>
-        <span class="indsig" id="stkMeta" style="margin-left:auto">—</span>
-      </div>
-      <div class="stkcols" id="stkCols">
-        <div class="stkside ce" id="stkCE"><div class="stkrec"><div class="flat" style="font-size:.72rem">loading…</div></div></div>
-        <div class="stkside pe" id="stkPE"><div class="stkrec"><div class="flat" style="font-size:.72rem">loading…</div></div></div>
-      </div>
-      <div class="automovers" id="autoMovers" style="display:none"></div>
-    </div>
-  </div>
-
   <div class="sec-h">Trade plan & engine health <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">signal-engine · defined-risk only</small></div>
   <div class="grid2">
     <div class="card">
@@ -674,6 +688,11 @@
   <div class="modal">
     <div class="modal-h">
       <div><div class="ttl" id="recModalTtl">—</div><div class="sub" id="recModalSub">—</div></div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:7px">
+        <label style="font-size:.58rem;text-transform:uppercase;letter-spacing:.5px;color:var(--dim2)">day</label>
+        <select id="recModalDate" onchange="onRecDateChange()" title="Live = today (server). Past days are served from the warehouse archive."
+          style="background:#0e1622;color:#dfe8f5;border:1px solid var(--line2);border-radius:7px;padding:5px 9px;font-size:.66rem;font-family:ui-monospace,Menlo,monospace"></select>
+      </div>
       <button class="modal-x" onclick="closeRecModal()" title="close (Esc)">✕</button>
     </div>
     <div class="modal-b" id="recModalBody"></div>
@@ -926,6 +945,14 @@ async function loadPnL(){
   }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--dim2)">no open positions</td></tr>';
 }
 
+// COND-2: badge each extreme with HOW the verifier confirmed it — never a bare
+// "verified". EXCH = candle-reconciled (strongest), FEED = next-poll validated.
+// Shared by the strike timeline and the full-record modal.
+function cfBadge(tier){
+  if (tier==='EXCHANGE_RECONCILED') return `<span class="cf exch" title="Exchange-reconciled: confirmed against the 1-min exchange candle (strongest)">EXCH</span>`;
+  if (tier==='FEED_VALIDATED')      return `<span class="cf feed" title="Feed-validated: the print held for one more poll before it was saved">FEED</span>`;
+  return `<span class="cf none" title="No tier — recorded before tiered verification, or backfilled from merged candle history">·</span>`;
+}
 // ── Strike price timeline (CE/PE live price + high/low record timeline) ──
 let STK_INST = 'NIFTY', STK_STRIKE = 0, STK_STEP = 50;
 function setStkInst(i){ linkInst(i); }
@@ -962,8 +989,8 @@ function renderStrikeSide(el, leg, strike, type){
     return withDelta.slice().reverse().map(r=>{
       const dc = r.delta==null?'z':r.delta>0?'up':r.delta<0?'dn':'z';
       const ds = r.delta==null?'':(r.delta>0?'+':'')+r.delta;
-      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span><span class="tm">${r.time}</span></div>`;
-    }).join('') || '<div class="rec"><span></span><span class="tm">no records yet</span><span></span><span></span></div>';
+      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span>${cfBadge(r.tier)}<span class="tm">${r.time}</span></div>`;
+    }).join('') || '<div class="rec"><span></span><span class="tm">no records yet</span><span></span><span></span><span></span></div>';
   };
   el.innerHTML = `
     <div class="hd">
@@ -1047,8 +1074,8 @@ function recModalSide(leg, strike, type){
     const arr=(hist||[]).slice();
     const wd=arr.map((r,i)=>({...r,delta:i>0?+(r.price-arr[i-1].price).toFixed(2):null}));
     return wd.slice().reverse().map(r=>{ const dc=r.delta==null?'z':r.delta>0?'up':r.delta<0?'dn':'z'; const ds=r.delta==null?'':(r.delta>0?'+':'')+r.delta;
-      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span><span class="tm">${r.time}</span></div>`;
-    }).join('') || '<div class="rec"><span></span><span class="tm">no records yet</span><span></span><span></span></div>';
+      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span>${cfBadge(r.tier)}<span class="tm">${r.time}</span></div>`;
+    }).join('') || '<div class="rec"><span></span><span class="tm">no records yet</span><span></span><span></span><span></span></div>';
   };
   const nH=(leg.highHistory||[]).length, nL=(leg.lowHistory||[]).length;
   return `<div class="stkside ${type==='CE'?'ce':'pe'}">
@@ -1058,16 +1085,45 @@ function recModalSide(leg, strike, type){
   </div>`;
 }
 function closeRecModal(){ document.getElementById('recModal').classList.remove('show'); }
-async function openRecModal(inst, strike){
+// Warehouse archive API (read-only, loopback). Serves PAST-day High/Low records that
+// the live server (today-only) cannot. Same host as the page → localhost stays localhost.
+const WH_API = `${location.protocol}//${location.hostname}:3100`;
+let REC_INST = '', REC_STRIKE = 0;
+
+// Fill the day dropdown: "Live (today)" + each archived day. Preserve `selected`.
+async function _fillRecDays(selected){
+  const sel = document.getElementById('recModalDate'); if (!sel) return;
+  let days = [];
+  try { days = (await (await fetch(`${WH_API}/wh/days`,{cache:'no-store'})).json()).days || []; } catch(_){ /* archive offline → live only */ }
+  sel.innerHTML = `<option value="live">Live (today)</option>` +
+    days.map(d=>`<option value="${d}">${d}</option>`).join('');
+  sel.value = selected || 'live';
+}
+function onRecDateChange(){
+  const sel = document.getElementById('recModalDate');
+  openRecModal(REC_INST, REC_STRIKE, sel ? sel.value : 'live');
+}
+async function openRecModal(inst, strike, date){
   const useInst = inst || STK_INST, useStrike = strike || STK_STRIKE;
   if (!useStrike) return;
+  REC_INST = useInst; REC_STRIKE = useStrike;
+  const useDate = date || 'live';
   const m=document.getElementById('recModal'); m.classList.add('show');
   document.getElementById('recModalTtl').textContent = `${useInst} ${useStrike} — full High/Low record`;
   document.getElementById('recModalSub').textContent = 'loading…';
   document.getElementById('recModalBody').innerHTML = '<div class="flat" style="font-size:.75rem;padding:30px;text-align:center">loading…</div>';
+  _fillRecDays(useDate);
   try{
-    const j = await (await fetch(`${API}/api/option-strike-history?inst=${useInst}&strike=${useStrike}&type=CE`,{cache:'no-store'})).json();
-    document.getElementById('recModalSub').textContent = `spot ${j.spot?Math.round(j.spot):'—'} · dte ${j.dte??'—'}${j.isATM?' · ATM':''} · ${j.marketStatus||''}`;
+    let j;
+    if (useDate === 'live'){
+      j = await (await fetch(`${API}/api/option-strike-history?inst=${useInst}&strike=${useStrike}&type=CE`,{cache:'no-store'})).json();
+      document.getElementById('recModalSub').textContent = `spot ${j.spot?Math.round(j.spot):'—'} · dte ${j.dte??'—'}${j.isATM?' · ATM':''} · ${j.marketStatus||''}`;
+    } else {
+      // PAST day → warehouse archive (minute-resolution, derived from saved candles).
+      j = await (await fetch(`${WH_API}/wh/hl-record?date=${useDate}&inst=${useInst}&strike=${useStrike}&type=CE`,{cache:'no-store'})).json();
+      if (!j.found){ document.getElementById('recModalBody').innerHTML = `<div class="flat" style="font-size:.75rem;padding:30px;text-align:center">no archived record for ${useInst} ${useStrike} on ${useDate}</div>`; document.getElementById('recModalSub').textContent = `${useDate} · archive`; return; }
+      document.getElementById('recModalSub').textContent = `${j.marketStatus||('ARCHIVE · '+useDate)} · derived from saved candles`;
+    }
     document.getElementById('recModalBody').innerHTML = `<div class="stkcols">${recModalSide(j.ce,useStrike,'CE')}${recModalSide(j.pe,useStrike,'PE')}</div>`;
   }catch(e){ document.getElementById('recModalBody').innerHTML='<div class="flat" style="font-size:.75rem;padding:30px;text-align:center">unavailable</div>'; }
 }
@@ -1418,7 +1474,78 @@ async function loadBot() {
   } catch (_) {}
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning(); loadStrikeList(); loadPnL(); loadGate();
+// ── 📒 Positions — the unified open book (/api/positions · positions-book.js) ──
+// THE RULE THIS PANEL EXISTS TO KEEP: an UNKNOWN P&L is never rendered as ₹0, and an
+// engine that is off is never rendered as "no positions". bounce-engine holds most of
+// the book and publishes no LTP at all — so its P&L is genuinely unknown, and the panel
+// says so instead of inventing a comforting zero.
+const _rs = n => (n < 0 ? '−₹' : '₹') + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+async function loadPositions() {
+  const box = document.getElementById('posBox'), sub = document.getElementById('posSub');
+  try {
+    const r = await fetch('/api/positions'); const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'failed');
+    const t = j.totals;
+
+    const pnlTxt = t.pnl === null
+      ? '<span style="color:var(--mut)">P&L UNKNOWN</span>'
+      : `<b style="color:${t.pnl >= 0 ? 'var(--up)' : 'var(--dn)'}">${_rs(t.pnl)}</b>`;
+    sub.textContent = `${t.open} open · ${t.engines} engine${t.engines === 1 ? '' : 's'} · ${t.instruments} instrument${t.instruments === 1 ? '' : 's'}`;
+
+    if (!t.open) {
+      box.innerHTML = `<div class="flat" style="font-size:.72rem">no open positions${
+        j.unavailable.length ? ` · <span style="color:var(--amber)">${j.unavailable.length} engine(s) UNAVAILABLE: ${j.unavailable.join(', ')}</span>` : ''}</div>`;
+      return;
+    }
+
+    // header strip — and the honest count of what we cannot price or size
+    const expTxt = t.notional === null
+      ? '<span style="color:var(--mut)">UNKNOWN</span>'
+      : `<b>${_rs(t.notional)}</b>`;
+    let h = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;margin-bottom:10px;font-size:.75rem">
+      <span>Total P&L ${pnlTxt}</span>
+      <span>Exposure ${expTxt}</span>
+      <span style="color:var(--mut)">priced ${t.pnlKnown}/${t.open} · sized ${t.notionalKnown}/${t.open}</span>`;
+    if (t.pnlUnknown) h += `<span style="color:var(--amber)">⚠ ${t.pnlUnknown} NOT PRICED — excluded from the total, not counted as zero</span>`;
+    if (t.lotsUnknown) h += `<span style="color:var(--dn)">⚠ ${t.lotsUnknown} with an UNVERIFIED lot — exposure cannot be computed</span>`;
+    if (j.unavailable.length) h += `<span style="color:var(--amber)">⚠ UNAVAILABLE: ${j.unavailable.join(', ')}</span>`;
+    h += `</div>`;
+
+    h += `<div style="overflow-x:auto"><table class="pnl" style="width:100%">
+      <thead><tr><th>Engine</th><th>Inst</th><th>Structure</th><th>Legs</th><th>Lots × Lot</th><th>Entry</th><th>Exposure</th><th>P&L</th><th>Entry at</th></tr></thead><tbody>`;
+    for (const p of j.positions) {
+      const legs = p.legs.map(l =>
+        `<span style="color:${l.side === 'SELL' ? 'var(--dn)' : 'var(--up)'}">${l.side[0]}</span>${l.strike ?? '?'}${l.type || ''}`
+      ).join(' ') || '—';
+      const pnl = p.pnl === null
+        ? '<span style="color:var(--mut)" title="this engine does not price its open book">UNKNOWN</span>'
+        : `<b style="color:${p.pnl >= 0 ? 'var(--up)' : 'var(--dn)'}">${_rs(p.pnl)}</b>`;
+      // lot: show WHERE it came from. A registry lot is a verified fact, not an assumption.
+      const lotCell = p.lot === null
+        ? '<span style="color:var(--dn)" title="the Instrument Registry has not verified this contract size">LOT UNKNOWN</span>'
+        : `${p.qty ?? '?'} × ${p.lot}<span style="color:var(--dim);font-size:.62rem" title="${p.lotSource === 'registry' ? 'supplied by the broker-verified Instrument Registry' : 'published by the engine itself'}"> ${p.lotSource === 'registry' ? 'reg' : ''}</span>`;
+      const exp = p.notional === null
+        ? '<span style="color:var(--mut)">—</span>'
+        : `<span class="mono">${_rs(p.notional)}</span>`;
+      h += `<tr>
+        <td>${p.engine}</td><td>${p.inst}</td><td>${p.structure}</td>
+        <td class="mono" style="font-size:.68rem">${legs}</td>
+        <td class="mono" style="font-size:.7rem">${lotCell}</td>
+        <td class="mono">${p.entryPx ?? '—'}</td>
+        <td>${exp}</td>
+        <td>${pnl}</td>
+        <td class="mono" style="font-size:.68rem;color:var(--mut)">${p.entryAt ?? '—'}</td>
+      </tr>`;
+    }
+    h += `</tbody></table></div>`;
+    box.innerHTML = h;
+  } catch (e) {
+    box.innerHTML = `<div class="flat" style="font-size:.72rem;color:var(--dn)">positions unavailable — ${e.message}</div>`;
+  }
+}
+
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning(); loadStrikeList(); loadPnL(); loadGate(); loadPositions();
+setInterval(loadPositions, 5000);
 setInterval(loadGate, 12000);
 setInterval(loadPnL, 6000);
 setInterval(loadHL, 4000);
