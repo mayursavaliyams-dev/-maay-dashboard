@@ -22,3 +22,8 @@ REM Separate log per helper (avoids append contention when they start together).
 start "wh-mirror" /MIN cmd /c "node option-warehouse.js --every 300 >> data\logs\wh-mirror.log 2>&1"
 start "wh-derive" /MIN cmd /c "node warehouse-derive.js --every 600 >> data\logs\wh-derive.log 2>&1"
 start "wh-api"    /MIN cmd /c "node warehouse-api.js >> data\logs\wh-api.log 2>&1"
+
+REM Phase-1 capture: intraday option chains (all Greeks + ivSource), position
+REM outcomes with entry Greeks, and the daily NAV series. Appends only when the
+REM content actually changed, so it self-gates outside market hours.
+start "wh-capture" /MIN cmd /c "node warehouse-capture.js --every 60 >> data\logs\wh-capture.log 2>&1"
