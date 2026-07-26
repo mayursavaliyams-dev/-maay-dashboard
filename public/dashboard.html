@@ -126,6 +126,15 @@
   .rtag{ font-size:0.5rem; font-weight:800; padding:2px 6px; border-radius:5px; }
   .rtag.win{ background:rgba(38,208,160,.14); color:var(--up); } .rtag.loss{ background:rgba(255,84,112,.14); color:var(--dn); }
   .possub{ font-size:0.5rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; margin:13px 0 7px; }
+  /* closed-trades filter bar — filter by quantity & by trade amount */
+  .pnlfilt{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin:2px 0 9px; font-size:.58rem; }
+  .pnlfilt .fl{ color:var(--mut); text-transform:uppercase; letter-spacing:.4px; font-weight:800; }
+  .pnlfilt input{ width:72px; background:var(--bg2); border:1px solid var(--line); border-radius:7px; color:var(--fg); padding:4px 7px; font-size:.62rem; font-family:ui-monospace,Menlo,monospace; }
+  .pnlfilt input:focus{ outline:none; border-color:var(--acc,#4da3ff); }
+  .pnlfilt .fbtn{ background:var(--bg2); border:1px solid var(--line); border-radius:7px; color:var(--dim2); padding:4px 9px; font-size:.56rem; font-weight:800; cursor:pointer; }
+  .pnlfilt .fbtn:hover{ color:var(--fg); border-color:var(--line2); }
+  .pnlfilt .fbtn.on{ background:rgba(77,163,255,.16); border-color:var(--acc,#4da3ff); color:var(--fg); }
+  .pnlfilt .finfo{ margin-left:auto; color:var(--dim2); font-family:ui-monospace,Menlo,monospace; }
 
   /* signal orb + positioning */
   .sigwrap{ display:flex; align-items:center; gap:16px; }
@@ -297,6 +306,30 @@
   .lowtag{ display:inline-block; font-size:0.54rem; font-weight:900; color:var(--dn); margin-left:7px; padding:1px 5px; border-radius:5px; font-family:ui-monospace,Menlo,monospace; }
   .lowtag.hit{ background:rgba(255,84,112,.16); animation:blinkHit 0.7s ease-in-out infinite; }
   .lowtag.newlow{ background:rgba(255,84,112,.3); color:#fff; border:1.5px solid var(--dn); box-shadow:0 0 0 2px rgba(255,84,112,.25); animation:blink3 0.45s ease-in-out 3; }
+  /* positions — Angel-One style cards (name+qty/avg/ltp left, big P&L right) */
+  .posSum{ display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; padding:11px 13px; background:var(--bg2); border:1px solid var(--line); border-radius:12px; margin-bottom:11px; }
+  .posSum .lbl{ font-size:0.5rem; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); font-weight:800; }
+  .posSum .big{ font-size:1.25rem; font-weight:900; font-family:ui-monospace,Menlo,monospace; margin-top:2px; }
+  .posSum .warn{ font-size:0.54rem; color:var(--amber); margin-top:3px; }
+  .poscard{ display:flex; align-items:flex-start; gap:12px; padding:11px 13px; border:1px solid var(--line); border-radius:12px; background:var(--panel); margin-bottom:8px; }
+  .poscard .l{ flex:1; min-width:0; }
+  .poscard .nm{ font-size:0.82rem; font-weight:800; }
+  .poscard .chip{ font-size:0.5rem; font-weight:800; padding:2px 6px; border-radius:5px; background:var(--bg2); border:1px solid var(--line); color:var(--dim2); margin-left:7px; text-transform:uppercase; }
+  .poscard .kv{ display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; font-size:0.6rem; font-family:ui-monospace,Menlo,monospace; color:var(--dim2); }
+  .poscard .kv b{ color:var(--fg); font-weight:700; }
+  .poscard .legs{ display:flex; gap:7px; flex-wrap:wrap; margin-top:7px; }
+  .poscard .leg{ font-size:0.56rem; font-family:ui-monospace,Menlo,monospace; padding:3px 7px; border-radius:6px; background:var(--bg2); border:1px solid var(--line); color:var(--dim2); }
+  .poscard .leg .s{ font-weight:900; }
+  .poscard .r{ text-align:right; white-space:nowrap; }
+  .poscard .pnl{ font-size:1rem; font-weight:900; font-family:ui-monospace,Menlo,monospace; }
+  .poscard .pct{ font-size:0.56rem; font-weight:700; margin-top:2px; }
+  /* high/low mapping — full strike-wise day High/Low grid */
+  .hlmdate{ background:var(--bg2); border:1px solid var(--line); border-radius:8px; color:var(--fg); padding:4px 8px; font-size:.62rem; font-family:ui-monospace,Menlo,monospace; }
+  .hlmdate:focus{ outline:none; border-color:var(--acc,#4da3ff); }
+  .hlmavail{ display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
+  .daychip{ background:var(--bg2); border:1px solid var(--line); border-radius:7px; color:var(--dim2); padding:3px 8px; font-size:.54rem; font-weight:800; cursor:pointer; font-family:ui-monospace,Menlo,monospace; }
+  .daychip:hover{ color:var(--fg); border-color:var(--acc,#4da3ff); }
+  table.chain.hlm td .at{ color:var(--mut); font-size:.82em; margin-left:4px; }
   /* high/low record log */
   .hlrecwrap{ margin-top:12px; }
   .hlrechead{ font-size:0.5rem; font-weight:800; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
@@ -505,6 +538,36 @@
     </div>
   </div>
 
+  <div class="sec-h">High / Low mapping <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">every strike · CE/PE day High &amp; Low · date-wise archive</small></div>
+  <div class="card">
+    <div class="card-b">
+      <div class="indhead">
+        <div class="instsel" id="hlmSel">
+          <button class="isbtn on" onclick="setHlmInst('NIFTY')">NIFTY</button>
+          <button class="isbtn" onclick="setHlmInst('SENSEX')">SENSEX</button>
+          <button class="isbtn" onclick="setHlmInst('BANKNIFTY')">BANKNIFTY</button>
+        </div>
+        <input type="date" id="hlmDate" class="hlmdate" onchange="loadHLMap()" title="pick an archived session">
+        <div class="mqfilt" id="hlmFilt">
+          <button class="isbtn on" onclick="setHlmFilt('ATM')">ATM±12</button>
+          <button class="isbtn" onclick="setHlmFilt('ALL')">ALL</button>
+        </div>
+        <span class="indsig" id="hlmMeta" style="margin-left:auto">—</span>
+      </div>
+      <div class="chwrap">
+        <table class="chain mq hlm">
+          <thead><tr>
+            <th>CE Low</th><th>CE High</th>
+            <th class="chsplit">STRIKE</th>
+            <th>PE Low</th><th>PE High</th>
+          </tr></thead>
+          <tbody id="hlmBody"><tr><td colspan="5" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="hlmavail" id="hlmAvail"></div>
+    </div>
+  </div>
+
   <div class="sec-h">Performance · paper</div>
   <div class="stats" id="stats"></div>
 
@@ -513,9 +576,17 @@
     <div class="card-b">
       <div class="pverify ok" id="pnlVerify">checking…</div>
       <div class="possub">Closed trades (realized)</div>
+      <div class="pnlfilt" id="pnlFilt">
+        <span class="fl">Qty ≥</span><input type="number" min="0" id="fltQty" placeholder="all" oninput="renderClosedTrades()">
+        <span class="fl">Amount ≥ ₹</span><input type="number" min="0" step="1000" id="fltAmt" placeholder="all" oninput="renderClosedTrades()">
+        <button type="button" class="fbtn" id="fsQty" onclick="setPnlSort('qty')" title="sort biggest quantity first">▼ Qty</button>
+        <button type="button" class="fbtn" id="fsAmt" onclick="setPnlSort('amt')" title="sort biggest amount first">▼ Amount</button>
+        <button type="button" class="fbtn" onclick="clearPnlFilt()">clear</button>
+        <span class="finfo" id="fltInfo"></span>
+      </div>
       <div style="overflow-x:auto"><table class="pnl">
-        <thead><tr><th>Contract</th><th>Entry</th><th>Exit</th><th>Reason</th><th>Gross</th><th>Charges</th><th>Net P&L</th><th>Verify</th></tr></thead>
-        <tbody id="pnlClosed"><tr><td colspan="8" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+        <thead><tr><th>Contract</th><th>Qty</th><th>Entry</th><th>Exit</th><th>Amount</th><th>Reason</th><th>Gross</th><th>Charges</th><th>Net P&L</th><th>Verify</th></tr></thead>
+        <tbody id="pnlClosed"><tr><td colspan="10" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
       </table></div>
       <div class="possub">Open positions (live · unrealized)</div>
       <div style="overflow-x:auto"><table class="pnl">
@@ -731,9 +802,17 @@ function linkStrike(s){
   if (typeof loadChain==='function') loadChain();          // re-highlight the selected strike
 }
 const inr = v => (v < 0 ? '-' : '+') + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+// Convert a 24h "HH:MM" / "HH:MM:SS" string to 12-hour AM/PM. Passes anything else through.
+function to12(t){
+  if (t==null) return t;
+  const m = String(t).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return String(t);
+  let h=+m[1]; const ap=h>=12?'PM':'AM'; h=h%12||12;
+  return `${h}:${m[2]}${m[3]?':'+m[3]:''} ${ap}`;
+}
 let SPARK = {};   // inst → recent closes
 
-function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata' }); }
+function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true }); }
 setInterval(tick, 1000); tick();
 
 // stale-server guard (the recurring "old dashboard / wrong server" problem)
@@ -886,6 +965,63 @@ async function loadSignalEngine() {
 }
 
 // ── Positions & P&L verification (what makes the paper P&L · math-checked) ──
+let CLOSED_TRADES = [];          // last fetched closed trades — re-rendered on filter change
+let PNL_SORT = null;             // 'qty' | 'amt' | null (biggest-first)
+function _pnlNum(id){ const v = parseFloat((document.getElementById(id)||{}).value); return isFinite(v) ? v : 0; }
+// Render the Closed-trades table applying the Quantity / Amount filter + sort.
+// quantity = lot-size × lots (total contracts) · amount = entry × contracts (₹ premium the trade was done in)
+function renderClosedTrades(){
+  const money = v => (v<0?'-':'+')+'₹'+Math.abs(Math.round(v)).toLocaleString('en-IN');
+  const fmt = (v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
+  const minQty = _pnlNum('fltQty'), minAmt = _pnlNum('fltAmt');
+  let rows = CLOSED_TRADES.map(t=>{
+    const contracts = (t.lot||1)*(t.qty||1);            // total quantity
+    const amount = Math.abs((t.entry||0)*contracts);    // ₹ value the trade was done in
+    return { t, contracts, lots:(t.qty||1), amount };
+  }).filter(r => r.contracts >= minQty && r.amount >= minAmt);
+  if (PNL_SORT==='qty') rows.sort((a,b)=>b.contracts-a.contracts);
+  else if (PNL_SORT==='amt') rows.sort((a,b)=>b.amount-a.amount);
+  const body = document.getElementById('pnlClosed');
+  if (!CLOSED_TRADES.length) body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--dim2)">no closed trades yet</td></tr>';
+  else if (!rows.length)     body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--dim2)">no trade matches this filter</td></tr>';
+  else body.innerHTML = rows.map(({t,contracts,lots,amount})=>{
+    const reGross = ((t.exit||0)-(t.entry||0))*contracts;
+    const reNet = reGross - (t.charges||0);
+    const stored = t.pnl||0;
+    const mathOk = Math.abs(reNet - stored) < 1.5;
+    const win = stored>=0;
+    return `<tr>
+      <td>${t.inst} ${t.strike} ${t.side}</td>
+      <td>${contracts}${lots>1?`<span style="color:var(--mut)"> (${lots}L)</span>`:''}</td>
+      <td>${fmt(t.entry)}</td><td>${fmt(t.exit)}</td>
+      <td>₹${fmt(amount,0)}</td>
+      <td><span class="rtag ${win?'win':'loss'}">${t.reason||'—'}</span></td>
+      <td class="${reGross>=0?'up':'dn'}">${money(reGross)}</td>
+      <td class="dn">-₹${fmt(t.charges,0)}</td>
+      <td class="${win?'up':'dn'}">${money(stored)}</td>
+      <td>${mathOk?'<span class="vok">✓</span>':'<span class="vbad">✗ '+money(reNet)+'</span>'}</td>
+    </tr>`;
+  }).join('');
+  const info = document.getElementById('fltInfo');
+  if (info) info.textContent = CLOSED_TRADES.length
+    ? `showing ${rows.length}/${CLOSED_TRADES.length} · Σqty ${rows.reduce((s,r)=>s+r.contracts,0)} · Σamt ₹${Math.round(rows.reduce((s,r)=>s+r.amount,0)).toLocaleString('en-IN')}`
+    : '';
+}
+function setPnlSort(k){
+  PNL_SORT = (PNL_SORT===k) ? null : k;
+  const q=document.getElementById('fsQty'), a=document.getElementById('fsAmt');
+  if (q) q.classList.toggle('on', PNL_SORT==='qty');
+  if (a) a.classList.toggle('on', PNL_SORT==='amt');
+  renderClosedTrades();
+}
+function clearPnlFilt(){
+  const q=document.getElementById('fltQty'), a=document.getElementById('fltAmt');
+  if (q) q.value=''; if (a) a.value='';
+  PNL_SORT=null;
+  document.getElementById('fsQty')?.classList.remove('on');
+  document.getElementById('fsAmt')?.classList.remove('on');
+  renderClosedTrades();
+}
 async function loadPnL(){
   const money = v => (v<0?'-':'+')+'₹'+Math.abs(Math.round(v)).toLocaleString('en-IN');
   const fmt = (v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
@@ -893,26 +1029,17 @@ async function loadPnL(){
   const [trd, strg, q] = await Promise.all([ gj('/api/agents/trades'), gj('/api/strangle/status'), gj('/api/quant') ]);
   // Closed trades — recompute each from entry/exit/lot and reconcile against the headline.
   const trades = (trd && (trd.trades||trd)) || [];
+  // Verification (math-check + reconcile) runs over ALL trades — the filter only
+  // changes which rows are shown, never the integrity badge.
   let sumNet = 0, allMathOk = true;
-  document.getElementById('pnlClosed').innerHTML = trades.length ? trades.map(t=>{
-    const lot = (t.lot||1)*(t.qty||1);
-    const reGross = ((t.exit||0)-(t.entry||0))*lot;                 // long option: (exit-entry)×lot
-    const reNet = reGross - (t.charges||0);
-    const stored = t.pnl||0;
-    const mathOk = Math.abs(reNet - stored) < 1.5;                  // ≤₹1.5 rounding tolerance
-    if (!mathOk) allMathOk = false;
-    sumNet += stored;
-    const win = stored>=0;
-    return `<tr>
-      <td>${t.inst} ${t.strike} ${t.side}</td>
-      <td>${fmt(t.entry)}</td><td>${fmt(t.exit)}</td>
-      <td><span class="rtag ${win?'win':'loss'}">${t.reason||'—'}</span></td>
-      <td class="${reGross>=0?'up':'dn'}">${money(reGross)}</td>
-      <td class="dn">-₹${fmt(t.charges,0)}</td>
-      <td class="${win?'up':'dn'}">${money(stored)}</td>
-      <td>${mathOk?'<span class="vok">✓</span>':'<span class="vbad">✗ '+money(reNet)+'</span>'}</td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--dim2)">no closed trades yet</td></tr>';
+  for (const t of trades){
+    const contracts = (t.lot||1)*(t.qty||1);
+    const reNet = ((t.exit||0)-(t.entry||0))*contracts - (t.charges||0);
+    if (Math.abs(reNet - (t.pnl||0)) >= 1.5) allMathOk = false;     // ≤₹1.5 rounding tolerance
+    sumNet += (t.pnl||0);
+  }
+  CLOSED_TRADES = trades;
+  renderClosedTrades();
   // Reconcile the sum against the headline all-time P&L.
   const headline = q && q.score ? q.score.netPnl : null;
   const reconciles = headline!=null && Math.abs(sumNet - headline) < 2;
@@ -953,6 +1080,29 @@ function cfBadge(tier){
   if (tier==='FEED_VALIDATED')      return `<span class="cf feed" title="Feed-validated: the print held for one more poll before it was saved">FEED</span>`;
   return `<span class="cf none" title="No tier — recorded before tiered verification, or backfilled from merged candle history">·</span>`;
 }
+// H/L record CHART — plots the High record (amber, climbing) and Low record (blue,
+// falling) over the session on a shared axis. Same inline-SVG approach as sparkSVG
+// (no chart library). Works for both live (highHistory carries `ts`) and archived
+// (`t`) records. Fewer than 2 points → nothing to draw (never a fake line).
+function hlChartSVG(high, low){
+  const px = r => (r && (r.ts != null ? r.ts : r.t));
+  const H = (high||[]).filter(r => isFinite(px(r)) && isFinite(r.price));
+  const L = (low ||[]).filter(r => isFinite(px(r)) && isFinite(r.price));
+  const all = H.concat(L);
+  if (all.length < 2) return '';
+  const xs = all.map(px), ys = all.map(r=>r.price);
+  const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+  const w=260, h=64, pad=4, rngX=(maxX-minX)||1, rngY=(maxY-minY)||1;
+  const X=x=>((x-minX)/rngX*(w-2*pad)+pad).toFixed(1);
+  const Y=y=>((h-pad)-(y-minY)/rngY*(h-2*pad)).toFixed(1);
+  const poly=(a,c)=> a.length ? `<polyline points="${a.map(r=>`${X(px(r))},${Y(r.price)}`).join(' ')}" fill="none" stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>` : '';
+  const fmt=v=>(+v).toLocaleString('en-IN',{maximumFractionDigits:2});
+  return `<div class="hlchart" style="margin:7px 0 3px">
+    <div style="display:flex;justify-content:space-between;font-size:.5rem;letter-spacing:.3px;color:var(--mut);padding:0 2px 2px">
+      <span style="color:var(--amber);font-weight:700">▲ high ${fmt(maxY)}</span><span>H/L chart</span><span style="color:var(--blue);font-weight:700">▼ low ${fmt(minY)}</span></div>
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="${h}" style="display:block;background:#0b1119;border-radius:8px;border:1px solid #0e1622">
+      ${poly(L,'var(--blue)')}${poly(H,'var(--amber)')}</svg></div>`;
+}
 // ── Strike price timeline (CE/PE live price + high/low record timeline) ──
 let STK_INST = 'NIFTY', STK_STRIKE = 0, STK_STEP = 50;
 function setStkInst(i){ linkInst(i); }
@@ -989,7 +1139,7 @@ function renderStrikeSide(el, leg, strike, type){
     return withDelta.slice().reverse().map(r=>{
       const dc = r.delta==null?'z':r.delta>0?'up':r.delta<0?'dn':'z';
       const ds = r.delta==null?'':(r.delta>0?'+':'')+r.delta;
-      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span>${cfBadge(r.tier)}<span class="tm">${r.time}</span></div>`;
+      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span>${cfBadge(r.tier)}<span class="tm">${to12(r.time)}</span></div>`;
     }).join('') || '<div class="rec"><span></span><span class="tm">no records yet</span><span></span><span></span><span></span></div>';
   };
   el.innerHTML = `
@@ -1000,6 +1150,7 @@ function renderStrikeSide(el, leg, strike, type){
       <span style="margin-left:auto"><span class="ba">${leg.changeOI!=null?(leg.changeOI>0?'+':'')+Math.round(leg.changeOI).toLocaleString('en-IN'):'--'}</span><br><span class="mini">CHANGE OI</span></span>
     </div>
     <div class="stklive"><span class="p">₹${fmt(leg.ltp)}</span><span class="t">LTP · H ${fmt(leg.high)} / L ${fmt(leg.low)}</span></div>
+    ${hlChartSVG(leg.highHistory, leg.lowHistory)}
     <div class="odet">
       <div class="og"><span class="l">Delta</span><span class="v">${leg.greeks?fmt(leg.greeks.delta,3):'--'}</span></div>
       <div class="og"><span class="l">Gamma</span><span class="v">${leg.greeks?fmt(leg.greeks.gamma,4):'--'}</span></div>
@@ -1074,12 +1225,13 @@ function recModalSide(leg, strike, type){
     const arr=(hist||[]).slice();
     const wd=arr.map((r,i)=>({...r,delta:i>0?+(r.price-arr[i-1].price).toFixed(2):null}));
     return wd.slice().reverse().map(r=>{ const dc=r.delta==null?'z':r.delta>0?'up':r.delta<0?'dn':'z'; const ds=r.delta==null?'':(r.delta>0?'+':'')+r.delta;
-      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span>${cfBadge(r.tier)}<span class="tm">${r.time}</span></div>`;
+      return `<div class="rec ${cls}"><span class="ar">${arrow}</span><span class="pr">₹${fmt(r.price)}</span><span class="dl ${dc}">${ds}</span>${cfBadge(r.tier)}<span class="tm">${to12(r.time)}</span></div>`;
     }).join('') || '<div class="rec"><span></span><span class="tm">no records yet</span><span></span><span></span><span></span></div>';
   };
   const nH=(leg.highHistory||[]).length, nL=(leg.lowHistory||[]).length;
   return `<div class="stkside ${type==='CE'?'ce':'pe'}">
     <div class="hd"><span class="nm">${strike} ${type}</span><span class="mini">LTP ₹${fmt(leg.ltp)} · L ${fmt(leg.low)} / H ${fmt(leg.high)}${leg.greeks?' · Δ '+fmt(leg.greeks.delta,3):''}</span></div>
+    ${hlChartSVG(leg.highHistory, leg.lowHistory)}
     <div class="stkrec hi"><div class="lbl">▲ High record — all ${nH} prints</div><div class="stkscroll" style="max-height:340px">${rows(leg.highHistory,'hi','▲')}</div></div>
     <div class="stkrec lo"><div class="lbl">▼ Low record — all ${nL} prints</div><div class="stkscroll" style="max-height:340px">${rows(leg.lowHistory,'lo','▼')}</div></div>
   </div>`;
@@ -1188,7 +1340,7 @@ async function loadPositioning(){
   // Trend tactics — split breakout events into high (call) / low (put)
   if (brk && Array.isArray(brk.events)) {
     const hi = brk.events.filter(e=>e.dir==='HIGH').slice(0,6), lo = brk.events.filter(e=>e.dir==='LOW').slice(0,6);
-    const ev = (e,cls)=>`<div class="ttev ${cls}"><span>${e.time} · ${fmt(e.price,0)}</span><span class="dl">${e.type}${e.delta?' '+(e.delta>0?'+':'')+e.delta:''}</span></div>`;
+    const ev = (e,cls)=>`<div class="ttev ${cls}"><span>${to12(e.time)} · ${fmt(e.price,0)}</span><span class="dl">${e.type}${e.delta?' '+(e.delta>0?'+':'')+e.delta:''}</span></div>`;
     document.getElementById('ttHi').innerHTML = hi.map(e=>ev(e,'hi')).join('') || '<div class="sigrsn">no high breaks</div>';
     document.getElementById('ttLo').innerHTML = lo.map(e=>ev(e,'lo')).join('') || '<div class="sigrsn">no low breaks</div>';
     document.getElementById('ttHiN').textContent = '('+hi.length+')'; document.getElementById('ttLoN').textContent = '('+lo.length+')';
@@ -1218,7 +1370,7 @@ const MQ_PREV_LOW = {};    // per-contract last-seen day low → detect new lowe
 const MQ_PREV_HIGH = {};   // per-contract last-seen day high → detect new higher highs
 const HL_RECORD = [];      // live log of new-high / new-low prints (newest first)
 function pushHL(kind, inst, strike, type, price){
-  const t = new Date().toLocaleTimeString('en-GB', { timeZone:'Asia/Kolkata' });
+  const t = new Date().toLocaleTimeString('en-US', { timeZone:'Asia/Kolkata', hour12:true });
   HL_RECORD.unshift({ kind, c:`${inst} ${strike} ${type}`, price, t });
   if (HL_RECORD.length > 60) HL_RECORD.length = 60;
 }
@@ -1228,6 +1380,54 @@ function renderHLRecord(){
     `<div class="hlr ${r.kind==='LOW'?'lo':'hi'}"><span class="k">${r.kind==='LOW'?'▼ NEW LOW':'▲ NEW HIGH'}</span><span class="c">${r.c}</span><span class="p">₹${r.price}</span><span class="t">${r.t}</span></div>`
   ).join('') : '<div class="hlr" style="color:var(--dim2)">watching for new highs / lows…</div>';
 }
+
+// ── High / Low mapping — full strike-wise day High/Low grid (/api/opthl-archive) ──
+let HLM_INST = 'NIFTY', HLM_FILT = 'ATM';
+function setHlmInst(i){ HLM_INST = i; document.querySelectorAll('#hlmSel .isbtn').forEach(b=>b.classList.toggle('on', b.textContent===i)); loadHLMap(); }
+function setHlmFilt(f){ HLM_FILT = f; document.querySelectorAll('#hlmFilt .isbtn').forEach(b=>b.classList.toggle('on', b.textContent.startsWith(f))); loadHLMap(); }
+function pickHlmDate(d){ const el=document.getElementById('hlmDate'); if(el) el.value=d; loadHLMap(); }
+const _hlmTime = ms => { const n=Number(ms); if(!(n>0)) return ''; return new Date(n).toLocaleTimeString('en-US',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:true}); };
+async function loadHLMap(){
+  const dateEl=document.getElementById('hlmDate'); if(!dateEl) return;
+  const meta=document.getElementById('hlmMeta'), body=document.getElementById('hlmBody'), avail=document.getElementById('hlmAvail');
+  const fmt=(v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
+  try{
+    const q = dateEl.value ? `?date=${dateEl.value}&inst=${HLM_INST}` : `?inst=${HLM_INST}`;
+    const r = await fetch(`${API}/api/opthl-archive${q}`, {cache:'no-store'});
+    const j = await r.json();
+    if(!r.ok){
+      body.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--dim2)">${j.error||'no archive for this date'}</td></tr>`;
+      avail.innerHTML = '<span style="color:var(--mut);font-size:.54rem;align-self:center">available:</span>' +
+        (j.availableDates||[]).slice(-24).reverse().map(d=>`<button class="daychip" onclick="pickHlmDate('${d}')">${d}</button>`).join('');
+      meta.textContent='—'; return;
+    }
+    if(!dateEl.value && j.date) dateEl.value = j.date;   // sync picker to the loaded (latest) session
+    const map={};
+    for(const [key,v] of Object.entries(j.strikes||{})){
+      const us=key.lastIndexOf('_'); const strike=+key.slice(0,us), type=key.slice(us+1);
+      if(!isFinite(strike) || !(type==='CE'||type==='PE')) continue;
+      (map[strike]=map[strike]||{})[type]=v;
+    }
+    let strikes=Object.keys(map).map(Number).sort((a,b)=>a-b);
+    const total=strikes.length;
+    if(HLM_FILT==='ATM' && total>26){
+      const both=strikes.filter(k=>map[k].ce&&map[k].pe);
+      const atm=(both.length?both:strikes)[Math.floor((both.length?both:strikes).length/2)];
+      const ai=strikes.indexOf(atm);
+      strikes=strikes.filter((k,i)=>Math.abs(i-ai)<=12);
+    }
+    const cell=(o,which)=> o && o[which]!=null
+      ? `<td class="${which==='low'?'dn':'up'}">${fmt(o[which])}<span class="at">${_hlmTime(o[which+'At'])}</span></td>`
+      : '<td style="color:var(--mut)">—</td>';
+    body.innerHTML = strikes.length ? strikes.map(k=>{
+      const c=map[k].ce, p=map[k].pe;
+      return `<tr>${cell(c,'low')}${cell(c,'high')}<td class="chsplit"><b>${k}</b></td>${cell(p,'low')}${cell(p,'high')}</tr>`;
+    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--dim2)">no strikes mapped</td></tr>';
+    meta.textContent = `${strikes.length}${HLM_FILT==='ATM'&&total>26?'/'+total:''} strikes · ${j.date}`;
+    avail.innerHTML='';
+  }catch(e){ body.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--dim2)">unavailable</td></tr>`; }
+}
+
 function renderWatchlist(){
   const fmt = (v,d=1)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
   const big = v=>{ const n=parseFloat(v)||0; if(n>=1e7) return (n/1e7).toFixed(2)+'Cr'; if(n>=1e5) return (n/1e5).toFixed(2)+'L'; return Math.round(n).toLocaleString('en-IN'); };
@@ -1487,9 +1687,6 @@ async function loadPositions() {
     if (!j.ok) throw new Error(j.error || 'failed');
     const t = j.totals;
 
-    const pnlTxt = t.pnl === null
-      ? '<span style="color:var(--mut)">P&L UNKNOWN</span>'
-      : `<b style="color:${t.pnl >= 0 ? 'var(--up)' : 'var(--dn)'}">${_rs(t.pnl)}</b>`;
     sub.textContent = `${t.open} open · ${t.engines} engine${t.engines === 1 ? '' : 's'} · ${t.instruments} instrument${t.instruments === 1 ? '' : 's'}`;
 
     if (!t.open) {
@@ -1498,53 +1695,61 @@ async function loadPositions() {
       return;
     }
 
-    // header strip — and the honest count of what we cannot price or size
-    const expTxt = t.notional === null
-      ? '<span style="color:var(--mut)">UNKNOWN</span>'
-      : `<b>${_rs(t.notional)}</b>`;
-    let h = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;margin-bottom:10px;font-size:.75rem">
-      <span>Total P&L ${pnlTxt}</span>
-      <span>Exposure ${expTxt}</span>
-      <span style="color:var(--mut)">priced ${t.pnlKnown}/${t.open} · sized ${t.notionalKnown}/${t.open}</span>`;
-    if (t.pnlUnknown) h += `<span style="color:var(--amber)">⚠ ${t.pnlUnknown} NOT PRICED — excluded from the total, not counted as zero</span>`;
-    if (t.lotsUnknown) h += `<span style="color:var(--dn)">⚠ ${t.lotsUnknown} with an UNVERIFIED lot — exposure cannot be computed</span>`;
-    if (j.unavailable.length) h += `<span style="color:var(--amber)">⚠ UNAVAILABLE: ${j.unavailable.join(', ')}</span>`;
-    h += `</div>`;
+    // ── summary strip (Angel-One header): big total P&L, exposure, and the honest
+    //    count of what we cannot price or size. An UNKNOWN total stays UNKNOWN.
+    const expTxt = t.notional === null ? '<span style="color:var(--mut)">UNKNOWN</span>' : _rs(t.notional);
+    let h = `<div class="posSum">
+      <span><div class="lbl">Total P&L</div><div class="big" style="color:${t.pnl === null ? 'var(--mut)' : (t.pnl >= 0 ? 'var(--up)' : 'var(--dn)')}">${t.pnl === null ? 'UNKNOWN' : _rs(t.pnl)}</div></span>
+      <span><div class="lbl">Exposure</div><div class="big" style="font-size:.95rem">${expTxt}</div></span>
+      <span><div class="lbl">Open</div><div class="big" style="font-size:.95rem">${t.open}</div></span>
+      <span style="margin-left:auto;text-align:right">
+        <div class="lbl">priced ${t.pnlKnown}/${t.open} · sized ${t.notionalKnown}/${t.open}</div>`;
+    if (t.pnlUnknown) h += `<div class="warn">⚠ ${t.pnlUnknown} NOT PRICED — excluded from the total, not counted as zero</div>`;
+    if (t.lotsUnknown) h += `<div class="warn" style="color:var(--dn)">⚠ ${t.lotsUnknown} with an UNVERIFIED lot — exposure cannot be computed</div>`;
+    if (j.unavailable.length) h += `<div class="warn">⚠ UNAVAILABLE: ${j.unavailable.join(', ')}</div>`;
+    h += `</span></div>`;
 
-    h += `<div style="overflow-x:auto"><table class="pnl" style="width:100%">
-      <thead><tr><th>Engine</th><th>Inst</th><th>Structure</th><th>Legs</th><th>Lots × Lot</th><th>Entry</th><th>Exposure</th><th>P&L</th><th>Entry at</th></tr></thead><tbody>`;
+    // ── one card per position, Angel-One layout: contract + qty/avg/exposure on the
+    //    left, big coloured P&L on the right. Each leg shows its own avg → LTP.
     for (const p of j.positions) {
-      const legs = p.legs.map(l =>
-        `<span style="color:${l.side === 'SELL' ? 'var(--dn)' : 'var(--up)'}">${l.side[0]}</span>${l.strike ?? '?'}${l.type || ''}`
-      ).join(' ') || '—';
-      const pnl = p.pnl === null
-        ? '<span style="color:var(--mut)" title="this engine does not price its open book">UNKNOWN</span>'
-        : `<b style="color:${p.pnl >= 0 ? 'var(--up)' : 'var(--dn)'}">${_rs(p.pnl)}</b>`;
       // lot: show WHERE it came from. A registry lot is a verified fact, not an assumption.
-      const lotCell = p.lot === null
+      const units = (p.qty != null && p.lot != null) ? p.qty * p.lot : null;
+      const qtyTxt = p.lot === null
         ? '<span style="color:var(--dn)" title="the Instrument Registry has not verified this contract size">LOT UNKNOWN</span>'
-        : `${p.qty ?? '?'} × ${p.lot}<span style="color:var(--dim);font-size:.62rem" title="${p.lotSource === 'registry' ? 'supplied by the broker-verified Instrument Registry' : 'published by the engine itself'}"> ${p.lotSource === 'registry' ? 'reg' : ''}</span>`;
-      const exp = p.notional === null
-        ? '<span style="color:var(--mut)">—</span>'
-        : `<span class="mono">${_rs(p.notional)}</span>`;
-      h += `<tr>
-        <td>${p.engine}</td><td>${p.inst}</td><td>${p.structure}</td>
-        <td class="mono" style="font-size:.68rem">${legs}</td>
-        <td class="mono" style="font-size:.7rem">${lotCell}</td>
-        <td class="mono">${p.entryPx ?? '—'}</td>
-        <td>${exp}</td>
-        <td>${pnl}</td>
-        <td class="mono" style="font-size:.68rem;color:var(--mut)">${p.entryAt ?? '—'}</td>
-      </tr>`;
+        : `<b>${units}</b> <span style="color:var(--mut)" title="${p.lotSource === 'registry' ? 'lot from the broker-verified Instrument Registry' : 'lot published by the engine itself'}">(${p.qty ?? '?'}×${p.lot}${p.lotSource === 'registry' ? ' reg' : ''})</span>`;
+      const known = p.pnl !== null && p.pnl !== undefined;
+      // % is shown ONLY when both numbers are given, and is labelled against what it is measured on.
+      const pct = (known && p.notional) ? `${p.pnl >= 0 ? '+' : ''}${(p.pnl / p.notional * 100).toFixed(1)}% on exposure` : '';
+      const legs = (p.legs || []).map(l => {
+        const sc = l.side === 'SELL' ? 'var(--dn)' : 'var(--up)';
+        const ltp = l.ltp == null ? '<span style="color:var(--mut)">—</span>' : l.ltp;
+        return `<span class="leg"><span class="s" style="color:${sc}">${l.side === 'SELL' ? 'S' : 'B'}</span> ${l.strike ?? '?'}${l.type || ''} · avg ${l.px ?? '—'} → ltp ${ltp}</span>`;
+      }).join('');
+      h += `<div class="poscard">
+        <div class="l">
+          <div class="nm">${p.inst} <span style="color:var(--dim2);font-weight:700">${String(p.structure).replace(/_/g, ' ')}</span><span class="chip">${p.engine}</span></div>
+          <div class="kv">
+            <span>Qty ${qtyTxt}</span>
+            <span>Avg <b>${p.entryPx ?? '—'}</b></span>
+            <span>Exposure <b>${p.notional === null ? '—' : _rs(p.notional)}</b></span>
+            ${p.entryAt ? `<span style="color:var(--mut)">${p.entryAt}</span>` : ''}
+          </div>
+          ${legs ? `<div class="legs">${legs}</div>` : ''}
+        </div>
+        <div class="r">
+          <div class="pnl" style="color:${known ? (p.pnl >= 0 ? 'var(--up)' : 'var(--dn)') : 'var(--mut)'}"
+               ${known ? '' : 'title="this engine does not price its open book"'}>${known ? _rs(p.pnl) : 'UNKNOWN'}</div>
+          <div class="pct" style="color:${known ? (p.pnl >= 0 ? 'var(--up)' : 'var(--dn)') : 'var(--mut)'}">${known ? pct : 'not priced'}</div>
+        </div>
+      </div>`;
     }
-    h += `</tbody></table></div>`;
     box.innerHTML = h;
   } catch (e) {
     box.innerHTML = `<div class="flat" style="font-size:.72rem;color:var(--dn)">positions unavailable — ${e.message}</div>`;
   }
 }
 
-loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning(); loadStrikeList(); loadPnL(); loadGate(); loadPositions();
+loadSparks().then(load); loadBot(); loadSignalEngine(); loadGammaBlast(); loadIndicators(); loadHL(); loadChain(); loadWatchlist(); loadPositioning(); loadStrikeList(); loadPnL(); loadGate(); loadPositions(); loadHLMap();
 setInterval(loadPositions, 5000);
 setInterval(loadGate, 12000);
 setInterval(loadPnL, 6000);
