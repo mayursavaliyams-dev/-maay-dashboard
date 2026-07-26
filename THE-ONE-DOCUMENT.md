@@ -75,6 +75,7 @@ Each was measured against the running code, the files on disk, or the live broke
 | **P1** | **4 distinct trading days** of intraday history | correlation matrices (15 params, 4 obs), regime models |
 | **P3** | **no daily NAV series exists anywhere** | Sharpe, Sortino, Calmar, drawdown, all portfolio intelligence |
 | **E1** | `charges.js`: `.env.example` says STT `0.0625` / exch-txn `0.053`; code says `0.1` / `0.03503` | **which pair is right is Unknown.** Both wrong, opposite directions, cancelling to −0.33% — the near-cancellation *is* the hazard. Needs the exchange circular. **Do not guess** |
+| **L1** | `backtest-tv/run.js` chose direction from the **close of the day it trades** (`run.js:265`) then entered at that day's open — the **same look-ahead as `bt-strangle-costs.js`** (D1, measured 2026-07-26). With the day's OHLC withheld the direction comes from the gap, but every tier (EVENT / POWER_TREND / GAP_CONTINUATION) also gates on the day's own close/high/low, so an honest run has **0 evaluable entries** | trusting any `backtest-tv` number; the three `backtest-tv-results-*.json` (404 trades) are **void** and renamed `*-VOID-lookahead.json`. See `docs/REVIEW-bt-tv-lookahead.md` |
 
 **The consequence that shapes everything:** no engine's `reliability` can be measured, so every
 `reliability` is `null`, every weight is 0, and a weighted ensemble is **mathematically empty**.

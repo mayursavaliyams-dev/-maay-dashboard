@@ -262,7 +262,11 @@ function getSignal(candle, prevClose, _recentCloses, vol, dateStr) {
   const gapPct = (open - prevClose) / prevClose * 100; // signed: +ve = gap up
   const absGap = Math.abs(gapPct);
 
-  const direction = close >= open ? 'CALL' : 'PUT';
+  // D1 FIX (look-ahead): the day's CLOSE is not known at the 09:15 entry this trade is
+  // placed at. Direction is derived from the GAP (open vs prevClose), which IS known at
+  // entry. `close >= open` chose CALL/PUT with perfect hindsight.
+  // (task: backtest-tv/run.js look-ahead invalidation)
+  const direction = gapPct >= 0 ? 'CALL' : 'PUT';
 
   // ── EVENT DAY BOOST ───────────────────────────────────────────
   // Budget / Elections / RBI surprise → OTM+1 (ATM_NOMED mode: keep OTM+1 for events)
@@ -491,7 +495,13 @@ async function main() {
     const prevClose = prevSlice.length > 0 ? prevSlice[prevSlice.length - 1] : candle.open;
 
     const recentCloses = prevSlice.slice(-5);
-    const sig = getSignal(candle, prevClose, recentCloses, vol, day.date);
+    // D1 FIX: getSignal must see only what a trader knows at 09:15. The full daily
+    // candle's close/high/low are withheld — ABSENT, not zeroed (null ≠ 0; a zeroed
+    // close would make every day a PUT). With the day's own OHLC hidden, the tier gates
+    // (bodyRatio / range / gapAligned) cannot fire, so an honest run yields no evaluable
+    // directional entries — the correct result, not a failure. simulateTrade below still
+    // receives the full bar (its D3 extreme-fill look-ahead is out of scope for this task).
+    const sig = getSignal({ open: candle.open }, prevClose, recentCloses, vol, day.date);
 
     let trades = [];
     if (sig) {
