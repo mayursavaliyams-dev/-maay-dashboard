@@ -111,3 +111,121 @@
   border-radius: var(--radius);
 }
 :focus-visible { outline: none; box-shadow: var(--focus); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENT + STATE LAYER (migration UI-02, added 2026-07-26)
+
+   WHY IT LIVES HERE AND NOT IN A NEW app.css:
+     A second stylesheet would be a second source of truth — the exact drift this
+     file was created to end. tokens.css is the canonical layer; components belong
+     in it. One file, one place to change a colour.
+
+   THEME DECISION (owner, re-confirmed 2026-07-26): the DARK/BLACK theme is the
+   DEFAULT. Light is opt-in via :root[data-theme="light"] above. There is
+   deliberately NO `@media (prefers-color-scheme: light)` default-flip — that would
+   silently reverse "background black joie che" (2026-07-09) on a light OS.
+
+   THE HONESTY CLASSES BELOW ARE NOT DECORATION. Each one exists because a page was
+   found rendering an unknown as a confident number:
+     .tok-dash     a missing value — never 0, never ₹0.0, never Δ0.00
+     .tok-unknown  a factor with no feed — amber, never scored
+     .tok-est      a Greek/IV from an assumed vol (ivSource 'bsm', or 15/14/12)
+     .tok-stale    a push feed that has gone quiet — never fabricate to fill the gap
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── numbers ─────────────────────────────────────────────────────────────── */
+.tok-num, .tok-tile-v, .tok-cell, .tok-oi-v {
+  font-family: var(--font-num); font-variant-numeric: tabular-nums;
+}
+
+/* ── the four states every page needs ────────────────────────────────────── */
+.tok-loading, .tok-error, .tok-empty {
+  display: block; padding: var(--sp-4) var(--sp-3); border-radius: var(--radius);
+  font-size: var(--fs-sm); line-height: 1.6; text-align: center;
+  font-family: var(--font-ui);
+}
+.tok-loading { color: var(--muted); border: 1px dashed var(--border); }
+.tok-error   { color: var(--text);  border: 1px solid var(--loss);
+               background: color-mix(in srgb, var(--loss) 10%, transparent); }
+.tok-empty   { color: var(--muted); border: 1px dashed var(--border); }
+.tok-loading b, .tok-error b, .tok-empty b { display:block; color: var(--text); font-size: var(--fs-md); margin-bottom: 2px; }
+
+/* a missing value. NEVER render 0 in its place. */
+.tok-dash { color: var(--faint); font-family: var(--font-num); }
+.tok-dash::after { content: "—"; }
+
+/* ── honesty badges ──────────────────────────────────────────────────────── */
+.tok-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-ui); font-size: var(--fs-xs); font-weight: 800;
+  letter-spacing: .04em; padding: 1px 5px; border-radius: 4px;
+  border: 1px solid currentColor; white-space: nowrap;
+}
+.tok-est     { color: var(--warn); }   /* assumed vol → not a measured Greek     */
+.tok-unknown { color: var(--warn); }   /* no feed → not a score of zero          */
+.tok-feed    { color: var(--gain); }   /* broker-reported                        */
+.tok-stale   { color: var(--warn); }   /* push feed gone quiet                   */
+.tok-paper   { color: var(--paper); }  /* never confuse with live                */
+.tok-derived { color: var(--faint); }  /* synthetic bid/ask, ltp*0.98 etc.       */
+.tok-est::before,     .tok-unknown::before { content: "▲"; font-size: .8em; }
+.tok-stale::before    { content: "●"; font-size: .8em; }
+
+/* a stale feed dot for headers/strips */
+.tok-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.tok-dot.live  { background: var(--live); }
+.tok-dot.stale { background: var(--warn); }
+.tok-dot.off   { background: var(--faint); }
+
+/* ── top nav (one markup, one look, active state) ────────────────────────── */
+.tok-nav { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; font-family: var(--font-ui); }
+.tok-nav a {
+  padding: var(--sp-1) var(--sp-2); border-radius: var(--radius);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--muted);
+  text-decoration: none; border: 1px solid transparent; white-space: nowrap;
+}
+.tok-nav a:hover { color: var(--text); background: var(--panel2); }
+.tok-nav a.active { color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent); border-color: var(--info); }
+
+/* ── instrument strip (spot / ATM / PCR / VWAP / signal) ─────────────────── */
+.tok-strip { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--fs-sm); color: var(--muted); }
+.tok-strip b { color: var(--text); font-weight: 700; }
+
+/* ── stat tile ───────────────────────────────────────────────────────────── */
+.tok-tile { background: var(--panel2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: var(--sp-2) var(--sp-3); min-width: 0; }
+.tok-tile-l { font-family: var(--font-ui); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tok-tile-v { font-size: var(--fs-xl); font-weight: 800; line-height: 1.15; }
+
+/* ── signal pill. Colour is never the only cue — the WORD carries it. ────── */
+.tok-pill { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-ui);
+  font-size: var(--fs-xs); font-weight: 800; letter-spacing: .04em;
+  padding: 2px var(--sp-2); border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+.tok-pill.wait     { color: var(--muted); }
+.tok-pill.buycall  { color: var(--gain); }
+.tok-pill.buyput   { color: var(--loss); }
+.tok-pill.unknown  { color: var(--warn); }
+
+/* ── option ladder cell + OI magnitude bar ───────────────────────────────── */
+.tok-cell { font-size: var(--fs-sm); font-weight: 700; padding: var(--sp-1) var(--sp-2);
+  border-radius: 5px; text-align: right; }
+.tok-cell.ce { color: var(--gain); }
+.tok-cell.pe { color: var(--loss); }
+.tok-cell.atm { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+/* OI is a MAGNITUDE only. The live-feed OI unit is unverified (finding F4 — it
+   could be out by 65x), so no component here turns it into an exposure number. */
+.tok-oi { position: relative; }
+.tok-oi-bar { height: 5px; border-radius: 2px; display: inline-block; vertical-align: middle; }
+.tok-oi-bar.ce { background: color-mix(in srgb, var(--gain) 42%, transparent); }
+.tok-oi-bar.pe { background: color-mix(in srgb, var(--loss) 42%, transparent); }
+
+/* ── PoP: a risk-neutral model number, never a safety percentage ─────────── */
+.tok-pop { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.tok-pop-l::after { content: " (risk-neutral, 1−|Δ|)"; color: var(--faint); font-size: var(--fs-xs); font-weight: 400; }
+
+/* ── reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}

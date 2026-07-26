@@ -58,7 +58,15 @@ function appendLine(file, obj) {
 
 /* ── tiny state file: last content hash per stream, so we never append a duplicate ── */
 function readState() {
-  try { return JSON.parse(fs.readFileSync(STATE_F, 'utf8')); } catch (_) { return {}; }
+  // Through the validated reader, not a raw parse: it recovers from the .bak this
+  // module itself writes, and refuses a corrupt file instead of silently returning {}
+  // — a silent {} would re-emit OPEN rows for positions already recorded.
+  try {
+    return require('./safe-write.js').readJsonSync(STATE_F, {
+      fallback: {},
+      onRecover: (reason, bak) => console.warn(`[capture] state was corrupt (${reason}); recovered from ${bak}`),
+    });
+  } catch (e) { console.warn(`[capture] state unreadable: ${e.message} — starting a fresh baseline`); return {}; }
 }
 function writeState(s) {
   try {

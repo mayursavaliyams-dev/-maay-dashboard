@@ -45,9 +45,16 @@ function _leg(s) {
 /** The archived CE+PE record for one strike on one day. */
 function getRecord(date, inst, strike, type) {
   void type;                                              // both legs returned regardless
+  // Validated read: a torn archive file recovers from its .bak rather than being
+  // reported to the dashboard as "no archive for that day", which would look like
+  // an absence of history instead of a damaged file.
   let doc;
-  try { doc = JSON.parse(fs.readFileSync(path.join(OUT_DIR, `${date}.json`), 'utf8')); }
-  catch (_) { return { found: false, date, inst, strike, reason: 'no archive for that day' }; }
+  try {
+    doc = require('./safe-write.js').readJsonSync(path.join(OUT_DIR, `${date}.json`), { fallback: null });
+  } catch (e) {
+    return { found: false, date, inst, strike, reason: `archive unreadable: ${e.message}` };
+  }
+  if (!doc) return { found: false, date, inst, strike, reason: 'no archive for that day' };
   const strikes = doc.strikes || {};
   const ceKey = `${inst}|${strike}|CE`, peKey = `${inst}|${strike}|PE`;
   const ce = _leg(strikes[ceKey]), pe = _leg(strikes[peKey]);

@@ -12,6 +12,11 @@ exports/
 data/trading.db
 data/ami-signals/
 data/warehouse/
+
+# Migration rollback snapshots — copies of files git already has in history.
+# Committing them duplicates engine source and breaks the perf-budget ratchet
+# (git ls-files *.js would count their raw writeFileSync as production code).
+backups/
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -73,3 +78,24 @@ backtest-tv-sell-results-*.json
 *.bak
 .*.tmp-*
 *.lock
+
+# ── 2026-07-26: the remaining untracked-but-not-ignored paths ──
+# A commit meant for 5 files swept in 244 of these because they were merely
+# untracked, not ignored. Listed explicitly rather than as a blanket data/*.json,
+# because data/config-overrides.json and data/migrations/ ARE source.
+SCREEENSHOTS/
+*.pdf
+*.docx
+backtest-real-results.json
+bt-data/result-validate.json
+data/hist-index/
+data/hist-options/
+data/logs/
+data/forward-test/
+data/audit/
+data/ai-agents-impact-history.json
+data/gex-vix-history.json
+data/pop-book.json
+data/signal-outcomes.json
+data/signal-paper-positions.json
+data/vrp-monitor.json

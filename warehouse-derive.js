@@ -107,8 +107,10 @@ function deriveAll(opts = {}) {
       // Reproducibility: skip rewrite only if the SAME source hash already produced this file.
       // A missing/unreadable prior derived file means "never derived" → prevSrc stays
       // null → we (re)derive. Explicit assignment, not a silent swallow (audit 039).
+      // Validated read (recovers from .bak, refuses a corrupt file) rather than a raw
+      // parse. Missing/unreadable ⇒ null ⇒ we re-derive, which is the safe direction.
       let prevSrc = null;
-      try { prevSrc = JSON.parse(fs.readFileSync(dest, 'utf8')).source.sha256; }
+      try { prevSrc = require('./safe-write.js').readJsonSync(dest, { fallback: null })?.source?.sha256 ?? null; }
       catch (_) { prevSrc = null; }
       if (prevSrc === srcHash && fs.existsSync(dest)) {
         summary.unchanged++; summary.results.push({ date, status: 'unchanged', strikes: derived.strikeCount });
