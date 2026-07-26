@@ -364,6 +364,8 @@ class AfternoonEngine {
     if (!this.autoEnabled)          return;
     if (this._enteredToday)         return;
     if (this._tradesToday >= this.maxTrades) return;
+    // ADR-003: refresh the durable halt from state (survives restart) before blocking.
+    { const durable = this._isDurablyHalted(); if (durable) this._haltedReason = durable; }
     if (this._haltedReason)         return;
     // Re-entry cooldown: wait N minutes after the last exit before taking another trade.
     if (this.reentryCooldownMins > 0 && this._lastExitAt) {
@@ -746,7 +748,8 @@ class AfternoonEngine {
       // C3: this is RISK-BRAKE state (capital + consecLosses). Atomic + .bak.
       require('./safe-write.js').writeJsonSync(file, {
         capital: this.capital, reserve: this.reserve,
-        consecLosses: this._consecLosses, updatedAt: new Date().toISOString()
+        consecLosses: this._consecLosses, peakEquity: this._peakEquity,  // ADR-003: peak persisted so drawdown-halt survives restart
+        updatedAt: new Date().toISOString()
       }, { pretty: true, backup: true });
     } catch (e) { console.warn(`[${this.instrumentName}-AFT] equity persist failed: ${e.message}`); }
 
@@ -782,6 +785,7 @@ class AfternoonEngine {
       if (Number.isFinite(s.capital))      this.capital      = s.capital;
       if (Number.isFinite(s.reserve))      this.reserve      = s.reserve;
       if (Number.isFinite(s.consecLosses)) this._consecLosses = s.consecLosses;
+      if (Number.isFinite(s.peakEquity))   this._peakEquity  = s.peakEquity;   // ADR-003: restore peak so drawdown-halt survives restart
       console.log(`[${this.instrumentName}-AFT] 📥 Restored afternoon equity: active ₹${this.capital.toFixed(0)} + reserve ₹${(this.reserve||0).toFixed(0)}`);
     } catch (e) {
       this._haltedReason = 'EQUITY_STATE_CORRUPT';
@@ -823,9 +827,22 @@ class AfternoonEngine {
   }
 
   // ── Config getters/setters ──────────────────────────────────
+  // ADR-003: durable halts are a pure function of persisted state (consecLosses +
+  // peakEquity survive a restart). Session DAILY_LOSS is handled separately.
+  _isDurablyHalted() {
+    if (this._haltedReason === 'EQUITY_STATE_CORRUPT') return 'EQUITY_STATE_CORRUPT';
+    if (this._consecLosses >= this.maxConsecLosses)    return 'CONSEC_LOSSES';
+    const eq = this.capital + (this.reserve || 0);
+    if (this._peakEquity > 0 && (this._peakEquity - eq) / this._peakEquity > this.maxDrawdownPct) return 'DRAWDOWN';
+    return null;
+  }
+
   setAutoEnabled(v) {
-    this.autoEnabled = v;
-    console.log(`[${this.instrumentName}-AFT] autoEnabled=${v} | paper=${this.paperMode}`);
+    // ADR-003 invariant: never arm auto while durably halted.
+    const durable = v && this._isDurablyHalted();
+    this.autoEnabled = !!v && !durable;
+    if (durable) console.warn(`[${this.instrumentName}-AFT] ⛔ refused to arm auto — halted (${durable}). resetHalt() after review.`);
+    else console.log(`[${this.instrumentName}-AFT] autoEnabled=${this.autoEnabled} | paper=${this.paperMode}`);
   }
 
   setTradeMode(mode) {

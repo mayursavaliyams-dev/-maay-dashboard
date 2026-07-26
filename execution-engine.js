@@ -180,7 +180,8 @@ class ExecutionEngine {
       const file = _path.resolve(`./data/equity-${this.instrumentName.toLowerCase()}.json`);
       require('./safe-write.js').writeJsonSync(file, {
         capital: this.capital, reserve: this.reserve,
-        consecLosses: this._consecLosses, updatedAt: new Date().toISOString()
+        consecLosses: this._consecLosses, peakEquity: this._peakEquity,  // ADR-003: peak persisted so drawdown-halt survives restart
+        updatedAt: new Date().toISOString()
       }, { pretty: true, backup: true });
     } catch (e) { console.warn(`[${this.instrumentName}] equity persist failed: ${e.message}`); }
 
@@ -217,7 +218,23 @@ class ExecutionEngine {
     return was;
   }
 
+  // ADR-003: durable halts are a PURE FUNCTION of persisted state (consecLosses +
+  // peakEquity survive a restart), so a halt can never be lost across a restart nor
+  // overridden by a re-armed flag. Session-scoped DAILY_LOSS is handled separately
+  // (re-checked live, cleared each morning). Returns a reason string or null.
+  _isDurablyHalted() {
+    if (this._haltedReason === 'EQUITY_STATE_CORRUPT') return 'EQUITY_STATE_CORRUPT';
+    if (this._consecLosses >= this.maxConsecLosses)    return 'CONSEC_LOSSES';
+    const eq = this.capital + (this.reserve || 0);
+    if (this._peakEquity > 0 && (this._peakEquity - eq) / this._peakEquity > this.maxDrawdownPct) return 'DRAWDOWN';
+    return null;
+  }
+
   getHaltStatus() {
+    // Re-derive so a restored streak/drawdown reads HALTED even if the transient flag
+    // was reset by a restart (ADR-003). A session DAILY_LOSS flag is preserved.
+    const durable = this._isDurablyHalted();
+    if (durable) this._haltedReason = durable;
     const totalEquity = this.capital + (this.reserve || 0);
     const dd = this._peakEquity > 0
       ? +((this._peakEquity - totalEquity) / this._peakEquity * 100).toFixed(2)
@@ -292,9 +309,10 @@ class ExecutionEngine {
       return;
     }
 
-    // Consecutive-loss circuit breaker — bot stays halted across days
-    // until operator clears via POST /api/engine/reset.
-    if (this._haltedReason === 'CONSEC_LOSSES') return;
+    // ADR-003: block entry on ANY durable halt (consec-loss / drawdown / corrupt),
+    // derived from state so it survives a restart — not a flag that can reset to null.
+    // Stays halted across days until the operator clears via POST /api/engine/reset.
+    { const durable = this._isDurablyHalted(); if (durable) { this._haltedReason = durable; return; } }
 
     // Daily loss limit check
     if (this._getDailyPnl) {
@@ -381,6 +399,7 @@ class ExecutionEngine {
       if (Number.isFinite(s.capital))      this.capital      = s.capital;
       if (Number.isFinite(s.reserve))      this.reserve      = s.reserve;
       if (Number.isFinite(s.consecLosses)) this._consecLosses = s.consecLosses;
+      if (Number.isFinite(s.peakEquity))   this._peakEquity  = s.peakEquity;   // ADR-003: restore peak so drawdown-halt survives restart
       console.log(`[${this.instrumentName}] 📥 Restored equity: active ₹${this.capital.toFixed(0)} + reserve ₹${(this.reserve||0).toFixed(0)} = ₹${((this.capital + (this.reserve||0))).toFixed(0)} (consec losses: ${this._consecLosses})`);
     } catch (e) {
       this._haltedReason = 'EQUITY_STATE_CORRUPT';
@@ -696,8 +715,11 @@ class ExecutionEngine {
   }
 
   setAutoEnabled(v) {
-    this.autoEnabled = v;
-    console.log(`[${this.instrumentName}] autoEnabled=${v} | paper=${this.paperMode}`);
+    // ADR-003 invariant: auto may never be effectively true while durably halted.
+    const durable = v && this._isDurablyHalted();
+    this.autoEnabled = !!v && !durable;
+    if (durable) console.warn(`[${this.instrumentName}] ⛔ refused to arm auto — halted (${durable}). Clear via POST /api/engine/reset.`);
+    else console.log(`[${this.instrumentName}] autoEnabled=${this.autoEnabled} | paper=${this.paperMode}`);
   }
 
   setTradeMode(mode) {

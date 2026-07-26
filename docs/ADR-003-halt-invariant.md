@@ -221,3 +221,44 @@ Critical safety hole.
 
 *Next artifact (separate, on owner's go): the APPROVAL package with the exact diff +
 the RED characterization test. This ADR authorizes the design, not the code.*
+
+---
+
+## 11. DELIVERED (2026-07-26) — Design B implemented
+
+Applied to **both** live-trading engines (`execution-engine.js` + `afternoon-engine.js`)
+under owner full-permission. RED-first per the Testing Rule: `test/halt-invariant.test.js`
+was proven to FAIL on the pre-fix code (a restored 5/5 streak read `halted:false`) before
+the fix made it pass.
+
+**The change (surgical, behavioral only):**
+- `_isDurablyHalted()` — a pure function of persisted state: `consecLosses >= max` →
+  `CONSEC_LOSSES`; drawdown-from-`peakEquity` > `maxDrawdownPct` → `DRAWDOWN`; the
+  equity-corrupt flag → `EQUITY_STATE_CORRUPT`. Session `DAILY_LOSS` stays a live
+  re-check cleared each morning (unchanged).
+- **Entry** blocks on `_isDurablyHalted()` (was: a stale `_haltedReason === 'CONSEC_LOSSES'`
+  flag that reset to null on restart).
+- **`getHaltStatus()`** re-derives the durable reason, so status reflects the level.
+- **`setAutoEnabled(v)`** now enforces the invariant: `autoEnabled = v && !_isDurablyHalted()`
+  — auto can never be armed while halted.
+- **`peakEquity` is now persisted + restored** alongside `consecLosses`, so the drawdown
+  halt also survives a restart. (`consecLosses` was already persisted.)
+
+**Invariant now enforced:** *auto may never be effectively true while `_isDurablyHalted()`
+returns a reason; the reason is a pure function of persisted state and therefore survives a
+restart; a restored loss streak or drawdown re-halts by itself.*
+
+**Tests:** `test/halt-invariant.test.js` — 15 assertions across both engines
+(characterization RED→GREEN, drawdown-derived, arm-refusal, clean-engine, perf, rollback).
+Full suite **55/55 green**.
+
+**Honest scope note:** `DAILY_LOSS` is still session-scoped — after a mid-day restart the
+day's realized PnL resets to ~0, so that specific brake evaporates until it re-breaches.
+That is a smaller gap than the consec-loss/drawdown fail-open this ADR closed, and is
+listed for a later ADR (persist intraday realized PnL). Not silently claimed as fixed.
+
+**Takes effect on next server restart** — the running process still holds the pre-fix
+code (paper mode, so no live exposure in the interim).
+
+**Structured for C:** `_isDurablyHalted(state)` is the pure predicate that lifts, unchanged,
+into `RiskEngine.isHalted()` (doc 000 singleton #2) when the Risk owner is built.
