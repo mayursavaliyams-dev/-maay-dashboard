@@ -139,22 +139,48 @@ module.exports = { normCdf, normInv, mean, std, skewness, kurtosis, sharpe,
 // ── main: validate the EXISTING short-strangle edge through the harness ─────
 if (require.main === module) {
   const { roundTripCharges } = require('./charges.js');
-  const { LOT, CAPITAL, loadDays, leg, atmStrike, sizeLots } = require('./bt-lib.js');
+  const { CAPITAL, loadDays, leg, atmStrike, sizeLots } = require('./bt-lib.js');
   const OTM_PCT = 0.015, STOP_MULT = 2.0;
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // NO LOOK-AHEAD. This harness exists to catch a strategy that cheats, and until
+  // 2026-07-12 it cheated in exactly the same way (docs/001-D-RESEARCH-INTEGRITY-AUDIT.md, R-01).
+  //
+  // A trade entered at TODAY'S OPEN may only use information that existed BEFORE that open.
+  // `day.underlying` is UDiFF column 20 (`UndrlygPric`) — TODAY'S CLOSE. Choosing a strike from it
+  // and selling that strike at today's open is time travel, and it is what produced this harness's
+  // previous verdict: "Win% 91.5, DSR 0.9999, PASS (edge real @95%)". Purged k-fold, deflated Sharpe
+  // and PSR all passed it. None of them can see a look-ahead — they defend against overfitting,
+  // selection bias and luck, not against a strategy that already knows the answer.
+  //
+  // The last price that genuinely existed before the entry is YESTERDAY'S close.
+  // ───────────────────────────────────────────────────────────────────────────
+  //
   // ivPctByDate: optional map date→0-100 IV-proxy percentile; gateMin: only enter
   // when the proxy ≥ gateMin (stand-in for the live VRP regime SELL-ON gate).
   function strangleTrades(days, slip = 0.005, ivPctByDate = null, gateMin = 0) {
     let cap = CAPITAL, cooldown = null; const trades = [];
-    for (const day of days) {
+    for (let i = 1; i < days.length; i++) {                 // from 1: day 0 has no prior close to trade on
+      const day = days[i], prev = days[i - 1];
       if (cooldown && day.date <= cooldown) continue;
-      if (ivPctByDate && (ivPctByDate.get(day.date) ?? 100) < gateMin) continue;   // regime gate: skip low-IV days
-      const atm = atmStrike(day), off = Math.round((day.underlying * OTM_PCT) / 50) * 50;
+      // The gate reads the PREVIOUS session's proxy. Today's proxy is built from today's close —
+      // a gate that decides whether to trade today cannot already know how today went.
+      if (ivPctByDate && (ivPctByDate.get(prev.date) ?? 100) < gateMin) continue;
+
+      // The real contract size for THIS day, from the bhavcopy itself (NewBrdLotQty, column 28).
+      // `null` means unreadable ⇒ the day is SKIPPED. Never sized with a guessed 75, which the data
+      // proves is wrong on 356 of 600 days (59.3%). Unknown != Zero. null != 75.
+      const lot = day.lot;
+      if (!Number.isFinite(lot) || lot <= 0) continue;
+
+      const ref = prev.underlyingClose;                     // the last price that actually existed
+      const atm = Math.round(ref / 50) * 50;
+      const off = Math.round((ref * OTM_PCT) / 50) * 50;
       const ce = leg(day, 'CE', atm + off), pe = leg(day, 'PE', atm - off);
       if (!ce || !pe || ce.o < 1 || pe.o < 1) continue;
       const sell = (o, h, c) => { let x = c, r = 'CLOSE'; if (h >= o * STOP_MULT) { x = o * STOP_MULT; r = 'SL'; } return { recv: o * (1 - slip), paid: x * (1 + slip), exit: x, r }; };
       const r1 = sell(ce.o, ce.h, ce.c), r2 = sell(pe.o, pe.h, pe.c);
-      const credit = ce.o + pe.o, lots = sizeLots(cap, credit), qty = lots * LOT;
+      const credit = ce.o + pe.o, lots = sizeLots(cap, credit, lot), qty = lots * lot;
       const gross = ((r1.recv - r1.paid) + (r2.recv - r2.paid)) * qty;
       const ch = roundTripCharges(ce.o, r1.exit, qty).total + roundTripCharges(pe.o, r2.exit, qty).total;
       const pnl = Math.round(gross - ch);

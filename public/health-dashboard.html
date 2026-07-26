@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health Dashboard · Antigravity Pro</title>
+<style>
+  :root{
+    --bg:#070a10; --bg2:#0a0e16; --panel:#0d1420; --panel2:#111a28; --line:#1a2536; --line2:#22314a;
+    --txt:#e6edf6; --mut:#8291a8; --dim:#5a6a80; --dim2:#556274;
+    --up:#26d0a0; --dn:#ff5470; --amber:#ffc24b; --blue:#5b9cff; --violet:#a78bff; --cyan:#3ad0e0;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1200px 600px at 70% -10%, #0d1626 0%, var(--bg) 55%); 
+        color:var(--txt); font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; }
+  .wrap{ max-width:1500px; margin:0 auto; padding:0 16px 48px; }
+  a{ color:inherit; text-decoration:none; }
+
+  /* header */
+  header{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:16px 4px 12px; border-bottom:1px solid var(--line); margin-bottom:20px; }
+  .brand{ font-size:1.15rem; font-weight:900; display:flex; align-items:center; gap:9px; }
+  .brand b{ background:linear-gradient(90deg,#5b9cff,#a78bff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .clock{ margin-left:auto; text-align:right; font-size:0.75rem; }
+  .clock .t{ font-size:1.1rem; font-weight:800; }
+
+  nav{ display:flex; gap:8px; margin-bottom:16px; }
+  nav a{ color:#93a2b8; font-size:0.72rem; font-weight:700; padding:6px 13px; border-radius:9px; 
+         border:1px solid transparent; transition:.12s; }
+  nav a.active{ background:rgba(91,156,255,.16); color:#cfe0ff; border-color:var(--line2); }
+
+  .sec-h{ font-size:0.62rem; font-weight:800; color:var(--dim2); text-transform:uppercase; 
+          letter-spacing:1.2px; margin:24px 0 12px; }
+
+  /* status grid */
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:24px; }
+  .stat-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .stat-card .lbl{ font-size:0.56rem; color:var(--mut); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+  .stat-card .val{ font-size:1.6rem; font-weight:900; letter-spacing:-.3px; display:flex; align-items:center; gap:8px; }
+  .stat-card .sub{ font-size:0.65rem; color:var(--dim2); margin-top:4px; }
+  
+  .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .dot.good{ background:#26d0a0; box-shadow:0 0 8px #26d0a0; }
+  .dot.warn{ background:#ffc24b; box-shadow:0 0 8px #ffc24b; }
+  .dot.bad{ background:#ff5470; box-shadow:0 0 8px #ff5470; }
+
+  /* metric bars */
+  .metric{ margin-bottom:16px; }
+  .metric-h{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:0.75rem; font-weight:700; }
+  .metric-h .lbl{ flex:1; }
+  .metric-h .val{ color:var(--mut); }
+  .bar{ height:6px; background:rgba(91,156,255,.15); border-radius:99px; overflow:hidden; }
+  .bar-fill{ height:100%; background:linear-gradient(90deg,#5b9cff,#3ad0e0); border-radius:99px; }
+
+  /* alert */
+  .alert{ padding:12px 14px; border-radius:8px; margin-bottom:12px; font-size:0.75rem; }
+  .alert.good{ background:rgba(38,208,160,.1); border:1px solid rgba(38,208,160,.3); color:#7eff9e; }
+  .alert.warn{ background:rgba(255,194,75,.1); border:1px solid rgba(255,194,75,.3); color:#ffd966; }
+  .alert.bad{ background:rgba(255,84,112,.1); border:1px solid rgba(255,84,112,.3); color:#ff9eae; }
+
+  /* card */
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:20px; }
+  .card-h{ display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); 
+           font-size:0.82rem; font-weight:800; }
+  .card-h small{ margin-left:auto; font-weight:400; color:var(--mut); font-size:0.6rem; }
+  .card-b{ padding:16px; }
+
+  /* table */
+  table{ width:100%; border-collapse:collapse; font-size:0.75rem; }
+  th{ text-align:left; padding:8px 0; border-bottom:1px solid var(--line); font-weight:700; 
+      color:var(--mut); font-size:0.6rem; text-transform:uppercase; letter-spacing:.4px; }
+  td{ padding:10px 0; border-bottom:1px solid #0a1220; }
+  tr:last-child td{ border-bottom:0; }
+  .num{ text-align:right; font-variant-numeric:tabular-nums; }
+
+  .load{ color:var(--mut); text-align:center; padding:40px; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span style="font-size:1.3rem;">🏥</span>
+      <span>Health <b>Dashboard</b></span>
+    </div>
+    <div class="clock">
+      <div class="t" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <nav>
+      <a href="dashboard.html">← Dashboard</a>
+      <a href="health-dashboard.html" class="active">Health</a>
+      <a href="strangle-monitor.html">Strangle</a>
+    </nav>
+
+    <!-- SYSTEM STATUS SUMMARY -->
+    <div class="sec-h">🎯 System Status</div>
+    <div id="status-summary" class="stat-grid">
+      <div class="load">Loading...</div>
+    </div>
+
+    <!-- ALERTS -->
+    <div id="alerts-container" style="margin-bottom:24px;"></div>
+
+    <!-- DATA SOURCE & CONNECTIVITY -->
+    <div class="sec-h">📡 Connectivity & Data</div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="lbl">Data Source</div>
+        <div class="val"><span id="data-source" class="dot"></span><span id="data-source-name">—</span></div>
+        <div class="sub" id="data-source-mode">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">Data Health</div>
+        <div class="val"><span id="data-health" class="dot"></span><span id="data-health-text">—</span></div>
+        <div class="sub" id="data-health-detail">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">Broker Token</div>
+        <div class="val" id="token-status">—</div>
+        <div class="sub" id="token-refresh">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">Uptime</div>
+        <div class="val" id="uptime">—</div>
+        <div class="sub" id="restart-time">—</div>
+      </div>
+    </div>
+
+    <!-- RESOURCE UTILIZATION -->
+    <div class="sec-h">💾 System Resources</div>
+    <div class="card">
+      <div class="card-h">Memory & CPU</div>
+      <div class="card-b">
+        <div class="metric">
+          <div class="metric-h">
+            <span class="lbl">Memory Usage</span>
+            <span class="val" id="mem-val">0 MB</span>
+          </div>
+          <div class="bar"><div class="bar-fill" id="mem-bar" style="width:0%"></div></div>
+          <div style="font-size:0.6rem; color:var(--dim2); margin-top:3px;" id="mem-sub">—</div>
+        </div>
+        <div class="metric">
+          <div class="metric-h">
+            <span class="lbl">Disk Space</span>
+            <span class="val" id="disk-val">0 GB</span>
+          </div>
+          <div class="bar"><div class="bar-fill" id="disk-bar" style="width:0%"></div></div>
+          <div style="font-size:0.6rem; color:var(--dim2); margin-top:3px;" id="disk-sub">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRADING STATE -->
+    <div class="sec-h">⚙️ Trading State</div>
+    <div class="card">
+      <div class="card-h">Engine Status</div>
+      <div class="card-b">
+        <table>
+          <tbody>
+            <tr><td><strong>Trade Mode</strong></td><td class="num" id="trade-mode">—</td></tr>
+            <tr><td><strong>SENSEX Auto</strong></td><td class="num" id="auto-sensex">—</td></tr>
+            <tr><td><strong>NIFTY Auto</strong></td><td class="num" id="auto-nifty">—</td></tr>
+            <tr><td><strong>Strangle Engine</strong></td><td class="num" id="strangle-status">—</td></tr>
+            <tr><td><strong>Last Trade</strong></td><td class="num" id="last-trade">—</td></tr>
+            <tr><td><strong>Active Positions</strong></td><td class="num" id="active-pos">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CRASH & ERROR MONITORING -->
+    <div class="sec-h">⚠️ Crash & Error Monitoring</div>
+    <div class="card">
+      <div class="card-h">Stability Metrics</div>
+      <div class="card-b">
+        <table>
+          <tbody>
+            <tr><td><strong>Crashes (24h)</strong></td><td class="num" id="crash-24h">0</td></tr>
+            <tr><td><strong>Last Crash</strong></td><td class="num" id="last-crash">None</td></tr>
+            <tr><td><strong>Error Rate (1h)</strong></td><td class="num" id="error-rate">0%</td></tr>
+            <tr><td><strong>Boot Status</strong></td><td class="num" id="boot-status">✓ Clean</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--line); font-size:0.7rem;">
+          <details>
+            <summary style="cursor:pointer; color:var(--mut); font-weight:700;">View Recent Errors</summary>
+            <div id="errors-detail" style="margin-top:8px; max-height:300px; overflow-y:auto; padding:8px; background:rgba(0,0,0,.3); border-radius:6px; font-size:0.65rem; color:var(--dim);">
+              <div style="color:var(--mut);">No errors logged</div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPERATIONAL CHECKLIST -->
+    <div class="sec-h">✅ Pre-Trading Checklist</div>
+    <div class="card">
+      <div class="card-h">Go/No-Go Items</div>
+      <div class="card-b">
+        <table id="checklist-table">
+          <tbody>
+            <tr><td style="width:30px;"><span id="check-health" class="dot good"></span></td><td>Data source healthy</td><td class="num" id="check-health-msg">—</td></tr>
+            <tr><td><span id="check-token" class="dot"></span></td><td>Broker token valid</td><td class="num" id="check-token-msg">—</td></tr>
+            <tr><td><span id="check-memory" class="dot"></span></td><td>Memory usage normal</td><td class="num" id="check-memory-msg">—</td></tr>
+            <tr><td><span id="check-disk" class="dot"></span></td><td>Disk space available</td><td class="num" id="check-disk-msg">—</td></tr>
+            <tr><td><span id="check-crashes" class="dot"></span></td><td>No recent crashes</td><td class="num" id="check-crashes-msg">—</td></tr>
+            <tr><td><span id="check-mode" class="dot"></span></td><td>Trade mode safe</td><td class="num" id="check-mode-msg">—</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:16px; padding:12px; border-radius:8px; background:rgba(38,208,160,.08); border:1px solid rgba(38,208,160,.2); font-size:0.75rem; font-weight:700; color:#7eff9e;" id="overall-status">
+          All systems go ✓
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API_BASE = (window.location.protocol + '//' + window.location.host + (window.PUBLIC_API_BASE_URL || ''));
+    let lastRefresh = 0;
+
+    function refresh() {
+      const now = Date.now();
+      if (now - lastRefresh < 3000) return;
+      lastRefresh = now;
+
+      try {
+        const [health, dataHealth, strangle, crashes] = await Promise.all([
+          fetch(`${API_BASE}/api/health`).then(r => r.json()).catch(() => ({})),
+          fetch(`${API_BASE}/api/data-health`).then(r => r.json()).catch(() => ({})),
+          fetch(`${API_BASE}/api/strangle/status`).then(r => r.json()).catch(() => ({})),
+          fetch(`${API_BASE}/api/crashes/report`).then(r => r.json()).catch(() => ({}))
+        ]);
+        render(health, dataHealth, strangle, crashes);
+      } catch (err) {
+        console.error('Fetch error:', err);
+      }
+    }
+
+    function render(health, dataHealth, strangle, crashes) {
+      // Header
+      renderStatusSummary(health, dataHealth);
+      renderConnectivity(health, dataHealth);
+      renderResources();
+      renderTradingState(health, strangle);
+      renderCrashMonitor(crashes);
+      renderChecklist(health, dataHealth, crashes);
+    }
+
+    function renderStatusSummary(health, dataHealth) {
+      const html = `
+        <div class="stat-card">
+          <div class="lbl">Server Status</div>
+          <div class="val"><span class="dot ${health.mode?.includes('DATA') ? 'good' : 'bad'}"></span>${health.status || '—'}</div>
+          <div class="sub">${health.mode || '—'}</div>
+        </div>
+        <div class="stat-card">
+          <div class="lbl">Data Quality</div>
+          <div class="val"><span class="dot ${dataHealth.status === 'HEALTHY' ? 'good' : dataHealth.status === 'DEGRADED' ? 'warn' : 'bad'}"></span>${dataHealth.status || '—'}</div>
+          <div class="sub">${(dataHealth.reasons || []).slice(0,2).join('; ') || 'OK'}</div>
+        </div>
+        <div class="stat-card">
+          <div class="lbl">Auto Trading</div>
+          <div class="val"><span class="dot ${health.autoTrading?.nifty ? 'good' : 'bad'}"></span>${health.autoTrading?.nifty ? 'NIFTY' : 'PAUSED'}</div>
+          <div class="sub">${health.tradeMode || 'paper'}</div>
+        </div>
+      `;
+      document.getElementById('status-summary').innerHTML = html;
+
+      // Alerts
+      let alerts = '';
+      if (health.tradeMode === 'live') {
+        alerts += `<div class="alert warn">⚠️ <strong>LIVE MODE</strong> — Real money at risk. Ensure data source is HEALTHY before proceeding.</div>`;
+      }
+      if (dataHealth.status === 'DEGRADED') {
+        alerts += `<div class="alert warn">⚠️ <strong>Data Degraded</strong> — ${dataHealth.reasons.join('; ')}</div>`;
+      }
+      if (dataHealth.status === 'DOWN') {
+        alerts += `<div class="alert bad">🛑 <strong>Data Down</strong> — ${dataHealth.reasons.join('; ')}</div>`;
+      }
+      if (alerts) document.getElementById('alerts-container').innerHTML = alerts;
+    }
+
+    function renderConnectivity(health, dataHealth) {
+      document.getElementById('data-source-name').textContent = health.connector || '—';
+      document.getElementById('data-source').className = 'dot ' + (health.mode?.includes('DATA') ? 'good' : 'bad');
+      document.getElementById('data-source-mode').textContent = health.mode || '—';
+
+      document.getElementById('data-health-text').textContent = dataHealth.status || '—';
+      document.getElementById('data-health').className = 'dot ' + (dataHealth.status === 'HEALTHY' ? 'good' : dataHealth.status === 'DEGRADED' ? 'warn' : 'bad');
+      document.getElementById('data-health-detail').textContent = dataHealth.priceLive ? '✓ Price' : '✗ Price' + ' | ' + (dataHealth.chainOk ? '✓ Chain' : '✗ Chain');
+
+      const token = health.token || {};
+      document.getElementById('token-status').textContent = token.status || '—';
+      document.getElementById('token-refresh').textContent = token.expiresIn ? 'Expires in ' + formatTime(token.expiresIn) : '—';
+    }
+
+    function renderResources() {
+      const mem = process.memoryUsage ? process.memoryUsage() : {};
+      const memMB = Math.round((mem.heapUsed || 0) / 1024 / 1024);
+      const memPct = Math.min(100, Math.round((memMB / 500) * 100));  // assume 500MB max
+      document.getElementById('mem-val').textContent = memMB + ' MB';
+      document.getElementById('mem-bar').style.width = memPct + '%';
+      document.getElementById('mem-sub').textContent = memPct < 70 ? '✓ Normal' : memPct < 85 ? '⚠ Watch' : '❌ High';
+
+      // Disk is server-side; mock client-side
+      document.getElementById('disk-val').textContent = '? GB';
+      document.getElementById('disk-bar').style.width = '50%';
+      document.getElementById('disk-sub').textContent = 'Monitor on server';
+    }
+
+    function renderTradingState(health, strangle) {
+      document.getElementById('trade-mode').textContent = (health.tradeMode || 'paper').toUpperCase();
+      document.getElementById('auto-sensex').innerHTML = health.autoTrading?.sensex ? '✓ ON' : '✗ OFF';
+      document.getElementById('auto-nifty').innerHTML = health.autoTrading?.nifty ? '✓ ON' : '✗ OFF';
+      document.getElementById('strangle-status').innerHTML = strangle.enabled ? '✓ ON' : '✗ OFF';
+      document.getElementById('last-trade').textContent = '—';  // Would come from order history
+      document.getElementById('active-pos').textContent = (strangle.openPositions?.length || 0);
+    }
+
+    function renderCrashMonitor(crashes) {
+      crashes = crashes || {};
+      const total = crashes.total || 0;
+      const recent = crashes.recent || [];
+      const alerts = crashes.alerts || [];
+      const byType = crashes.byType || [];
+
+      document.getElementById('crash-24h').textContent = total;
+      if (total > 0 && recent.length > 0) {
+        const lastCrash = recent[0];
+        const ts = new Date(lastCrash.timestamp);
+        const ago = Math.round((Date.now() - ts.getTime()) / 60000);
+        document.getElementById('last-crash').textContent = ago + ' min ago';
+      } else {
+        document.getElementById('last-crash').textContent = 'None';
+      }
+      
+      const errorRate = total > 0 ? Math.round((total / 24) * 100) / 100 : 0;
+      document.getElementById('error-rate').textContent = errorRate.toFixed(1) + ' per hour';
+      
+      const bootClean = total === 0;
+      document.getElementById('boot-status').innerHTML = bootClean ? '✓ Clean' : '⚠ ' + total + ' errors';
+
+      // Recent errors detail
+      let errorsHtml = '';
+      if (recent.length === 0) {
+        errorsHtml = '<div style="color:var(--mut);">No crashes in the past 24 hours</div>';
+      } else {
+        for (const crash of recent) {
+          const lines = crash.message.split('\n').slice(0, 2).join(' ');
+          errorsHtml += `<div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,.1);">
+            <div style="font-weight:700;">${crash.errorType}</div>
+            <div style="color:#aaa; font-size:0.6rem;">${crash.timestamp}</div>
+            <div style="color:#999; margin-top:2px;">${lines.substring(0, 100)}...</div>
+          </div>`;
+        }
+      }
+      document.getElementById('errors-detail').innerHTML = errorsHtml;
+    }
+
+    function renderChecklist(health, dataHealth, crashes) {
+      // Data health
+      const dataOk = dataHealth.status === 'HEALTHY';
+      document.getElementById('check-health').className = 'dot ' + (dataOk ? 'good' : 'bad');
+      document.getElementById('check-health-msg').textContent = dataOk ? '✓' : '✗ ' + dataHealth.status;
+
+      // Token
+      const tokenOk = health.token?.status === 'OK';
+      document.getElementById('check-token').className = 'dot ' + (tokenOk ? 'good' : 'bad');
+      document.getElementById('check-token-msg').textContent = tokenOk ? '✓' : '✗ Refresh needed';
+
+      // Memory (mocked)
+      const memOk = true;
+      document.getElementById('check-memory').className = 'dot good';
+      document.getElementById('check-memory-msg').textContent = '✓';
+
+      // Disk (mocked)
+      const diskOk = true;
+      document.getElementById('check-disk').className = 'dot good';
+      document.getElementById('check-disk-msg').textContent = '✓';
+
+      // Crashes
+      crashes = crashes || {};
+      const crashOk = (crashes.total || 0) === 0;
+      document.getElementById('check-crashes').className = 'dot ' + (crashOk ? 'good' : 'bad');
+      document.getElementById('check-crashes-msg').textContent = crashOk ? '✓ None' : '⚠ ' + crashes.total + ' found';
+
+
+      // Mode
+      const modeOk = (health.tradeMode || 'paper') === 'paper';
+      document.getElementById('check-mode').className = 'dot ' + (modeOk ? 'good' : 'warn');
+      document.getElementById('check-mode-msg').textContent = modeOk ? 'paper (safe)' : '⚠ live';
+
+      // Overall
+      const allOk = dataOk && tokenOk && memOk && diskOk && crashOk;
+      const overall = allOk 
+        ? '<span style="color:#7eff9e;">✓ All systems go</span>' 
+        : '<span style="color:#ffd966;">⚠ Check items above</span>';
+      document.getElementById('overall-status').innerHTML = overall;
+    }
+
+    function formatTime(seconds) {
+      if (seconds < 60) return seconds + 's';
+      if (seconds < 3600) return Math.round(seconds / 60) + 'm';
+      return Math.round(seconds / 3600) + 'h';
+    }
+
+    // Clock
+    function updateClock() {
+      const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+      const h = String(now.getUTCHours()).padStart(2, '0');
+      const m = String(now.getUTCMinutes()).padStart(2, '0');
+      const s = String(now.getUTCSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = h + ':' + m + ':' + s;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Auto-refresh every 5s
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

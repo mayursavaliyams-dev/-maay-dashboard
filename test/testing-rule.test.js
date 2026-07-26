@@ -58,6 +58,9 @@ const GOVERNED = Object.freeze({
   // learned weights or a risk score, which is a behaviour change needing its own approval.
   'confluence-learner':     { suite: 'confluence-learner.test.js',     kind: 'change' },
   'event-engine':           { suite: 'event-engine.test.js',           kind: 'change' },
+  // 2026-07: the unified open-position book and the H/L data-verification engine.
+  'positions-book':         { suite: 'positions-book.test.js',         kind: 'new' },
+  'hl-verify':              { suite: 'hl-verify.test.js',              kind: 'new' },
 });
 
 const markersIn = (file) => {

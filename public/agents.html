@@ -444,9 +444,65 @@ async function askStock() {
         r.headlines.map(h=>`<li>${h.title} <span style="color:#64748b">· ${h.source} · ${h.sentiment}</span></li>`).join('') + '</ul>'
         : '<div class="params">no headlines for this stock in the last 48h — verdict is market-data only</div>'}
       <div class="params" style="margin-top:8px;">${r.disclaimer||''}</div>
-    </div>`;
+    </div>
+    <div class="sa" id="hedgePanel" style="margin-top:10px;"><div class="params">🛡️ finding a counter-lean hedge across sectors…</div></div>`;
+    renderHedge(r);
   } catch(e) { out.innerHTML = `<div class="sa-err">⚠️ ${e.message}</div>`; }
   finally { btn.disabled = false; btn.textContent = 'Analyze'; }
+}
+
+// ── Hedge pair: find another stock (different sector) leaning the OPPOSITE way,
+// so if you're long the analyzed stock, the counter-leg offsets directional risk.
+// HONEST: this is a live opposite-lean from momentum+news, NOT a measured
+// correlation hedge — both can still move together. Never fabricated: if nothing
+// leans the other way right now, we say so rather than inventing a pair.
+const HEDGE_CANDIDATES = ['RELIANCE','TCS','HDFCBANK','ITC','MARUTI','SUNPHARMA','TATASTEEL','BHARTIARTL','LT','ICICIBANK'];
+async function _analyzeOne(q){
+  try { const r = await (await fetch(`${API}/api/agents/stock?q=${encodeURIComponent(q)}`,{cache:'no-store'})).json(); return r && r.ok ? r : null; }
+  catch(_){ return null; }
+}
+function _dir(r){ const d=(r.verdict||{}).direction; return { cls:d==='UP'?'up':d==='DOWN'?'dn':'flat', txt:d==='UP'?'▲ UP':d==='DOWN'?'▼ DOWN':'— NEUTRAL', d }; }
+function _hedgeCol(r, tag, tagCol){
+  const qt=r.quote||{}, v=r.verdict||{}, dd=_dir(r);
+  const head=(r.headlines||[])[0];
+  const deal=(r.dealImpacts||[])[0];
+  return `<div style="flex:1;min-width:200px;background:#0b1119;border:1px solid #17324a;border-radius:10px;padding:11px 13px">
+    <div style="font-size:.5rem;font-weight:800;letter-spacing:.5px;color:${tagCol};text-transform:uppercase;margin-bottom:4px">${tag}</div>
+    <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+      <span style="font-weight:800">${r.symbol}</span>
+      <span style="color:var(--muted);font-size:.6rem">${r.sector||''}</span>
+      <span style="margin-left:auto;font-size:.66rem">₹${(qt.price||0).toLocaleString('en-IN')}</span>
+      <span class="${qt.changePct>=0?'up':'dn'}" style="font-size:.62rem">${qt.changePct>=0?'+':''}${(qt.changePct||0).toFixed(2)}%</span></div>
+    <div class="${dd.cls}" style="font-weight:800;font-size:.82rem;margin:5px 0">${dd.txt} · ${v.probability}%</div>
+    <div style="font-size:.58rem;color:#8fa0b5;line-height:1.35">${deal? '🎯 '+deal.title : head? '📰 '+head.title : 'no recent news — market-data only'}</div>
+  </div>`;
+}
+async function renderHedge(primary){
+  const panel = document.getElementById('hedgePanel'); if(!panel) return;
+  const pDir = (primary.verdict||{}).direction;
+  const want = pDir==='UP' ? 'DOWN' : pDir==='DOWN' ? 'UP' : null;
+  const pool = HEDGE_CANDIDATES.filter(s => s !== primary.symbol);
+  const results = (await Promise.all(pool.map(_analyzeOne))).filter(Boolean)
+    .filter(r => r.sector !== primary.sector && r.symbol !== primary.symbol);
+  let hedge = null;
+  if (want){
+    hedge = results.filter(r => (r.verdict||{}).direction === want)
+                   .sort((a,b)=> (b.verdict.probability||0)-(a.verdict.probability||0))[0] || null;
+  } else {
+    hedge = results.filter(r => (r.verdict||{}).direction !== 'NEUTRAL')
+                   .sort((a,b)=> Math.abs((b.verdict||{}).net||0)-Math.abs((a.verdict||{}).net||0))[0] || null;
+  }
+  if (!hedge){
+    panel.innerHTML = `<div class="book-h">🛡️ Hedge pair</div><div class="params">No clean opposite-lean found across ${results.length} large-caps right now — the market is leaning one way, so there is no honest counter-leg to show (not inventing one).</div>`;
+    return;
+  }
+  const pd=_dir(primary), hd=_dir(hedge);
+  panel.innerHTML = `<div class="book-h">🛡️ Hedge pair — both sides</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${_hedgeCol(primary, 'your view · at-risk leg', '#e0b64d')}
+      ${_hedgeCol(hedge, 'hedge · counter-lean', '#4d9eff')}
+    </div>
+    <div class="params" style="margin-top:7px">If you're long <b>${primary.symbol}</b> (${pd.txt}) and it drops, <b>${hedge.symbol}</b> leaning <b>${hd.txt}</b> is positioned to offset that directional risk. ⚠️ This is a <b>live opposite-lean</b> from momentum+news across different sectors — <b>NOT a measured correlation hedge</b>; both can still move the same way. Use as a starting point, size the legs yourself.</div>`;
 }
 
 async function toggleAgents() {

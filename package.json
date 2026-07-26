@@ -16,7 +16,8 @@
     "pm2:logs": "pm2 logs antigravity-bot",
     "pm2:status": "pm2 status",
     "gen:instrument-meta": "node scripts/gen-instrument-meta.js",
-    "perf:report": "node scripts/perf-report.js"
+    "perf:report": "node scripts/perf-report.js",
+    "export:engine": "node scripts/export-engine.js"
   },
   "keywords": [
     "sensex",

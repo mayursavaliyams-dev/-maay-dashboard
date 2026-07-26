@@ -46,6 +46,7 @@ const AfternoonEngine = require("./afternoon-engine");
 const BounceEngine = require("./bounce-engine");
 const StrangleEngine = require("./strangle-engine");
 const GammaBlastEngine = require("./gamma-blast-engine");
+const TrendRideEngine = require("./trend-ride-engine");
 
 // Telegram integration removed. `telegram` stays null so every guarded
 // `telegram?.enabled` call site throughout the file safely no-ops.
@@ -402,7 +403,7 @@ let _optHLPurgeDate = '';
 // we log a touch event (newest first). Drives a dashboard "X strike CE touched
 // new HIGH/LOW" feed. Per-instrument, capped, purged on new day.
 const _hlTouchAlerts = { SENSEX: [], NIFTY: [], BANKNIFTY: [] };
-function _pushHlTouch(inst, strike, type, kind, price, prev) {
+function _pushHlTouch(inst, strike, type, kind, price, prev, tier) {
   const arr = _hlTouchAlerts[inst]; if (!arr) return;
   const now = Date.now();
   arr.unshift({
@@ -410,6 +411,9 @@ function _pushHlTouch(inst, strike, type, kind, price, prev) {
     price: +Number(price).toFixed(2),
     prev:  +Number(prev || 0).toFixed(2),
     movePct: prev ? +(((price - prev) / prev) * 100).toFixed(2) : 0,
+    // COND-2: the badge must state WHICH tier confirmed this — 'FEED_VALIDATED'
+    // (next-poll) or 'EXCHANGE_RECONCILED' (candle). Never a bare "verified".
+    tier: tier || null,
     time: _fmtHms(now), at: now
   });
   if (arr.length > 100) arr.length = 100;
@@ -431,7 +435,8 @@ function _toOptHLHistory(arr) {
   return (arr || []).map(e => ({
     time: _fmtHms(e.at || e.t),
     price: +Number(e.p || 0).toFixed(2),
-    ts: e.at || e.t
+    ts: e.at || e.t,
+    tier: e.tier || null            // COND-2: how this extreme was confirmed
   }));
 }
 function _toOptTickHistory(arr) {
@@ -450,6 +455,19 @@ function _optBucketId(ms) { return Math.floor((ms + 5.5 * 3600 * 1000) / _OPT_BU
 function _optBucketStartMs(id) { return id * _OPT_BUCKET_MS - 5.5 * 3600 * 1000; }
 function _bucketId(ms) { return Math.floor((ms + 5.5 * 3600 * 1000) / _BUCKET_MS); }
 function _bucketStartMs(id) { return id * _BUCKET_MS - 5.5 * 3600 * 1000; }
+
+// ── Data Verification Engine for option H/L (hl-verify.js) ──────────────────
+// Approval: docs/APPROVAL-HL-VERIFY-WIRING.md, policy R1. This path is REST-poll
+// fed (no WS exchange timestamp reachable here — approval §0), so staleness/skew
+// rules are disabled by construction (Infinity), NOT faked. A new extreme is
+// held for one confirming poll before it is saved/notified; a torn single print
+// is rejected and audited. The candle-reconcile task below confirms late
+// extremes via the SAME verifier (EXCHANGE_RECONCILED tier).
+const { HLVerifier } = require('./hl-verify');
+const _hlVerifier = new HLVerifier({
+  staleMs: Infinity, skewMs: Infinity,     // no exchange ts on the REST path (approval §0)
+  confirmTimeoutMs: 90_000,                // polls are seconds apart; give the candle tier a window
+});
 
 function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0) {
   // Before 09:15 Dhan may carry the previous session's option OHLC.
@@ -478,22 +496,33 @@ function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0) {
     return;
   }
 
-  const newHigh = observedHigh > rec.high;
-  const newLow  = observedLow < rec.low;
+  // R1: route the observation through the verifier. rec.high/low update ONLY on
+  // a confirmed extreme — never on the raw observation. A new candidate waits
+  // one poll; a torn print is rejected and audited (docs/APPROVAL-HL-VERIFY-WIRING.md).
   const prevHigh = rec.high, prevLow = rec.low;
-  if (newHigh) { rec.high = observedHigh; rec.highAt = now; }
-  if (newLow)  { rec.low  = observedLow; rec.lowAt  = now; }
-  // Touch alert: this CE/PE just made a NEW session high / low.
-  if (newHigh) _pushHlTouch(inst, strike, type, 'HIGH', observedHigh, prevHigh);
-  if (newLow)  _pushHlTouch(inst, strike, type, 'LOW',  observedLow,  prevLow);
+  const _hlKey = inst + ':' + strike + type;
+  const _hlRes = _hlVerifier.ingest(_hlKey, { price: observedHigh, exchTs: now, recvTs: now, source: 'rest' });
+  const c = _hlRes.confirmed;
+  if (c && !c.rejected) {
+    if (c.kind === 'HIGH') { rec.high = c.price; rec.highAt = now; _pushHlTouch(inst, strike, type, 'HIGH', c.price, prevHigh, c.tier); }
+    else                   { rec.low  = c.price; rec.lowAt  = now; _pushHlTouch(inst, strike, type, 'LOW',  c.price, prevLow,  c.tier); }
+  }
+  const newHigh = !!(c && !c.rejected && c.kind === 'HIGH');
+  const newLow  = !!(c && !c.rejected && c.kind === 'LOW');
 
   // Record every genuine new extreme with exact timestamp — no bucket dedup.
+  // NOTE (R1): the confirmed extreme is `c.price` (the candidate from a prior
+  // poll), NOT this poll's `observedHigh`. Recording the raw observation here
+  // would log the confirming price instead of the confirmed one.
   if (newHigh) {
-    rec.highPath.push({ t: now, at: now, p: observedHigh });
+    // COND-2: carry the confirming tier onto the record so the timeline can badge
+    // HOW each extreme was validated (FEED_VALIDATED next-poll / EXCHANGE_RECONCILED
+    // candle) — never a bare "verified". Old/merged entries lack it → no badge.
+    rec.highPath.push({ t: now, at: now, p: c.price, tier: c.tier || null });
     if (rec.highPath.length > 200) rec.highPath.shift();
   }
   if (newLow) {
-    rec.lowPath.push({ t: now, at: now, p: observedLow });
+    rec.lowPath.push({ t: now, at: now, p: c.price, tier: c.tier || null });
     if (rec.lowPath.length > 200) rec.lowPath.shift();
   }
   if (last > 0 && isFinite(last)) {
@@ -848,6 +877,12 @@ async function _backfillOptHLFromDhan(inst, strike, type, securityId) {
       rec.low = histLow.p;
       rec.lowAt = histLow.t;
     }
+    // COND-1/Change B: the exchange candle is authoritative — resolve any pending
+    // live candidate in the verifier against it (confirm→EXCHANGE_RECONCILED, or
+    // reject a print the candle never showed). Same key as the live path. A
+    // failure here is logged, never swallowed (audit 039: no silent catches).
+    try { _hlVerifier.confirmByCandle(inst + ':' + strike + type, { high: histHigh.p, low: histLow.p }); }
+    catch (e) { console.warn(`[hl-verify] candle reconcile for ${inst} ${strike}${type} failed: ${e.message}`); }
 
     // Candles are authoritative through their latest minute. Keep only live
     // extrema observed after that point, then continue tracking each poll.
@@ -3586,6 +3621,39 @@ app.post('/api/gamma-blast/enable', (req, res) => {
   res.json({ ok: true, enabled: gammaBlastEngine.enabled });
 });
 
+// ── TREND-RIDE ENGINE — "premium ~15 → 100-pt trend ride" paper forward-test ──
+// Directional option BUYER. Entry = premium ~15 on a >=triggerPts coiled trend
+// move; EXIT driven by the OUT-OF-SAMPLE-validated underlying bracket (target/stop
+// in index points, docs/STRATEGY-PREM15-RIDE-POC.md §10). Off by default; paper only.
+const trendRideEngine = new TrendRideEngine({ enabled: _strangleCfg.TREND_RIDE_ENABLED });
+trendRideEngine.onTrade = (event, d) => {
+  if (event === 'open') {
+    console.log(`[trend-ride] BUY ${d.inst} ${d.strike}${d.side} @ ₹${d.entry} (${d.qty} lot · move ${d.entryMove} · tgt+${d.target}/stop-${d.stop} pts)`);
+  } else {
+    console.log(`[trend-ride] EXIT ${d.inst} ${d.strike}${d.side} ${d.reason} ₹${d.pnl} (${d.pnlPct}% · spotMove ${d.spotMove})`);
+  }
+};
+app.get('/api/trend-ride/status', (req, res) => res.json(trendRideEngine.status()));
+app.post('/api/trend-ride/enable', (req, res) => {
+  trendRideEngine.enabled = req.body?.enabled !== false;
+  // persist across restarts (same fail-closed mechanism as the other engines)
+  try {
+    const fs = require('fs'), p = require('path');
+    const f = p.join(__dirname, 'data', 'config-overrides.json');
+    const o = require('./safe-write.js').readJsonSync(f, {
+      fallback: {},
+      onRecover: (reason, bak) => console.warn(`[trend-ride] overrides were corrupt (${reason}); recovered from ${bak}.`),
+    });
+    o.TREND_RIDE_ENABLED = trendRideEngine.enabled;
+    fs.mkdirSync(p.dirname(f), { recursive: true });
+    require('./safe-write.js').writeJsonSync(f, o, { pretty: true, backup: true });
+  } catch (e) {
+    console.error(`[trend-ride] REFUSING to persist enable=${trendRideEngine.enabled}: ${e.message}`);
+    console.error('[trend-ride] config-overrides.json is unreadable. File untouched. Setting NOT saved.');
+  }
+  res.json({ ok: true, enabled: trendRideEngine.enabled });
+});
+
 // ==================== AFTERNOON ENGINE ENDPOINTS ====================
 app.get('/api/afternoon/status', (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
@@ -6097,6 +6165,39 @@ app.get('/api/brokers', (req, res) => {
   res.json({ ok: true, active: reg.activeName, contract: _BROKER_CORE, connectors: reg.list(), generatedAt: new Date().toISOString() });
 });
 
+// #18 Unified position book — the ONE view of every open paper position.
+// Five engines each held their own book in their own shape and nothing aggregated them
+// (audit 011/049). An engine that is off or throwing is reported UNAVAILABLE, never as
+// "no positions" — and an engine that does not price its book (bounce publishes no LTP)
+// yields pnl: null, never 0. Pure math lives in positions-book.js.
+const positionsBook = require('./positions-book');
+app.get('/api/positions', (req, res) => {
+  try {
+    const S = (f) => { try { return f(); } catch (_) { return null; } };   // engine down ⇒ null, not {}
+    res.json({
+      ok: true,
+      ...positionsBook.build({
+        strangle:       S(() => strangleEngine && strangleEngine.status()),
+        bounce:         S(() => bounceEngine && bounceEngine.status()),
+        'gamma-blast':  S(() => gammaBlastEngine && gammaBlastEngine.status()),
+        'signal-paper': S(() => signalPaperEngine && signalPaperEngine.status()),
+        'ai-agents':    S(() => agentsEngine && agentsEngine.status()),
+      }),
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// #19 H/L verification audit log — CSV export (hl-verify.js, COND-8).
+// LOOPBACK ONLY: 0 of 172 routes are authenticated and the server binds 0.0.0.0
+// (audit 023). Until auth is enabled platform-wide, this export refuses any
+// non-local caller rather than widen the LAN surface.
+app.get('/api/hl-audit.csv', (req, res) => {
+  const ip = String(req.socket.remoteAddress || '');
+  if (!/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(ip)) return res.status(403).end('local only');
+  res.type('text/csv').send(_hlVerifier.toCSV());
+});
+
 // #6 Consolidated ops health (foundation module — see docs/OPS-PLAYBOOK.md)
 const { opsHealthSnapshot } = require('./ops-health');
 app.get('/api/ops/health', (req, res) => {
@@ -6690,7 +6791,7 @@ app.get('/api/option-chain-full', async (req, res) => {
         const chng      = prevClose ? ltp - prevClose : 0;
         _updateOptHL(inst, strike, type, ltp);
         const hl = _getOptHL(inst, strike, type) || {};
-        const pathOut = (arr) => (arr || []).map(e => ({ time: fmtT(e.t), price: +e.p.toFixed(2), ts: e.t }));
+        const pathOut = (arr) => (arr || []).map(e => ({ time: fmtT(e.t), price: +e.p.toFixed(2), ts: e.t, tier: e.tier || null }));
         return {
           ltp:       +ltp.toFixed(2),
           high:      +(Number(leg.high || hl.high || 0)).toFixed(2),
@@ -6994,8 +7095,8 @@ function runBotEngine() {
     niftyAfternoonEngine.tick().catch(err => console.error('[nifty-afternoon] tick error:', err.message));
   }, 4000);
 
-  // Bounce + Strangle + Gamma-blast engines (paper) — feed live chains once per loop.
-  if (bounceEngine.enabled || strangleEngine.enabled || gammaBlastEngine.enabled) {
+  // Bounce + Strangle + Gamma-blast + Trend-ride engines (paper) — feed live chains once per loop.
+  if (bounceEngine.enabled || strangleEngine.enabled || gammaBlastEngine.enabled || trendRideEngine.enabled) {
     setTimeout(() => {
       live.getNiftyOptionChain(_niftyLivePrice)
         .then(chain => {
@@ -7003,6 +7104,7 @@ function runBotEngine() {
           if (bounceEngine.enabled)     bounceEngine.update('NIFTY', feed);
           if (strangleEngine.enabled)   strangleEngine.update('NIFTY', feed);
           if (gammaBlastEngine.enabled) gammaBlastEngine.update('NIFTY', { spot: _niftyLivePrice, ...feed });
+          if (trendRideEngine.enabled)  trendRideEngine.update('NIFTY', { spot: _niftyLivePrice, ...feed });
         })
         .catch(() => {});
       // Multi-instrument forward-test: also feed SENSEX + BANKNIFTY to the strangle
@@ -7021,6 +7123,16 @@ function runBotEngine() {
       if (gammaBlastEngine.enabled) {
         live.getOptionChain()
           .then(chain => gammaBlastEngine.update('SENSEX', { spot: _livePrice, atm: chain.atmStrike, interval: 100, rows: chain.strikes, expiry: chain.expiry }))
+          .catch(() => {});
+      }
+      // Trend-ride watches SENSEX + BANKNIFTY too (needs the REAL live spot for the
+      // trend trigger — chain.spotPrice is the Upstox underlying, not the rounded ATM).
+      if (trendRideEngine.enabled) {
+        live.getOptionChain()
+          .then(chain => trendRideEngine.update('SENSEX', { spot: chain.spotPrice ?? _livePrice, atm: chain.atmStrike, interval: 100, rows: chain.strikes, expiry: chain.expiry }))
+          .catch(() => {});
+        live.getBankNiftyOptionChain(_bankNiftyLivePrice)
+          .then(chain => trendRideEngine.update('BANKNIFTY', { spot: chain.spotPrice ?? _bankNiftyLivePrice, atm: chain.atmStrike, interval: 100, rows: chain.strikes, expiry: chain.expiry }))
           .catch(() => {});
       }
     }, 4500);

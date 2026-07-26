@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strangle Monitor · Antigravity Pro</title>
+<style>
+  :root{
+    --bg:#070a10; --bg2:#0a0e16; --panel:#0d1420; --panel2:#111a28; --line:#1a2536; --line2:#22314a;
+    --txt:#e6edf6; --mut:#8291a8; --dim:#5a6a80; --dim2:#556274;
+    --up:#26d0a0; --dn:#ff5470; --amber:#ffc24b; --blue:#5b9cff; --violet:#a78bff; --cyan:#3ad0e0;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1200px 600px at 70% -10%, #0d1626 0%, var(--bg) 55%); 
+        color:var(--txt); font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; }
+  .mono{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+  .wrap{ max-width:1500px; margin:0 auto; padding:0 16px 48px; }
+  a{ color:inherit; text-decoration:none; }
+  .up{ color:var(--up); } .dn{ color:var(--dn); } .flat{ color:#9aa7ba; }
+
+  /* header */
+  header{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:16px 4px 12px; border-bottom:1px solid var(--line); margin-bottom:20px; }
+  .brand{ font-size:1.15rem; font-weight:900; letter-spacing:.3px; display:flex; align-items:center; gap:9px; }
+  .brand .logo{ font-size:1.3rem; }
+  .brand b{ background:linear-gradient(90deg,#5b9cff,#a78bff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .clock{ margin-left:auto; text-align:right; font-size:0.75rem; }
+  .clock .t{ font-size:1.1rem; font-weight:800; letter-spacing:.5px; }
+  .clock .m{ color:var(--mut); font-weight:700; }
+
+  nav{ display:flex; gap:8px; margin-bottom:16px; }
+  nav a{ color:#93a2b8; font-size:0.72rem; font-weight:700; padding:6px 13px; border-radius:9px; 
+         border:1px solid transparent; transition:.12s; text-decoration:none; }
+  nav a:hover{ background:rgba(91,156,255,.1); color:#cfe0ff; }
+  nav a.active{ background:rgba(91,156,255,.16); color:#cfe0ff; border-color:var(--line2); }
+
+  .sec-h{ font-size:0.62rem; font-weight:800; color:var(--dim2); text-transform:uppercase; 
+          letter-spacing:1.2px; margin:24px 0 12px; }
+
+  /* status indicators */
+  .status{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
+  .scard{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .scard .lbl{ font-size:0.56rem; color:var(--mut); text-transform:uppercase; letter-spacing:.6px; margin-bottom:6px; }
+  .scard .val{ font-size:1.8rem; font-weight:900; letter-spacing:-.3px; }
+  .scard .sub{ font-size:0.65rem; color:var(--dim2); margin-top:4px; }
+
+  /* regime state */
+  .regime-box{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:20px; }
+  .regime-label{ display:inline-block; padding:8px 14px; border-radius:8px; font-weight:900; font-size:0.78rem; 
+                 letter-spacing:.4px; margin-bottom:12px; }
+  .regime-label.sell{ background:rgba(38,208,160,.16); color:var(--up); border:1px solid rgba(38,208,160,.4); }
+  .regime-label.condor{ background:rgba(255,194,75,.16); color:var(--amber); border:1px solid rgba(255,194,75,.4); }
+  .regime-label.skip{ background:rgba(120,132,150,.16); color:#9aa7ba; border:1px solid rgba(120,132,150,.4); }
+  .regime-label.off{ background:rgba(255,84,112,.16); color:var(--dn); border:1px solid rgba(255,84,112,.4); }
+
+  .gauge-h{ display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .gauge-h .lbl{ font-size:0.65rem; font-weight:700; color:var(--mut); }
+  .gauge-h .pct{ font-size:1.3rem; font-weight:900; }
+  .gauge{ height:10px; background:linear-gradient(90deg,rgba(255,84,112,.25),rgba(255,194,75,.22),rgba(38,208,160,.28)); 
+          border-radius:99px; position:relative; overflow:hidden; }
+  .gauge-fill{ height:100%; background:linear-gradient(90deg,#ff5470,#ffc24b,#26d0a0); border-radius:99px; }
+  .gauge-marker{ position:absolute; top:-1px; width:2px; height:12px; background:#fff; border-radius:2px; 
+                 box-shadow:0 0 8px rgba(255,255,255,.7); }
+
+  /* grid layouts */
+  .grid2{ display:grid; grid-template-columns:1.15fr 1fr; gap:14px; margin-bottom:20px; }
+  @media(max-width:960px){ .grid2{ grid-template-columns:1fr; } }
+  .grid3{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+
+  /* card */
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .card-h{ display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); 
+           font-size:0.82rem; font-weight:800; }
+  .card-h small{ margin-left:auto; font-weight:400; color:var(--mut); font-size:0.6rem; }
+  .card-b{ padding:16px; }
+
+  /* table */
+  table{ width:100%; border-collapse:collapse; font-size:0.75rem; }
+  th{ text-align:left; padding:8px 0; border-bottom:1px solid var(--line); font-weight:700; 
+      color:var(--mut); font-size:0.6rem; text-transform:uppercase; letter-spacing:.4px; }
+  td{ padding:10px 0; border-bottom:1px solid #0a1220; }
+  tr:last-child td{ border-bottom:0; }
+  .num{ text-align:right; font-variant-numeric:tabular-nums; }
+  .sym{ font-weight:700; color:#cfe0ff; }
+
+  /* recent trades */
+  .trade-row{ display:flex; align-items:center; gap:12px; padding:10px; border:1px solid var(--line); 
+              border-radius:8px; margin-bottom:8px; background:rgba(91,156,255,.03); }
+  .trade-row .struct{ font-size:0.62rem; font-weight:900; padding:3px 8px; border-radius:5px; 
+                      background:rgba(167,139,255,.2); color:var(--violet); }
+  .trade-row .pnl{ margin-left:auto; font-weight:900; }
+  .trade-row .pnl.pos{ color:var(--up); }
+  .trade-row .pnl.neg{ color:var(--dn); }
+
+  /* loading */
+  .load{ color:var(--mut); text-align:center; padding:40px; }
+
+  .btn{ display:inline-block; padding:10px 20px; border-radius:8px; border:1px solid var(--line2); 
+        background:var(--panel2); color:var(--txt); font-weight:700; font-size:0.75rem; 
+        cursor:pointer; transition:.15s; text-decoration:none; }
+  .btn:hover{ background:var(--line2); }
+
+  .err{ background:rgba(255,84,112,.1); border:1px solid rgba(255,84,112,.3); color:#ff9eae; 
+        padding:12px 14px; border-radius:8px; margin:12px 0; font-size:0.75rem; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo">⚡</span>
+      <span>Strangle <b>Monitor</b></span>
+    </div>
+    <div class="clock">
+      <div class="t" id="clock">--:--:--</div>
+      <div class="m" id="date">IST</div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <nav>
+      <a href="dashboard.html">← Dashboard</a>
+      <a href="strangle-monitor.html" class="active">Monitor</a>
+      <a href="ami-heatmap.html">Heatmap</a>
+      <a href="strategy.html">Strategy</a>
+    </nav>
+
+    <!-- ENGINE STATUS -->
+    <div class="sec-h">⚡ Engine Status</div>
+    <div id="engine-status" class="status">
+      <div class="scard">
+        <div class="lbl">Status</div>
+        <div class="val" id="status-enabled">OFF</div>
+        <div class="sub">STRANGLE_ENGINE_ENABLED</div>
+      </div>
+      <div class="scard">
+        <div class="lbl">Open Positions</div>
+        <div class="val" id="open-count">0</div>
+        <div class="sub">active strangles</div>
+      </div>
+      <div class="scard">
+        <div class="lbl">Today's Trades</div>
+        <div class="val" id="today-count">0</div>
+        <div class="sub">closed this session</div>
+      </div>
+      <div class="scard">
+        <div class="lbl">Today's P&L</div>
+        <div class="val" id="today-pnl">₹0</div>
+        <div class="sub" id="today-rate">0 wins</div>
+      </div>
+    </div>
+
+    <!-- IV REGIME -->
+    <div class="sec-h">📊 IV Regime</div>
+    <div id="regime-container" class="regime-box">
+      <div id="regime-status" class="load">Loading regime data...</div>
+    </div>
+
+    <!-- SIZING RECOMMENDATION -->
+    <div class="sec-h">📐 Position Sizing</div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h">Recommended Lot Count (Margin-Aware Kelly)</div>
+        <div class="card-b">
+          <div id="sizing-data" class="load">Loading...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h">Capital & Configuration</div>
+        <div class="card-b">
+          <table>
+            <tbody>
+              <tr><td>Capital</td><td class="num" id="cap">₹0</td></tr>
+              <tr><td>OTM %</td><td class="num" id="otm">0%</td></tr>
+              <tr><td>Stop Mult</td><td class="num" id="stop">0x</td></tr>
+              <tr><td>TP Thresh</td><td class="num" id="tp">0%</td></tr>
+              <tr><td>Wing Pts</td><td class="num" id="wing">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPEN POSITIONS -->
+    <div class="sec-h">📍 Open Positions</div>
+    <div id="open-positions" class="grid3">
+      <div class="load">Loading...</div>
+    </div>
+
+    <!-- RECENT CLOSED TRADES -->
+    <div class="sec-h">📈 Recent Trades (Today)</div>
+    <div id="recent-trades" style="max-width:700px;">
+      <div class="load">Loading...</div>
+    </div>
+
+    <!-- FORWARD-TEST WINDOW -->
+    <div class="sec-h">🔬 Forward-Test Validation</div>
+    <div id="forward-test" class="card">
+      <div class="card-h">Window Statistics</div>
+      <div class="card-b">
+        <div id="ft-content" class="load">Loading...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API_BASE = (window.location.protocol + '//' + window.location.host + (window.PUBLIC_API_BASE_URL || ''));
+    let lastRefresh = 0;
+
+    async function refresh() {
+      const now = Date.now();
+      if (now - lastRefresh < 2000) return;  // min 2s between refreshes
+      lastRefresh = now;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/strangle/status`);
+        if (!res.ok) {
+          document.getElementById('engine-status').innerHTML = '<div class="err">❌ API error: ' + res.status + '</div>';
+          return;
+        }
+        const data = await res.json();
+        render(data);
+      } catch (err) {
+        console.error('Fetch error:', err);
+        document.getElementById('engine-status').innerHTML = '<div class="err">❌ ' + err.message + '</div>';
+      }
+    }
+
+    function render(data) {
+      // Engine status
+      const enabled = data.enabled ? '✓ ON' : '✗ OFF';
+      const enabledColor = data.enabled ? 'color:#26d0a0' : 'color:#ff5470';
+      document.getElementById('status-enabled').innerHTML = enabled;
+      document.getElementById('status-enabled').style.cssText = enabledColor;
+
+      // Counts
+      const openPos = (data.openPositions || []).length;
+      const closedToday = data.closedToday || 0;
+      const todayWins = data.wins || 0;
+      const todayPnl = +(data.netPnl || 0).toFixed(2);
+
+      document.getElementById('open-count').textContent = openPos;
+      document.getElementById('today-count').textContent = closedToday;
+      document.getElementById('today-pnl').textContent = '₹' + todayPnl.toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:0});
+      document.getElementById('today-pnl').style.color = todayPnl >= 0 ? '#26d0a0' : '#ff5470';
+      document.getElementById('today-rate').textContent = todayWins + ' wins' + (closedToday > 0 ? ' (' + data.winRate + '%)' : '');
+
+      // IV Regime
+      renderRegime(data.ivRegime || {});
+
+      // Sizing
+      renderSizing(data.sizing || {});
+
+      // Config
+      const cfg = data.config || {};
+      document.getElementById('cap').textContent = '₹' + (cfg.capital || 0).toLocaleString('en-IN');
+      document.getElementById('otm').textContent = (cfg.otmPct || 0).toFixed(1) + '%';
+      document.getElementById('stop').textContent = (cfg.stopMult || 0).toFixed(1) + 'x';
+      document.getElementById('tp').textContent = (cfg.tpPct || 0) + '%';
+      document.getElementById('wing').textContent = (cfg.wingPts || 0);
+
+      // Open positions
+      renderOpenPositions(data.openPositions || []);
+
+      // Recent trades
+      renderRecentTrades(data.recent || []);
+
+      // Forward-test
+      renderForwardTest(data.forwardTest || {});
+    }
+
+    function renderRegime(ivState) {
+      let html = '';
+      const instruments = Object.keys(ivState);
+      if (instruments.length === 0) {
+        html = '<div style="color:var(--mut);">No IV data yet</div>';
+      } else {
+        for (const [inst, iv] of Object.entries(ivState)) {
+          const pct = iv.pct ?? 0;
+          const pctStr = (pct * 100).toFixed(0);
+          let label = 'skip', cls = 'skip';
+          if (pct >= 0.8) { label = 'TAIL-SAFE (Condor)'; cls = 'condor'; }
+          else if (pct >= 0.5) { label = 'SELL (Strangle)'; cls = 'sell'; }
+          else if (pct > 0) { label = 'SKIP (Low IV)'; cls = 'skip'; }
+          else { label = 'OFF'; cls = 'off'; }
+
+          html += `
+            <div style="margin-bottom:18px;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                <span style="font-weight:900; font-size:1.1rem; width:100px;">${inst}</span>
+                <span class="regime-label ${cls}">${label}</span>
+              </div>
+              <div class="gauge-h">
+                <span class="lbl">IV Percentile</span>
+                <span class="pct">${pctStr}%</span>
+                <span class="lbl" style="margin-left:auto;">(${(iv.iv||0).toFixed(2)} live)</span>
+              </div>
+              <div class="gauge">
+                <div class="gauge-fill" style="width:${Math.min(100, pctStr)}%"></div>
+                <div class="gauge-marker" style="left:${Math.min(100, pctStr)}%"></div>
+              </div>
+              <div style="font-size:0.6rem; color:var(--dim2); margin-top:4px;">${iv.history || 0} days history</div>
+            </div>
+          `;
+        }
+      }
+      document.getElementById('regime-status').innerHTML = html;
+    }
+
+    function renderSizing(sizing) {
+      const html = `
+        <table style="width:100%;">
+          <tbody>
+            <tr>
+              <td><strong>Capital</strong></td>
+              <td class="num">₹${(sizing.capital || 0).toLocaleString('en-IN')}</td>
+            </tr>
+            <tr>
+              <td><strong>Strangle (50-80% IV)</strong></td>
+              <td class="num">${sizing.strangle?.recommendedLots || 0} lots (~₹${(sizing.strangle?.marginRequired || 0).toLocaleString('en-IN')})</td>
+            </tr>
+            <tr>
+              <td><strong>Condor (≥80% IV)</strong></td>
+              <td class="num">${sizing.condor?.recommendedLots || 0} lots (~₹${(sizing.condor?.marginRequired || 0).toLocaleString('en-IN')})</td>
+            </tr>
+            <tr>
+              <td><small>Using:</small></td>
+              <td class="num" style="font-size:0.65rem; color:var(--mut);">${sizing.useSizer ? 'Margin-aware Kelly' : 'Fixed qtyPerLeg'}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+      document.getElementById('sizing-data').innerHTML = html;
+    }
+
+    function renderOpenPositions(positions) {
+      if (positions.length === 0) {
+        document.getElementById('open-positions').innerHTML = '<div style="grid-column:1/-1; color:var(--mut); padding:20px; text-align:center;">No open positions</div>';
+        return;
+      }
+      let html = '';
+      for (const pos of positions) {
+        const ceDelta = (pos.ce.ltp / pos.ce.entry - 1) * 100;
+        const peDelta = (pos.pe.ltp / pos.pe.entry - 1) * 100;
+        html += `
+          <div class="card">
+            <div class="card-h">${pos.inst} · ${pos.structure}</div>
+            <div class="card-b" style="font-size:0.7rem;">
+              <table>
+                <tr><td>Entry Time</td><td class="num">${pos.entryAt}</td></tr>
+                <tr><td>Expiry</td><td class="num">${pos.expiry || '—'}</td></tr>
+                <tr><td style="color:var(--amber);">CE (${pos.ce.strike})</td><td class="num">₹${pos.ce.ltp.toFixed(2)} <span style="color:${ceDelta > 0 ? '#ff5470' : '#26d0a0'}">${ceDelta > 0 ? '↑' : '↓'}${Math.abs(ceDelta).toFixed(1)}%</span></td></tr>
+                <tr><td style="color:var(--violet);">PE (${pos.pe.strike})</td><td class="num">₹${pos.pe.ltp.toFixed(2)} <span style="color:${peDelta > 0 ? '#ff5470' : '#26d0a0'}">${peDelta > 0 ? '↑' : '↓'}${Math.abs(peDelta).toFixed(1)}%</span></td></tr>
+                <tr><td><strong>Net Credit</strong></td><td class="num" style="color:#26d0a0;">₹${(pos.credit || 0).toFixed(2)}</td></tr>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+      document.getElementById('open-positions').innerHTML = html;
+    }
+
+    function renderRecentTrades(recent) {
+      if (recent.length === 0) {
+        document.getElementById('recent-trades').innerHTML = '<div style="color:var(--mut); padding:20px; text-align:center;">No trades closed today</div>';
+        return;
+      }
+      let html = '';
+      for (const t of recent) {
+        const pnlClass = t.pnlAbs >= 0 ? 'pos' : 'neg';
+        const sign = t.pnlAbs >= 0 ? '+' : '';
+        html += `
+          <div class="trade-row">
+            <div style="flex:1;">
+              <div style="font-weight:900; margin-bottom:3px;">${t.inst}</div>
+              <div style="font-size:0.65rem; color:var(--mut);">${t.structure} · ${t.reason}</div>
+            </div>
+            <span class="trade-row struct">${t.structure}</span>
+            <div style="text-align:right;">
+              <div class="pnl ${pnlClass}" style="font-weight:900;">${sign}₹${t.pnlAbs.toFixed(2)}</div>
+              <div style="font-size:0.65rem; color:var(--mut);">${t.pnlPct.toFixed(1)}% credit</div>
+            </div>
+          </div>
+        `;
+      }
+      document.getElementById('recent-trades').innerHTML = html;
+    }
+
+    function renderForwardTest(ft) {
+      if (!ft.enabled) {
+        document.getElementById('ft-content').innerHTML = '<div style="color:var(--mut);">Forward-test window not active. Set FORWARD_TEST_DATE_FROM in .env to begin collection.</div>';
+        return;
+      }
+      const html = `
+        <table style="width:100%;">
+          <tbody>
+            <tr><td><strong>Window Start</strong></td><td class="num">${ft.windowStart}</td></tr>
+            <tr><td><strong>Total Trades</strong></td><td class="num">${ft.totalTrades}</td></tr>
+            <tr><td><strong>Days</strong></td><td class="num">${ft.totalDays}</td></tr>
+            <tr><td><strong>Wins</strong></td><td class="num">${ft.totalWins} (${ft.overallWinRate}%)</td></tr>
+            <tr><td><strong>Net P&L</strong></td><td class="num" style="color:${ft.totalNetPnl >= 0 ? '#26d0a0' : '#ff5470'};">₹${ft.totalNetPnl.toLocaleString('en-IN', {minimumFractionDigits:2})}</td></tr>
+            <tr><td><strong>Avg/Trade</strong></td><td class="num" style="color:${ft.avgPnlPerTrade >= 0 ? '#26d0a0' : '#ff5470'};">₹${ft.avgPnlPerTrade.toFixed(2)}</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:20px; padding-top:12px; border-top:1px solid var(--line); font-size:0.65rem; color:var(--mut);">
+          ✓ All trades from <strong>${ft.windowStart}</strong> are logged to <code>data/forward-test/</code> for validation.
+        </div>
+      `;
+      document.getElementById('ft-content').innerHTML = html;
+    }
+
+    // Clock update
+    function updateClock() {
+      const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000);  // IST
+      const h = String(now.getUTCHours()).padStart(2, '0');
+      const m = String(now.getUTCMinutes()).padStart(2, '0');
+      const s = String(now.getUTCSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = h + ':' + m + ':' + s;
+      document.getElementById('date').textContent = now.toUTCString().slice(0, 16);
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Auto-refresh every 10s
+    refresh();
+    setInterval(refresh, 10000);
+  </script>
+</body>
+</html>

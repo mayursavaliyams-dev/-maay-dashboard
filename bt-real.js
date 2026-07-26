@@ -4,26 +4,15 @@
 // trail(2x,90%), evaluated against the strike's REAL daily High/Low/Close.
 // Conservative: assume LOW hits before HIGH (worst case for a long).
 const fs = require('fs');
+const { BHAV, LOT, loadDay, atmStrike } = require('./bt-lib.js');
 
 const MAXPREM = 38, MINOI = 50000, SL = 0.05, TARGET = 4.0, TRAIL_AT = 2.0, TRAIL_LOCK = 0.90;
-const SLIP = 0.02, RISKPCT = 0.05, LOT = 75, GAP_THR = 0.15;
+const SLIP = 0.02, RISKPCT = 0.05, GAP_THR = 0.15;
 
-// col idx: TradDt0 Xpry9 Strk11 Optn12 Opn14 Hgh15 Lw16 Cls17 Undrlyg20 OI22
-function loadDay(file) {
-  const rows = fs.readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).map(l => l.split(','));
-  if (!rows.length) return null;
-  const date = rows[0][0], underlying = +rows[0][20];
-  const exps = [...new Set(rows.map(r => r[9]))].filter(e => e >= date).sort();
-  const nearExp = exps[0];
-  const opts = rows.filter(r => r[9] === nearExp).map(r => ({
-    strike: +r[11], type: r[12], o: +r[14], h: +r[15], l: +r[16], c: +r[17], oi: +r[22]
-  }));
-  return { date, underlying, nearExp, opts };
-}
 
 function pickStrike(day, type) {
   // deep-OTM: walk away from spot, first liquid strike with real OHLC and open ≤ MAXPREM
-  const atm = Math.round(day.underlying / 50) * 50;
+  const atm = atmStrike(day, 50);  // using bt-lib's atmStrike with 50-pt interval
   const cands = day.opts.filter(o => o.type === type && o.o > 0.5 && o.o <= MAXPREM && o.oi >= MINOI && o.h > 0 && o.l > 0)
     .filter(o => type === 'CE' ? o.strike > atm : o.strike < atm)
     .sort((a, b) => Math.abs(a.strike - atm) - Math.abs(b.strike - atm)); // nearest OTM first
@@ -47,8 +36,9 @@ function resolveExit(entry, o) {
   return { exit: o.c * (1 - SLIP), reason: 'EOD' };
 }
 
-const files = fs.readdirSync('bt-data/bhav').filter(f => f.startsWith('nifty-')).sort();
-const days = files.map(f => loadDay('bt-data/bhav/' + f)).filter(Boolean);
+const files = fs.readdirSync(BHAV).filter(f => f.startsWith('nifty-')).sort();
+const days = files.map(f => loadDay(BHAV + '/' + f)).filter(Boolean);
+
 console.log(`Loaded ${days.length} real trading days (${days[0].date} → ${days[days.length-1].date})\n`);
 
 let cap = 100000; const trades = [];

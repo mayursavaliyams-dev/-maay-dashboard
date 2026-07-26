@@ -411,7 +411,7 @@ function makeGammaPersist(f) {
     ok(Buffer.compare(liveBytes, fs.readFileSync(LIVE)) === 0,
       'data/config-overrides.json is byte-identical — this suite never wrote to production state');
     const live = JSON.parse(liveBytes.toString('utf8'));
-    eq(Object.keys(live).length, 12, 'and it still carries its twelve keys');
+    eq(Object.keys(live).length, 13, 'and it still carries its thirteen keys (12 + TREND_RIDE_ENABLED)');
     eq(live.STRANGLE_CAPITAL, 700000, 'including STRANGLE_CAPITAL');
   }
 }

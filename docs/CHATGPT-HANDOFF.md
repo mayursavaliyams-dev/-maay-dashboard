@@ -1,8 +1,14 @@
 # ANTIGRAVITY PRO — HANDOFF FOR CHATGPT
 
 Paste this whole file into ChatGPT. Self-contained. **State: 2026-07-12.**
-Suite **47/47 green**. Git HEAD `f8609ec`. **Nothing committed, nothing pushed.**
+Suite **47/47 green**. Git HEAD **`7823864`** — **committed, NOT pushed.**
 Bot is **running** in paper mode (`TRADE_MODE=paper` — no live order path is reachable).
+
+The commit `7823864` carries 52 files: the `bt-lib` fix, the boot-order capital fix, the unknown-VIX
+fixes, two of three `config-overrides.json` writers, all tests, and every approval package and review
+document. **Deliberately excluded:** `backups/` (rollback artefacts), runtime `data/*.json` (paper state
+that changes every tick), screenshots, and the owner's own pre-existing edits to `README.md`,
+`bt-real.js`, `package-lock.json`, `signal-heatmap.html`, `data/config-overrides.json`.
 
 100% paper-trading Indian index-options research platform (Node/Express, local).
 Protected files: `server.js`, `execution-engine.js` — no edit without an approval package.
