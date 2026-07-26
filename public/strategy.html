@@ -5,301 +5,522 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Strategy Builder — Antigravity Pro</title>
 <style>
-:root {
-  --bg:#0a0a0f; --panel:#0f0f18; --border:#1a1a2e; --text:#e8e8f0; --muted:#4a4a6a;
-  --green:#00e676; --red:#ff4444; --blue:#448aff; --yellow:#ffd740;
-  --orange:#ff6d00; --purple:#ce93d8; --teal:#00bcd4;
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — defined once, used everywhere.
+   Contrast measured against --bg (WCAG 2.1 relative luminance):
+     --text  16.44:1 · --muted 7.93:1 · --dim 5.52:1 · green 11.83 · red 6.35
+     amber 14.15 · blue 8.32   — all clear 4.5:1 body text.
+   The old --muted (#4a4a6a) measured 2.33:1 and failed at every size.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  /* surface */
+  --bg:#0a0a0f; --panel:#101018; --panel-2:#15151f; --panel-3:#1b1b27;
+  --border:#252539; --border-2:#31314a;
+  /* text */
+  --text:#e8eaf2; --muted:#9aa4bf; --dim:#7c87a5;
+  /* semantic — always paired with a glyph or word, never colour alone */
+  --green:#00e676; --green-dim:rgba(0,230,118,.13); --green-line:rgba(0,230,118,.34);
+  --red:#ff5470;   --red-dim:rgba(255,84,112,.13);  --red-line:rgba(255,84,112,.34);
+  --amber:#ffd740; --amber-dim:rgba(255,215,64,.13);--amber-line:rgba(255,215,64,.38);
+  --blue:#78a8ff;  --blue-dim:rgba(120,168,255,.13);
+  /* OI weight fill — deliberately weaker than the text it sits behind */
+  --oi-ce:rgba(0,230,118,.20); --oi-pe:rgba(255,84,112,.20);
+  --focus:#78a8ff;
+  --grid:rgba(255,255,255,.07);
+  /* type scale */
+  --fs-xs:.75rem; --fs-sm:.875rem; --fs-base:1rem; --fs-lg:1.25rem; --fs-xl:1.75rem;
+  /* spacing scale */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --radius:10px; --radius-sm:7px;
+  --ui:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f6f7fb; --panel:#ffffff; --panel-2:#f0f2f7; --panel-3:#e7eaf2;
+    --border:#d6dae6; --border-2:#c2c8d8;
+    --text:#12161f; --muted:#4a5468; --dim:#5f6a80;
+    --green:#00794a; --green-dim:rgba(0,121,74,.11); --green-line:rgba(0,121,74,.4);
+    --red:#c62134;   --red-dim:rgba(198,33,52,.10);  --red-line:rgba(198,33,52,.4);
+    --amber:#8a6100; --amber-dim:rgba(138,97,0,.11); --amber-line:rgba(138,97,0,.45);
+    --blue:#1256c4;  --blue-dim:rgba(18,86,196,.10);
+    --oi-ce:rgba(0,121,74,.16); --oi-pe:rgba(198,33,52,.14);
+    --focus:#1256c4; --grid:rgba(0,0,0,.10);
+  }
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospace;font-size:13px;height:100%;}
+html{font-size:16px;}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:var(--fs-sm);
+  line-height:1.45;-webkit-font-smoothing:antialiased;padding-bottom:var(--s4);}
+/* numbers only — so columns align */
+.num,.legs-table td,.chain-table td,.sum-val,.sum-sub{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important;scroll-behavior:auto!important;}
+}
 
-/* NAV */
-.topbar{display:flex;align-items:center;gap:8px;background:#13131f;border-bottom:1px solid #23233a;
-  padding:0 14px;min-height:44px;position:sticky;top:0;z-index:50;}
-.brand{font-weight:800;color:var(--green);font-size:.95rem;}
-.back-btn{padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;
-  border:1px solid var(--border);background:transparent;color:var(--muted);margin-left:auto;}
-.back-btn:hover{color:var(--text);}
-.nav-links{display:flex;align-items:center;gap:4px;margin-left:auto;}
-.nav-link{padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;
-  color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;transition:.15s;}
-.nav-link:hover{color:#edf3ff;background:rgba(255,255,255,.06);border-color:#23233a;}
-.nav-link.active{color:#78a8ff;background:rgba(120,168,255,.1);border-color:rgba(120,168,255,.3);}
+/* ── TOP BAR ─────────────────────────────────────────────────────────────── */
+.topbar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:var(--s2) var(--s4);position:sticky;top:0;z-index:60;}
+.brand{font-weight:800;font-size:var(--fs-base);letter-spacing:-.01em;}
+.brand .dot{color:var(--green);}
+.paper-chip{font-size:var(--fs-xs);font-weight:800;letter-spacing:.06em;padding:2px var(--s2);
+  border-radius:99px;background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-line);}
+.nav-links{display:flex;align-items:center;gap:2px;margin-left:auto;flex-wrap:wrap;}
+.nav-link{padding:var(--s1) var(--s2);border-radius:var(--radius-sm);font-size:var(--fs-xs);
+  font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--panel-3);}
+.nav-link.active{color:var(--blue);background:var(--blue-dim);border-color:var(--blue);}
 
-/* LAYOUT */
-.layout{display:grid;grid-template-columns:340px 1fr;gap:10px;padding:10px;height:calc(100vh - 44px);}
-@media(max-width:900px){.layout{grid-template-columns:1fr;height:auto;}}
+/* ── CONTROL STRIP ───────────────────────────────────────────────────────── */
+.controls{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  padding:var(--s3) var(--s4);border-bottom:1px solid var(--border);background:var(--panel-2);}
+.field{display:flex;align-items:center;gap:var(--s2);}
+.field label{font-size:var(--fs-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+.ctrl-select,.ctrl-input{background:var(--panel);border:1px solid var(--border-2);color:var(--text);
+  border-radius:var(--radius-sm);padding:var(--s2) var(--s3);font-size:var(--fs-sm);font-weight:600;min-height:38px;}
+.ctrl-input{width:88px;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.btn{border:1px solid var(--border-2);background:var(--panel);color:var(--text);border-radius:var(--radius-sm);
+  padding:var(--s2) var(--s3);font-size:var(--fs-sm);font-weight:700;cursor:pointer;min-height:38px;
+  display:inline-flex;align-items:center;gap:var(--s2);transition:background .12s,border-color .12s;}
+.btn:hover{background:var(--panel-3);border-color:var(--focus);}
+.btn-ghost{background:transparent;}
+.spot-info{font-size:var(--fs-sm);font-weight:700;color:var(--muted);margin-left:auto;
+  font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.spot-info .live{color:var(--text);}
 
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;overflow-y:auto;}
-.panel-title{font-size:.78rem;font-weight:800;color:var(--text);margin-bottom:10px;
-  text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:8px;}
+/* ── STICKY SUMMARY BAR — the decision, always on screen ─────────────────── */
+.summarybar{position:sticky;top:57px;z-index:55;background:var(--panel);
+  border-bottom:1px solid var(--border);padding:var(--s3) var(--s4);
+  display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:var(--s2);}
+.sum-card{background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:var(--s2) var(--s3);min-width:0;}
+.sum-lbl{font-size:var(--fs-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sum-val{font-size:var(--fs-lg);font-weight:800;line-height:1.2;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;}
+/* the one number that matters is the largest thing here */
+#sumNet{font-size:var(--fs-xl);}
+.sum-val.unknown{color:var(--dim);font-weight:600;font-size:var(--fs-lg);}  /* null ≠ 0 */
+.sum-val.pos{color:var(--green);} .sum-val.neg{color:var(--red);} .sum-val.warn{color:var(--amber);}
+.sum-val.zero{color:var(--text);}
+@keyframes flash{0%{background:var(--blue-dim);}100%{background:transparent;}}
+.sum-card.flash{animation:flash .9s ease-out;}
 
-/* STRATEGY PRESETS */
-.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
-.preset-btn{padding:8px 10px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;
-  border:1px solid var(--border);background:#0d0d0d;color:var(--muted);text-align:left;transition:.1s;}
-.preset-btn:hover,.preset-btn.active{background:rgba(0,230,118,.1);color:var(--green);border-color:rgba(0,230,118,.3);}
-.preset-btn .ps-name{display:block;font-size:.8rem;margin-bottom:2px;}
-.preset-btn .ps-desc{display:block;font-size:.62rem;color:var(--muted);}
-.preset-btn.active .ps-desc{color:rgba(0,230,118,.7);}
+/* ── LAYOUT — Build | Payoff (hero) | Chain ──────────────────────────────── */
+.layout{display:grid;gap:var(--s3);padding:var(--s3) var(--s4);
+  grid-template-columns:minmax(300px,340px) minmax(0,1fr) minmax(360px,420px);
+  align-items:start;}
+@media (max-width:1279px){ .layout{grid-template-columns:minmax(280px,320px) minmax(0,1fr);}
+  .zone-chain{grid-column:1 / -1;} }
+@media (max-width:899px){ .layout{grid-template-columns:1fr;padding:var(--s3);}
+  .zone-chain{grid-column:auto;}
+  .summarybar{position:fixed;top:auto;bottom:0;left:0;right:0;border-top:1px solid var(--border-2);
+    border-bottom:none;grid-template-columns:repeat(3,1fr);padding:var(--s2) var(--s3);
+    box-shadow:0 -6px 22px rgba(0,0,0,.45);}
+  #sumNet{font-size:var(--fs-lg);} .sum-val{font-size:var(--fs-base);}
+  body{padding-bottom:150px;} }
+/* Grid/flex children default to min-width:auto, which lets a wide table push the
+   whole page sideways on a phone. Pin them to 0 so they shrink instead. */
+.layout > *{min-width:0;}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:var(--s4);min-width:0;}
+.legs-scroll{overflow-x:auto;}
+.panel + .panel{margin-top:var(--s3);}
+.panel-title{font-size:var(--fs-xs);font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:var(--s3);display:flex;align-items:baseline;gap:var(--s2);
+  flex-wrap:wrap;white-space:nowrap;}
+.panel-title .hint{white-space:normal;}
+.panel-title .hint{font-weight:600;letter-spacing:0;text-transform:none;color:var(--dim);font-size:var(--fs-xs);}
 
-/* CONTROLS */
-.ctrl-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
-.ctrl-label{font-size:.68rem;color:var(--muted);min-width:60px;}
-.ctrl-select,.ctrl-input{background:#0d0d0d;border:1px solid var(--border);color:var(--text);
-  border-radius:6px;padding:5px 8px;font-size:.75rem;outline:none;}
-.ctrl-select:focus,.ctrl-input:focus{border-color:rgba(0,230,118,.4);}
-.ctrl-input{width:100px;}
+/* ── PRESETS ─────────────────────────────────────────────────────────────── */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);}
+.preset-btn{padding:var(--s2) var(--s3);border-radius:var(--radius-sm);cursor:pointer;text-align:left;
+  border:1px solid var(--border);background:var(--panel-2);color:var(--text);min-height:52px;transition:.12s;}
+.preset-btn:hover{border-color:var(--focus);background:var(--panel-3);}
+.preset-btn.active{background:var(--blue-dim);border-color:var(--blue);}
+.ps-name{display:block;font-size:var(--fs-sm);font-weight:700;}
+.ps-desc{display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:1px;}
+.risk-note{margin-top:var(--s3);padding:var(--s2) var(--s3);border-radius:var(--radius-sm);
+  font-size:var(--fs-xs);line-height:1.5;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);}
+.risk-note.defined{border-color:var(--green-line);background:var(--green-dim);color:var(--text);}
+.risk-note.undefined{border-color:var(--amber-line);background:var(--amber-dim);color:var(--text);}
 
-/* LEGS TABLE */
-.legs-table{width:100%;border-collapse:collapse;margin-bottom:10px;}
-.legs-table th{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;
-  padding:5px 8px;border-bottom:1px solid var(--border);text-align:left;}
-.legs-table td{padding:5px 8px;border-bottom:1px solid #14141f;font-size:.75rem;vertical-align:middle;}
-.leg-action-buy{color:var(--green);font-weight:700;}
-.leg-action-sell{color:var(--red);font-weight:700;}
-.leg-ce{color:var(--green);}
-.leg-pe{color:var(--red);}
-.del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 5px;}
-.del-btn:hover{color:var(--red);}
-.add-leg-btn{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);color:var(--green);
-  border-radius:6px;padding:5px 12px;font-size:.72rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;}
+/* ── LEGS ────────────────────────────────────────────────────────────────── */
+.legs-table{width:100%;border-collapse:collapse;}
+.legs-table th{font-size:var(--fs-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);padding:var(--s2) var(--s1);border-bottom:1px solid var(--border);text-align:left;font-family:var(--ui);}
+.legs-table td{padding:var(--s2) var(--s1);border-bottom:1px solid var(--border);font-size:var(--fs-sm);vertical-align:middle;}
+.legs-table tr:last-child td{border-bottom:none;}
+@keyframes legIn{from{background:var(--blue-dim);transform:translateX(-6px);opacity:.4;}to{background:transparent;transform:none;opacity:1;}}
+tr.leg-new{animation:legIn .45s ease-out;}
+.pill{border:1px solid var(--border-2);background:var(--panel-2);border-radius:99px;padding:2px var(--s2);
+  font-size:var(--fs-xs);font-weight:800;cursor:pointer;min-height:26px;letter-spacing:.03em;font-family:var(--ui);}
+.pill.buy{color:var(--green);border-color:var(--green-line);background:var(--green-dim);}
+.pill.sell{color:var(--red);border-color:var(--red-line);background:var(--red-dim);}
+.pill.ce{color:var(--green);} .pill.pe{color:var(--red);}
+.lots-input{width:56px;background:var(--panel-2);border:1px solid var(--border-2);color:var(--text);
+  border-radius:5px;padding:var(--s1) var(--s2);font-family:var(--mono);font-variant-numeric:tabular-nums;min-height:28px;}
+.icon-btn{background:none;border:1px solid transparent;color:var(--muted);cursor:pointer;
+  border-radius:5px;padding:2px 6px;min-height:28px;min-width:28px;font-size:var(--fs-sm);}
+.icon-btn:hover{color:var(--text);background:var(--panel-3);border-color:var(--border-2);}
+.icon-btn.danger:hover{color:var(--red);border-color:var(--red-line);}
+.empty-state{padding:var(--s4) var(--s3);border:1px dashed var(--border-2);border-radius:var(--radius-sm);
+  color:var(--muted);font-size:var(--fs-xs);line-height:1.6;text-align:center;}
+.empty-state b{color:var(--text);display:block;font-size:var(--fs-sm);margin-bottom:2px;}
+.lastchange{margin-top:var(--s2);font-size:var(--fs-xs);color:var(--muted);display:flex;
+  align-items:center;gap:var(--s2);min-height:24px;flex-wrap:wrap;}
+.lastchange .what{color:var(--text);font-family:var(--mono);}
+.linkbtn{background:none;border:none;color:var(--blue);cursor:pointer;font-weight:700;
+  font-size:var(--fs-xs);text-decoration:underline;padding:2px 4px;}
 
-/* SUMMARY CARDS */
-.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
-.sum-card{background:#0d0d0d;border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
-.sum-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
-.sum-val{font-size:1rem;font-weight:700;}
+/* manual add row */
+.manual{display:none;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s2);padding:var(--s3);
+  border:1px solid var(--border-2);border-radius:var(--radius-sm);background:var(--panel-2);}
+.manual.open{display:flex;}
+.manual input,.manual select{background:var(--panel);border:1px solid var(--border-2);color:var(--text);
+  border-radius:5px;padding:var(--s1) var(--s2);min-height:34px;font-size:var(--fs-xs);}
+.manual input{width:92px;font-family:var(--mono);}
 
-/* EXECUTE */
-.exec-btn{width:100%;padding:10px;border-radius:8px;font-size:.82rem;font-weight:800;cursor:pointer;
-  border:none;margin-top:4px;transition:.12s;}
-.exec-paper{background:rgba(255,215,64,.15);color:var(--yellow);border:1px solid rgba(255,215,64,.4);}
-.exec-paper:hover{background:rgba(255,215,64,.25);}
+/* ── EXECUTE (paper — must never read as a live order) ───────────────────── */
+.exec-wrap{margin-top:var(--s3);}
+.exec-btn{width:100%;padding:var(--s3);border-radius:var(--radius-sm);font-size:var(--fs-base);
+  font-weight:800;cursor:pointer;border:1px dashed var(--amber-line);background:var(--amber-dim);
+  color:var(--amber);letter-spacing:.02em;min-height:48px;}
+.exec-btn:hover:not(:disabled){background:rgba(255,215,64,.22);}
+.exec-btn:disabled{opacity:.5;cursor:not-allowed;border-style:solid;color:var(--dim);
+  background:var(--panel-2);border-color:var(--border);}
+.exec-sub{font-size:var(--fs-xs);color:var(--muted);text-align:center;margin-top:var(--s2);line-height:1.5;}
+.exec-sub strong{color:var(--amber);}
 
-/* RIGHT: PAYOFF CHART + CHAIN */
-.right-panel{display:flex;flex-direction:column;gap:10px;}
+/* ── PAYOFF (hero) ───────────────────────────────────────────────────────── */
+.zone-payoff .panel{padding:var(--s4);}
+.payoff-head{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s3);}
+.payoff-head h2{font-size:var(--fs-base);font-weight:800;letter-spacing:-.01em;}
+#payoffInfo{font-size:var(--fs-xs);color:var(--muted);font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.payoff-canvas-wrap{position:relative;}
+#payoffCanvas{width:100%;height:clamp(280px,44vh,460px);display:block;border-radius:var(--radius-sm);}
+.tooltip{position:absolute;pointer-events:none;background:var(--panel-3);border:1px solid var(--border-2);
+  border-radius:var(--radius-sm);padding:var(--s2) var(--s3);font-size:var(--fs-xs);font-family:var(--mono);
+  font-variant-numeric:tabular-nums;white-space:nowrap;opacity:0;transition:opacity .1s;z-index:5;
+  box-shadow:0 6px 18px rgba(0,0,0,.4);}
+.tooltip.show{opacity:1;}
+.tooltip .tt-px{color:var(--muted);} .tooltip .tt-pnl{font-weight:800;font-size:var(--fs-sm);}
+.legend{display:flex;gap:var(--s4);flex-wrap:wrap;margin-top:var(--s3);font-size:var(--fs-xs);color:var(--muted);}
+.legend span{display:inline-flex;align-items:center;gap:var(--s1);}
+.swatch{width:12px;height:3px;border-radius:2px;display:inline-block;}
+.warn-banner{display:none;margin-bottom:var(--s3);padding:var(--s2) var(--s3);border-radius:var(--radius-sm);
+  border:1px solid var(--amber-line);background:var(--amber-dim);color:var(--text);font-size:var(--fs-xs);line-height:1.5;}
+.warn-banner.show{display:block;}
+.warn-banner b{color:var(--amber);}
 
-.payoff-wrap{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;flex-shrink:0;}
-#payoffCanvas{width:100%;height:220px;display:block;}
-
-.chain-wrap{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;flex:1;overflow-y:auto;}
-.chain-table{width:100%;border-collapse:collapse;}
-.chain-table th{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;
-  padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;cursor:pointer;}
-.chain-table th:hover{color:var(--text);}
-.chain-table th.strike-th{text-align:center;color:var(--yellow);}
-.chain-table td{padding:5px 8px;border-bottom:1px solid #0f0f18;font-size:.75rem;text-align:right;cursor:pointer;}
-.chain-table td:hover{background:rgba(255,255,255,.03);}
-.chain-table td.strike-td{text-align:center;font-weight:800;color:var(--yellow);background:#0d0d0d;}
-.chain-table td.atm-td{background:#1a1400 !important;color:#fff !important;}
-.ce-ltp{color:var(--green);font-weight:600;}
-.pe-ltp{color:var(--red);font-weight:600;}
-.itm-ce{background:rgba(0,230,118,.05);}
-.itm-pe{background:rgba(255,68,68,.05);}
-.oi-bar{display:inline-block;height:4px;border-radius:2px;vertical-align:middle;margin-left:4px;}
-
-/* Tags */
-.tag{display:inline-block;font-size:.58rem;font-weight:800;padding:1px 5px;border-radius:3px;margin-left:4px;}
-.tag-buy{background:rgba(0,230,118,.2);color:var(--green);}
-.tag-sell{background:rgba(255,68,68,.2);color:var(--red);}
-
-::-webkit-scrollbar{width:4px;height:4px;}
-::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:99px;}
+/* ── CHAIN ───────────────────────────────────────────────────────────────── */
+.chain-head{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s2);}
+/* overflow-x is the safety net: five columns must never be silently clipped —
+   a hidden PE side is worse than a scrollbar. */
+#chainScroll{max-height:min(62vh,560px);overflow-y:auto;overflow-x:auto;border:1px solid var(--border);
+  border-radius:var(--radius-sm);background:var(--panel-2);}
+@media (max-width:899px){ #chainScroll{max-height:52vh;} }
+/* fixed layout so five columns always fit the rail — a clipped PE side is a bug,
+   not a cosmetic issue. OI weight is drawn as a cell background, which costs no width. */
+.chain-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;}
+.chain-table col.c-oi{width:14%;} .chain-table col.c-ltp{width:25%;} .chain-table col.c-strike{width:22%;}
+.chain-table th{position:sticky;top:0;z-index:2;background:var(--panel-3);font-family:var(--ui);
+  font-size:var(--fs-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
+  padding:var(--s2);border-bottom:1px solid var(--border-2);text-align:right;}
+.chain-table th.strike-th{text-align:center;color:var(--text);}
+.chain-table td{padding:var(--s1) var(--s2);border-bottom:1px solid var(--border);font-size:var(--fs-sm);text-align:right;}
+.chain-table th{padding:var(--s2) var(--s2);white-space:nowrap;}
+.chain-table tr:hover td{background:var(--panel-3);}
+.chain-table tr.atm-row td{background:var(--amber-dim);}
+.chain-table tr.atm-row:hover td{background:rgba(255,215,64,.2);}
+.strike-td{text-align:center;font-weight:800;color:var(--text);}
+.atm-chip{font-size:.62rem;font-weight:800;letter-spacing:.05em;padding:1px 5px;border-radius:99px;
+  background:var(--amber);color:#000;margin-left:var(--s1);vertical-align:middle;font-family:var(--ui);}
+/* clickable premium cells — large tap targets */
+.ltp-btn{width:100%;min-height:38px;background:none;border:1px solid transparent;border-radius:5px;
+  cursor:pointer;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;
+  font-size:var(--fs-sm);padding:var(--s1) var(--s2);text-align:right;display:flex;
+  align-items:center;justify-content:flex-end;gap:var(--s1);}
+.ltp-btn.ce{color:var(--green);} .ltp-btn.pe{color:var(--red);}
+.ltp-btn:hover{border-color:var(--focus);background:var(--panel);}
+.ltp-btn.selected{background:var(--blue-dim);border-color:var(--blue);}
+.tag{font-size:.6rem;font-weight:800;padding:1px 4px;border-radius:3px;font-family:var(--ui);}
+.tag-buy{background:var(--green-dim);color:var(--green);border:1px solid var(--green-line);}
+.tag-sell{background:var(--red-dim);color:var(--red);border:1px solid var(--red-line);}
+/* moneyness cue — low contrast, never fights the numbers */
+.itm-ce{background:linear-gradient(90deg,var(--green-dim),transparent);}
+.itm-pe{background:linear-gradient(270deg,var(--red-dim),transparent);}
+.oi-cell{font-size:var(--fs-xs);color:var(--muted);font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.oi-bar{display:inline-block;height:5px;border-radius:2px;vertical-align:middle;margin:0 var(--s1);}
+.oi-none{color:var(--dim);}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:99px;}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">Strategy Builder</div>
-
-  <!-- Instrument (moved to top — primary control) -->
-  <div class="ctrl-row" style="margin-bottom:0;flex-wrap:nowrap">
-    <span class="ctrl-label" style="min-width:auto">Instrument</span>
-    <select class="ctrl-select" id="instSel" onchange="loadChain()">
-      <option value="NIFTY">NIFTY</option>
-      <option value="SENSEX">SENSEX</option>
-      <option value="BANKNIFTY">BANKNIFTY</option>
-    </select>
-    <input type="number" class="ctrl-select" id="lotsSel" value="1" min="1" max="500"
-      style="width:72px;text-align:center;"
-      title="Lots (type any number)"
-      onchange="this.value=Math.max(1,Math.round(Number(this.value)||1))"
-    >
-    <button onclick="loadChain()" style="background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);
-      color:var(--green);border-radius:6px;padding:4px 10px;font-size:.7rem;cursor:pointer">⟳</button>
-  </div>
-
-  <div style="color:var(--muted);font-size:.72rem" id="spotInfo">Loading...</div>
-  <nav class="nav-links">
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/">Command</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/command-pro.html">Pro</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/trade.html">Trade</a>
+<header class="topbar">
+  <div class="brand">Strategy Builder<span class="dot">.</span></div>
+  <span class="paper-chip" title="This page never places a live order">PAPER ONLY</span>
+  <nav class="nav-links" aria-label="Pages">
+    <a class="nav-link" href="/">Command</a>
+    <a class="nav-link" href="/command-pro.html">Pro</a>
+    <a class="nav-link" href="/trade.html">Trade</a>
     <a class="nav-link" href="/dashboard.html">Dashboard</a>
     <a class="nav-link" href="/signal-heatmap.html">Signal Heatmap</a>
-    <a class="nav-link active" href="/strategy.html">Strategy</a>
+    <a class="nav-link active" href="/strategy.html" aria-current="page">Strategy</a>
     <a class="nav-link" href="/heatmap.html">OI Heatmap</a>
     <a class="nav-link" href="/pop.html">PoP</a>
     <a class="nav-link" href="/strike-history.html">Strike History</a>
     <a class="nav-link" href="/ami-heatmap.html">AMI Heatmap</a>
   </nav>
+</header>
+
+<div class="controls">
+  <div class="field">
+    <label for="instSel">Instrument</label>
+    <select class="ctrl-select" id="instSel" onchange="onInstrumentChange()">
+      <option value="NIFTY">NIFTY</option>
+      <option value="SENSEX">SENSEX</option>
+      <option value="BANKNIFTY">BANKNIFTY</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="lotsSel">Lots</label>
+    <input type="number" class="ctrl-input" id="lotsSel" value="1" min="1" max="500"
+      title="Default lots for newly added legs"
+      onchange="this.value=Math.max(1,Math.round(Number(this.value)||1))">
+  </div>
+  <button class="btn btn-ghost" onclick="loadChain()" aria-label="Refresh option chain">⟳ <span>Refresh</span></button>
+  <div class="spot-info" id="spotInfo">Loading…</div>
 </div>
 
-<div class="layout">
+<!-- Sticky decision bar. These six IDs are the page's data contract. -->
+<section class="summarybar" aria-label="Strategy summary" id="summaryBar">
+  <div class="sum-card" id="card-sumNet"><div class="sum-lbl">Net Premium</div><div class="sum-val unknown" id="sumNet">—</div></div>
+  <div class="sum-card" id="card-sumMaxP"><div class="sum-lbl">Max Profit</div><div class="sum-val unknown" id="sumMaxP">—</div></div>
+  <div class="sum-card" id="card-sumMaxL"><div class="sum-lbl">Max Loss</div><div class="sum-val unknown" id="sumMaxL">—</div></div>
+  <div class="sum-card" id="card-sumBE"><div class="sum-lbl">Breakeven</div><div class="sum-val unknown" id="sumBE" style="font-size:var(--fs-base)">—</div></div>
+  <div class="sum-card" id="card-sumRR"><div class="sum-lbl">Reward / Risk</div><div class="sum-val unknown" id="sumRR">—</div></div>
+  <div class="sum-card" id="card-sumLot"><div class="sum-lbl">Lots × Size</div><div class="sum-val unknown" id="sumLot" style="font-size:var(--fs-sm)">—</div></div>
+</section>
 
-  <!-- LEFT: Builder -->
-  <div class="panel">
+<main class="layout">
 
-    <!-- Presets -->
-    <div class="panel-title">Strategies</div>
-    <div class="preset-grid">
-      <button class="preset-btn" onclick="loadPreset('straddle')">
-        <span class="ps-name">Straddle</span>
-        <span class="ps-desc">Sell ATM CE + PE</span>
-      </button>
-      <button class="preset-btn" onclick="loadPreset('strangle')">
-        <span class="ps-name">Strangle</span>
-        <span class="ps-desc">Sell OTM CE + PE</span>
-      </button>
-      <button class="preset-btn" onclick="loadPreset('bull_cs')">
-        <span class="ps-name">Bull Call Spread</span>
-        <span class="ps-desc">Buy CE + Sell higher CE</span>
-      </button>
-      <button class="preset-btn" onclick="loadPreset('bear_ps')">
-        <span class="ps-name">Bear Put Spread</span>
-        <span class="ps-desc">Buy PE + Sell lower PE</span>
-      </button>
-      <button class="preset-btn" onclick="loadPreset('iron_condor')">
-        <span class="ps-name">Iron Condor</span>
-        <span class="ps-desc">Sell strangle + Buy wings</span>
-      </button>
-      <button class="preset-btn" onclick="loadPreset('long_straddle')">
-        <span class="ps-name">Long Straddle</span>
-        <span class="ps-desc">Buy ATM CE + PE</span>
-      </button>
-      <button class="preset-btn" onclick="loadPreset('covered_call')">
-        <span class="ps-name">Synthetic Bear</span>
-        <span class="ps-desc">Buy PE + Sell CE</span>
-      </button>
-      <button class="preset-btn" onclick="loadPreset('custom')">
-        <span class="ps-name">Custom</span>
-        <span class="ps-desc">Build manually</span>
-      </button>
-    </div>
-
-    <!-- Legs -->
-    <div class="panel-title">Legs <span style="font-size:.65rem;color:var(--muted);font-weight:400">(click chain to add)</span></div>
-    <table class="legs-table">
-      <thead><tr><th>Action</th><th>Type</th><th>Strike</th><th>Premium</th><th>Lots</th><th></th></tr></thead>
-      <tbody id="legsBody"><tr><td colspan="6" style="color:var(--muted);padding:10px">Select a strategy or click chain strikes</td></tr></tbody>
-    </table>
-    <button class="add-leg-btn" onclick="addLegManual()">+ Add Leg Manually</button>
-
-    <!-- Summary -->
-    <div class="panel-title">Summary</div>
-    <div class="summary-grid">
-      <div class="sum-card"><div class="sum-lbl">Max Profit</div><div class="sum-val" id="sumMaxP" style="color:var(--green)">--</div></div>
-      <div class="sum-card"><div class="sum-lbl">Max Loss</div><div class="sum-val" id="sumMaxL" style="color:var(--red)">--</div></div>
-      <div class="sum-card"><div class="sum-lbl">Net Premium</div><div class="sum-val" id="sumNet">--</div></div>
-      <div class="sum-card"><div class="sum-lbl">Breakevens</div><div class="sum-val" id="sumBE" style="font-size:.78rem">--</div></div>
-      <div class="sum-card"><div class="sum-lbl">Reward/Risk</div><div class="sum-val" id="sumRR" style="color:var(--yellow)">--</div></div>
-      <div class="sum-card"><div class="sum-lbl">Lots × Size</div><div class="sum-val" id="sumLot" style="color:var(--muted)">--</div></div>
-    </div>
-
-    <button class="exec-btn exec-paper" onclick="executePaper()">PAPER EXECUTE (₹0 risk)</button>
-  </div>
-
-  <!-- RIGHT -->
-  <div class="right-panel">
-
-    <!-- Payoff Chart -->
-    <div class="payoff-wrap">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:.78rem;font-weight:700">Payoff at Expiry</span>
-        <span style="font-size:.68rem;color:var(--muted)" id="payoffInfo"></span>
-        <select id="expiryDays" onchange="drawPayoff()" style="margin-left:auto;background:#0d0d0d;
-          border:1px solid var(--border);color:var(--text);border-radius:5px;padding:3px 8px;font-size:.7rem">
-          <option value="0">At Expiry</option>
-          <option value="0.5">0.5 day</option>
-          <option value="1">1 day</option>
-          <option value="2">2 days</option>
-        </select>
+  <!-- ══ ZONE A — BUILD ══ -->
+  <section class="zone-build" aria-label="Build strategy">
+    <div class="panel">
+      <div class="panel-title">Strategies <span class="hint">pick one to populate legs around ATM</span></div>
+      <div class="preset-grid" id="presetGrid">
+        <button class="preset-btn" onclick="loadPreset('straddle',this)"><span class="ps-name">Short Straddle</span><span class="ps-desc">Sell ATM CE + PE</span></button>
+        <button class="preset-btn" onclick="loadPreset('strangle',this)"><span class="ps-name">Strangle</span><span class="ps-desc">Sell OTM CE + PE</span></button>
+        <button class="preset-btn" onclick="loadPreset('bull_cs',this)"><span class="ps-name">Bull Call Spread</span><span class="ps-desc">Buy CE + Sell higher CE</span></button>
+        <button class="preset-btn" onclick="loadPreset('bear_ps',this)"><span class="ps-name">Bear Put Spread</span><span class="ps-desc">Buy PE + Sell lower PE</span></button>
+        <button class="preset-btn" onclick="loadPreset('iron_condor',this)"><span class="ps-name">Iron Condor</span><span class="ps-desc">Sell strangle + Buy wings</span></button>
+        <button class="preset-btn" onclick="loadPreset('long_straddle',this)"><span class="ps-name">Long Straddle</span><span class="ps-desc">Buy ATM CE + PE</span></button>
+        <button class="preset-btn" onclick="loadPreset('covered_call',this)"><span class="ps-name">Synthetic Bear</span><span class="ps-desc">Buy PE + Sell CE</span></button>
+        <button class="preset-btn" onclick="loadPreset('custom',this)"><span class="ps-name">Custom</span><span class="ps-desc">Build manually</span></button>
       </div>
-      <canvas id="payoffCanvas"></canvas>
+      <div class="risk-note" id="riskNote">No legs yet — pick a strategy above, or click a premium in the chain.</div>
     </div>
 
-    <!-- Option Chain -->
-    <div class="chain-wrap">
-      <div style="font-size:.78rem;font-weight:700;margin-bottom:8px">
-        Option Chain
-        <span style="font-size:.65rem;color:var(--muted);font-weight:400;margin-left:6px">Click CE/PE to add leg</span>
+    <div class="panel">
+      <div class="panel-title">Legs <span class="hint">click a chain premium to add</span></div>
+      <div class="legs-scroll">
+        <table class="legs-table">
+          <caption class="sr-only">Strategy legs. Each row has action, option type, strike, premium, lots and actions.</caption>
+          <thead><tr><th>Action</th><th>Type</th><th>Strike</th><th>Premium</th><th>Lots</th><th><span class="sr-only">Row actions</span></th></tr></thead>
+          <tbody id="legsBody"></tbody>
+        </table>
       </div>
-      <div id="chainContent" style="color:var(--muted);text-align:center;padding:20px">Loading chain...</div>
+      <div class="lastchange" id="lastChange" aria-live="polite"></div>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:var(--s3)"
+        onclick="toggleManual()" aria-expanded="false" id="manualToggle">+ Add leg manually</button>
+      <div class="manual" id="manualRow">
+        <select id="mAction" class="ctrl-select" aria-label="Action"><option>BUY</option><option>SELL</option></select>
+        <select id="mType" class="ctrl-select" aria-label="Option type"><option>CE</option><option>PE</option></select>
+        <input id="mStrike" type="number" placeholder="Strike" aria-label="Strike">
+        <input id="mPrem" type="number" step="0.05" placeholder="Premium ₹" aria-label="Premium">
+        <button class="btn" onclick="addLegManual()">Add</button>
+      </div>
+
+      <div class="exec-wrap">
+        <button class="exec-btn" id="execBtn" onclick="executePaper()">PAPER EXECUTE (₹0 risk)</button>
+        <div class="exec-sub" id="execSub"><strong>Simulated only.</strong> Nothing is sent to a broker; no live order is ever placed from this page.</div>
+      </div>
     </div>
-  </div>
-</div>
+  </section>
+
+  <!-- ══ ZONE B — PAYOFF (hero) ══ -->
+  <section class="zone-payoff" aria-label="Payoff diagram">
+    <div class="panel">
+      <div class="payoff-head">
+        <h2>Payoff at Expiry</h2>
+        <span id="payoffInfo"></span>
+        <div class="field" style="margin-left:auto">
+          <label for="expiryDays" class="sr-only">Payoff horizon</label>
+          <select id="expiryDays" class="ctrl-select" onchange="drawPayoff()"
+            title="This page models the at-expiry payoff only. Intraday time-decay is not modelled here, so the other horizons are disabled rather than shown as if they worked.">
+            <option value="0">At Expiry</option>
+            <option value="0.5" disabled>0.5 day — not modelled</option>
+            <option value="1" disabled>1 day — not modelled</option>
+            <option value="2" disabled>2 days — not modelled</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="warn-banner" id="unboundedWarn"></div>
+
+      <div class="payoff-canvas-wrap">
+        <canvas id="payoffCanvas" role="img" aria-labelledby="payoffA11y"></canvas>
+        <div class="tooltip" id="payoffTip" aria-hidden="true"></div>
+      </div>
+      <p class="sr-only" id="payoffA11y">Payoff chart. Add legs to see the expiry profit and loss profile.</p>
+
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--green)"></i> profit zone</span>
+        <span><i class="swatch" style="background:var(--red)"></i> loss zone</span>
+        <span><i class="swatch" style="background:var(--amber)"></i> spot</span>
+        <span><i class="swatch" style="background:var(--blue)"></i> breakeven</span>
+        <span>hover the chart for P&amp;L at any level</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ZONE C — CHAIN ══ -->
+  <aside class="zone-chain" aria-label="Option chain">
+    <div class="panel">
+      <div class="chain-head">
+        <div class="panel-title" style="margin:0">Option Chain</div>
+        <button class="btn btn-ghost" style="margin-left:auto;padding:var(--s1) var(--s2);min-height:32px"
+          onclick="scrollToATM(true)">Jump to ATM</button>
+      </div>
+      <div class="panel-title" style="margin-bottom:var(--s2)"><span class="hint">Click a premium to add that leg · ↑/↓ to move · Enter to add · Esc to clear</span></div>
+      <div id="chainScroll">
+        <div id="chainContent"><div class="empty-state"><b>Loading chain…</b>fetching live strikes</div></div>
+      </div>
+    </div>
+  </aside>
+</main>
 
 <script src="/js/instrument-meta.js"></script>
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
+  /* ══════════════════════════════════════════════════════════════════════════
+     STATE — the source of truth. Unchanged from the previous build.
+     ══════════════════════════════════════════════════════════════════════════ */
   let spot = 0, atm = 0, chainData = null;
   let legs = [];  // { action, type, strike, premium, lots }
   let maxCeOI = 1, maxPeOI = 1;
 
+  /* derived view-state only — never a source of truth */
+  let _clickMode = 'BUY';
+  let _lastRemoved = null;      // { leg, index } for undo
+  let _newLegKey = null;        // animate the row that just appeared
+  let _chainScrolledFor = '';   // auto-scroll to ATM once per instrument
+  let _payoffGeom = null;       // for the hover tooltip
+  let _prevSummary = {};        // to flash only what changed
+
   const fmtN = v => Number(v).toLocaleString('en-IN');
   const fmtP = (v,d=2) => Number(v).toFixed(d);
+  const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const $ = id => document.getElementById(id);
 
-  function inst() { return document.getElementById('instSel').value; }
-  function lots() { return Number(document.getElementById('lotsSel').value) || 1; }
+  function inst() { return $('instSel').value; }
+  function lots() { return Number($('lotsSel').value) || 1; }
 
-  // DASHBOARD RULE (2026-07-09). This page declared its own table:
+  // DASHBOARD RULE (2026-07-09). This page once declared its own table:
   //     let lotSize = { NIFTY:75, SENSEX:20, BANKNIFTY:35 };
   // The broker-verified registry says NIFTY 65 and BANKNIFTY 30. Every rupee figure here —
   // max profit, max loss, the whole payoff curve — was scaled by a wrong contract size, and
   // the `|| 75` fallback quietly extended that guess to every future instrument.
   // /js/instrument-meta.js is GENERATED from the registry. Unknown lot ⇒ null, never 75.
   function ls()   { return window.instLot(inst()); }
+  // Strike spacing comes from the same generated registry — never a literal on this page.
+  function step() { return window.instStep(inst()); }
 
-  // ── Load Chain ─────────────────────────────────────────────────────────────
+  /* ── P&L — ONE definition, used by both the summary and the chart ─────────
+     Formula unchanged from the previous build (it was duplicated in two places;
+     duplicating it again is how the two drift apart). */
+  function pnlAt(px, L) {
+    let pnl = 0;
+    legs.forEach(l => {
+      const sign = l.action === 'SELL' ? 1 : -1;
+      const intr = l.type === 'CE' ? Math.max(0, px - l.strike) : Math.max(0, l.strike - px);
+      pnl += sign * (l.premium - intr) * l.lots * L;
+    });
+    return pnl;
+  }
+
+  /* Structural risk shape. This does NOT touch the P&L math — it reads the leg
+     book to decide whether the curve is bounded at all. A sampled ±7% window can
+     never prove boundedness: a naked short looks capped simply because the scan
+     stopped. Colour/label honesty depends on this. */
+  function riskShape() {
+    let ceNet = 0, peNet = 0;             // + = net short
+    legs.forEach(l => {
+      const q = (l.action === 'SELL' ? 1 : -1) * l.lots;
+      if (l.type === 'CE') ceNet += q; else peNet += q;
+    });
+    return { upUnbounded: ceNet > 0, downUncapped: peNet > 0 };
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     CHAIN
+     ══════════════════════════════════════════════════════════════════════════ */
+  function onInstrumentChange() { _chainScrolledFor = ''; loadChain(); }
+
   async function loadChain() {
-    document.getElementById('chainContent').textContent = 'Loading...';
+    const c = $('chainContent');
+    if (!chainData) c.innerHTML = '<div class="empty-state"><b>Loading chain…</b>fetching live strikes</div>';
     try {
       const sigPath = inst()==='SENSEX' ? 'sensex' : inst()==='NIFTY' ? 'nifty' : 'banknifty';
       const [rC, rS] = await Promise.all([
         fetch(`/api/options/chain?instrument=${inst()}`, {cache:'no-store'}).catch(()=>null),
         fetch(`/api/${sigPath}`, {cache:'no-store'}).catch(()=>null)
       ]);
-      if (!rC || !rC.ok) { document.getElementById('chainContent').textContent = 'Chain unavailable'; return; }
+      if (!rC || !rC.ok) {
+        c.innerHTML = '<div class="empty-state"><b>Chain unavailable</b>The server did not return an option chain for '+inst()+'. Check the bot is running, then press Refresh.</div>';
+        return;
+      }
       chainData = await rC.json();
       spot = chainData.spotPrice ? parseFloat(chainData.spotPrice) : 0;
       atm  = chainData.atmStrike || 0;
       if (rS && rS.ok) { const d = await rS.json(); spot = parseFloat(d.price) || spot; }
-      document.getElementById('spotInfo').textContent =
-        `${inst()} Spot: ₹${fmtN(spot.toFixed(0))} | ATM: ${fmtN(atm)}`;
-      // compute OI max
+      $('spotInfo').innerHTML = spot
+        ? `${inst()} spot <span class="live">₹${fmtN(spot.toFixed(0))}</span> · ATM <span class="live">${fmtN(atm)}</span>`
+        : `${inst()} spot <span class="live">—</span> · ATM <span class="live">${atm?fmtN(atm):'—'}</span>`;
       maxCeOI = maxPeOI = 1;
       (chainData.strikes||[]).forEach(s => {
         maxCeOI = Math.max(maxCeOI, s.ce?.oi||0);
         maxPeOI = Math.max(maxPeOI, s.pe?.oi||0);
       });
       renderChain();
+      calcSummary();
       drawPayoff();
-    } catch(e) { document.getElementById('chainContent').textContent = 'Error: '+e.message; }
+    } catch(e) {
+      c.innerHTML = '<div class="empty-state"><b>Could not load the chain</b>'+String(e.message||e)+'</div>';
+    }
   }
 
-  // ── Render Chain ───────────────────────────────────────────────────────────
   function renderChain() {
-    let strikes = chainData.strikes || [];
+    let strikes = chainData?.strikes || [];
     // Center on ATM ± window instead of dumping the full 17850→29350 chain.
     // The API returns every strike; showing all of them buries the tradeable
     // ATM zone under 100+ far-OTM ₹0 rows. Slice to a readable window.
     if (atm && strikes.length > 41) {
       const sorted = strikes.slice().sort((a,b)=>a.strike-b.strike);
       let idx = sorted.findIndex(s => s.strike === atm);
-      if (idx < 0) { // ATM not an exact match — pick nearest
+      if (idx < 0) {
         idx = sorted.reduce((best,s,i)=>Math.abs(s.strike-atm)<Math.abs(sorted[best].strike-atm)?i:best,0);
       }
-      const WIN = 20; // ATM ± 20 strikes
+      const WIN = 20;
       strikes = sorted.slice(Math.max(0,idx-WIN), idx+WIN+1);
     }
     // Drop dead strikes where BOTH CE and PE LTP are 0 (no live premium / no data).
@@ -309,66 +530,186 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
       const ceLtp = parseFloat(s.ce?.ltp || 0), peLtp = parseFloat(s.pe?.ltp || 0);
       return ceLtp > 0 || peLtp > 0;
     });
-    let html = `<table class="chain-table"><thead><tr>
-      <th style="text-align:right">OI</th><th style="text-align:right">CE LTP</th>
-      <th class="strike-th">STRIKE</th>
-      <th style="text-align:right">PE LTP</th><th style="text-align:right">OI</th>
+
+    if (!strikes.length) {
+      $('chainContent').innerHTML = '<div class="empty-state"><b>No live strikes</b>Every strike returned zero premium. This is normal outside market hours.</div>';
+      return;
+    }
+
+    const wrap = $('chainScroll');
+    const keepScroll = wrap ? wrap.scrollTop : 0;
+
+    let html = `<table class="chain-table">
+      <colgroup><col class="c-oi"><col class="c-ltp"><col class="c-strike"><col class="c-ltp"><col class="c-oi"></colgroup>
+      <thead><tr>
+      <th scope="col">CE OI</th><th scope="col">CE LTP</th>
+      <th scope="col" class="strike-th">Strike</th>
+      <th scope="col">PE LTP</th><th scope="col">PE OI</th>
     </tr></thead><tbody>`;
+
     for (const s of strikes) {
       const isATM = s.strike === atm;
-      const ceOI  = s.ce?.oi||0, peOI = s.pe?.oi||0;
-      const ceBar = Math.min(80, (ceOI/maxCeOI)*80).toFixed(0);
-      const peBar = Math.min(80, (peOI/maxPeOI)*80).toFixed(0);
       const ceLtp = parseFloat(s.ce?.ltp||0), peLtp = parseFloat(s.pe?.ltp||0);
       const itmCe = s.itmCE ? 'itm-ce' : '', itmPe = s.itmPE ? 'itm-pe' : '';
-      // check if leg exists
-      const ceTag = legTagFor(s.strike,'CE'), peTag = legTagFor(s.strike,'PE');
-      html += `<tr>
-        <td class="${itmCe}" style="font-size:.7rem;color:var(--muted)">
-          ${fmtOI(ceOI)}<span class="oi-bar" style="width:${ceBar}px;background:rgba(0,230,118,.35)"></span>
+      const ceSel = legs.some(l=>l.strike===s.strike&&l.type==='CE') ? 'selected' : '';
+      const peSel = legs.some(l=>l.strike===s.strike&&l.type==='PE') ? 'selected' : '';
+      const ceOI = oiCell(s.ce?.oi, maxCeOI, 'ce', s.strike);
+      const peOI = oiCell(s.pe?.oi, maxPeOI, 'pe', s.strike);
+      html += `<tr class="${isATM?'atm-row':''}" data-strike="${s.strike}">
+        <td class="oi-cell ${itmCe}" style="${ceOI.bg}">${ceOI.html}</td>
+        <td class="${itmCe}" style="padding:2px">
+          <button class="ltp-btn ce ${ceSel}" data-side="CE" data-strike="${s.strike}"
+            onclick="clickLeg(${s.strike},'CE',${ceLtp})"
+            aria-label="${ceSel?'Remove':'Add'} call at strike ${s.strike}, premium ${fmtP(ceLtp,1)} rupees">
+            ${legTagFor(s.strike,'CE')}<span>₹${fmtP(ceLtp,1)}</span></button>
         </td>
-        <td class="ce-ltp ${itmCe}" onclick="clickLeg(${s.strike},'CE',${ceLtp})">
-          ₹${fmtP(ceLtp,1)}${ceTag}
+        <td class="strike-td">${fmtN(s.strike)}${isATM?'<span class="atm-chip">ATM</span>':''}</td>
+        <td class="${itmPe}" style="padding:2px">
+          <button class="ltp-btn pe ${peSel}" data-side="PE" data-strike="${s.strike}"
+            onclick="clickLeg(${s.strike},'PE',${peLtp})"
+            aria-label="${peSel?'Remove':'Add'} put at strike ${s.strike}, premium ${fmtP(peLtp,1)} rupees">
+            ${legTagFor(s.strike,'PE')}<span>₹${fmtP(peLtp,1)}</span></button>
         </td>
-        <td class="strike-td ${isATM?'atm-td':''}">${fmtN(s.strike)}</td>
-        <td class="pe-ltp ${itmPe}" onclick="clickLeg(${s.strike},'PE',${peLtp})">
-          ₹${fmtP(peLtp,1)}${peTag}
-        </td>
-        <td class="${itmPe}" style="font-size:.7rem;color:var(--muted)">
-          <span class="oi-bar" style="width:${peBar}px;background:rgba(255,68,68,.35)"></span>${fmtOI(peOI)}
-        </td>
+        <td class="oi-cell ${itmPe}" style="${peOI.bg}">${peOI.html}</td>
       </tr>`;
     }
     html += '</tbody></table>';
-    document.getElementById('chainContent').innerHTML = html;
+    $('chainContent').innerHTML = html;
+    if (wrap) wrap.scrollTop = keepScroll;
+    if (_chainScrolledFor !== inst()) { scrollToATM(false); _chainScrolledFor = inst(); }
   }
 
-  function fmtOI(v) { const a=Math.abs(v); return a>=1e5?(a/1e5).toFixed(1)+'L':a>=1e3?(a/1e3).toFixed(0)+'K':v; }
+  /* Missing OI renders as '—' with NO bar. A zero-width bar and a missing bar look
+     the same to a reader, and a full bar would be a fabrication. null ≠ 0. */
+  function oiCell(oi, maxOI, side, strike) {
+    if (oi === null || oi === undefined || Number.isNaN(Number(oi))) {
+      // Missing is NOT zero: no number, no bar, and a title that says why.
+      return { html:`<span class="oi-none" title="Open interest not reported for this strike">—</span>`, bg:'' };
+    }
+    const v = Number(oi);
+    const pct = Math.min(100, (v/(maxOI||1))*100).toFixed(1);
+    const col = side==='ce' ? 'var(--oi-ce)' : 'var(--oi-pe)';
+    // OI weight as a background fill — carries the same visual signal as a bar but
+    // consumes no column width, so the PE side can never be pushed out of view.
+    const bg = v > 0
+      ? `background:linear-gradient(to ${side==='ce'?'left':'right'},${col} ${pct}%,transparent ${pct}%);`
+      : '';
+    const label = `${side.toUpperCase()} open interest ${fmtN(v)} at strike ${strike}`;
+    return { html:`<span title="${label}" aria-label="${label}">${fmtOI(v)}</span>`, bg };
+  }
+
+  function fmtOI(v) { const a=Math.abs(v); return a>=1e5?(a/1e5).toFixed(1)+'L':a>=1e3?(a/1e3).toFixed(0)+'K':String(v); }
 
   function legTagFor(strike, type) {
     const l = legs.find(l=>l.strike===strike&&l.type===type);
     if (!l) return '';
+    // colour is paired with the word BUY/SELL — never colour alone
     return `<span class="tag ${l.action==='BUY'?'tag-buy':'tag-sell'}">${l.action}</span>`;
   }
 
-  // ── Click on chain to add/toggle leg ─────────────────────────────────────
-  let _clickMode = 'BUY'; // default; presets override
-  function clickLeg(strike, type, premium) {
-    const idx = legs.findIndex(l=>l.strike===strike&&l.type===type);
-    if (idx >= 0) { legs.splice(idx,1); } // remove if exists
-    else legs.push({ action: _clickMode, type, strike, premium: +premium.toFixed(2), lots: lots() });
-    renderLegs(); renderChain(); calcSummary(); drawPayoff();
+  function scrollToATM(focus) {
+    const wrap = $('chainScroll'); if (!wrap) return;
+    const row = wrap.querySelector('tr.atm-row'); if (!row) return;
+    wrap.scrollTop = row.offsetTop - (wrap.clientHeight/2) + (row.offsetHeight/2);
+    if (focus) { const b = row.querySelector('.ltp-btn'); if (b) b.focus(); }
   }
 
-  // ── Presets ────────────────────────────────────────────────────────────────
-  function loadPreset(name) {
-    if (!chainData || !atm) { alert('Load chain first'); return; }
+  /* ══════════════════════════════════════════════════════════════════════════
+     LEGS
+     ══════════════════════════════════════════════════════════════════════════ */
+  function clickLeg(strike, type, premium) {
+    const idx = legs.findIndex(l=>l.strike===strike&&l.type===type);
+    if (idx >= 0) {
+      const removed = legs.splice(idx,1)[0];
+      _lastRemoved = { leg: removed, index: idx };
+      note(`removed ${removed.action} ${fmtN(strike)} ${type}`, true);
+    } else {
+      legs.push({ action: _clickMode, type, strike, premium: +Number(premium).toFixed(2), lots: lots() });
+      _newLegKey = strike+type;
+      note(`+${lots()} lot ${inst()} ${fmtN(strike)} ${type} (${_clickMode})`);
+    }
+    refreshAll();
+  }
+
+  function renderLegs() {
+    const body = $('legsBody');
+    if (!legs.length) {
+      body.innerHTML = `<tr><td colspan="6"><div class="empty-state"><b>No legs yet</b>
+        Pick a strategy, or click a premium in the option chain. The payoff below shows a worked example until then.</div></td></tr>`;
+      return;
+    }
+    body.innerHTML = legs.map((l,i) => {
+      const isNew = _newLegKey === (l.strike+l.type);
+      return `<tr class="${isNew?'leg-new':''}">
+        <td><button class="pill ${l.action==='BUY'?'buy':'sell'}" onclick="toggleAction(${i})"
+              aria-label="Leg ${i+1} action ${l.action}. Activate to switch.">${l.action==='BUY'?'▲ BUY':'▼ SELL'}</button></td>
+        <td><button class="pill ${l.type==='CE'?'ce':'pe'}" onclick="toggleType(${i})"
+              aria-label="Leg ${i+1} type ${l.type}. Activate to switch.">${l.type}</button></td>
+        <td>${fmtN(l.strike)}</td>
+        <td>₹${l.premium}</td>
+        <td><input class="lots-input" type="number" value="${l.lots}" min="1" max="500"
+              aria-label="Lots for leg ${i+1}"
+              onchange="setLots(${i}, this.value)"></td>
+        <td style="white-space:nowrap">
+          <button class="icon-btn" onclick="dupLeg(${i})" aria-label="Duplicate leg ${i+1}" title="Duplicate">⧉</button>
+          <button class="icon-btn danger" onclick="removeLeg(${i})" aria-label="Remove leg ${i+1}" title="Remove">✕</button>
+        </td></tr>`;
+    }).join('');
+    _newLegKey = null;
+  }
+
+  function toggleAction(i){ legs[i].action = legs[i].action==='BUY'?'SELL':'BUY';
+    note(`${fmtN(legs[i].strike)} ${legs[i].type} → ${legs[i].action}`); refreshAll(); }
+  function toggleType(i){ legs[i].type = legs[i].type==='CE'?'PE':'CE';
+    note(`${fmtN(legs[i].strike)} → ${legs[i].type}`); refreshAll(); }
+  function setLots(i,v){ legs[i].lots = Math.max(1, Math.round(Number(v)||1));
+    note(`${fmtN(legs[i].strike)} ${legs[i].type} → ${legs[i].lots} lot(s)`); refreshAll(); }
+  function dupLeg(i){ const c = {...legs[i]}; legs.splice(i+1,0,c); _newLegKey = c.strike+c.type;
+    note(`duplicated ${fmtN(c.strike)} ${c.type}`); refreshAll(); }
+  function removeLeg(i){ const r = legs.splice(i,1)[0]; _lastRemoved = { leg:r, index:i };
+    note(`removed ${r.action} ${fmtN(r.strike)} ${r.type}`, true); refreshAll(); }
+  function undoRemove(){ if(!_lastRemoved) return;
+    legs.splice(Math.min(_lastRemoved.index, legs.length), 0, _lastRemoved.leg);
+    _newLegKey = _lastRemoved.leg.strike + _lastRemoved.leg.type;
+    note(`restored ${fmtN(_lastRemoved.leg.strike)} ${_lastRemoved.leg.type}`);
+    _lastRemoved = null; refreshAll(); }
+
+  function note(msg, undoable){
+    $('lastChange').innerHTML = `<span>last change:</span><span class="what">${msg}</span>` +
+      (undoable ? `<button class="linkbtn" onclick="undoRemove()">undo</button>` : '');
+  }
+
+  function toggleManual(){
+    const m = $('manualRow'), t = $('manualToggle');
+    const open = m.classList.toggle('open');
+    t.setAttribute('aria-expanded', String(open));
+    if (open) { $('mStrike').value = atm || ''; $('mStrike').focus(); }
+  }
+
+  function addLegManual() {
+    const strike = Number($('mStrike').value);
+    const prem   = Number($('mPrem').value);
+    if (!strike) { $('mStrike').focus(); return; }
+    const type   = $('mType').value, action = $('mAction').value;
+    legs.push({ action, type, strike, premium: +Number(prem||0).toFixed(2), lots: lots() });
+    _newLegKey = strike+type;
+    note(`+${lots()} lot ${fmtN(strike)} ${type} (${action}, manual)`);
+    $('mPrem').value = '';
+    refreshAll();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     PRESETS
+     ══════════════════════════════════════════════════════════════════════════ */
+  function loadPreset(name, btn) {
+    if (!chainData || !atm) { note('load the chain first — no ATM yet'); return; }
+    const st = step();
+    if (!st) { note(`no verified strike step for ${inst()} — cannot place preset legs`); return; }
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
-    event.currentTarget?.classList.add('active');
-    const step = inst()==='NIFTY'?50:inst()==='SENSEX'?100:100;
+    btn?.classList.add('active');
     const atm1 = atm;
-    const otm1 = atm + step, otm2 = atm + 2*step;
-    const otm1lo = atm - step, otm2lo = atm - 2*step;
+    const otm1 = atm + st, otm2 = atm + 2*st;
+    const otm1lo = atm - st, otm2lo = atm - 2*st;
     const l = lots();
     const p = (strike,type) => {
       const row = chainData.strikes.find(s=>s.strike===strike);
@@ -401,201 +742,385 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
       custom:       []
     };
     legs = (presets[name]||[]).filter(l=>l.premium>0);
-    renderLegs(); renderChain(); calcSummary(); drawPayoff();
+    note(legs.length ? `${name.replace(/_/g,' ')} loaded — ${legs.length} legs` : `${name} — no legs (no live premiums)`);
+    refreshAll();
   }
 
-  // ── Render Legs ─────────────────────────────────────────────────────────────
-  function renderLegs() {
-    const body = document.getElementById('legsBody');
+  /* plain-language risk line under the presets */
+  function renderRiskNote() {
+    const el = $('riskNote'), L = ls();
     if (!legs.length) {
-      body.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:10px">No legs. Select preset or click chain.</td></tr>';
+      el.className = 'risk-note';
+      el.textContent = 'No legs yet — pick a strategy above, or click a premium in the chain.';
       return;
     }
-    body.innerHTML = legs.map((l,i) => `
-      <tr>
-        <td class="leg-action-${l.action.toLowerCase()}">${l.action}</td>
-        <td class="leg-${l.type.toLowerCase()}">${l.type}</td>
-        <td>${fmtN(l.strike)}</td>
-        <td>₹${l.premium}</td>
-        <td><input type="number" value="${l.lots}" min="1" max="50" style="width:50px;background:#0d0d0d;
-          border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem"
-          onchange="legs[${i}].lots=Number(this.value);calcSummary();drawPayoff()"></td>
-        <td><button class="del-btn" onclick="legs.splice(${i},1);renderLegs();renderChain();calcSummary();drawPayoff()">✕</button></td>
-      </tr>`).join('');
-  }
-
-  // ── Add leg manually ────────────────────────────────────────────────────────
-  function addLegManual() {
-    const strike = Number(prompt('Strike price:', atm||''));
-    if (!strike) return;
-    const type   = (prompt('Type (CE/PE):','CE')||'').toUpperCase();
-    if (!['CE','PE'].includes(type)) return;
-    const action = (prompt('Action (BUY/SELL):','BUY')||'').toUpperCase();
-    if (!['BUY','SELL'].includes(action)) return;
-    const prem = Number(prompt('Premium ₹:','0')||0);
-    legs.push({action, type, strike, premium:prem, lots:lots()});
-    renderLegs(); renderChain(); calcSummary(); drawPayoff();
-  }
-
-  // ── Calc Summary ───────────────────────────────────────────────────────────
-  function calcSummary() {
-    if (!legs.length) {
-      ['sumMaxP','sumMaxL','sumNet','sumBE','sumRR','sumLot'].forEach(id=>document.getElementById(id).textContent='--');
-      return;
-    }
-    const L = ls();
-    // FAIL CLOSED. No broker-verified contract size ⇒ no rupee figure. Rendering '--' is
-    // honest; `null * premium` silently renders ₹0, which reads as "this trade is free".
     if (!L) {
-      ['sumMaxP','sumMaxL','sumNet','sumBE','sumRR','sumLot'].forEach(id=>document.getElementById(id).textContent='--');
-      document.getElementById('sumLot').textContent = 'no verified lot size';
+      el.className = 'risk-note undefined';
+      el.innerHTML = `<b>No broker-verified contract size for ${inst()}.</b> Rupee figures are withheld — a payoff drawn on a guessed lot size is a drawn lie.`;
       return;
     }
-    // Net premium (positive = credit, negative = debit)
-    let net = 0;
-    legs.forEach(l => {
-      const sign = l.action==='SELL' ? 1 : -1;
-      net += sign * l.premium * l.lots * L;
-    });
-    document.getElementById('sumNet').textContent = (net>=0?'+ ':'- ') + '₹'+fmtN(Math.abs(net).toFixed(0));
-    document.getElementById('sumNet').style.color = net>=0 ? 'var(--green)' : 'var(--red)';
+    const rs = riskShape();
+    if (rs.upUnbounded || rs.downUncapped) {
+      el.className = 'risk-note undefined';
+      const parts = [];
+      if (rs.upUnbounded)  parts.push('loss grows without limit if the index rises (naked short call)');
+      if (rs.downUncapped) parts.push('loss grows all the way to zero if the index falls (uncovered short put)');
+      el.innerHTML = `<b>Undefined risk.</b> ${parts.join('; ')}. You can lose more than the premium received.`;
+    } else {
+      const worst = scanCurve(L).maxL;
+      el.className = 'risk-note defined';
+      el.innerHTML = `<b>Defined risk.</b> Every short leg is covered by a bought wing — worst case is capped at <b>₹${fmtN(Math.abs(worst).toFixed(0))}</b>.`;
+    }
+  }
 
-    // Scan payoff across range for max profit/loss
+  /* ══════════════════════════════════════════════════════════════════════════
+     SUMMARY  —  null ≠ 0 everywhere
+     ══════════════════════════════════════════════════════════════════════════ */
+  const SUM_IDS = ['sumNet','sumMaxP','sumMaxL','sumBE','sumRR','sumLot'];
+
+  function setSum(id, text, cls) {
+    const el = $(id); if (!el) return;
+    const prev = _prevSummary[id];
+    el.textContent = text;
+    el.className = 'sum-val ' + (cls||'');
+    if (prev !== undefined && prev !== text) {
+      const card = $('card-'+id);
+      if (card) { card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
+    }
+    _prevSummary[id] = text;
+  }
+  function unknownAll(reason) {
+    SUM_IDS.forEach(id => setSum(id, '—', 'unknown'));
+    if (reason) setSum('sumLot', reason, 'unknown');
+  }
+
+  function scanCurve(L) {
     const strikes = legs.map(l=>l.strike);
     const lo = Math.min(...strikes)*0.93, hi = Math.max(...strikes)*1.07;
-    let maxP=-Infinity, maxL=Infinity, BEps=[];
-    let prevPnl=null;
+    let maxP=-Infinity, maxL=Infinity, BEps=[], prevPnl=null;
     for (let px=lo; px<=hi; px+=(hi-lo)/200) {
-      let pnl=0;
-      legs.forEach(l=>{
-        const sign=l.action==='SELL'?1:-1;
-        const intr=l.type==='CE'?Math.max(0,px-l.strike):Math.max(0,l.strike-px);
-        pnl+=sign*(l.premium-intr)*l.lots*L;
-      });
+      const pnl = pnlAt(px, L);
       if (pnl>maxP) maxP=pnl;
       if (pnl<maxL) maxL=pnl;
       if (prevPnl!==null && Math.sign(prevPnl)!==Math.sign(pnl)) BEps.push(px);
       prevPnl=pnl;
     }
-    document.getElementById('sumMaxP').textContent = maxP>1e8 ? 'Unlimited' : (maxP>0?'+ ':'')+'₹'+fmtN(maxP.toFixed(0));
-    document.getElementById('sumMaxL').textContent = maxL<-1e8 ? 'Unlimited' : (maxL<0?'- ':'')+'₹'+fmtN(Math.abs(maxL).toFixed(0));
-    document.getElementById('sumBE').textContent   = BEps.length ? BEps.map(b=>fmtN(b.toFixed(0))).join(' / ') : 'None';
-    const rr = (maxL!==0 && isFinite(maxP) && isFinite(maxL)) ? Math.abs(maxP/maxL).toFixed(2)+'x' : '--';
-    document.getElementById('sumRR').textContent   = rr;
-    document.getElementById('sumLot').textContent  = `${legs.map(l=>l.lots+'×'+l.type).join(' ')} (lot:${L})`;
+    return { maxP, maxL, BEps, lo, hi };
   }
 
-  // ── Payoff Canvas ───────────────────────────────────────────────────────────
-  function drawPayoff() {
-    const cv = document.getElementById('payoffCanvas');
-    const ctx = cv.getContext('2d');
-    cv.width = cv.clientWidth; cv.height = 220;
-    const W=cv.width, H=cv.height, pad={t:15,b:30,l:60,r:20};
-    ctx.fillStyle='#0a0a0f'; ctx.fillRect(0,0,W,H);
+  function calcSummary() {
+    if (!legs.length) { unknownAll('no legs yet'); renderRiskNote(); updateExecuteState(); return; }
+    const L = ls();
+    // FAIL CLOSED. No broker-verified contract size ⇒ no rupee figure. Rendering '—' is
+    // honest; `null * premium` silently renders ₹0, which reads as "this trade is free".
+    if (!L) { unknownAll('no verified lot size'); renderRiskNote(); updateExecuteState(); return; }
 
-    if (!legs.length) {
-      ctx.fillStyle='#4a4a6a'; ctx.font='13px Segoe UI';
-      ctx.textAlign='center'; ctx.fillText('Add legs to see payoff',W/2,H/2); return;
+    let net = 0;
+    legs.forEach(l => { net += (l.action==='SELL' ? 1 : -1) * l.premium * l.lots * L; });
+    setSum('sumNet', (net>=0?'+ ':'- ') + '₹'+fmtN(Math.abs(net).toFixed(0)),
+           net>0?'pos':net<0?'neg':'zero');
+
+    const { maxP, maxL, BEps } = scanCurve(L);
+    const rs = riskShape();
+
+    setSum('sumMaxP', rs.upUnbounded && maxP>0 ? 'Unbounded ⚠' : (maxP>0?'+ ':'')+'₹'+fmtN(maxP.toFixed(0)),
+           rs.upUnbounded && maxP>0 ? 'warn' : maxP>0?'pos':'zero');
+    setSum('sumMaxL', rs.upUnbounded ? 'Unbounded ⚠' : (maxL<0?'- ':'')+'₹'+fmtN(Math.abs(maxL).toFixed(0)),
+           rs.upUnbounded ? 'warn' : maxL<0?'neg':'zero');
+    setSum('sumBE', BEps.length ? BEps.map(b=>fmtN(b.toFixed(0))).join(' / ') : 'None in range',
+           BEps.length ? '' : 'unknown');
+    const rr = (!rs.upUnbounded && maxL!==0 && isFinite(maxP) && isFinite(maxL))
+      ? Math.abs(maxP/maxL).toFixed(2)+'×' : '—';
+    setSum('sumRR', rr, rr==='—' ? 'unknown' : 'warn');
+    setSum('sumLot', `${legs.length} leg(s) · lot ${L}`, '');
+
+    renderRiskNote();
+    updateExecuteState();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     EXECUTE STATE — the lot rule, enforced in the UI
+     ══════════════════════════════════════════════════════════════════════════ */
+  function updateExecuteState() {
+    const btn = $('execBtn'), sub = $('execSub'), L = ls();
+    if (!L) {
+      btn.disabled = true;
+      sub.innerHTML = `<strong>Disabled.</strong> No broker-verified contract size for ${inst()} — refusing to size a paper trade on a guess.`;
+      return;
     }
+    if (!legs.length) {
+      btn.disabled = true;
+      sub.innerHTML = `<strong>Simulated only.</strong> Add at least one leg to run a paper execution.`;
+      return;
+    }
+    btn.disabled = false;
+    sub.innerHTML = `<strong>Simulated only.</strong> Nothing is sent to a broker; no live order is ever placed from this page.`;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     PAYOFF CHART
+     ══════════════════════════════════════════════════════════════════════════ */
+  function drawPayoff() {
+    const cv = $('payoffCanvas'); if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const cssW = cv.clientWidth || 600, cssH = cv.clientHeight || 300;
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssH*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+
+    const C = {
+      bg:cssVar('--panel'), grid:cssVar('--grid'), text:cssVar('--text'),
+      muted:cssVar('--muted'), dim:cssVar('--dim'), green:cssVar('--green'),
+      red:cssVar('--red'), amber:cssVar('--amber'), blue:cssVar('--blue'),
+      greenFill:cssVar('--green-dim'), redFill:cssVar('--red-dim')
+    };
+    const W=cssW, H=cssH, pad={t:22,b:38,l:74,r:24};
+    ctx.fillStyle=C.bg; ctx.fillRect(0,0,W,H);
 
     const L = ls();
+    const warn = $('unboundedWarn');
+    warn.className = 'warn-banner';
+
+    // ── ghost worked example when there is nothing to draw yet ──────────────
+    if (!legs.length) { drawGhost(ctx,C,W,H,pad); _payoffGeom=null;
+      $('payoffInfo').textContent = 'example — not your position';
+      $('payoffA11y').textContent = 'Payoff chart showing an example short straddle. Add legs to build your own.';
+      return; }
+
     if (!L) {   // fail closed: a payoff curve drawn on a guessed lot size is a drawn lie
-      ctx.fillStyle='#4a4a6a'; ctx.font='13px Segoe UI'; ctx.textAlign='center';
-      ctx.fillText('no broker-verified lot size for '+inst(), W/2, H/2); return;
+      ctx.fillStyle=C.dim; ctx.font='600 14px system-ui'; ctx.textAlign='center';
+      ctx.fillText('No broker-verified lot size for '+inst()+'.', W/2, H/2-8);
+      ctx.fillStyle=C.muted; ctx.font='12px system-ui';
+      ctx.fillText('Rupee figures are withheld rather than guessed.', W/2, H/2+12);
+      _payoffGeom=null;
+      $('payoffInfo').textContent = 'lot size unknown';
+      $('payoffA11y').textContent = 'Payoff unavailable: no broker-verified contract size for '+inst()+'.';
+      return;
     }
+
     const strikes = legs.map(l=>l.strike);
     const spotRef = spot || Math.round((Math.min(...strikes)+Math.max(...strikes))/2);
     const lo = spotRef*0.93, hi = spotRef*1.07;
-    const pts = 120;
-    const curve = [];
-    for (let i=0;i<=pts;i++) {
-      const px = lo + (hi-lo)*(i/pts);
-      let pnl=0;
-      legs.forEach(l=>{
-        const sign=l.action==='SELL'?1:-1;
-        const intr=l.type==='CE'?Math.max(0,px-l.strike):Math.max(0,l.strike-px);
-        pnl+=sign*(l.premium-intr)*l.lots*L;
-      });
-      curve.push({x:px,y:pnl});
-    }
-    const pnls=curve.map(p=>p.y);
-    const maxY=Math.max(...pnls,0), minY=Math.min(...pnls,0);
-    const rangeY=(maxY-minY)||1;
+    const pts = 240, curve = [];
+    for (let i=0;i<=pts;i++) { const px = lo + (hi-lo)*(i/pts); curve.push({x:px,y:pnlAt(px,L)}); }
+
+    const pnls = curve.map(p=>p.y);
+    const maxY=Math.max(...pnls,0), minY=Math.min(...pnls,0), rangeY=(maxY-minY)||1;
     const cx=x=>pad.l+(x-lo)/(hi-lo)*(W-pad.l-pad.r);
     const cy=y=>pad.t+(maxY-y)/rangeY*(H-pad.t-pad.b);
+    _payoffGeom = { lo,hi,minY,maxY,pad,W,H,L,cx,cy,spotRef };
 
-    // Grid
-    ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
+    const rs = riskShape();
+    if (rs.upUnbounded || rs.downUncapped) {
+      // The axis is clipped to ±7%; say so, rather than let a capped-looking curve imply a cap.
+      warn.className = 'warn-banner show';
+      warn.innerHTML = `<b>⚠ Unbounded risk.</b> ` +
+        (rs.upUnbounded ? 'A net-short call means loss keeps growing above this range. ' : '') +
+        (rs.downUncapped ? 'A net-short put means loss keeps growing down to zero. ' : '') +
+        `The chart is clipped to ±7% around spot — the edge of the chart is <b>not</b> the edge of the risk.`;
+    }
+
+    // grid + y labels
+    ctx.strokeStyle=C.grid; ctx.lineWidth=1;
+    ctx.font='11px ui-monospace,monospace'; ctx.textAlign='right';
     for(let i=0;i<=4;i++){
       const yv=minY+rangeY*(i/4);
-      ctx.beginPath();ctx.moveTo(pad.l,cy(yv));ctx.lineTo(W-pad.r,cy(yv));ctx.stroke();
-      ctx.fillStyle='#4a4a6a';ctx.font='10px monospace';ctx.textAlign='right';
-      ctx.fillText((yv>=0?'+':'')+fmtN(yv.toFixed(0)),pad.l-4,cy(yv)+3);
+      ctx.beginPath(); ctx.moveTo(pad.l,cy(yv)); ctx.lineTo(W-pad.r,cy(yv)); ctx.stroke();
+      ctx.fillStyle=C.muted;
+      ctx.fillText((yv>=0?'+':'−')+'₹'+fmtN(Math.abs(yv).toFixed(0)), pad.l-8, cy(yv)+4);
     }
-    // Zero line
-    ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.setLineDash([4,3]);
-    ctx.beginPath();ctx.moveTo(pad.l,cy(0));ctx.lineTo(W-pad.r,cy(0));ctx.stroke();
-    ctx.setLineDash([]);
-    // Spot line
-    if (spot) {
-      ctx.strokeStyle='rgba(255,215,64,.4)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
-      ctx.beginPath();ctx.moveTo(cx(spot),pad.t);ctx.lineTo(cx(spot),H-pad.b);ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle='#ffd740';ctx.font='9px monospace';ctx.textAlign='center';
-      ctx.fillText('Spot',cx(spot),H-pad.b+12);
-    }
-    // Fill profit/loss zones
-    ctx.beginPath();
-    curve.forEach((p,i)=>i===0?ctx.moveTo(cx(p.x),cy(Math.max(p.y,0))):ctx.lineTo(cx(p.x),cy(Math.max(p.y,0))));
-    ctx.lineTo(cx(curve[curve.length-1].x),cy(0));ctx.lineTo(cx(curve[0].x),cy(0));ctx.closePath();
-    ctx.fillStyle='rgba(0,230,118,.1)';ctx.fill();
-    ctx.beginPath();
-    curve.forEach((p,i)=>i===0?ctx.moveTo(cx(p.x),cy(Math.min(p.y,0))):ctx.lineTo(cx(p.x),cy(Math.min(p.y,0))));
-    ctx.lineTo(cx(curve[curve.length-1].x),cy(0));ctx.lineTo(cx(curve[0].x),cy(0));ctx.closePath();
-    ctx.fillStyle='rgba(255,68,68,.08)';ctx.fill();
-    // Curve
-    ctx.beginPath();ctx.lineWidth=2;
-    curve.forEach((p,i)=>{
-      const col=p.y>=0?'#00e676':'#ff4444';
-      ctx.strokeStyle=col;
-      if(i===0){ctx.moveTo(cx(p.x),cy(p.y));return;}
-      ctx.lineTo(cx(p.x),cy(p.y));
-    });
-    ctx.stroke();
-    // Strike markers
-    const usedStrikes = [...new Set(legs.map(l=>l.strike))];
-    usedStrikes.forEach(s=>{
+    // zero line
+    ctx.strokeStyle=C.muted; ctx.lineWidth=1; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(pad.l,cy(0)); ctx.lineTo(W-pad.r,cy(0)); ctx.stroke(); ctx.setLineDash([]);
+
+    // profit / loss shading
+    const shade = (clampFn, fill) => {
+      ctx.beginPath();
+      curve.forEach((p,i)=>{ const yy=cy(clampFn(p.y));
+        i===0?ctx.moveTo(cx(p.x),yy):ctx.lineTo(cx(p.x),yy); });
+      ctx.lineTo(cx(curve[curve.length-1].x),cy(0));
+      ctx.lineTo(cx(curve[0].x),cy(0)); ctx.closePath();
+      ctx.fillStyle=fill; ctx.fill();
+    };
+    shade(y=>Math.max(y,0), C.greenFill);
+    shade(y=>Math.min(y,0), C.redFill);
+
+    // strike guides
+    [...new Set(strikes)].forEach(s=>{
       if(s<lo||s>hi)return;
-      ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
-      ctx.beginPath();ctx.moveTo(cx(s),pad.t);ctx.lineTo(cx(s),H-pad.b);ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle='#888';ctx.font='9px monospace';ctx.textAlign='center';
-      ctx.fillText(fmtN(s),cx(s),H-pad.b+12);
+      ctx.strokeStyle=C.grid; ctx.lineWidth=1; ctx.setLineDash([2,5]);
+      ctx.beginPath(); ctx.moveTo(cx(s),pad.t); ctx.lineTo(cx(s),H-pad.b); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=C.dim; ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center';
+      ctx.fillText(fmtN(s), cx(s), H-pad.b+14);
     });
-    document.getElementById('payoffInfo').textContent = `Spot ₹${fmtN(spotRef.toFixed(0))}`;
-  }
 
-  // ── Paper execute ───────────────────────────────────────────────────────────
-  async function executePaper() {
-    if (!legs.length) { alert('Add legs first'); return; }
-    const L=ls();
-    if (!L) { alert('No broker-verified lot size for '+inst()+' — refusing to size a paper trade on a guess.'); return; }
-    const results = [];
-    for (const l of legs) {
-      if (l.action !== 'SELL') { results.push(`BUY ${l.type} ${l.strike} logged`); continue; }
-      const r = await fetch('/api/pop/sell',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({inst:inst(),side:`SELL_${l.type}`,strike:l.strike,
-          type:l.type,premium:l.premium,lot:l.lots*L,pop:null})
-      });
-      const d = await r.json();
-      results.push(d.ok ? `SELL ${l.type} ${l.strike} PAPER ✓` : `SELL failed: ${d.reason}`);
+    // curve, drawn in two passes so the sign change is unmistakable
+    const drawSeg = (test,col) => {
+      ctx.beginPath(); ctx.lineWidth=2.5; ctx.strokeStyle=col; let started=false;
+      curve.forEach(p=>{ if(test(p.y)){ started?ctx.lineTo(cx(p.x),cy(p.y)):ctx.moveTo(cx(p.x),cy(p.y)); started=true; }
+                         else started=false; });
+      ctx.stroke();
+    };
+    drawSeg(y=>y>=0, C.green);
+    drawSeg(y=>y<0,  C.red);
+
+    // breakevens
+    const { BEps, maxP, maxL } = scanCurve(L);
+    BEps.forEach(b=>{
+      if(b<lo||b>hi)return;
+      ctx.strokeStyle=C.blue; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(cx(b),pad.t); ctx.lineTo(cx(b),H-pad.b); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=C.blue; ctx.font='700 10px ui-monospace,monospace'; ctx.textAlign='center';
+      ctx.fillText('BE '+fmtN(b.toFixed(0)), cx(b), pad.t-7);
+    });
+
+    // max profit / max loss guides
+    const guide = (val,col,label) => {
+      if (!isFinite(val) || val===0) return;
+      ctx.strokeStyle=col; ctx.globalAlpha=.5; ctx.lineWidth=1; ctx.setLineDash([1,4]);
+      ctx.beginPath(); ctx.moveTo(pad.l,cy(val)); ctx.lineTo(W-pad.r,cy(val)); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      ctx.fillStyle=col; ctx.font='700 10px ui-monospace,monospace'; ctx.textAlign='left';
+      ctx.fillText(label, pad.l+6, cy(val)-5);
+    };
+    guide(maxP, C.green, (rs.upUnbounded && maxP>0 ? 'max profit unbounded ⚠' : 'max profit +₹'+fmtN(maxP.toFixed(0))));
+    guide(maxL, C.red,   (rs.upUnbounded ? 'loss continues beyond chart ⚠' : 'max loss −₹'+fmtN(Math.abs(maxL).toFixed(0))));
+
+    // spot marker — distinct from every other guide
+    if (spot && spot>=lo && spot<=hi) {
+      ctx.strokeStyle=C.amber; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(cx(spot),pad.t); ctx.lineTo(cx(spot),H-pad.b); ctx.stroke();
+      ctx.fillStyle=C.amber;
+      ctx.beginPath(); ctx.arc(cx(spot), cy(pnlAt(spot,L)), 4.5, 0, Math.PI*2); ctx.fill();
+      ctx.font='700 10px ui-monospace,monospace'; ctx.textAlign='center';
+      ctx.fillText('SPOT '+fmtN(spot.toFixed(0)), cx(spot), H-pad.b+26);
     }
-    alert(results.join('\n'));
+
+    $('payoffInfo').textContent = `spot ₹${fmtN(spotRef.toFixed(0))} · range ₹${fmtN(lo.toFixed(0))}–₹${fmtN(hi.toFixed(0))}`;
+    $('payoffA11y').textContent =
+      `Expiry payoff for ${legs.length} legs on ${inst()}. Net premium ${$('sumNet').textContent}. ` +
+      `Max profit ${$('sumMaxP').textContent}. Max loss ${$('sumMaxL').textContent}. ` +
+      `Breakeven ${$('sumBE').textContent}. Current spot ${spot?fmtN(spot.toFixed(0)):'unknown'}.`;
   }
 
-  // ── Init ────────────────────────────────────────────────────────────────────
-  window.addEventListener('resize', ()=>{ drawPayoff(); });
+  /* Ghosted worked example — teaches the tool without fabricating any rupee value.
+     Shape only: no ₹ axis, and an unmissable EXAMPLE badge. */
+  function drawGhost(ctx,C,W,H,pad) {
+    const mid=(pad.l+(W-pad.r))/2, top=pad.t+34, base=H-pad.b-26;
+    ctx.globalAlpha=.32;
+    ctx.beginPath(); ctx.moveTo(pad.l+10, base); ctx.lineTo(mid, top); ctx.lineTo(W-pad.r-10, base);
+    ctx.lineTo(W-pad.r-10, base+1); ctx.lineTo(pad.l+10, base+1); ctx.closePath();
+    ctx.fillStyle=C.greenFill; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(pad.l+10, base); ctx.lineTo(mid, top); ctx.lineTo(W-pad.r-10, base);
+    ctx.strokeStyle=C.green; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.strokeStyle=C.muted; ctx.setLineDash([5,4]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l, base); ctx.lineTo(W-pad.r, base); ctx.stroke(); ctx.setLineDash([]);
+    ctx.globalAlpha=1;
+    ctx.fillStyle=C.muted; ctx.font='700 10px ui-monospace,monospace'; ctx.textAlign='center';
+    ctx.fillText('breakeven', pad.l+42, base-8);
+    ctx.fillText('breakeven', W-pad.r-42, base-8);
+    ctx.fillText('max profit', mid, top-9);
+    ctx.fillStyle=C.text; ctx.font='800 13px system-ui';
+    ctx.fillText('EXAMPLE — a short straddle', mid, H/2+6);
+    ctx.fillStyle=C.muted; ctx.font='12px system-ui';
+    ctx.fillText('Add a leg to draw your own payoff with real numbers.', mid, H/2+26);
+  }
+
+  /* hover / tap tooltip */
+  function payoffHover(ev) {
+    const tip = $('payoffTip'), g = _payoffGeom;
+    if (!g) { tip.classList.remove('show'); return; }
+    const cv = $('payoffCanvas'), r = cv.getBoundingClientRect();
+    const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+    const x = clientX - r.left;
+    if (x < g.pad.l || x > g.W - g.pad.r) { tip.classList.remove('show'); return; }
+    const px = g.lo + (x - g.pad.l)/(g.W-g.pad.l-g.pad.r)*(g.hi-g.lo);
+    const pnl = pnlAt(px, g.L);
+    const basis = legs.reduce((a,l)=>a + l.premium*l.lots*g.L, 0);
+    const pct = basis ? (pnl/basis*100) : null;
+    tip.innerHTML = `<div class="tt-px">${inst()} @ ₹${fmtN(px.toFixed(0))}</div>` +
+      `<div class="tt-pnl" style="color:${pnl>=0?'var(--green)':'var(--red)'}">` +
+      `${pnl>=0?'+':'−'}₹${fmtN(Math.abs(pnl).toFixed(0))}` +
+      (pct===null?'':` <span class="tt-px">(${pnl>=0?'+':'−'}${Math.abs(pct).toFixed(1)}%)</span>`) + `</div>`;
+    tip.classList.add('show');
+    const tw = tip.offsetWidth || 120;
+    tip.style.left = Math.min(Math.max(x - tw/2, 4), g.W - tw - 4) + 'px';
+    tip.style.top  = (g.cy(pnl) - 52) + 'px';
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     PAPER EXECUTE — payload unchanged
+     ══════════════════════════════════════════════════════════════════════════ */
+  async function executePaper() {
+    if (!legs.length) { note('add a leg before running a paper execution'); return; }
+    const L=ls();
+    if (!L) { note(`no broker-verified lot size for ${inst()} — refusing to size a paper trade on a guess`); return; }
+    const btn = $('execBtn'); btn.disabled = true; const old = btn.textContent;
+    btn.textContent = 'RUNNING PAPER EXECUTION…';
+    const results = [];
+    try {
+      for (const l of legs) {
+        if (l.action !== 'SELL') { results.push(`BUY ${l.type} ${l.strike} logged`); continue; }
+        const r = await fetch('/api/pop/sell',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({inst:inst(),side:`SELL_${l.type}`,strike:l.strike,
+            type:l.type,premium:l.premium,lot:l.lots*L,pop:null})
+        });
+        const d = await r.json();
+        results.push(d.ok ? `SELL ${l.type} ${l.strike} PAPER ✓` : `SELL failed: ${d.reason}`);
+      }
+      alert('PAPER (simulated) — no live order was placed\n\n' + results.join('\n'));
+    } catch (e) {
+      alert('Paper execution could not complete:\n' + (e.message||e));
+    } finally {
+      btn.textContent = old; updateExecuteState();
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     KEYBOARD + INIT
+     ══════════════════════════════════════════════════════════════════════════ */
+  function refreshAll(){ renderLegs(); renderChain(); calcSummary(); drawPayoff(); }
+
+  document.addEventListener('keydown', e => {
+    const el = document.activeElement;
+    if (!el || !el.classList || !el.classList.contains('ltp-btn')) {
+      if (e.key === 'Escape') document.querySelectorAll('.ltp-btn').forEach(b=>b.blur());
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const side = el.dataset.side;
+      const all = [...document.querySelectorAll(`.ltp-btn[data-side="${side}"]`)];
+      const i = all.indexOf(el);
+      const next = all[i + (e.key==='ArrowDown' ? 1 : -1)];
+      if (next) next.focus();
+    } else if (e.key === 'Escape') { el.blur(); }
+  });
+
+  window.addEventListener('resize', drawPayoff);
+  const cvEl = $('payoffCanvas');
+  cvEl.addEventListener('mousemove', payoffHover);
+  cvEl.addEventListener('touchmove', payoffHover, {passive:true});
+  cvEl.addEventListener('mouseleave', ()=>$('payoffTip').classList.remove('show'));
+
+  // Self-check for the lot rule, callable from the console:
+  //   __lotRuleSelfCheck()  →  forces instLot to null and asserts the UI fails closed.
+  window.__lotRuleSelfCheck = function(){
+    const real = window.instLot;
+    window.instLot = () => null;
+    try {
+      calcSummary();
+      const cells = SUM_IDS.map(id => $(id).textContent);
+      const disabled = $('execBtn').disabled;
+      const allDash = cells.slice(0,5).every(t => t === '—');
+      return { pass: allDash && disabled, execDisabled: disabled, cells };
+    } finally { window.instLot = real; calcSummary(); }
+  };
+
+  renderLegs();
+  calcSummary();
+  drawPayoff();
   loadChain();
   setInterval(loadChain, 15000);
 </script>
