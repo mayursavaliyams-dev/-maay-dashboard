@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greeks → P&amp;L — Antigravity Pro</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Light is the default; dark follows prefers-color-scheme and a manual toggle
+   ([data-theme] wins over the media query).
+   Measured WCAG ratios (relative luminance):
+     LIGHT on #f6f7fb — text 16.91:1 · muted 7.11:1 · green 5.12 · red 5.35
+                         amber 5.17 · blue 6.22
+     DARK  on #0a0a0f — text 16.44:1 · muted 7.93:1 · dim 5.52 · green 11.83
+                         red 6.35 · amber 14.15 · blue 8.32
+   Every text token clears 4.5:1 in both schemes.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#f6f7fb; --panel:#ffffff; --panel-2:#f0f2f7; --panel-3:#e7eaf2;
+  --border:#d6dae6; --border-2:#c2c8d8;
+  --text:#12161f; --muted:#4a5468; --dim:#5f6a80;
+  --green:#00794a; --green-dim:rgba(0,121,74,.10); --green-line:rgba(0,121,74,.42);
+  --red:#c62134;   --red-dim:rgba(198,33,52,.09);  --red-line:rgba(198,33,52,.42);
+  --amber:#8a6100; --amber-dim:rgba(138,97,0,.11); --amber-line:rgba(138,97,0,.45);
+  --blue:#1256c4;  --blue-dim:rgba(18,86,196,.09);
+  --focus:#1256c4; --grid:rgba(0,0,0,.10);
+  --fs-xs:.75rem; --fs-sm:.875rem; --fs-base:1rem; --fs-lg:1.25rem; --fs-xl:1.75rem;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --radius:12px; --radius-sm:8px;
+  --ui:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,monospace;
+  --shadow:0 1px 3px rgba(16,24,40,.07),0 1px 2px rgba(16,24,40,.04);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0a0a0f; --panel:#101018; --panel-2:#15151f; --panel-3:#1b1b27;
+  --border:#252539; --border-2:#31314a;
+  --text:#e8eaf2; --muted:#9aa4bf; --dim:#7c87a5;
+  --green:#00e676; --green-dim:rgba(0,230,118,.12); --green-line:rgba(0,230,118,.34);
+  --red:#ff5470;   --red-dim:rgba(255,84,112,.12);  --red-line:rgba(255,84,112,.34);
+  --amber:#ffd740; --amber-dim:rgba(255,215,64,.12);--amber-line:rgba(255,215,64,.38);
+  --blue:#78a8ff;  --blue-dim:rgba(120,168,255,.12);
+  --focus:#78a8ff; --grid:rgba(255,255,255,.07);
+  --shadow:0 1px 3px rgba(0,0,0,.5);
+}}
+:root[data-theme="dark"]{
+  --bg:#0a0a0f; --panel:#101018; --panel-2:#15151f; --panel-3:#1b1b27;
+  --border:#252539; --border-2:#31314a;
+  --text:#e8eaf2; --muted:#9aa4bf; --dim:#7c87a5;
+  --green:#00e676; --green-dim:rgba(0,230,118,.12); --green-line:rgba(0,230,118,.34);
+  --red:#ff5470;   --red-dim:rgba(255,84,112,.12);  --red-line:rgba(255,84,112,.34);
+  --amber:#ffd740; --amber-dim:rgba(255,215,64,.12);--amber-line:rgba(255,215,64,.38);
+  --blue:#78a8ff;  --blue-dim:rgba(120,168,255,.12);
+  --focus:#78a8ff; --grid:rgba(255,255,255,.07);
+  --shadow:0 1px 3px rgba(0,0,0,.5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:var(--fs-sm);
+  line-height:1.5;-webkit-font-smoothing:antialiased;padding-bottom:var(--s6);}
+.num,td.n,.g-val,.sc-cell{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:5px;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;}}
+
+.topbar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;background:var(--panel);
+  border-bottom:1px solid var(--border);padding:var(--s2) var(--s4);position:sticky;top:0;z-index:60;}
+.brand{font-weight:800;font-size:var(--fs-base);letter-spacing:-.01em;}
+.chip{font-size:var(--fs-xs);font-weight:800;letter-spacing:.05em;padding:2px var(--s2);border-radius:99px;
+  background:var(--blue-dim);color:var(--blue);border:1px solid var(--blue);}
+.nav-links{display:flex;align-items:center;gap:2px;margin-left:auto;flex-wrap:wrap;}
+.nav-link{padding:var(--s1) var(--s2);border-radius:var(--radius-sm);font-size:var(--fs-xs);font-weight:600;
+  color:var(--muted);text-decoration:none;border:1px solid transparent;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--panel-3);}
+.nav-link.active{color:var(--blue);background:var(--blue-dim);border-color:var(--blue);}
+
+.controls{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:var(--s3) var(--s4);
+  border-bottom:1px solid var(--border);background:var(--panel-2);}
+.field{display:flex;align-items:center;gap:var(--s2);}
+.field label{font-size:var(--fs-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+select,.btn{background:var(--panel);border:1px solid var(--border-2);color:var(--text);border-radius:var(--radius-sm);
+  padding:var(--s2) var(--s3);font-size:var(--fs-sm);font-weight:600;min-height:38px;}
+.btn{cursor:pointer;display:inline-flex;align-items:center;gap:var(--s2);transition:background .12s,border-color .12s;}
+.btn:hover:not(:disabled){background:var(--panel-3);border-color:var(--focus);}
+.btn:disabled{opacity:.55;cursor:not-allowed;}
+.ctx{margin-left:auto;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:var(--fs-sm);
+  color:var(--muted);display:flex;gap:var(--s3);flex-wrap:wrap;}
+.ctx b{color:var(--text);font-weight:700;}
+
+.wrap{max-width:1560px;margin:0 auto;padding:var(--s4);display:grid;gap:var(--s4);}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:var(--s4);box-shadow:var(--shadow);min-width:0;}
+h2{font-size:var(--fs-base);font-weight:800;letter-spacing:-.01em;display:flex;align-items:baseline;
+  gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s1);}
+h2 .sub{font-size:var(--fs-xs);font-weight:600;color:var(--muted);letter-spacing:0;}
+.sec-note{font-size:var(--fs-xs);color:var(--muted);margin-bottom:var(--s3);line-height:1.6;}
+
+/* honesty badges */
+.badge{font-size:.62rem;font-weight:800;letter-spacing:.04em;padding:1px 5px;border-radius:4px;
+  white-space:nowrap;font-family:var(--ui);border:1px solid;}
+.b-est{background:var(--amber-dim);color:var(--amber);border-color:var(--amber-line);}
+.b-feed{background:var(--green-dim);color:var(--green);border-color:var(--green-line);}
+.b-unk{background:var(--panel-3);color:var(--dim);border-color:var(--border-2);}
+.unknown{color:var(--dim);font-weight:600;}
+
+/* Greeks board */
+.g-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--s3);}
+.g-card{background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:var(--s3);}
+.g-name{font-size:var(--fs-xs);font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+.g-val{font-size:var(--fs-xl);font-weight:800;line-height:1.15;margin:var(--s1) 0;}
+.g-rupee{font-size:var(--fs-sm);font-weight:700;}
+.g-mean{font-size:var(--fs-xs);color:var(--muted);line-height:1.5;}
+.pos{color:var(--green);} .neg{color:var(--red);} .warn{color:var(--amber);}
+.verdict{margin-top:var(--s3);padding:var(--s3);border-radius:var(--radius-sm);border:1px solid var(--border);
+  background:var(--panel-2);font-size:var(--fs-sm);line-height:1.6;}
+.verdict.seller{border-color:var(--green-line);background:var(--green-dim);}
+.verdict.buyer{border-color:var(--blue);background:var(--blue-dim);}
+.verdict.blocked{border-color:var(--amber-line);background:var(--amber-dim);}
+.verdict b{font-weight:800;}
+
+/* legs */
+table{width:100%;border-collapse:collapse;}
+th{font-size:var(--fs-xs);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
+  padding:var(--s2);border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;}
+th:first-child,td:first-child{text-align:left;}
+td{padding:var(--s2);border-bottom:1px solid var(--border);text-align:right;font-size:var(--fs-sm);}
+tbody tr:last-child td{border-bottom:none;}
+.pill{border:1px solid var(--border-2);background:var(--panel-2);border-radius:99px;padding:1px var(--s2);
+  font-size:var(--fs-xs);font-weight:800;font-family:var(--ui);}
+.pill.buy{color:var(--green);border-color:var(--green-line);background:var(--green-dim);}
+.pill.sell{color:var(--red);border-color:var(--red-line);background:var(--red-dim);}
+.icon-btn{background:none;border:1px solid transparent;color:var(--muted);cursor:pointer;border-radius:5px;
+  padding:2px 7px;min-height:30px;min-width:30px;}
+.icon-btn:hover{color:var(--red);border-color:var(--red-line);background:var(--red-dim);}
+.empty{padding:var(--s4);border:1px dashed var(--border-2);border-radius:var(--radius-sm);color:var(--muted);
+  font-size:var(--fs-xs);text-align:center;line-height:1.7;}
+.empty b{display:block;color:var(--text);font-size:var(--fs-sm);margin-bottom:2px;}
+
+/* scenario grid */
+.scroll-x{overflow-x:auto;}
+.sc-table th{text-align:center;font-size:.68rem;}
+.sc-table th.grp{border-bottom:1px solid var(--border-2);}
+.sc-table td{text-align:center;}
+.sc-row-lbl{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap;}
+.sc-cell{font-weight:700;border-radius:5px;}
+.sc-exact{box-shadow:inset 0 0 0 1px var(--border-2);}
+.est-note{margin-top:var(--s3);padding:var(--s3);border-radius:var(--radius-sm);border:1px solid var(--amber-line);
+  background:var(--amber-dim);font-size:var(--fs-xs);line-height:1.6;}
+.reading{margin-top:var(--s3);font-size:var(--fs-sm);line-height:1.6;padding:var(--s3);
+  border-radius:var(--radius-sm);background:var(--panel-2);border:1px solid var(--border);}
+
+/* payoff */
+.pf-wrap{position:relative;}
+#pfCanvas{width:100%;height:clamp(260px,38vh,420px);display:block;border-radius:var(--radius-sm);}
+.tooltip{position:absolute;pointer-events:none;background:var(--panel-3);border:1px solid var(--border-2);
+  border-radius:var(--radius-sm);padding:var(--s2) var(--s3);font-size:var(--fs-xs);font-family:var(--mono);
+  white-space:nowrap;opacity:0;transition:opacity .1s;z-index:5;box-shadow:var(--shadow);}
+.tooltip.show{opacity:1;}
+.legend{display:flex;gap:var(--s4);flex-wrap:wrap;margin-top:var(--s3);font-size:var(--fs-xs);color:var(--muted);}
+.legend span{display:inline-flex;align-items:center;gap:var(--s1);}
+.swatch{width:12px;height:3px;border-radius:2px;display:inline-block;}
+.banner{display:none;margin-bottom:var(--s3);padding:var(--s3);border-radius:var(--radius-sm);
+  border:1px solid var(--amber-line);background:var(--amber-dim);font-size:var(--fs-xs);line-height:1.6;}
+.banner.show{display:block;} .banner b{color:var(--amber);}
+
+/* chain */
+#chainScroll{max-height:min(58vh,520px);overflow:auto;border:1px solid var(--border);
+  border-radius:var(--radius-sm);background:var(--panel-2);}
+.chain-table th{position:sticky;top:0;z-index:2;background:var(--panel-3);}
+.chain-table tr.atm td{background:var(--amber-dim);}
+.atm-chip{font-size:.6rem;font-weight:800;padding:1px 5px;border-radius:99px;background:var(--amber);
+  color:#fff;margin-left:var(--s1);font-family:var(--ui);}
+:root[data-theme="dark"] .atm-chip,
+:root:not([data-theme="light"]) .atm-chip{color:#000;}
+.add-btn{background:none;border:1px solid transparent;border-radius:5px;cursor:pointer;min-height:32px;
+  padding:2px 6px;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;}
+.add-btn.ce{color:var(--green);} .add-btn.pe{color:var(--red);}
+.add-btn:hover{border-color:var(--focus);background:var(--panel);}
+
+details{border:1px solid var(--border);border-radius:var(--radius-sm);padding:var(--s3);background:var(--panel-2);}
+summary{cursor:pointer;font-weight:700;font-size:var(--fs-sm);}
+details p{margin-top:var(--s3);font-size:var(--fs-sm);line-height:1.7;color:var(--muted);}
+details p b{color:var(--text);}
+@media (max-width:899px){ .wrap{padding:var(--s3);} .card{padding:var(--s3);} }
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:99px;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Greeks → P&amp;L</div>
+  <span class="chip" title="Research view. No orders can be placed from this page.">RESEARCH · READ-ONLY</span>
+  <nav class="nav-links" aria-label="Pages">
+    <a class="nav-link" href="/">Command</a>
+    <a class="nav-link" href="/dashboard.html">Dashboard</a>
+    <a class="nav-link" href="/strategy.html">Strategy</a>
+    <a class="nav-link active" href="/greeks.html" aria-current="page">Greeks</a>
+    <a class="nav-link" href="/pop.html">PoP</a>
+    <a class="nav-link" href="/heatmap.html">OI Heatmap</a>
+    <a class="nav-link" href="/strike-history.html">Strike History</a>
+    <button class="btn" id="themeBtn" onclick="toggleTheme()" aria-label="Switch colour theme"
+      style="min-height:32px;padding:var(--s1) var(--s2)">◐ Theme</button>
+  </nav>
+</header>
+
+<div class="controls">
+  <div class="field">
+    <label for="instSel">Instrument</label>
+    <select id="instSel" onchange="onInst()">
+      <option value="NIFTY">NIFTY</option>
+      <option value="SENSEX">SENSEX</option>
+      <option value="BANKNIFTY">BANKNIFTY</option>
+    </select>
+  </div>
+  <button class="btn" onclick="loadBook()" id="bookBtn">↧ Load open paper book</button>
+  <button class="btn" onclick="clearLegs()">✕ Clear position</button>
+  <button class="btn" onclick="refreshAll()" aria-label="Refresh data">⟳ Refresh</button>
+  <div class="ctx" id="ctxLine"><span>loading…</span></div>
+</div>
+
+<main class="wrap">
+
+  <!-- ═══ 1. POSITION + NET GREEKS ═══ -->
+  <section class="card" aria-labelledby="h-pos">
+    <h2 id="h-pos">Position Greeks <span class="sub">net, in rupees — single-sourced from <code>POST /api/strategy/payoff</code></span></h2>
+    <p class="sec-note">Every number here comes from one engine (<code>payoff-engine</code>), so the scales cannot
+      disagree. Its vega is per <b>1 volatility point</b>; the per-strike table lower down uses the chain's own
+      Greeks, which are per-share and per <b>1.00 of vol</b> — a 100× different unit. The two are never summed.</p>
+
+    <div class="scroll-x" style="margin-bottom:var(--s3)">
+      <table>
+        <caption class="sr-only">Legs in the current position</caption>
+        <thead><tr><th>Side</th><th>Type</th><th>Strike</th><th>Premium</th><th>Lots</th><th>IV used</th><th><span class="sr-only">Remove</span></th></tr></thead>
+        <tbody id="legsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="g-grid" id="greekBoard"></div>
+    <div class="verdict" id="verdict">Add legs to see the net Greeks.</div>
+  </section>
+
+  <!-- ═══ 2. WHEN DOES THIS MAKE MONEY? ═══ -->
+  <section class="card" aria-labelledby="h-sc">
+    <h2 id="h-sc">When does this make money? <span class="sub">deterministic scenario grid</span></h2>
+    <p class="sec-note">Rows are moves in the underlying; columns are time and a shift in implied volatility.
+      Each cell is the projected P&amp;L of <em>this</em> position. This is arithmetic from the current Greeks —
+      <b>not</b> a backtest, and <b>not</b> mined from past trades.</p>
+    <div class="scroll-x"><table class="sc-table" id="scTable"><tbody></tbody></table></div>
+    <div class="reading" id="scReading"></div>
+    <div class="est-note" id="scNote"></div>
+  </section>
+
+  <!-- ═══ 3. PAYOFF ═══ -->
+  <section class="card" aria-labelledby="h-pf">
+    <h2 id="h-pf">Payoff at expiry <span class="sub" id="pfSub"></span></h2>
+    <div class="banner" id="pfBanner"></div>
+    <div class="pf-wrap">
+      <canvas id="pfCanvas" role="img" aria-labelledby="pfA11y"></canvas>
+      <div class="tooltip" id="pfTip" aria-hidden="true"></div>
+    </div>
+    <p class="sr-only" id="pfA11y">Payoff chart. Add legs to draw the expiry profit and loss profile.</p>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--green)"></i> profit</span>
+      <span><i class="swatch" style="background:var(--red)"></i> loss</span>
+      <span><i class="swatch" style="background:var(--amber)"></i> spot</span>
+      <span><i class="swatch" style="background:var(--blue)"></i> breakeven</span>
+      <span>hover for P&amp;L at any level</span>
+    </div>
+
+    <details style="margin-top:var(--s4)">
+      <summary>What each Greek does to your P&amp;L</summary>
+      <p><b>Theta</b> is the clock. It is the rupees per day the option loses to time. If you are net short
+        premium, theta is your income; if you are net long, it is your rent. It is the only Greek that pays
+        you for doing nothing.</p>
+      <p><b>Delta</b> is direction: rupees gained per one-point rise in the index. <b>Gamma</b> is how fast
+        delta itself changes. A short-premium position wants <b>high theta and low gamma</b> — collect the
+        decay without the delta turning against you. The catch is mechanical, not opinion: the strikes that
+        decay fastest are the ones nearest the money, and those have the highest gamma. So the same profile
+        that earns quietly day after day is the one that loses fastest in a gap.</p>
+      <p><b>Vega</b> is sensitivity to implied volatility. A seller is short vega: a volatility spike hurts
+        even when the index has not moved. That is why a calm-looking position can lose on an event day.</p>
+      <p>None of this is an edge claim. It is the definition of the Greeks, applied to the position above.</p>
+    </details>
+  </section>
+
+  <!-- ═══ 4. PER-STRIKE CHAIN ═══ -->
+  <section class="card" aria-labelledby="h-ch">
+    <h2 id="h-ch">Per-strike Greeks <span class="sub">click a premium to add that leg</span></h2>
+    <p class="sec-note">From <code>/api/options/chain</code>. Delta/gamma/theta are per share; <b>vega here is per
+      1.00 of vol</b> (not per point) — do not compare it with the board above. <b>IV source</b> is shown for every
+      strike: <span class="badge b-feed">FEED</span> is a broker-reported number,
+      <span class="badge b-est">EST</span> means the platform solved or assumed it. No GEX, gamma wall or
+      dealer-gamma is shown anywhere on this page — the live-feed OI unit is unverified, so any such number
+      could be wrong by a factor of 65.</p>
+    <div id="chainScroll"><div id="chainContent"><div class="empty"><b>Loading chain…</b></div></div></div>
+  </section>
+</main>
+
+<script src="/js/instrument-meta.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   STATE
+   ══════════════════════════════════════════════════════════════════════════════ */
+let legs = [];                 // { side, type, strike, premium, lots, iv, ivSource }
+let chain = null, prefill = null, vix = null, payoff = null;
+let spot = 0, atm = 0, dte = null, lotSize = null;
+let _geom = null;
+
+const $  = id => document.getElementById(id);
+const fmtN = v => Number(v).toLocaleString('en-IN');
+const inst = () => $('instSel').value;
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* Lot: registry only. `null` means unknown — every rupee column then reads '—'.
+   A rupee figure derived from a guessed contract size is a fabricated number
+   wearing a currency symbol. */
+function lot() {
+  const fromRegistry = window.instLot(inst());
+  if (fromRegistry != null) return fromRegistry;
+  return (prefill && Number.isFinite(prefill.lotSize)) ? prefill.lotSize : null;
+}
+
+const rupee = v => (v >= 0 ? '+₹' : '−₹') + fmtN(Math.abs(v).toFixed(0));
+const DASH = '<span class="unknown">—</span>';
+
+/* An IV that landed on one of the platform's hardcoded fallbacks, or that the
+   platform solved itself, is an ESTIMATE. It must never look like a reading.
+   (0.15 / 0.14 / 12 are the documented placeholders.) */
+const PLACEHOLDER_IVS = [15, 14, 12];
+function ivIsEstimated(iv, ivSource) {
+  if (iv == null || !isFinite(iv)) return true;
+  if (ivSource && String(ivSource).toLowerCase() !== 'feed') return true;
+  return PLACEHOLDER_IVS.some(p => Math.abs(Number(iv) - p) < 0.005);
+}
+function ivBadge(iv, ivSource) {
+  if (iv == null || !isFinite(iv)) return '<span class="badge b-unk">NO IV</span>';
+  return ivIsEstimated(iv, ivSource)
+    ? `<span class="badge b-est" title="Solved or assumed by the platform (ivSource=${ivSource||'?'}) — not a broker reading">EST</span>`
+    : '<span class="badge b-feed" title="Reported by the broker feed">FEED</span>';
+}
+/* An illiquid strike returns zeros the formatter can no longer distinguish from
+   real zeros (the `unresolved` flag is dropped upstream). Treat as unknown. */
+function greekUnknown(leg) {
+  if (!leg) return true;
+  const ltp = Number(leg.ltp);
+  if (!isFinite(ltp) || ltp <= 0.5) {
+    const g = ['delta','gamma','theta','vega'].map(k => Number(leg[k]) || 0);
+    if (g.every(v => v === 0)) return true;
+  }
+  return false;
+}
+const g4 = v => (v == null || !isFinite(v)) ? DASH : Number(v).toFixed(4);
+const g2 = v => (v == null || !isFinite(v)) ? DASH : Number(v).toFixed(2);
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LOAD  —  sequenced, never fanned out (TD-2: the server's OptionAnalyzer is a
+   shared singleton mutated per request; parallel calls can overwrite each other).
+   ══════════════════════════════════════════════════════════════════════════════ */
+async function jget(u){ try{ const r=await fetch(u,{cache:'no-store'}); return r.ok? await r.json():null; }catch(_){ return null; } }
+
+async function refreshAll(){
+  const i = inst();
+  prefill = await jget(`/api/strategy/payoff/prefill?inst=${i}`);
+  chain   = await jget(`/api/options/chain?instrument=${i}`);
+  vix     = await jget(`/api/vix?inst=${i}`);
+  spot    = Number(prefill?.spot) || Number(chain?.spotPrice) || 0;
+  atm     = Number(prefill?.atm)  || Number(chain?.atmStrike) || 0;
+  dte     = Number.isFinite(prefill?.dteDays) ? prefill.dteDays : null;
+  lotSize = lot();
+  renderCtx(); renderChain();
+  // On first open, show the operator's ACTUAL open paper position — that is the
+  // position whose Greeks they came here to read. Only once, and only while the
+  // board is empty, so it never overwrites something the user built.
+  if (!legs.length && !_bookTried){ _bookTried = true; await loadBook(); return; }
+  await recompute();
+}
+let _bookTried = false;
+function onInst(){ legs = []; _bookTried = false; refreshAll(); }
+
+function renderCtx(){
+  const L = lot();
+  const vixTxt = (vix && vix.ok && Number.isFinite(vix.value))
+    ? `<b>${vix.value.toFixed(2)}</b>`
+    : `<b class="unknown">unavailable</b>`;
+  $('ctxLine').innerHTML =
+    `<span>spot <b>${spot?('₹'+fmtN(spot.toFixed(0))):'—'}</b></span>` +
+    `<span>ATM <b>${atm?fmtN(atm):'—'}</b></span>` +
+    `<span>DTE <b>${dte==null?'—':dte}</b></span>` +
+    `<span>lot <b>${L==null?'<span class="unknown">unknown</span>':L}</b></span>` +
+    `<span>VIX ${vixTxt}</span>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   POSITION
+   ══════════════════════════════════════════════════════════════════════════════ */
+function addLeg(strike, type, premium, iv, ivSource, side){
+  const i = legs.findIndex(l => l.strike===strike && l.type===type);
+  if (i >= 0) { legs.splice(i,1); }
+  else legs.push({ side: side||'SELL', type, strike, premium:+Number(premium).toFixed(2),
+                   lots:1, iv: (iv==null||!isFinite(iv))?null:Number(iv),
+                   ivSource: ivSource||null });
+  renderChain(); recompute();
+}
+function clearLegs(){ legs = []; renderChain(); recompute(); }
+function flipSide(i){ legs[i].side = legs[i].side==='BUY'?'SELL':'BUY'; recompute(); }
+function setLots(i,v){ legs[i].lots = Math.max(1, Math.round(Number(v)||1)); recompute(); }
+function removeLeg(i){ legs.splice(i,1); renderChain(); recompute(); }
+
+async function loadBook(){
+  const b = $('bookBtn'); b.disabled = true; b.textContent = 'loading…';
+  const j = await jget('/api/pop/status');
+  const rows = (j && Array.isArray(j.book)) ? j.book.filter(p => p.inst === inst()) : [];
+  if (!rows.length) {
+    $('verdict').className = 'verdict blocked';
+    $('verdict').innerHTML = `<b>No open paper position for ${inst()}.</b> Build one by clicking premiums in the chain below.`;
+  } else {
+    const L = lot();
+    legs = rows.map(p => {
+      const strike = Number(p.strike);
+      const row = (chain?.strikes||[]).find(s => Number(s.strike) === strike);
+      const side = row && row[String(p.type).toLowerCase()];
+      // `lot` in the book is already lots × contract size; recover lots honestly.
+      const lots = (L && Number.isFinite(p.lot)) ? Math.max(1, Math.round(p.lot / L)) : 1;
+      return { side: String(p.side||'').startsWith('BUY') ? 'BUY' : 'SELL',
+               type: String(p.type).toUpperCase(), strike, premium: Number(p.premium)||0,
+               lots, iv: side && isFinite(side.iv) ? Number(side.iv) : null,
+               ivSource: side ? side.ivSource : null };
+    });
+  }
+  b.disabled = false; b.textContent = '↧ Load open paper book';
+  renderChain(); recompute();
+}
+
+function renderLegs(){
+  const body = $('legsBody');
+  if (!legs.length){
+    body.innerHTML = `<tr><td colspan="7"><div class="empty"><b>No position yet</b>
+      Click a premium in the per-strike table below, or load the open paper book.</div></td></tr>`;
+    return;
+  }
+  body.innerHTML = legs.map((l,i)=>`<tr>
+    <td><button class="pill ${l.side==='BUY'?'buy':'sell'}" onclick="flipSide(${i})"
+        aria-label="Leg ${i+1} side ${l.side}, activate to flip">${l.side==='BUY'?'▲ BUY':'▼ SELL'}</button></td>
+    <td class="n">${l.type}</td>
+    <td class="n">${fmtN(l.strike)}</td>
+    <td class="n">₹${l.premium}</td>
+    <td class="n"><input type="number" min="1" max="500" value="${l.lots}" aria-label="Lots for leg ${i+1}"
+        onchange="setLots(${i},this.value)" style="width:60px;background:var(--panel-2);border:1px solid var(--border-2);
+        color:var(--text);border-radius:5px;padding:2px 6px;font-family:var(--mono);min-height:30px"></td>
+    <td class="n">${l.iv==null?DASH:l.iv.toFixed(2)+'%'} ${ivBadge(l.iv,l.ivSource)}</td>
+    <td><button class="icon-btn" onclick="removeLeg(${i})" aria-label="Remove leg ${i+1}">✕</button></td>
+  </tr>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   RECOMPUTE — one POST gives net Greeks (₹-scaled), the expiry curve, breakevens,
+   unbounded flags and PoP. Nothing here re-derives what the engine already owns.
+   ══════════════════════════════════════════════════════════════════════════════ */
+async function recompute(){
+  renderLegs();
+  if (!legs.length){ payoff = null; renderBoard(); renderScenarios(); drawPayoff(); return; }
+  const body = { inst: inst(), spot: spot || undefined, dteDays: dte ?? undefined,
+                 legs: legs.map(l => ({ side:l.side, type:l.type, strike:l.strike,
+                                        premium:l.premium, lots:l.lots,
+                                        ...(l.iv!=null ? {iv:l.iv} : {}) })) };
+  try{
+    const r = await fetch('/api/strategy/payoff',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    payoff = r.ok ? await r.json() : null;
+  }catch(_){ payoff = null; }
+  renderBoard(); renderScenarios(); drawPayoff();
+}
+
+function anyIvEstimated(){ return legs.some(l => ivIsEstimated(l.iv, l.ivSource)); }
+
+function renderBoard(){
+  const board = $('greekBoard'), vd = $('verdict');
+  if (!legs.length){
+    board.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>No position</b>Net Greeks appear once you add a leg.</div>`;
+    vd.className = 'verdict'; vd.textContent = 'Add legs to see the net Greeks.';
+    return;
+  }
+  const L = lot();
+  if (L == null){
+    board.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Contract size unknown for ${inst()}</b>
+      The instrument registry has no broker-verified lot. Every rupee figure is withheld rather than guessed.</div>`;
+    vd.className = 'verdict blocked';
+    vd.innerHTML = `<b>Blocked.</b> Without a verified contract size no rupee Greek can be stated honestly.`;
+    return;
+  }
+  if (!payoff || payoff.available === false || !payoff.greeks){
+    board.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Payoff engine returned nothing</b>
+      ${payoff && payoff.reason ? payoff.reason : 'The position could not be priced.'}</div>`;
+    vd.className = 'verdict blocked'; vd.textContent = 'No Greeks available for this position.';
+    return;
+  }
+  const g = payoff.greeks;
+  const est = anyIvEstimated();
+  const cards = [
+    { n:'Net Theta', v:g.theta, unit:'₹ / day', cls:g.theta>0?'pos':g.theta<0?'neg':'',
+      mean:g.theta>0 ? 'Time is paying you. This is the seller\'s income line.'
+                     : 'Time is costing you. This is what a buyer pays to hold.' },
+    { n:'Net Delta', v:g.delta, unit:'₹ per +1 index point', cls:g.delta>0?'pos':g.delta<0?'neg':'',
+      mean: Math.abs(g.delta) < (Math.abs(g.theta)||1)*0.25
+            ? 'Close to direction-neutral at this spot.'
+            : (g.delta>0?'Position gains if the index rises.':'Position gains if the index falls.') },
+    { n:'Net Gamma', v:g.gamma, unit:'delta change per point', cls:g.gamma<0?'neg':'pos', dp:4,
+      mean:g.gamma<0 ? 'Negative gamma: delta turns against you as the index moves. This is the seller\'s tail risk.'
+                     : 'Positive gamma: delta moves in your favour as the index moves.' },
+    { n:'Net Vega', v:g.vega, unit:'₹ per +1 vol point', cls:g.vega>0?'pos':g.vega<0?'neg':'',
+      mean:g.vega<0 ? 'Short volatility: a rise in IV costs you even if the index is still.'
+                    : 'Long volatility: a rise in IV pays you.' },
+  ];
+  board.innerHTML = cards.map(c=>`<div class="g-card">
+      <div class="g-name">${c.n}</div>
+      <div class="g-val ${c.cls}">${c.dp?Number(c.v).toFixed(4):(c.v>=0?'+':'−')+fmtN(Math.abs(c.v).toFixed(c.n==='Net Delta'?2:0))}</div>
+      <div class="g-rupee ${c.cls}">${c.unit}</div>
+      <div class="g-mean">${c.mean}</div></div>`).join('') +
+    `<div class="g-card">
+      <div class="g-name">Net premium</div>
+      <div class="g-val ${payoff.netCredit>=0?'pos':'neg'}">${rupee(payoff.netCredit)}</div>
+      <div class="g-rupee">${payoff.netType}</div>
+      <div class="g-mean">Max profit ${typeof payoff.maxProfitLabel==='number'?rupee(payoff.maxProfitLabel):payoff.maxProfitLabel} ·
+        Max loss ${typeof payoff.maxLossLabel==='number'?('−₹'+fmtN(payoff.maxLossLabel)):('<span class="warn">'+payoff.maxLossLabel+'</span>')}</div></div>
+    <div class="g-card">
+      <div class="g-name">PoP <span class="badge b-est">RISK-NEUTRAL</span></div>
+      <div class="g-val">${payoff.probabilityOfProfit==null?DASH:payoff.probabilityOfProfit+'%'}</div>
+      <div class="g-rupee">lognormal estimate at expiry</div>
+      <div class="g-mean">A model probability, not a measured win rate. It is not a no-touch probability.</div></div>`;
+
+  // ── mechanical verdict ──
+  const unb = payoff.unbounded && (payoff.unbounded.upside || payoff.unbounded.downside);
+  let cls='verdict', txt='';
+  if (g.theta > 0){
+    cls = 'verdict seller';
+    txt = `<b>Structurally a premium-seller setup.</b> Net theta is <b>${rupee(g.theta)}/day</b> — time pays you `
+        + `${dte!=null?`over the ${dte} day(s) to expiry (≈ ${rupee(g.theta*dte)} if nothing moves)`:'while the position is open'}. `
+        + `The cost of that income is gamma ${Number(g.gamma).toFixed(4)}: a fast move turns delta against you`
+        + (g.vega<0?`, and a rise in IV costs ${rupee(Math.abs(g.vega))} per vol point`:'') + '.';
+  } else if (g.theta < 0){
+    cls = 'verdict buyer';
+    txt = `<b>Structurally a premium-buyer setup.</b> Net theta is <b>${rupee(g.theta)}/day</b> — you are paying `
+        + `for the position to stay alive. It profits only if the move (delta ${Number(g.delta).toFixed(2)} ₹/pt, `
+        + `gamma ${Number(g.gamma).toFixed(4)})`+(g.vega>0?' or a rise in IV':'')+' outruns that decay before expiry.';
+  } else { txt = 'Net theta is flat — this position neither earns nor pays time value at the current spot.'; }
+  if (unb) txt += ` <b class="warn">Loss is UNBOUNDED</b> — ${payoff.maxLossLabel}. The chart's edge is not the edge of the risk.`;
+  if (est){ cls='verdict blocked';
+    txt = `<b class="warn">Some inputs are estimated.</b> At least one leg uses an implied volatility the platform `
+        + `solved or assumed rather than read from the broker feed, so these Greeks are model output on top of a `
+        + `model input. The reading below still holds mechanically, but do not treat it as measured.<br><br>` + txt; }
+  vd.className = cls; vd.innerHTML = txt;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SCENARIO GRID
+   At-expiry cells are EXACT (read off the engine's own curve). Today / +1 day are
+   a second-order Taylor projection from the net Greeks — labelled as an estimate,
+   because the engine's curve is intrinsic-only and cannot price a mid-life date.
+   ══════════════════════════════════════════════════════════════════════════════ */
+const MOVES = [-2,-1,0,1,2];        // % move in the underlying
+const IVSH  = [-2,0,2];             // vol-point shift
+
+function expiryPnlAt(px){
+  if (!payoff || !Array.isArray(payoff.curve) || !payoff.curve.length) return null;
+  const c = payoff.curve;
+  if (px <= c[0].spot) return c[0].payoff;
+  if (px >= c[c.length-1].spot) return c[c.length-1].payoff;
+  for (let i=1;i<c.length;i++){
+    if (px <= c[i].spot){
+      const a=c[i-1], b=c[i], t=(px-a.spot)/((b.spot-a.spot)||1);
+      return a.payoff + t*(b.payoff - a.payoff);
+    }
+  }
+  return null;
+}
+function taylorPnl(dS, dIV, days){
+  const g = payoff.greeks;
+  return g.delta*dS + 0.5*g.gamma*dS*dS + g.theta*days + g.vega*dIV;
+}
+
+function renderScenarios(){
+  const t = $('scTable'), reading = $('scReading'), note = $('scNote');
+  if (!legs.length || !payoff || !payoff.greeks || lot()==null){
+    t.innerHTML = `<tbody><tr><td><div class="empty"><b>No position</b>The grid needs a position and a verified lot size.</div></td></tr></tbody>`;
+    reading.textContent = ''; note.textContent = ''; return;
+  }
+  const headA = `<tr><th rowspan="2" class="grp">Underlying</th>`
+    + `<th colspan="3" class="grp">Today <span class="badge b-est">EST</span></th>`
+    + `<th colspan="3" class="grp">+1 day <span class="badge b-est">EST</span></th>`
+    + `<th rowspan="2" class="grp">At expiry<br><span class="badge b-feed">EXACT</span></th></tr>`;
+  const headB = `<tr>` + IVSH.concat(IVSH).map(s=>`<th>IV ${s>0?'+':''}${s}</th>`).join('') + `</tr>`;
+
+  const rows = MOVES.map(mv=>{
+    const px = spot*(1+mv/100), dS = px - spot;
+    const cells = [];
+    for (const days of [0,1]) for (const dIV of IVSH) cells.push({v:taylorPnl(dS,dIV,days), exact:false});
+    cells.push({ v: expiryPnlAt(px), exact:true });
+    return `<tr><td class="sc-row-lbl">${mv>0?'+':''}${mv}%<br><span class="unknown">${fmtN(px.toFixed(0))}</span></td>`
+      + cells.map(c=>{
+          if (c.v==null) return `<td class="sc-cell">${DASH}</td>`;
+          const bg = c.v>=0 ? 'var(--green-dim)' : 'var(--red-dim)';
+          const col= c.v>=0 ? 'var(--green)' : 'var(--red)';
+          return `<td class="sc-cell ${c.exact?'sc-exact':''}" style="background:${bg};color:${col}">${rupee(c.v)}</td>`;
+        }).join('') + '</tr>';
+  }).join('');
+  t.innerHTML = `<thead>${headA}${headB}</thead><tbody>${rows}</tbody>`;
+
+  // plain reading — derived, with its own limits stated
+  const g = payoff.greeks;
+  const be = (payoff.breakevens||[]).slice().sort((a,b)=>a-b);
+  const unb = payoff.unbounded && (payoff.unbounded.upside || payoff.unbounded.downside);
+  let txt = '';
+  if (be.length >= 2){
+    txt = `At expiry this position is profitable while <b>${inst()}</b> finishes between `
+        + `<b>${fmtN(be[0].toFixed(0))}</b> and <b>${fmtN(be[be.length-1].toFixed(0))}</b> — `
+        + `a band of ${fmtN((be[be.length-1]-be[0]).toFixed(0))} points around a spot of ${fmtN(spot.toFixed(0))}.`;
+  } else if (be.length === 1){
+    txt = `At expiry the position turns at <b>${fmtN(be[0].toFixed(0))}</b> (spot ${fmtN(spot.toFixed(0))}).`;
+  } else { txt = 'No breakeven falls inside the priced range.'; }
+  if (g.vega < 0) txt += ` Before expiry, every 1-point rise in IV costs about <b>${rupee(g.vega)}</b>, so the position `
+                       + `can lose while the index stands still.`;
+  if (g.theta > 0) txt += ` Holding still earns about <b>${rupee(g.theta)}</b> a day.`;
+  if (unb) txt += ` <b class="warn">Beyond the band the loss is unbounded</b> — there is no level at which it stops.`;
+  reading.innerHTML = txt;
+
+  note.innerHTML = `<b>How to read this.</b> The <b>At expiry</b> column is exact — it is read straight off the
+    payoff engine's own curve. The <b>Today</b> and <b>+1 day</b> columns are a <b>second-order estimate</b>
+    (delta·ΔS + ½·gamma·ΔS² + theta·Δt + vega·ΔIV) from the current net Greeks. They ignore higher-order terms,
+    the volatility smile, and the path taken to get there, and they get less reliable the larger the move.
+    ${anyIvEstimated()?'<br><b class="warn">At least one leg\'s IV is estimated</b>, so every cell inherits that assumption.':''}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PAYOFF CHART — unbounded tails are drawn as unbounded, never capped
+   ══════════════════════════════════════════════════════════════════════════════ */
+function drawPayoff(){
+  const cv=$('pfCanvas'); if(!cv) return;
+  const ctx=cv.getContext('2d');
+  const W=cv.clientWidth||600, H=cv.clientHeight||300, dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
+  const C={bg:cssVar('--panel'),grid:cssVar('--grid'),text:cssVar('--text'),muted:cssVar('--muted'),
+    dim:cssVar('--dim'),green:cssVar('--green'),red:cssVar('--red'),amber:cssVar('--amber'),blue:cssVar('--blue'),
+    gf:cssVar('--green-dim'),rf:cssVar('--red-dim')};
+  ctx.fillStyle=C.bg; ctx.fillRect(0,0,W,H);
+  const banner=$('pfBanner'); banner.className='banner';
+  $('pfSub').textContent='';
+
+  if (!legs.length || !payoff || !Array.isArray(payoff.curve) || !payoff.curve.length){
+    ctx.fillStyle=C.dim; ctx.font='600 14px system-ui'; ctx.textAlign='center';
+    ctx.fillText('Add a leg to draw the expiry payoff.', W/2, H/2);
+    _geom=null; $('pfA11y').textContent='Payoff chart. No position yet.'; return;
+  }
+  const unb = payoff.unbounded||{};
+  // Plot a readable window around spot; the engine's curve runs far wider.
+  const lo = spot*0.92, hi = spot*1.08, pad={t:22,b:36,l:78,r:26};
+  const pts=[]; for(let i=0;i<=200;i++){ const px=lo+(hi-lo)*(i/200); pts.push({x:px,y:expiryPnlAt(px)}); }
+  const ys=pts.map(p=>p.y).filter(v=>v!=null);
+  const maxY=Math.max(...ys,0), minY=Math.min(...ys,0), rng=(maxY-minY)||1;
+  const cx=x=>pad.l+(x-lo)/(hi-lo)*(W-pad.l-pad.r);
+  const cy=y=>pad.t+(maxY-y)/rng*(H-pad.t-pad.b);
+  _geom={lo,hi,pad,W,H,cx,cy,minY,maxY};
+
+  if (unb.upside || unb.downside){
+    banner.className='banner show';
+    banner.innerHTML=`<b>⚠ Unbounded loss — ${payoff.maxLossLabel}.</b> `+
+      (unb.upside?'A net-short call loses without limit as the index rises. ':'')+
+      (unb.downside?'A net-short put keeps losing as the index falls. ':'')+
+      `The plot below is a window around spot; <b>the edge of the chart is not the edge of the risk</b>.`;
+  }
+  // grid + ₹ ticks
+  ctx.strokeStyle=C.grid; ctx.lineWidth=1; ctx.font='11px ui-monospace,monospace'; ctx.textAlign='right';
+  for(let i=0;i<=4;i++){ const yv=minY+rng*(i/4);
+    ctx.beginPath(); ctx.moveTo(pad.l,cy(yv)); ctx.lineTo(W-pad.r,cy(yv)); ctx.stroke();
+    ctx.fillStyle=C.muted; ctx.fillText((yv>=0?'+':'−')+'₹'+fmtN(Math.abs(yv).toFixed(0)), pad.l-8, cy(yv)+4); }
+  ctx.strokeStyle=C.muted; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(pad.l,cy(0)); ctx.lineTo(W-pad.r,cy(0)); ctx.stroke(); ctx.setLineDash([]);
+  // zones
+  const shade=(f,fill)=>{ ctx.beginPath();
+    pts.forEach((p,i)=>{ const yy=cy(f(p.y)); i===0?ctx.moveTo(cx(p.x),yy):ctx.lineTo(cx(p.x),yy); });
+    ctx.lineTo(cx(pts[pts.length-1].x),cy(0)); ctx.lineTo(cx(pts[0].x),cy(0)); ctx.closePath();
+    ctx.fillStyle=fill; ctx.fill(); };
+  shade(y=>Math.max(y,0),C.gf); shade(y=>Math.min(y,0),C.rf);
+  // curve in two passes so the sign change is a shape change, not only a colour change
+  const seg=(test,col)=>{ ctx.beginPath(); ctx.lineWidth=2.5; ctx.strokeStyle=col; let on=false;
+    pts.forEach(p=>{ if(p.y!=null&&test(p.y)){ on?ctx.lineTo(cx(p.x),cy(p.y)):ctx.moveTo(cx(p.x),cy(p.y)); on=true; } else on=false; });
+    ctx.stroke(); };
+  seg(y=>y>=0,C.green); seg(y=>y<0,C.red);
+  // breakevens
+  (payoff.breakevens||[]).forEach(b=>{ if(b<lo||b>hi)return;
+    ctx.strokeStyle=C.blue; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(cx(b),pad.t); ctx.lineTo(cx(b),H-pad.b); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=C.blue; ctx.font='700 10px ui-monospace,monospace'; ctx.textAlign='center';
+    ctx.fillText('BE '+fmtN(b.toFixed(0)), cx(b), pad.t-7); });
+  // spot
+  if (spot>=lo&&spot<=hi){ ctx.strokeStyle=C.amber; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx(spot),pad.t); ctx.lineTo(cx(spot),H-pad.b); ctx.stroke();
+    const sy=expiryPnlAt(spot); if(sy!=null){ ctx.fillStyle=C.amber; ctx.beginPath(); ctx.arc(cx(spot),cy(sy),4.5,0,Math.PI*2); ctx.fill(); }
+    ctx.fillStyle=C.amber; ctx.font='700 10px ui-monospace,monospace'; ctx.textAlign='center';
+    ctx.fillText('SPOT '+fmtN(spot.toFixed(0)), cx(spot), H-pad.b+16); }
+  // honest tails: an arrow off-plot where the loss keeps going
+  ctx.font='700 11px system-ui'; ctx.fillStyle=C.red;
+  if (unb.upside){ ctx.textAlign='right'; ctx.fillText('loss continues ↓→', W-pad.r-4, H-pad.b-6); }
+  if (unb.downside){ ctx.textAlign='left';  ctx.fillText('←↓ loss continues', pad.l+4, H-pad.b-6); }
+
+  $('pfSub').textContent = `window ₹${fmtN(lo.toFixed(0))}–₹${fmtN(hi.toFixed(0))}`;
+  $('pfA11y').textContent = `Expiry payoff for ${legs.length} legs on ${inst()}. `+
+    `Net premium ${rupee(payoff.netCredit)}. Max profit ${payoff.maxProfitLabel}. Max loss ${payoff.maxLossLabel}. `+
+    `Breakevens ${(payoff.breakevens||[]).map(b=>fmtN(b.toFixed(0))).join(' and ')||'none'}. `+
+    `Probability of profit ${payoff.probabilityOfProfit}% (risk-neutral model estimate).`;
+}
+function pfHover(ev){
+  const tip=$('pfTip'), g=_geom; if(!g){ tip.classList.remove('show'); return; }
+  const r=$('pfCanvas').getBoundingClientRect();
+  const x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+  if (x<g.pad.l||x>g.W-g.pad.r){ tip.classList.remove('show'); return; }
+  const px=g.lo+(x-g.pad.l)/(g.W-g.pad.l-g.pad.r)*(g.hi-g.lo);
+  const y=expiryPnlAt(px); if(y==null){ tip.classList.remove('show'); return; }
+  tip.innerHTML=`<div class="unknown">${inst()} @ ₹${fmtN(px.toFixed(0))}</div>`+
+    `<div style="font-weight:800;color:${y>=0?'var(--green)':'var(--red)'}">${rupee(y)}</div>`;
+  tip.classList.add('show');
+  const tw=tip.offsetWidth||110;
+  tip.style.left=Math.min(Math.max(x-tw/2,4),g.W-tw-4)+'px';
+  tip.style.top=(g.cy(y)-50)+'px';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PER-STRIKE CHAIN
+   ══════════════════════════════════════════════════════════════════════════════ */
+function renderChain(){
+  const host=$('chainContent');
+  let rows=(chain&&chain.strikes)||[];
+  if(!rows.length){ host.innerHTML='<div class="empty"><b>Chain unavailable</b>No strikes returned for '+inst()+'.</div>'; return; }
+  if (atm && rows.length>41){
+    const s=rows.slice().sort((a,b)=>a.strike-b.strike);
+    let i=s.findIndex(r=>r.strike===atm);
+    if(i<0) i=s.reduce((b,r,k)=>Math.abs(r.strike-atm)<Math.abs(s[b].strike-atm)?k:b,0);
+    rows=s.slice(Math.max(0,i-14), i+15);
+  }
+  /* Theta-to-gamma: how much decay a strike offers per unit of gamma risk. It is a
+     RATIO OF TWO MODEL OUTPUTS, not a profit forecast — the strikes that decay fastest
+     are the ones that hurt fastest in a gap, which is exactly what the label says.
+     Only strikes with both Greeks genuinely known take part. */
+  const ratios = [];
+  rows.forEach(r=>['ce','pe'].forEach(k=>{ const l=r[k];
+    if(!l||greekUnknown(l)) return;
+    const th=Math.abs(Number(l.theta)||0), ga=Math.abs(Number(l.gamma)||0);
+    if(th>0&&ga>0) ratios.push({key:r.strike+k, v:th/ga}); }));
+  const sorted=ratios.map(x=>x.v).sort((a,b)=>b-a);
+  const cutoff = sorted.length>=7 ? sorted[Math.max(0,Math.floor(sorted.length*0.15)-1)] : Infinity;
+  const decayRich = new Set(ratios.filter(x=>x.v>=cutoff).map(x=>x.key));
+
+  const cell=(leg,strike,type)=>{
+    if(!leg) return `<td>${DASH}</td><td>${DASH}</td><td>${DASH}</td><td>${DASH}</td><td>${DASH}</td><td>${DASH}</td><td>${DASH}</td>`;
+    const unk=greekUnknown(leg);
+    const sel=legs.some(l=>l.strike===strike&&l.type===type);
+    const iv=(leg.iv==null||!isFinite(leg.iv))?null:Number(leg.iv);
+    const pop=(leg.pop==null||!isFinite(leg.pop))?null:Number(leg.pop);
+    return `<td><button class="add-btn ${type.toLowerCase()}" style="${sel?'border-color:var(--focus);background:var(--blue-dim)':''}"
+        onclick="addLeg(${strike},'${type}',${Number(leg.ltp)||0},${iv==null?'null':iv},'${leg.ivSource||''}')"
+        aria-label="${sel?'Remove':'Add'} ${type} ${strike}, premium ${Number(leg.ltp||0).toFixed(1)}">₹${Number(leg.ltp||0).toFixed(1)}</button></td>
+      <td class="n">${iv==null?DASH:iv.toFixed(2)} ${ivBadge(iv,leg.ivSource)}</td>
+      <td class="n">${unk?DASH:g2(leg.delta)}</td>
+      <td class="n">${unk?DASH:g4(leg.gamma)}</td>
+      <td class="n">${unk?DASH:g2(leg.theta)}${(!unk&&decayRich.has(strike+type.toLowerCase()))?' <span class="badge b-est" title="High theta-to-gamma versus the rest of this chain: it decays quickly, and for the same reason it turns against you quickly in a fast move. Not a profit signal.">decay-rich · tail-exposed</span>':''}</td>
+      <td class="n">${unk?DASH:g2(leg.vega)}</td>
+      <td class="n">${pop==null?DASH:pop.toFixed(0)+'%'}</td>`;
+  };
+  host.innerHTML=`<table class="chain-table">
+    <caption class="sr-only">Per-strike Greeks. Delta, gamma and theta are per share; theta is per day.</caption>
+    <thead><tr>
+      <th>CE ₹</th><th>CE IV</th><th>CE Δ</th><th>CE Γ</th><th>CE Θ/day</th>
+      <th title="Per share, per 1.00 of vol — NOT per vol-point. Never compare with the ₹ vega on the board above.">CE ν <span class="badge b-unk">/1.00vol</span></th><th>CE PoP</th>
+      <th>Strike</th>
+      <th>PE ₹</th><th>PE IV</th><th>PE Δ</th><th>PE Γ</th><th>PE Θ/day</th>
+      <th title="Per share, per 1.00 of vol — NOT per vol-point. Never compare with the ₹ vega on the board above.">PE ν <span class="badge b-unk">/1.00vol</span></th><th>PE PoP</th>
+    </tr></thead><tbody>` +
+    rows.map(r=>`<tr class="${r.strike===atm?'atm':''}">`
+      + cell(r.ce,r.strike,'CE')
+      + `<td class="n" style="font-weight:800">${fmtN(r.strike)}${r.strike===atm?'<span class="atm-chip">ATM</span>':''}</td>`
+      + cell(r.pe,r.strike,'PE') + '</tr>').join('') + '</tbody></table>';
+  const sc=$('chainScroll'), at=sc.querySelector('tr.atm');
+  if (at) sc.scrollTop = at.offsetTop - sc.clientHeight/2 + at.offsetHeight/2;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   THEME + INIT
+   ══════════════════════════════════════════════════════════════════════════════ */
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme');
+  const next = cur==='dark' ? 'light' : cur==='light' ? 'dark'
+    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', next);
+  try{ localStorage.setItem('ag-greeks-theme', next); }catch(_){}
+  drawPayoff();
+}
+/* Theme resolution order: ?theme= (deep-link, also what the screenshot harness uses)
+   → localStorage → prefers-color-scheme. */
+(function(){
+  let t=null;
+  try{ t = new URLSearchParams(location.search).get('theme'); }catch(_){}
+  if (t!=='light' && t!=='dark'){ try{ t = localStorage.getItem('ag-greeks-theme'); }catch(_){ t=null; } }
+  if (t==='light'||t==='dark') document.documentElement.setAttribute('data-theme',t);
+})();
+
+window.addEventListener('resize', drawPayoff);
+$('pfCanvas').addEventListener('mousemove', pfHover);
+$('pfCanvas').addEventListener('touchmove', pfHover, {passive:true});
+$('pfCanvas').addEventListener('mouseleave', ()=>$('pfTip').classList.remove('show'));
+
+renderLegs(); renderBoard(); renderScenarios(); drawPayoff();
+refreshAll();
+setInterval(refreshAll, 30000);
+</script>
+</body>
+</html>
