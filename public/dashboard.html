@@ -194,7 +194,15 @@
   /* auto fast-movers 4-box grid */
   .automovers{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
   @media(max-width:820px){ .automovers{ grid-template-columns:repeat(2,1fr); } }
-  .ambox{ background:var(--bg2); border:1px solid var(--line); border-radius:13px; padding:12px 14px; position:relative; overflow:hidden; }
+  .ambox{ background:var(--bg2); border:1px solid var(--line); border-radius:13px; padding:12px 14px; position:relative; overflow:hidden;
+    cursor:pointer; transition:border-color .12s, transform .12s; }
+  /* the whole card is a link to that strike's high/low history (new tab) */
+  .ambox:hover{ border-color:var(--blue); transform:translateY(-1px); }
+  .ambox:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+  /* sits inline after the strike name so it never collides with the change badge */
+  .amopen{ font-size:.5rem; font-weight:800; letter-spacing:.3px; color:var(--mut);
+    opacity:0; transition:opacity .12s; white-space:nowrap; }
+  .ambox:hover .amopen, .ambox:focus-visible .amopen{ opacity:1; color:var(--blue); }
   .ambox.ce{ border-left:3px solid var(--up); } .ambox.pe{ border-left:3px solid var(--dn); }
   .ambox.flash{ animation:amflash .5s ease-out; }
   @keyframes amflash{ 0%{ background:rgba(38,208,160,.22); } 100%{ background:var(--bg2); } }
@@ -1178,6 +1186,16 @@ function toggleAuto(){
   document.getElementById('stkStrike').style.display = AUTO_ON ? 'none' : '';
   if (AUTO_ON) loadAutoMovers(); else loadStrikeTimeline();
 }
+// Open a strike's full high/low history in a NEW TAB. strike-history.html already
+// reads inst/strike/type/focus from the query string and renders both timelines plus
+// the strike chart — so this deep-links into the page that exists rather than adding
+// a second implementation of the same view.
+function openStrikeHL(inst, strike, type){
+  const u = `/strike-history.html?inst=${encodeURIComponent(inst)}&strike=${encodeURIComponent(strike)}`
+          + `&type=${encodeURIComponent(type || '')}&focus=highlow`;
+  window.open(u, '_blank', 'noopener');
+}
+
 async function loadAutoMovers(){
   if (!AUTO_ON) return;
   const fmt = (v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
@@ -1202,15 +1220,20 @@ async function loadAutoMovers(){
       const up = r.velMin >= 0;
       const flash = (AUTO_PREVLTP[r.key]!=null && r.ltpN > AUTO_PREVLTP[r.key]) ? ' flash' : '';
       AUTO_PREVLTP[r.key] = r.ltpN;
-      return `<div class="ambox ${cls}${flash}">
+      return `<div class="ambox ${cls}${flash}" tabindex="0" role="link"
+        title="Open ${r.strike} ${r.type} high/low history in a new tab"
+        aria-label="Open the high and low history for ${r.strike} ${r.type} in a new tab"
+        onclick="openStrikeHL('${STK_INST}',${r.strike},'${r.type}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openStrikeHL('${STK_INST}',${r.strike},'${r.type}')}">
         <div class="amh"><span class="amrank">#${idx+1}</span><span class="amstk">${r.strike} ${r.type}</span>
+          <span class="amopen" aria-hidden="true">↗ H/L</span>
           <span class="amchg ${r.chng>=0?'up':'dn'}">${r.chngPct>=0?'+':''}${fmt(r.chngPct,1)}%</span></div>
         <div class="amltp">₹${fmt(r.ltpN)}</div>
         <div class="amvel ${up?'up':'dn'}">${up?'▲':'▼'} ${fmt(Math.abs(r.velMin),1)} ₹/min</div>
         <div class="ammeta">H ${fmt(r.high)} / L ${fmt(r.low)} · OI ${r.oi?(r.oi/1e5).toFixed(1)+'L':'—'} · PoP ${r.pop!=null?Math.round(r.pop)+'%':'—'}</div>
         <div class="ambtns">
           <button class="buybtn ${cls}" onclick="event.stopPropagation(); mqBuy('${STK_INST}',${r.strike},'${r.type}',${r.ltpN})">BUY ${r.type}</button>
-          <button class="minibtn" onclick="strikeClick('${STK_INST}',${r.strike})">record</button>
+          <button class="minibtn" onclick="event.stopPropagation(); strikeClick('${STK_INST}',${r.strike})" title="Quick peek without leaving this page">record</button>
         </div>
       </div>`;
     }).join('') || '<div class="flat" style="font-size:.72rem;grid-column:1/-1">no live premiums</div>';
