@@ -191,6 +191,18 @@
   .fullrecbtn:hover{ background:rgba(91,156,255,.28); }
   .autobtn{ background:rgba(255,194,75,.12); border:1px solid rgba(255,194,75,.5); color:var(--amber); font-size:0.62rem; font-weight:900; padding:5px 12px; border-radius:8px; cursor:pointer; }
   .autobtn.on{ background:var(--amber); color:#1a1400; }
+  /* fast-mover filter tabs */
+  .amfilt{ display:flex; gap:4px; flex-wrap:wrap; }
+  .afbtn{ background:transparent; border:1px solid var(--line2); color:var(--dim2); font-size:0.58rem;
+    font-weight:900; letter-spacing:.4px; padding:5px 10px; border-radius:8px; cursor:pointer; white-space:nowrap; }
+  .afbtn:hover{ color:var(--tx); border-color:var(--blue); }
+  .afbtn.on{ background:rgba(91,156,255,.16); border-color:var(--blue); color:#cfe0ff; }
+  .afbtn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+  .afmin{ display:inline-flex; align-items:center; gap:4px; font-size:0.58rem; font-weight:800;
+    letter-spacing:.4px; color:var(--dim2); white-space:nowrap; }
+  .afmin input{ width:48px; background:var(--bg2); border:1px solid var(--line2); color:var(--tx);
+    border-radius:6px; padding:4px 5px; font-family:ui-monospace,Menlo,monospace; font-size:0.6rem; text-align:center; }
+  .afrng{ font-weight:700; opacity:.72; font-family:ui-monospace,Menlo,monospace; margin-left:3px; }
   /* auto fast-movers 4-box grid */
   .automovers{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
   @media(max-width:820px){ .automovers{ grid-template-columns:repeat(2,1fr); } }
@@ -478,6 +490,25 @@
         <select class="stksel" id="stkStrike" onchange="linkStrike(+this.value)"></select>
         <button class="fullrecbtn" onclick="openRecModal()">📋 Full high/low record</button>
         <button class="autobtn" id="autoBtn" onclick="toggleAuto()">⚡ Auto movers</button>
+        <!-- fast-mover filters. Only shown while Auto movers is on, because they
+             filter nothing else on the page. -->
+        <div class="amfilt" id="amFilt" style="display:none" role="group" aria-label="Fast-mover filter">
+          <button class="afbtn on" data-f="all"  onclick="setAutoFilter('all',this)">ALL</button>
+          <button class="afbtn"    data-f="otm"  onclick="setAutoFilter('otm',this)"
+            title="Out of the money only — CE above spot, PE below spot">OTM</button>
+          <button class="afbtn"    data-f="low"  onclick="setAutoFilter('low',this)"
+            title="Premium from the floor up to the first boundary">LOWER <span class="afrng" id="afrLow">₹10–100</span></button>
+          <button class="afbtn"    data-f="med"  onclick="setAutoFilter('med',this)"
+            title="Premium between the two boundaries">MEDIUM <span class="afrng" id="afrMed">₹101–200</span></button>
+          <button class="afbtn"    data-f="high" onclick="setAutoFilter('high',this)"
+            title="Premium above the second boundary">HIGHER <span class="afrng" id="afrHigh">₹201+</span></button>
+          <label class="afmin" title="Strikes cheaper than this are excluded from every tab — below it a round-trip brokerage costs more than the position deploys">₹
+            <input type="number" id="amMinPrem" value="10" min="0" step="1" onchange="setAutoMin(this.value)" aria-label="Minimum tradeable premium">
+            <span style="color:var(--mut)">–</span>
+            <input type="number" id="amSplit1" value="100" min="0" step="10" onchange="setAutoSplit1(this.value)" aria-label="Lower/medium boundary">
+            <span style="color:var(--mut)">–</span>
+            <input type="number" id="amSplit2" value="200" min="0" step="10" onchange="setAutoSplit2(this.value)" aria-label="Medium/higher boundary"></label>
+        </div>
         <span class="indsig" id="stkMeta" style="margin-left:auto">—</span>
       </div>
       <div class="stkcols" id="stkCols">
@@ -1178,9 +1209,32 @@ function renderStrikeSide(el, leg, strike, type){
 let AUTO_ON = false;
 const AUTO_HIST = {};              // "strikeType" → [{t, ltp}]  (for premium velocity)
 const AUTO_PREVLTP = {};           // "strikeType" → last ltp (for flash on uptick)
+let AUTO_FILTER = 'all';           // all | otm | low | high
+// Premium tiers, owner-defined 2026-07-27. The floor exists because a strike under
+// ~₹10 is not a trade: ₹0.55 × 65 lot deploys ₹36 against a ~₹60 round-trip
+// brokerage, so it loses before the market moves. The engines carry the same idea
+// as <INST>_MIN_PREMIUM (execution-engine.js:85).
+let AUTO_MIN_PREM = 10;            // floor — below this is excluded from every tab
+let AUTO_SPLIT1   = 100;           // LOWER  = floor … 100
+let AUTO_SPLIT2   = 200;           // MEDIUM = 101 … 200   ·   HIGHER = 201+
+function _syncTierLabels(){
+  const l = document.getElementById('afrLow'), m = document.getElementById('afrMed'), h = document.getElementById('afrHigh');
+  if (l) l.textContent = `₹${AUTO_MIN_PREM}–${AUTO_SPLIT1}`;
+  if (m) m.textContent = `₹${AUTO_SPLIT1+1}–${AUTO_SPLIT2}`;
+  if (h) h.textContent = `₹${AUTO_SPLIT2+1}+`;
+}
+function setAutoMin(v){   AUTO_MIN_PREM = Math.max(0, Number(v) || 0); _syncTierLabels(); loadAutoMovers(); }
+function setAutoSplit1(v){ AUTO_SPLIT1  = Math.max(AUTO_MIN_PREM, Number(v) || 0); _syncTierLabels(); loadAutoMovers(); }
+function setAutoSplit2(v){ AUTO_SPLIT2  = Math.max(AUTO_SPLIT1,   Number(v) || 0); _syncTierLabels(); loadAutoMovers(); }
+function setAutoFilter(f, btn){
+  AUTO_FILTER = f;
+  document.querySelectorAll('.afbtn').forEach(b => b.classList.toggle('on', b === btn));
+  loadAutoMovers();
+}
 function toggleAuto(){
   AUTO_ON = !AUTO_ON;
   document.getElementById('autoBtn').classList.toggle('on', AUTO_ON);
+  document.getElementById('amFilt').style.display = AUTO_ON ? 'flex' : 'none';
   document.getElementById('autoMovers').style.display = AUTO_ON ? 'grid' : 'none';
   document.getElementById('stkCols').style.display = AUTO_ON ? 'none' : 'grid';
   document.getElementById('stkStrike').style.display = AUTO_ON ? 'none' : '';
@@ -1211,10 +1265,46 @@ async function loadAutoMovers(){
       const velSec = dt > 0 ? (last.ltp - first.ltp)/dt : 0;     // ₹/sec over the tracked window
       return { ...r, ltpN: ltp, velMin: velSec*60, key };
     });
+    // ── filter ────────────────────────────────────────────────────────────────
+    // The lower/higher-premium split is the MEDIAN of the live strikes right now,
+    // not a fixed rupee threshold. A hardcoded cut would be a market constant
+    // invented on a dashboard, and it would mean something different for a ₹20
+    // BANKNIFTY wing and a ₹1,000 deep-ITM NIFTY call. The boundary is shown in
+    // the meta line so the user can see what "lower" actually meant.
+    const spotN = parseFloat(j.spot) || 0;
+    // TRADEABLE FLOOR. Below this a strike is not a trade: at ₹0.55 × 65 lot you have
+    // ~₹36 on the table against a round-trip brokerage of roughly ₹60, so the fill
+    // loses money before the market moves. The engines already carry this idea as
+    // <INST>_MIN_PREMIUM (execution-engine.js:85). Junk strikes are excluded from
+    // every fast-mover tab, and the floor is printed so it is never a hidden rule.
+    const floor = AUTO_MIN_PREM, s1 = AUTO_SPLIT1, s2 = AUTO_SPLIT2;
+    const live = scored.filter(r => r.ltpN >= floor);
+    let pool = live, note = ` · ≥ ₹${floor}`;
+    if (AUTO_FILTER === 'otm') {
+      // Out-of-the-money needs a spot. Without one we cannot classify, so we say so
+      // rather than guessing a side.
+      if (!spotN) { pool = []; note = ' · OTM needs spot — unavailable'; }
+      else { pool = live.filter(r => r.type === 'CE' ? r.strike > spotN : r.strike < spotN);
+             note = ` · OTM ≥ ₹${floor} (vs spot ${Math.round(spotN)})`; }
+    } else if (AUTO_FILTER === 'low' || AUTO_FILTER === 'med' || AUTO_FILTER === 'high') {
+      // Owner-defined premium tiers (2026-07-27): 10–100 lower, 101–200 medium,
+      // 201+ higher. Both edges are shown on screen and editable — a hidden
+      // threshold is how a filter starts lying about what it selected.
+      if (AUTO_FILTER === 'low')  { pool = live.filter(r => r.ltpN >= floor && r.ltpN <= s1); note = ` · ₹${floor} – ₹${s1}`; }
+      if (AUTO_FILTER === 'med')  { pool = live.filter(r => r.ltpN >  s1    && r.ltpN <= s2); note = ` · ₹${s1+1} – ₹${s2}`; }
+      if (AUTO_FILTER === 'high') { pool = live.filter(r => r.ltpN >  s2);                    note = ` · ₹${s2+1}+`; }
+    }
     // rank by fastest UPSIDE premium velocity (then by day %chng as tiebreak)
-    scored.sort((a,b) => (b.velMin - a.velMin) || (b.chngPct - a.chngPct));
-    const top = scored.slice(0, 4);
-    document.getElementById('stkMeta').textContent = `${STK_INST} · auto fast-movers · spot ${j.spot?Math.round(j.spot):'—'}`;
+    pool = pool.slice().sort((a,b) => (b.velMin - a.velMin) || (b.chngPct - a.chngPct));
+    const top = pool.slice(0, 4);
+    document.getElementById('stkMeta').textContent =
+      `${STK_INST} · auto fast-movers · spot ${j.spot?Math.round(j.spot):'—'}${note}`;
+    if (!top.length) {
+      document.getElementById('autoMovers').innerHTML =
+        `<div class="flat" style="font-size:.72rem;grid-column:1/-1;padding:18px;text-align:center">
+           No strike matches this filter right now.${note ? '<br><span style="color:var(--mut)">'+note.replace(/^ · /,'')+'</span>' : ''}</div>`;
+      return;
+    }
     document.getElementById('autoMovers').innerHTML = top.map((r,idx) => {
       const cls = r.type==='CE'?'ce':'pe';
       const up = r.velMin >= 0;
