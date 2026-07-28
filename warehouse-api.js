@@ -67,9 +67,59 @@ function getRecord(date, inst, strike, type) {
   };
 }
 
+/**
+ * Every strike's best BUY LOW → SELL HIGH for a day, ranked.
+ * `min` is a tradeable-premium floor: a +200% move on a ₹0.15 option is ₹0.30 a
+ * share and nothing per lot, and ranking by percentage alone puts that junk on top.
+ * Both the percentage and the rupees-per-lot are returned so neither can flatter.
+ */
+function getCapture(date, opts = {}) {
+  let doc;
+  try { doc = require('./safe-write.js').readJsonSync(path.join(OUT_DIR, `${date}.json`), { fallback: null }); }
+  catch (e) { return { found: false, date, reason: `archive unreadable: ${e.message}` }; }
+  if (!doc) return { found: false, date, reason: 'no archive for that day' };
+
+  const min = Number(opts.min);
+  const floor = Number.isFinite(min) && min >= 0 ? min : 10;
+  const inst = opts.inst ? String(opts.inst).toUpperCase() : null;
+
+  const rows = [];
+  let skippedBelowFloor = 0, noCapture = 0;
+  for (const [key, s] of Object.entries(doc.strikes || {})) {
+    const [i, strike, type] = key.split('|');
+    if (inst && i !== inst) continue;
+    if (!s || !s.capture) { noCapture++; continue; }
+    if (s.capture.buy < floor) { skippedBelowFloor++; continue; }
+    rows.push({
+      inst: i, strike: Number(strike), type,
+      buy: s.capture.buy, buyTime: s.capture.buyTime,
+      sell: s.capture.sell, sellTime: s.capture.sellTime,
+      gainPct: s.capture.gainPct,
+      points: +(s.capture.sell - s.capture.buy).toFixed(2),
+      opening: s.opening ?? null, closing: s.closing ?? null,
+      high: s.high ? s.high.price : null, low: s.low ? s.low.price : null,
+      bars: s.bars ?? null,
+    });
+  }
+  rows.sort((a, b) => b.gainPct - a.gainPct);
+  return {
+    found: true, date, inst, floor,
+    engine: doc.engine || null, source: doc.source || null,
+    counts: { returned: rows.length, skippedBelowFloor, noForwardGain: noCapture,
+              totalStrikes: Object.keys(doc.strikes || {}).length },
+    rows,
+  };
+}
+
 /** Pure router — returns {status, json}. Unit-testable without a socket. */
 function route(pathname, query) {
   if (pathname === '/wh/days')  return { status: 200, json: { days: listDays() } };
+  if (pathname === '/wh/capture') {
+    const q = query || {};
+    const date = q.date || listDays()[0];
+    if (!date) return { status: 200, json: { found: false, reason: 'no archived days yet' } };
+    return { status: 200, json: getCapture(String(date), { inst: q.inst, min: q.min }) };
+  }
   if (pathname === '/wh/health') return { status: 200, json: { ok: true, days: listDays().length, dir: OUT_DIR } };
   if (pathname === '/wh/hl-record') {
     const { date, inst, strike, type } = query || {};
@@ -98,7 +148,7 @@ function createServer() {
   });
 }
 
-module.exports = { listDays, getRecord, route, createServer, _leg, OUT_DIR, PORT };
+module.exports = { listDays, getRecord, getCapture, route, createServer, _leg, OUT_DIR, PORT };
 
 // ── CLI: start the read-only server on loopback ──
 if (require.main === module) {

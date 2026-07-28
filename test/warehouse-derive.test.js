@@ -42,6 +42,31 @@ const eq = (a, b, m) => { n++; assert.strictEqual(a, b, m); };
   ok(/^\d{2}:\d{2}:\d{2}$/.test(d.high.time), 'prints carry an IST HH:MM:SS time');
 }
 
+// ── @test:unit — BUY LOW → SELL HIGH must respect TIME ORDER ─────────────────────
+{
+  // High (20) comes BEFORE the low (5). A naive high-minus-low would claim +300%;
+  // the only tradeable pair is buy 5 → sell 12, i.e. +140%.
+  const d = der.deriveStrike([
+    [60000, 18, 20, 15, 16],     // high 20 first
+    [120000, 16, 14,  5,  6],    // low 5 here
+    [180000,  6, 12,  6, 11],    // best sell after the low
+  ]);
+  ok(d.capture, 'a capture exists when a forward gain was available');
+  eq(d.capture.buy, 5, 'buys the lowest low that had a higher high after it');
+  eq(d.capture.sell, 12, 'sells the best high that came AFTER that low');
+  eq(d.capture.gainPct, 140, 'gain is 5 → 12 = +140%, not the untradeable 5 → 20');
+  ok(d.capture.buyAt < d.capture.sellAt, 'the buy strictly precedes the sell');
+}
+// ── @test:failure — a strike that only ever fell has NO capture, not a fake one ───
+{
+  // Genuinely monotone: every bar's HIGH sits below every earlier LOW, so no buy is
+  // ever followed by a higher sell. (An earlier fixture here was wrong — bar 3's high
+  // exceeded bar 2's low, so a real +8.33% pair existed and the code correctly found
+  // it. The test was at fault, not the algorithm.)
+  const d = der.deriveStrike([[60000, 20, 20, 18, 19], [120000, 17, 17, 15, 16], [180000, 14, 14, 12, 13]]);
+  eq(d.capture, null, 'a monotonically falling strike reports null, never a negative dressed as a trade');
+}
+
 // ── @test:regression — a strictly decaying strike records highs only at the open ──
 {
   const d = der.deriveStrike([[60000, 20, 20, 18, 19], [120000, 19, 18, 15, 16], [180000, 16, 16, 12, 13]]);

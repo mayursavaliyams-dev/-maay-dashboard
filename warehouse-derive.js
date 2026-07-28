@@ -26,7 +26,11 @@ const { _sha256, WAREHOUSE } = require('./option-warehouse.js');
 
 const CANDLES_SRC = path.join(WAREHOUSE, 'L0_mirror', 'opt-candles');   // mirrored raw
 const OUT_DIR     = path.join(WAREHOUSE, 'L2_strike', 'history');       // <date>.json
-const ENGINE      = 'minute-extreme-walk@v1';
+// v2 adds `capture`: the best chronologically-valid BUY LOW → SELL HIGH per strike.
+// Bump this whenever the derivation CHANGES — deriveAll re-runs a day when either the
+// source bytes or the engine version differ. Comparing only the source hash meant a
+// logic change silently kept serving output built by the previous version.
+const ENGINE      = 'minute-extreme-walk@v2';
 const IST_OFFSET_MIN = 330;
 const DATE_RE = /^(\d{4}-\d{2}-\d{2})\.json$/;
 
@@ -50,6 +54,24 @@ function deriveStrike(bars) {
     if (hi > runHigh) { runHigh = hi; highRecord.push({ t, time: _istTime(t), price: _r2(hi) }); }
     if (lo < runLow)  { runLow  = lo; lowRecord.push({ t, time: _istTime(t), price: _r2(lo) }); }
   }
+  // ── BUY LOW → SELL HIGH: the best CHRONOLOGICALLY VALID pair ────────────────
+  // Not (high − low): that pair is only tradeable if the low came first. This walks
+  // the bar path forward, tracks the lowest low seen so far, and keeps the best
+  // subsequent high. It is the maximum a perfect-hindsight trader could have taken —
+  // an upper bound on the day, never a claim that anyone would have taken it.
+  let minLow = null, minAt = null, best = null;
+  for (const [t, , hi, lo] of rows) {
+    if (minLow !== null) {
+      const gain = (hi - minLow) / minLow;
+      if (best === null || gain > best.gainPct / 100) {
+        best = { buy: _r2(minLow), buyAt: minAt, sell: _r2(hi), sellAt: t, gainPct: _r2(gain * 100) };
+      }
+    }
+    if (minLow === null || lo < minLow) { minLow = lo; minAt = t; }
+  }
+  if (best && best.gainPct <= 0) best = null;   // no forward gain existed — say so, don't invent one
+  const capture = best ? { ...best, buyTime: _istTime(best.buyAt), sellTime: _istTime(best.sellAt) } : null;
+
   const first = rows[0], last = rows[rows.length - 1];
   return {
     first:   { t: first[0], time: _istTime(first[0]), price: _r2(first[1]) },   // opening bar open
@@ -60,6 +82,8 @@ function deriveStrike(bars) {
     low:     lowRecord.length  ? lowRecord[lowRecord.length - 1]  : null,
     maxExpansion: runHigh > -Infinity && runLow < Infinity ? _r2(runHigh - runLow) : null,
     maxDecay:     highRecord.length && lowRecord.length ? _r2(runHigh - runLow) : null,
+    capture,          // best buy-low → sell-high that was actually available in time order
+    bars: rows.length,
     highRecord, lowRecord,
   };
 }
@@ -109,10 +133,14 @@ function deriveAll(opts = {}) {
       // null → we (re)derive. Explicit assignment, not a silent swallow (audit 039).
       // Validated read (recovers from .bak, refuses a corrupt file) rather than a raw
       // parse. Missing/unreadable ⇒ null ⇒ we re-derive, which is the safe direction.
-      let prevSrc = null;
-      try { prevSrc = require('./safe-write.js').readJsonSync(dest, { fallback: null })?.source?.sha256 ?? null; }
-      catch (_) { prevSrc = null; }
-      if (prevSrc === srcHash && fs.existsSync(dest)) {
+      let prevSrc = null, prevEngine = null;
+      try {
+        const prior = require('./safe-write.js').readJsonSync(dest, { fallback: null });
+        prevSrc = prior?.source?.sha256 ?? null;
+        prevEngine = prior?.engine ?? null;
+      } catch (_) { prevSrc = null; prevEngine = null; }
+      // Skip only when BOTH the input bytes and the deriving logic are unchanged.
+      if (prevSrc === srcHash && prevEngine === ENGINE && fs.existsSync(dest)) {
         summary.unchanged++; summary.results.push({ date, status: 'unchanged', strikes: derived.strikeCount });
         continue;
       }
