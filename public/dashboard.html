@@ -511,42 +511,7 @@
      One place that lists every page. The nav used to be a horizontal strip here
      and a separate "Quick access" card far down the page, so a new page had to be
      added in two places — which is how Capture and Greeks shipped invisible. -->
-<aside class="rail" id="rail" aria-label="Sections">
-  <div class="rail-top">
-    <span class="rail-logo">🚀</span>
-    <span class="rail-name">ANTIGRAVITY <b>PRO</b></span>
-    <button class="rail-toggle" id="railToggle" onclick="toggleRail()"
-      aria-label="Collapse or expand the sidebar" title="Collapse (b)">‹</button>
-  </div>
-  <nav class="rail-nav" aria-label="Pages">
-    <div class="rail-grp">Live</div>
-    <a href="/dashboard.html" class="active" aria-current="page"><i>⌂</i><span>Command</span></a>
-    <a href="/signal-heatmap.html"><i>🔥</i><span>Signal Heatmap</span></a>
-    <a href="/ami-heatmap.html"><i>🧭</i><span>AMI Heatmap</span></a>
-    <a href="/oi.html"><i>🧱</i><span>OI Analysis</span></a>
-    <a href="/heatmap.html"><i>🗺️</i><span>Heatmap</span></a>
-
-    <div class="rail-grp">Research</div>
-    <a href="/capture.html"><i>🎯</i><span>Buy Low → Sell High</span></a>
-    <a href="/greeks.html"><i>Δ</i><span>Greeks → P&amp;L</span></a>
-    <a href="/strike-history.html"><i>🕘</i><span>Strike History</span></a>
-    <a href="/pop.html"><i>🎲</i><span>PoP Seller</span></a>
-    <a href="/strategy.html"><i>🧪</i><span>Strategy</span></a>
-    <a href="/payoff.html"><i>📐</i><span>Payoff</span></a>
-
-    <div class="rail-grp">Charts</div>
-    <a href="/chart.html"><i>📈</i><span>Chart</span></a>
-    <a href="/charts4.html"><i>▦</i><span>4 Charts</span></a>
-    <a href="/pattern-signals.html"><i>🕯️</i><span>Patterns</span></a>
-
-    <div class="rail-grp">Engines</div>
-    <a href="/agents.html"><i>🤖</i><span>AI Agents</span></a>
-    <a href="/quant.html"><i>⚡</i><span>Quant Center</span></a>
-    <a href="/signals4.html"><i>✅</i><span>4 Engines</span></a>
-    <a href="/trade.html"><i>💼</i><span>Trade</span></a>
-    <a href="/health-dashboard.html"><i>🩺</i><span>Health</span></a>
-  </nav>
-</aside>
+<!-- left rail is injected by /js/rail.js (shared across every page) -->
 
 <div class="wrap">
   <div class="stale" id="stale"></div>
@@ -1353,24 +1318,6 @@ function toggleAuto(){
   document.getElementById('stkStrike').style.display = AUTO_ON ? 'none' : '';
   if (AUTO_ON) loadAutoMovers(); else loadStrikeTimeline();
 }
-// ── left rail: collapse to icons, remembered across visits ──
-function toggleRail(){
-  const min = document.body.classList.toggle('rail-min');
-  const b = document.getElementById('railToggle');
-  if (b){ b.textContent = min ? '›' : '‹'; b.title = min ? 'Expand (b)' : 'Collapse (b)'; }
-  try { localStorage.setItem('ag-rail-min', min ? '1' : '0'); } catch(_){}
-}
-(function(){
-  try { if (localStorage.getItem('ag-rail-min') === '1'){ document.body.classList.add('rail-min');
-    const b=document.getElementById('railToggle'); if(b){ b.textContent='›'; b.title='Expand (b)'; } } } catch(_){}
-})();
-document.addEventListener('keydown', e => {
-  // "b" toggles the rail, but never while the user is typing into a field
-  if (e.key !== 'b' || e.ctrlKey || e.metaKey || e.altKey) return;
-  const t = e.target;
-  if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-  toggleRail();
-});
 
 // Open a strike's full high/low history in a NEW TAB. strike-history.html already
 // reads inst/strike/type/focus from the query string and renders both timelines plus
@@ -2041,5 +1988,6 @@ setInterval(loadIndicators, 5000);
   chk(); setInterval(chk, 12000);
 })();
 </script>
+<script src="/js/rail.js"></script>
 </body>
 </html>
