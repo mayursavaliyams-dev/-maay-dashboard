@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pattern Signals · Antigravity Pro</title>
+<link rel="stylesheet" href="/css/tokens.css">
 <style>
-  :root{ --bg:#070b12; --panel:#0b1320; --panel2:#0d1726; --border:#1c2940; --muted:#8b97a8; --green:#22d39a; --red:#f7567c; --amber:#fbbf24; --blue:#7dd3fc; }
+  
   *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--bg); color:#e6edf6; font-family:'Inter',system-ui,Segoe UI,Roboto,sans-serif; }
+  body{ margin:0; background:var(--bg-wash); color:var(--text); font-family:'Inter',system-ui,Segoe UI,Roboto,sans-serif; }
   a{ color:inherit; }
   .wrap{ max-width:1480px; margin:0 auto; padding:0 14px 40px; }
   /* top bar */
@@ -29,7 +30,7 @@
   .hd h1{ font-size:1.15rem; margin:0; font-weight:800; }
   .hd .sub{ font-size:0.66rem; color:var(--muted); }
   .filters{ display:flex; gap:6px; margin-left:auto; align-items:center; flex-wrap:wrap; }
-  .seg{ display:flex; background:#0c1626; border:1px solid #21314a; border-radius:9px; overflow:hidden; }
+  .seg{ display:flex; background:var(--panel2); border:1px solid #21314a; border-radius:9px; overflow:hidden; }
   .seg button{ background:transparent; border:0; color:#9fb0c8; font-size:0.66rem; font-weight:700; padding:6px 11px; cursor:pointer; }
   .seg button.active{ background:rgba(122,162,255,.16); color:#cfe0ff; }
   .ref{ font-size:0.6rem; color:var(--muted); display:flex; align-items:center; gap:6px; }
@@ -88,7 +89,7 @@
   .leg .kv b{ color:#e5e7eb; }
   /* factor chips */
   .facts{ display:flex; gap:5px; flex-wrap:wrap; margin-top:9px; }
-  .fc{ font-size:0.5rem; font-weight:700; padding:2px 7px; border-radius:999px; border:1px solid #25324a; color:#8b97a8; background:#0e1626; }
+  .fc{ font-size:0.5rem; font-weight:700; padding:2px 7px; border-radius:999px; border:1px solid #25324a; color:#8b97a8; background:var(--panel2); }
   .fc.bull{ color:var(--green); border-color:#1c5a38; } .fc.bear{ color:var(--red); border-color:#5a1d2c; }
   .fc.agree::before{ content:'✓ '; }
   .idea{ font-size:0.56rem; color:#7c8aa0; margin-top:8px; line-height:1.4; font-style:italic; }
@@ -110,7 +111,7 @@
   .orb-hd{ display:flex; align-items:center; gap:12px; margin-bottom:11px; flex-wrap:wrap; }
   .orb-hd h2{ font-size:1.02rem; margin:0; }
   .orb-hd .sub{ font-size:0.6rem; color:var(--muted); }
-  .orb-btn{ margin-left:auto; background:#0c1626; border:1px solid #21314a; color:#9fb0c8; font-size:0.64rem; font-weight:700; padding:6px 12px; border-radius:8px; cursor:pointer; }
+  .orb-btn{ margin-left:auto; background:var(--panel2); border:1px solid #21314a; color:#9fb0c8; font-size:0.64rem; font-weight:700; padding:6px 12px; border-radius:8px; cursor:pointer; }
   .orb-btn:hover{ color:#cfe0ff; border-color:#3b6ea5; }
   .orb-cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; }
   .orb-card{ border:1px solid var(--border); border-radius:11px; padding:11px 12px; background:linear-gradient(165deg,#0d1726,#0a0f18); }

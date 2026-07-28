@@ -31,26 +31,72 @@
 
 :root {
   /* ── surfaces ─────────────────────────────────────────────────────────
-     --bg is PURE BLACK by owner decision (2026-07-09: "background black
-     joie che"). Panels stay dark blue-grey so elevation hierarchy survives
-     on black — the Bloomberg/Bookmap pattern: black canvas, lifted panels. */
-  --bg:        #000000;   /* app background — owner-decided black    */
+     Owner instruction 2026-07-28: "all UI should be the dashboard's colour."
+     Every value below is now copied from dashboard.html exactly, so adopting
+     this file cannot change how the home page looks.
+
+     That supersedes the 2026-07-09 "pure black background" decision. The
+     header above already claimed dashboard-anchoring while --bg said #000000
+     and --green said #22d39a against the dashboard's #070a10 and #26d0a0 —
+     the file had drifted from its own stated rule. #070a10 is near-black and
+     carries the dashboard's radial wash, which pure black cannot. */
+  --bg:        #070a10;   /* app background — dashboard.html          */
+  --bg2:       #0a0e16;   /* second surface behind panels             */
   --panel:     #0d1420;   /* primary panel surface   */
-  --panel2:    #111a29;   /* nested / raised surface */
-  --border:    #1c2735;   /* hairlines, dividers     */
+  --panel2:    #111a28;   /* nested / raised surface */
+  --border:    #1a2536;   /* hairlines, dividers     */
+  --border2:   #22314a;   /* stronger divider        */
+
+  /* The home page's background is a wash, not a flat fill. Pages opt in with
+     `background: var(--bg-wash);` so they match it rather than approximating. */
+  --bg-wash:   radial-gradient(1200px 600px at 70% -10%, #0d1626 0%, #070a10 55%);
 
   /* ── text ────────────────────────────────────────────────────────────── */
-  --text:      #dbe4f0;   /* primary                 */
-  --muted:     #7c8aa0;   /* secondary / labels      */
-  --faint:     #4a5568;   /* tertiary / disabled     */
+  --text:      #e6edf6;   /* primary                 */
+  --muted:     #8291a8;   /* secondary / labels      */
+  --dim:       #5a6a80;   /* tertiary                */
+  --dim2:      #556274;   /* quaternary / disabled   */
+  --faint:     #4a5568;   /* weakest legible         */
 
   /* ── raw hues (do NOT use directly in components — use semantic below) ─ */
-  --green:     #22d39a;
+  --green:     #26d0a0;
   --red:       #ff5470;
   --blue:      #5b9cff;
   --amber:     #ffc24b;
-  --cyan:      #4dd0e1;
-  --violet:    #a78bfa;
+  --cyan:      #3ad0e0;
+  --violet:    #a78bff;
+  --orange:    #ff8c42;
+
+  /* ── vocabulary the pages already speak ───────────────────────────────
+     Nineteen pages grew their own names for the same nine colours. Rather
+     than rewrite every rule that uses them, the names are aliased here so a
+     page can drop its private block and keep its markup. One value, many
+     spellings — the opposite of what the measurement found, which was one
+     spelling and eight values. */
+  --txt:       var(--text);
+  --mut:       var(--muted);
+  --dimmer:    var(--dim2);
+  --line:      var(--border);
+  --line2:     var(--border2);
+  --up:        var(--green);
+  --dn:        var(--red);
+  --yellow:    var(--amber);
+  --purple:    var(--violet);
+  --teal:      var(--cyan);
+  --panel-2:   var(--panel2);
+  --panel-3:   #16223a;
+  --border-2:  var(--border2);
+
+  /* ── tints, used for chip and row backgrounds ─────────────────────────── */
+  --green-dim:  rgba(38,208,160,.12);
+  --green-line: rgba(38,208,160,.42);
+  --greenbg:    rgba(38,208,160,.12);
+  --red-dim:    rgba(255,84,112,.11);
+  --red-line:   rgba(255,84,112,.42);
+  --redbg:      rgba(255,84,112,.11);
+  --amber-dim:  rgba(255,194,75,.12);
+  --amber-line: rgba(255,194,75,.45);
+  --blue-dim:   rgba(91,156,255,.11);
 
   /* ── semantic (components use ONLY these for P&L / state) ──────────────
      gain/loss are separate from green/red so a colour-blind theme can remap
@@ -100,6 +146,18 @@
   --text: #16202e;  --muted: #5a6a80;  --faint: #98a4b5;
   --green: #0a9d6e;  --red: #d81b4a;  --blue: #1a6fe0;  --amber: #b07800;
   --shadow: 0 2px 8px rgba(20,30,50,.12);
+  /* The surfaces added for the dashboard palette need light values too, or a
+     theme switch leaves half the page painted for the dark one. */
+  --bg2: #eaeef6;  --border2: #c2cbdb;  --panel-3: #e2e8f2;
+  --dim: #6b7889;  --dim2: #8493a6;
+  --bg-wash: radial-gradient(1200px 600px at 70% -10%, #ffffff 0%, #f4f6fa 55%);
+  --green-dim: rgba(10,157,110,.10);  --green-line: rgba(10,157,110,.42);
+  --greenbg:   rgba(10,157,110,.10);
+  --red-dim:   rgba(216,27,74,.09);   --red-line:   rgba(216,27,74,.42);
+  --redbg:     rgba(216,27,74,.09);
+  --amber-dim: rgba(176,120,0,.11);   --amber-line: rgba(176,120,0,.45);
+  --blue-dim:  rgba(26,111,224,.09);
+  --cyan: #0e8fa3;  --violet: #6d4bd8;  --orange: #c2560c;
 }
 
 /* ── high contrast ─────────────────────────────────────────────────────── */
@@ -107,6 +165,17 @@
   --bg: #000000;  --panel: #0a0a0a;  --panel2: #141414;  --border: #3a3a3a;
   --text: #ffffff;  --muted: #c0c0c0;  --faint: #909090;
   --green: #00ff9c;  --red: #ff3355;  --blue: #55aaff;  --amber: #ffd24b;
+  /* High contrast means flat and maximal — no wash, no soft tints. */
+  --bg2: #000000;  --border2: #5a5a5a;  --panel-3: #1e1e1e;
+  --dim: #a0a0a0;  --dim2: #909090;
+  --bg-wash: none;
+  --green-dim: rgba(0,255,156,.18);   --green-line: rgba(0,255,156,.65);
+  --greenbg:   rgba(0,255,156,.18);
+  --red-dim:   rgba(255,51,85,.18);   --red-line:   rgba(255,51,85,.65);
+  --redbg:     rgba(255,51,85,.18);
+  --amber-dim: rgba(255,210,75,.18);  --amber-line: rgba(255,210,75,.65);
+  --blue-dim:  rgba(85,170,255,.18);
+  --cyan: #4de8ff;  --violet: #c9a6ff;  --orange: #ffa14d;
 }
 
 /* ── colour-blind safe (deuteranopia): gain/loss become blue/orange.

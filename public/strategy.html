@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Strategy Builder — Antigravity Pro</title>
+<link rel="stylesheet" href="/css/tokens.css">
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════
    DESIGN SYSTEM — defined once, used everywhere.
@@ -14,43 +15,36 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 :root{
   /* surface */
-  --bg:#0a0a0f; --panel:#101018; --panel-2:#15151f; --panel-3:#1b1b27;
-  --border:#252539; --border-2:#31314a;
+   
   /* text */
-  --text:#e8eaf2; --muted:#9aa4bf; --dim:#7c87a5;
+ 
   /* semantic — always paired with a glyph or word, never colour alone */
-  --green:#00e676; --green-dim:rgba(0,230,118,.13); --green-line:rgba(0,230,118,.34);
-  --red:#ff5470;   --red-dim:rgba(255,84,112,.13);  --red-line:rgba(255,84,112,.34);
-  --amber:#ffd740; --amber-dim:rgba(255,215,64,.13);--amber-line:rgba(255,215,64,.38);
-  --blue:#78a8ff;  --blue-dim:rgba(120,168,255,.13);
+ 
+   
+ 
+  
   /* OI weight fill — deliberately weaker than the text it sits behind */
   --oi-ce:rgba(0,230,118,.20); --oi-pe:rgba(255,84,112,.20);
-  --focus:#78a8ff;
   --grid:rgba(255,255,255,.07);
   /* type scale */
-  --fs-xs:.75rem; --fs-sm:.875rem; --fs-base:1rem; --fs-lg:1.25rem; --fs-xl:1.75rem;
+ --fs-sm:.875rem; --fs-base:1rem; --fs-lg:1.25rem; --fs-xl:1.75rem;
   /* spacing scale */
-  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
-  --radius:10px; --radius-sm:7px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --radius-sm:7px;
   --ui:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: light){
-  :root{
-    --bg:#f6f7fb; --panel:#ffffff; --panel-2:#f0f2f7; --panel-3:#e7eaf2;
-    --border:#d6dae6; --border-2:#c2c8d8;
-    --text:#12161f; --muted:#4a5468; --dim:#5f6a80;
-    --green:#00794a; --green-dim:rgba(0,121,74,.11); --green-line:rgba(0,121,74,.4);
-    --red:#c62134;   --red-dim:rgba(198,33,52,.10);  --red-line:rgba(198,33,52,.4);
-    --amber:#8a6100; --amber-dim:rgba(138,97,0,.11); --amber-line:rgba(138,97,0,.45);
-    --blue:#1256c4;  --blue-dim:rgba(18,86,196,.10);
-    --oi-ce:rgba(0,121,74,.16); --oi-pe:rgba(198,33,52,.14);
-    --focus:#1256c4; --grid:rgba(0,0,0,.10);
+  :root{    
+ 
+   
+ 
+  
+    --oi-ce:rgba(0,121,74,.16); --oi-pe:rgba(198,33,52,.14); --grid:rgba(0,0,0,.10);
   }
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:16px;}
-body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:var(--fs-sm);
+body{background:var(--bg-wash);color:var(--text);font-family:var(--ui);font-size:var(--fs-sm);
   line-height:1.45;-webkit-font-smoothing:antialiased;padding-bottom:var(--s4);}
 /* numbers only — so columns align */
 .num,.legs-table td,.chain-table td,.sum-val,.sum-sub{font-family:var(--mono);font-variant-numeric:tabular-nums;}

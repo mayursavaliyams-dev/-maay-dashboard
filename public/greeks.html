@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Greeks → P&amp;L — Antigravity Pro</title>
+<link rel="stylesheet" href="/css/tokens.css">
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════
    Light is the default; dark follows prefers-color-scheme and a manual toggle
@@ -15,47 +16,31 @@
                          red 6.35 · amber 14.15 · blue 8.32
    Every text token clears 4.5:1 in both schemes.
    ═══════════════════════════════════════════════════════════════════════════ */
-:root{
-  --bg:#f6f7fb; --panel:#ffffff; --panel-2:#f0f2f7; --panel-3:#e7eaf2;
-  --border:#d6dae6; --border-2:#c2c8d8;
-  --text:#12161f; --muted:#4a5468; --dim:#5f6a80;
-  --green:#00794a; --green-dim:rgba(0,121,74,.10); --green-line:rgba(0,121,74,.42);
-  --red:#c62134;   --red-dim:rgba(198,33,52,.09);  --red-line:rgba(198,33,52,.42);
-  --amber:#8a6100; --amber-dim:rgba(138,97,0,.11); --amber-line:rgba(138,97,0,.45);
-  --blue:#1256c4;  --blue-dim:rgba(18,86,196,.09);
-  --focus:#1256c4; --grid:rgba(0,0,0,.10);
-  --fs-xs:.75rem; --fs-sm:.875rem; --fs-base:1rem; --fs-lg:1.25rem; --fs-xl:1.75rem;
-  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
-  --radius:12px; --radius-sm:8px;
+:root{    
+ 
+   
+ 
+   --grid:rgba(0,0,0,.10); --fs-sm:.875rem; --fs-base:1rem; --fs-lg:1.25rem; --fs-xl:1.75rem;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --radius-sm:8px;
   --ui:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,monospace;
-  --shadow:0 1px 3px rgba(16,24,40,.07),0 1px 2px rgba(16,24,40,.04);
+
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0a0a0f; --panel:#101018; --panel-2:#15151f; --panel-3:#1b1b27;
-  --border:#252539; --border-2:#31314a;
-  --text:#e8eaf2; --muted:#9aa4bf; --dim:#7c87a5;
-  --green:#00e676; --green-dim:rgba(0,230,118,.12); --green-line:rgba(0,230,118,.34);
-  --red:#ff5470;   --red-dim:rgba(255,84,112,.12);  --red-line:rgba(255,84,112,.34);
-  --amber:#ffd740; --amber-dim:rgba(255,215,64,.12);--amber-line:rgba(255,215,64,.38);
-  --blue:#78a8ff;  --blue-dim:rgba(120,168,255,.12);
-  --focus:#78a8ff; --grid:rgba(255,255,255,.07);
-  --shadow:0 1px 3px rgba(0,0,0,.5);
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){    
+ 
+   
+ 
+   --grid:rgba(255,255,255,.07);
 }}
-:root[data-theme="dark"]{
-  --bg:#0a0a0f; --panel:#101018; --panel-2:#15151f; --panel-3:#1b1b27;
-  --border:#252539; --border-2:#31314a;
-  --text:#e8eaf2; --muted:#9aa4bf; --dim:#7c87a5;
-  --green:#00e676; --green-dim:rgba(0,230,118,.12); --green-line:rgba(0,230,118,.34);
-  --red:#ff5470;   --red-dim:rgba(255,84,112,.12);  --red-line:rgba(255,84,112,.34);
-  --amber:#ffd740; --amber-dim:rgba(255,215,64,.12);--amber-line:rgba(255,215,64,.38);
-  --blue:#78a8ff;  --blue-dim:rgba(120,168,255,.12);
-  --focus:#78a8ff; --grid:rgba(255,255,255,.07);
-  --shadow:0 1px 3px rgba(0,0,0,.5);
+:root[data-theme="dark"]{    
+ 
+   
+ 
+   --grid:rgba(255,255,255,.07);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:16px;}
-body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:var(--fs-sm);
+body{background:var(--bg-wash);color:var(--text);font-family:var(--ui);font-size:var(--fs-sm);
   line-height:1.5;-webkit-font-smoothing:antialiased;padding-bottom:var(--s6);}
 .num,td.n,.g-val,.sc-cell{font-family:var(--mono);font-variant-numeric:tabular-nums;}
 button,select,input{font-family:inherit;font-size:inherit;color:inherit;}

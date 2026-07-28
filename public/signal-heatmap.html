@@ -4,12 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Signal Heatmap — Antigravity Pro</title>
+<link rel="stylesheet" href="/css/tokens.css">
 <style>
-:root{
-  --bg:#080810;--panel:#0d0d18;--border:#1a1a2e;--text:#e8e8f0;--muted:#4a4a6a;
-  --green:#00e676;--red:#ff4444;--blue:#448aff;--yellow:#ffd740;--orange:#ff6d00;
-  --purple:#ce93d8;--teal:#00bcd4;
-}
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 /* TYPOGRAPHY — every size on this page is expressed in rem and rem drives font-size
    only (no padding, gap or width depends on it), so the root is the single dial for
@@ -27,7 +24,7 @@ html{font-size:18px;}
 @media (min-width:1900px){ html{ font-size:23px; } }
 @media (min-width:2400px){ html{ font-size:26px; } }
 html{background:var(--bg);height:100%;overflow:hidden;}
-body{background:var(--bg);color:var(--text);
+body{background:var(--bg-wash);color:var(--text);
   font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
   font-size:.72rem;height:100%;overflow:hidden;-webkit-font-smoothing:antialiased;}
 /* numbers stay monospaced so columns line up; labels get a real UI face */
@@ -152,7 +149,7 @@ body{background:var(--bg);color:var(--text);
 .cell-pop.pop-na{background:rgba(255,215,64,.14);color:var(--yellow);}
 /* factor coverage — stated in words, sized like the decision */
 .cov-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.6rem;color:var(--muted);
-  padding:5px 8px;border-radius:7px;background:#12121e;border:1px solid #1f1f30;margin-bottom:6px;}
+  padding:5px 8px;border-radius:7px;background:var(--panel2);border:1px solid #1f1f30;margin-bottom:6px;}
 .cov-line b{color:var(--text);font-size:.68rem;}
 .cov-line.thin{border-color:rgba(255,215,64,.45);background:rgba(255,215,64,.07);}
 .cov-line.thin b{color:var(--yellow);}
@@ -235,7 +232,7 @@ body{background:var(--bg);color:var(--text);
 /* Strike label */
 .hm-strike{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:46px;
-  background:#0d0d18;border:1px solid var(--border);border-radius:4px;
+  background:var(--panel);border:1px solid var(--border);border-radius:4px;
   padding:4px 5px;text-align:center;font-weight:800;font-size:.72rem;color:var(--yellow);
 }
 .hm-strike.atm{background:#1a1400;border-color:var(--yellow);color:#fff;}
