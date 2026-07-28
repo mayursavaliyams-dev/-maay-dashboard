@@ -11,15 +11,23 @@
   --purple:#ce93d8;--teal:#00bcd4;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-/* TYPOGRAPHY (2026-07-28)
-   The root was 11px and every size on this page is expressed in rem, so the scale
-   ran from .48rem to .75rem — that is 5.3px to 8.3px. Nothing on the page reached
-   9px. rem is used for font-size ONLY here (no padding, gap or width uses it), so
-   lifting the root rescales the type without touching the layout.
-   Root 18px puts the same scale at roughly 8.6px–13.5px, and the floor rule below
-   stops anything landing under ~10px. */
+/* TYPOGRAPHY — every size on this page is expressed in rem and rem drives font-size
+   only (no padding, gap or width depends on it), so the root is the single dial for
+   legibility and turning it moves no boxes.
+
+   2026-07-28, second pass — and the first pass had never worked.
+   `html{font-size:18px}` was immediately undone by the `html,body{font-size:.72rem}`
+   rule below, which named html as well. On the root element rem resolves against the
+   initial 16px, so html became 0.72 × 16 = 11.52px and every .58rem label rendered at
+   6.7px. Measured on the owner's panel: 90 elements at 6px, 452 at 7px, and nothing
+   above 12px. The note that used to sit here claimed a 8.6–13.5px scale; it was
+   describing a rule that lost.
+   The fix is to stop html appearing in that rule, so the root really is the root. */
 html{font-size:18px;}
-html,body{background:var(--bg);color:var(--text);
+@media (min-width:1900px){ html{ font-size:23px; } }
+@media (min-width:2400px){ html{ font-size:26px; } }
+html{background:var(--bg);height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);
   font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
   font-size:.72rem;height:100%;overflow:hidden;-webkit-font-smoothing:antialiased;}
 /* numbers stay monospaced so columns line up; labels get a real UI face */
@@ -95,7 +103,11 @@ html,body{background:var(--bg);color:var(--text);
 /* ── HEATMAP AREA ── */
 /* main table (ladder) on TOP, analysis (indicators) BELOW — stacked vertically */
 .hm-split{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative;}
-.hm-wrap{flex:1.6 1 0;overflow-y:auto;overflow-x:hidden;padding:5px 8px;min-height:0;}
+/* The split was 1.6 : 1 when a strike row was 46px of 6px type. At the real size a
+   row is roughly twice that, so the same ratio showed five strikes — fewer than the
+   grid exists to compare. The analysis panel needs the height of its tallest factor
+   column and no more, so the strikes take the rest. */
+.hm-wrap{flex:2.6 1 0;overflow-y:auto;overflow-x:hidden;padding:5px 8px;min-height:0;}
 /* collapse toggle — hide the analysis to get a full-height ladder back */
 .ind-toggle{position:absolute;top:6px;right:8px;z-index:6;cursor:pointer;user-select:none;
   font-size:.58rem;font-weight:800;letter-spacing:.06em;padding:2px 8px;border-radius:999px;
@@ -116,10 +128,14 @@ html,body{background:var(--bg);color:var(--text);
 .ind-prob{font-size:.58rem;color:var(--muted);}
 /* wide-short panel: verdict on the left, factor grid on the right */
 .ind-body{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:flex-start;}
-.ind-rows{flex:1 1 340px;min-width:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0 16px;align-content:start;}
+/* Column and label widths were set against 6px type. At the real size the factor
+   names no longer fit and the panel truncated them to "Trend (…", "Smart …",
+   "Deliver…" — a factor you cannot name is a factor you cannot judge. The track is
+   given room to breathe and the label is allowed two lines rather than an ellipsis. */
+.ind-rows{flex:1 1 340px;min-width:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:0 22px;align-content:start;}
 .ind-item{border-bottom:1px solid rgba(255,255,255,.04);padding:1px 0;}
-.ind-row{display:grid;grid-template-columns:64px 1fr 34px;align-items:center;gap:6px;padding:3px 2px;}
-.ind-lbl{font-size:.58rem;color:#c8c8d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ind-row{display:grid;grid-template-columns:minmax(118px,auto) 1fr 46px;align-items:center;gap:9px;padding:4px 2px;}
+.ind-lbl{font-size:.58rem;color:#c8c8d8;line-height:1.25;overflow-wrap:break-word;}
 .ind-lbl.na{color:var(--muted);}
 .ind-bar{position:relative;height:7px;border-radius:99px;background:#141422;overflow:hidden;}
 .ind-bar::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:#2a2a40;}
@@ -146,7 +162,11 @@ html,body{background:var(--bg);color:var(--text);
 .ind-qual{font-size:.58rem;line-height:1.55;color:#f0e0b0;background:rgba(255,215,64,.10);
   border:1px solid rgba(255,215,64,.45);border-radius:7px;padding:6px 8px;margin-bottom:6px;}
 .ind-dec.thin{opacity:.9;}
-.ind-note{font-size:.58rem;color:var(--muted);padding:0 0 2px 70px;margin-top:-1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* The note under a factor is where "no live feed (cash delivery is stock-level)"
+   lives — the sentence that explains WHY a factor is UNKNOWN. Truncating it to
+   "no live feed (cash delivery …" turned the honesty layer into a riddle, so it
+   wraps instead. The 70px indent aligned with the old label column. */
+.ind-note{font-size:.58rem;color:var(--muted);padding:0 0 3px 127px;margin-top:-1px;line-height:1.35;overflow-wrap:break-word;}
 .ind-empty{color:var(--muted);font-size:.6rem;text-align:center;padding:20px 8px;}
 
 /* verdict block — bull/bear tug-of-war + driver chips (left of the factor grid) */
@@ -207,7 +227,10 @@ html,body{background:var(--bg);color:var(--text);
 .st-hdr{color:var(--yellow);}
 
 /* Strike row */
-.hm-row{display:grid;grid-template-columns:1fr 78px 1fr;gap:2px;margin-bottom:2px;}
+/* 78px was sized for 6px type. At the real size the strike column could not hold a
+   five-digit SENSEX strike and a chip like "NB CALL 170.2" on the same card, so the
+   chip truncated to "NB C…" — the one label whose whole job is naming the trade. */
+.hm-row{display:grid;grid-template-columns:1fr 132px 1fr;gap:2px;margin-bottom:2px;}
 
 /* Strike label */
 .hm-strike{
@@ -222,7 +245,7 @@ html,body{background:var(--bg);color:var(--text);
 .strike-price{font-size:.82rem;line-height:1;color:inherit;}
 .hm-strike.atm .strike-price::after{content:" ★";color:var(--yellow);font-size:.58rem;}
 .strike-signal-top{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;}
-.strike-signal-chip{width:100%;border-radius:999px;padding:2px 4px;font-size:.58rem;font-weight:900;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid transparent;}
+.strike-signal-chip{width:100%;border-radius:999px;padding:3px 6px;font-size:.56rem;font-weight:900;line-height:1.15;border:1px solid transparent;overflow-wrap:break-word;}
 .strike-signal-chip.call{background:rgba(0,230,118,.22);color:var(--green);border-color:rgba(0,230,118,.55);box-shadow:0 0 10px rgba(0,230,118,.22);}
 .strike-signal-chip.put{background:rgba(255,68,68,.22);color:var(--red);border-color:rgba(255,68,68,.55);box-shadow:0 0 10px rgba(255,68,68,.22);}
 .strike-signal-chip.best{background:rgba(0,188,212,.2);color:var(--teal);border-color:rgba(0,188,212,.55);box-shadow:0 0 10px rgba(0,188,212,.2);}
@@ -330,6 +353,18 @@ html,body{background:var(--bg);color:var(--text);
 .hl-box.low .hl-tag,.hl-box.low .hl-val{color:var(--red);}
 .hl-meter{height:3px;border-radius:99px;background:linear-gradient(90deg,rgba(255,68,68,.55),rgba(255,215,64,.4),rgba(0,230,118,.6));position:relative;margin:3px 0 2px;overflow:hidden;}
 .hl-pin{position:absolute;top:-2px;width:3px;height:7px;border-radius:99px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.7);}
+/* The high/low mapping used to be two numbers and a pin, which said where the price
+   sits but never how much the move was worth. This line carries the size of the day's
+   swing in points and the rupees one lot of it represents, plus how far the live price
+   is from each end. The rupee figure comes from the registry lot and reads '—' when
+   the lot is unknown — see rangeMoney(). */
+.hl-range{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:1px 0 2px;
+  font-size:.62rem;font-weight:800;letter-spacing:.01em;}
+.hl-range i{font-style:normal;font-weight:600;font-size:.52rem;opacity:.55;margin-left:2px;}
+.hl-pts{color:var(--yellow);}
+.hl-amt{color:#9fd8ff;}
+.hl-from{margin-left:auto;color:rgba(255,255,255,.42);font-weight:700;font-size:.56rem;white-space:nowrap;}
+.hl-dash{color:var(--muted);}
 .near-high{box-shadow:inset 0 0 0 1px rgba(0,230,118,.5),0 0 10px rgba(0,230,118,.18);}
 .near-low{box-shadow:inset 0 0 0 1px rgba(255,68,68,.5),0 0 10px rgba(255,68,68,.18);}
 .cell-bot{display:flex;justify-content:space-between;font-size:.58rem;color:rgba(255,255,255,.45);}
@@ -516,6 +551,11 @@ html,body{background:var(--bg);color:var(--text);
   <div class="nd-list" id="ndList"><div class="nd-empty">loading…</div></div>
 </div>
 
+<!-- Lot sizes come from the broker-verified registry, never a constant on this page.
+     Loaded before the render script so the rupee column is right on the first paint;
+     if it were missing the column reads '—' rather than a plausible guess. -->
+<script src="/js/instrument-meta.js"></script>
+
 <script>
 const fmtN  = v => Number(v).toLocaleString('en-IN');
 const fmtOI = v => { const a=Math.abs(Number(v)); return a>=1e7?(a/1e7).toFixed(1)+'Cr':a>=1e5?(a/1e5).toFixed(1)+'L':a>=1e3?(a/1e3).toFixed(0)+'K':String(v); };
@@ -609,14 +649,55 @@ function legHighLow(leg, ltp) {
   return { high: hi, low: lo, pos, nearHigh, nearLow };
 }
 
+/* Rupees per lot for a move of `pts` on the active instrument.
+   Returns null when the registry has no broker-verified lot: a rupee figure built
+   on a guessed contract size is a fabricated number wearing a currency symbol. */
+function rangeMoney(pts) {
+  const lot = (typeof window.instLot === 'function') ? window.instLot(activeInst) : null;
+  if (!lot || !isFinite(pts) || pts <= 0) return null;
+  return pts * lot;
+}
+
+/* Compact rupees: ₹2,730 · ₹1.2L · ₹3.4Cr. Full precision stays in the title. */
+function fmtMoney(v) {
+  if (v === null) return null;
+  if (v >= 1e7) return '₹' + (v / 1e7).toFixed(2) + 'Cr';
+  if (v >= 1e5) return '₹' + (v / 1e5).toFixed(2) + 'L';
+  return '₹' + Math.round(v).toLocaleString('en-IN');
+}
+
 function highLowHtml(leg, ltp) {
   const hl = legHighLow(leg, ltp);
+  const pts = (hl.high > 0 && hl.low > 0) ? Math.max(0, hl.high - hl.low) : null;
+  const money = pts === null ? null : rangeMoney(pts);
+  const lot = (typeof window.instLot === 'function') ? window.instLot(activeInst) : null;
+
+  // Distance of the live price from each end, in points. This is the part of
+  // "mapping" that the pin alone could only gesture at: the pin shows where, these
+  // show how far.
+  const price = Number(ltp || 0);
+  const fromLow  = (price > 0 && hl.low  > 0) ? price - hl.low  : null;
+  const fromHigh = (price > 0 && hl.high > 0) ? hl.high - price : null;
+
+  const ptsTxt = pts === null ? '—' : fmtP(pts, 1);
+  const moneyTxt = money === null
+    ? `<span class="hl-dash" title="No broker-verified lot size for ${activeInst} — the rupee value of this range is unknown, not zero.">—</span>`
+    : `<span title="${fmtP(pts,1)} points × ${lot} (registry lot) = ₹${Math.round(money).toLocaleString('en-IN')} for one lot. The full day's swing, not a P&L anyone captured.">${fmtMoney(money)}</span>`;
+
+  const legend = (fromLow === null || fromHigh === null) ? ''
+    : `<span class="hl-from" title="The live price sits ${fmtP(fromLow,1)} points above the day's low and ${fmtP(fromHigh,1)} points below its high.">+${fmtP(fromLow,1)} / −${fmtP(fromHigh,1)}</span>`;
+
   return `
     <div class="hl-row">
       <div class="hl-box high"><span class="hl-tag">H</span><span class="hl-val">${hl.high ? fmtP(hl.high,1) : '--'}</span></div>
       <div class="hl-box low"><span class="hl-tag">L</span><span class="hl-val">${hl.low ? fmtP(hl.low,1) : '--'}</span></div>
     </div>
-    <div class="hl-meter"><span class="hl-pin" style="left:calc(${hl.pos.toFixed(0)}% - 1px)"></span></div>`;
+    <div class="hl-meter"><span class="hl-pin" style="left:calc(${hl.pos.toFixed(0)}% - 1px)"></span></div>
+    <div class="hl-range">
+      <span class="hl-pts" title="Day's high minus day's low for this leg, in points.">${ptsTxt}<i>pts</i></span>
+      <span class="hl-amt">${moneyTxt}<i>/lot</i></span>
+      ${legend}
+    </div>`;
 }
 
 function hasDhanQuote(leg) {
