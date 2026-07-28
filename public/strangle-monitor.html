@@ -101,6 +101,11 @@
 
   .err{ background:rgba(255,84,112,.1); border:1px solid rgba(255,84,112,.3); color:#ff9eae; 
         padding:12px 14px; border-radius:8px; margin:12px 0; font-size:0.75rem; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 </head>
 <body>
@@ -115,13 +120,8 @@
     </div>
   </header>
 
-  <div class="wrap">
-    <nav>
-      <a href="dashboard.html">← Dashboard</a>
-      <a href="strangle-monitor.html" class="active">Monitor</a>
-      <a href="ami-heatmap.html">Heatmap</a>
-      <a href="strategy.html">Strategy</a>
-    </nav>
+  <div class="wrap" data-fit>
+    
 
     <!-- ENGINE STATUS -->
     <div class="sec-h">⚡ Engine Status</div>
@@ -425,5 +425,6 @@
     setInterval(refresh, 10000);
   </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

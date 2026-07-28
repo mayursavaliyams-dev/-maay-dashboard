@@ -52,20 +52,17 @@
   .greeks{ display:flex; gap:6px; padding:0 12px 12px; flex-wrap:wrap; }
   .gk{ background:var(--panel2); border-radius:8px; padding:5px 10px; font-size:0.66rem; }
   .gk b{ color:var(--blue); margin-right:5px; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
-  <nav>
-    <a href="/">Command</a>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/pattern-signals.html">Patterns</a>
-    <a href="/chart.html">Chart</a>
-    <a href="/signals4.html">4 Engines</a>
-    <a href="/payoff.html" class="active">Payoff</a>
-    <a href="/agents.html">AI Agents</a>
-  </nav>
+  
   <div class="hd">
     <h1>📐 Payoff Builder</h1>
     <span class="sub">multi-leg strategy → expiry payoff, breakevens, PoP, Greeks · premiums auto-fill from the live chain · <b>educational, not advice</b></span>

@@ -122,21 +122,17 @@
   .sa-news{ font-size:0.66rem; line-height:1.5; }
   .sa-news li{ margin-bottom:4px; color:#cbd5e1; }
   .sa-err{ padding:12px 14px; color:var(--red); font-size:0.7rem; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
-  <nav>
-    <a href="/">Command</a>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/pattern-signals.html">Patterns</a>
-    <a href="/chart.html">Chart</a>
-    <a href="/signals4.html">4 Engines</a>
-    <a href="/payoff.html">Payoff</a>
-    <a href="/agents.html" class="active">AI Agents</a>
-    <a href="/quant.html">⚡ Quant</a>
-  </nav>
+  
 
   <!-- ═══════ 1. USER-FIRST HERO — your money, your trades, what happens next ═══════ -->
   <section class="hero">
@@ -162,6 +158,11 @@
       <div class="poscards" id="posCards"><div class="noopen">loading…</div></div>
     </div>
   </section>
+
+  <!-- The hero above holds the four numbers that matter — P&L, win rate, open
+       positions — so it stays on screen. Everything below it is detail, and detail
+       is what scrolls. -->
+  <div data-fit>
 
   <!-- ═══════ 🔎 STOCK ANALYST — ask ANY stock, live verdict ═══════ -->
   <section class="pane">
@@ -220,6 +221,7 @@
       </section>
     </div>
   </div>
+  </div><!-- /data-fit -->
 
   <div class="note" id="disclaimer">Paper auto-trading. Impact probability is a disclosed-parameter heuristic, not a promise. Educational, not advice.</div>
 </div>
@@ -580,5 +582,6 @@ setInterval(loadHist, 30000);
 })();
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

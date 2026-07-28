@@ -73,6 +73,11 @@
   .num{ text-align:right; font-variant-numeric:tabular-nums; }
 
   .load{ color:var(--mut); text-align:center; padding:40px; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 </head>
 <body>
@@ -86,12 +91,8 @@
     </div>
   </header>
 
-  <div class="wrap">
-    <nav>
-      <a href="dashboard.html">← Dashboard</a>
-      <a href="health-dashboard.html" class="active">Health</a>
-      <a href="strangle-monitor.html">Strangle</a>
-    </nav>
+  <div class="wrap" data-fit>
+    
 
     <!-- SYSTEM STATUS SUMMARY -->
     <div class="sec-h">🎯 System Status</div>
@@ -422,5 +423,6 @@
     setInterval(refresh, 5000);
   </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

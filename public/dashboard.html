@@ -527,6 +527,28 @@
   .lk .e{ font-size:1.4rem; display:block; margin-bottom:6px; }
   .lk .d{ font-size:.58rem; color:var(--mut); font-weight:600; margin-top:3px; }
   .note{ font-size:.58rem; color:var(--dim2); margin-top:18px; line-height:1.6; }
+  .dtabs{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 14px; }
+  .dtabs button{ background:#0f1724; border:1px solid #223047; color:#93a2b8; font:inherit;
+    font-size:.78rem; font-weight:700; letter-spacing:.2px; padding:8px 16px; border-radius:9px; cursor:pointer; }
+  .dtabs button:hover{ color:#cfe0ff; border-color:#37507a; }
+  .dtabs button.on{ background:rgba(91,156,255,.16); border-color:#3d5b8c; color:#cfe0ff; }
+  .dtabs button:focus-visible{ outline:2px solid #5b9cff; outline-offset:2px; }
+  /* On the 32" panel auto-fill gave three columns, so a full-width pane owned a
+     whole row and four panes meant four screens. Four explicit columns with a
+     full pane spanning two puts a tab's panes on one row, each still ~1100px wide. */
+  @media (min-width:2200px){
+    .wrap-cols{ grid-template-columns:repeat(4,1fr); }
+    .pane.full{ grid-column:span 2; }
+  }
+  /* The panel area, not each panel, is what gets bounded to the viewport. Capping
+     panels individually was worse in both directions: a tab with two rows still
+     overflowed the page, and a tab with one short row left most of the screen
+     empty. Bounding the grid means the page never scrolls at all, the header and
+     tabs stay put, and a tab holding more than a screen scrolls where the reading
+     happens. */
+  .wrap-cols::-webkit-scrollbar{ width:10px; }
+  .wrap-cols::-webkit-scrollbar-thumb{ background:#243247; border-radius:6px; }
+  .wrap-cols section.pane[hidden]{ display:none; }
 </style>
 </head>
 <body>
@@ -564,13 +586,25 @@
   <div class="idxrow" id="idxRow"></div>
 
   <!-- two-column shell: narrow monitoring rail on the left, wide market data on the right -->
-  <div class="wrap-cols">
-  <section class="pane full">
+  <!-- Section tabs. The home page held fourteen panes stacked seven screens deep,
+       which meant the most important number on it was whichever one you had
+       scrolled to. Grouping them makes the page one screen. Every pane stays
+       mounted and keeps polling, so switching shows data, never a spinner. -->
+  <div class="dtabs" role="tablist" aria-label="Dashboard sections">
+    <button role="tab" data-go="hl"      class="on" aria-selected="true">High / Low</button>
+    <button role="tab" data-go="chain"   aria-selected="false">Chain &amp; Quotes</button>
+    <button role="tab" data-go="signals" aria-selected="false">Signals</button>
+    <button role="tab" data-go="book"    aria-selected="false">Book &amp; P&amp;L</button>
+    <button role="tab" data-go="health"  aria-selected="false">Health</button>
+    <button role="tab" data-go="all"     aria-selected="false">All</button>
+  </div>
+  <div class="wrap-cols" data-fit>
+  <section data-tab="hl" class="pane full">
   <div class="sec-h">High / Low levels <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">day range · ORB · VWAP</small></div>
   <div class="hlrow" id="hlRow"></div>
 
   </section>
-  <section class="pane full">
+  <section data-tab="hl" class="pane full">
   <div class="sec-h" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Strike price timeline <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">CE/PE live price · high &amp; low record timeline</small>
     <span style="margin-left:auto;display:inline-flex;gap:6px;align-items:center;font-size:.58rem;font-weight:600;color:var(--dim2)" title="Confirmation tier: how each recorded high/low was verified before it was saved">
       confirmed: <span class="cf exch">EXCH</span><span style="color:var(--mut)">candle</span><span class="cf feed">FEED</span><span style="color:var(--mut)">next-poll</span></span></div>
@@ -615,7 +649,7 @@
   </div>
 
   </section>
-  <section class="pane full">
+  <section data-tab="chain" class="pane full">
   <div class="sec-h">Option chain · OI buildup <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">LTP · High/Low · OI increase/decrease</small></div>
   <div class="card">
     <div class="card-b">
@@ -641,7 +675,7 @@
   </div>
 
   </section>
-  <section class="pane full">
+  <section data-tab="chain" class="pane full">
   <div class="sec-h">Market quotes <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">full option quote · LTP · H/L · OI · UCL/LCL · 52W · PoP</small></div>
   <div class="card">
     <div class="card-b">
@@ -677,7 +711,7 @@
   </div>
 
   </section>
-  <section class="pane full">
+  <section data-tab="hl" class="pane full">
   <div class="sec-h">High / Low mapping <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">every strike · CE/PE day High &amp; Low · date-wise archive</small></div>
   <div class="card">
     <div class="card-b">
@@ -709,12 +743,12 @@
   </div>
 
   </section>
-  <section class="pane compact">
+  <section data-tab="book" class="pane compact">
   <div class="sec-h">Performance · paper</div>
   <div class="stats" id="stats"></div>
 
   </section>
-  <section class="pane full">
+  <section data-tab="book" class="pane full">
   <div class="sec-h">Positions & P&L verification <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">what makes the paper P&L · reconciled + math-checked</small></div>
   <div class="card">
     <div class="card-b">
@@ -741,7 +775,7 @@
   </div>
 
   </section>
-  <section class="pane compact">
+  <section data-tab="book" class="pane compact">
   <div class="sec-h">Open book</div>
   <div class="card" style="margin-bottom:16px">
     <div class="card-h">📒 Positions <small id="posSub">every open paper position · all engines</small></div>
@@ -749,7 +783,7 @@
   </div>
 
   </section>
-  <section class="pane compact">
+  <section data-tab="signals" class="pane compact">
   <div class="sec-h">Signals & regime</div>
   <div class="grid2">
     <div class="card">
@@ -763,7 +797,7 @@
   </div>
 
   </section>
-  <section class="pane compact">
+  <section data-tab="signals" class="pane compact">
   <div class="sec-h">Technical indicators <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">live multi-confirm · 13 indicators</small></div>
   <div class="card">
     <div class="card-b">
@@ -780,7 +814,7 @@
   </div>
 
   </section>
-  <section class="pane compact">
+  <section data-tab="signals" class="pane compact">
   <div class="sec-h">Live signals & positioning
     <span class="instsel" id="posSel" style="margin-left:12px">
       <button class="isbtn on" onclick="setPosInst('NIFTY')">NIFTY</button>
@@ -836,7 +870,7 @@
   </div>
 
   </section>
-  <section class="pane compact">
+  <section data-tab="health" class="pane compact">
   <div class="sec-h">Trade plan & engine health <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">signal-engine · defined-risk only</small></div>
   <div class="grid2">
     <div class="card">
@@ -850,7 +884,7 @@
   </div>
 
   </section>
-  <section class="pane compact">
+  <section data-tab="health" class="pane compact">
   <div class="sec-h">🚦 Forward-test gate & validation <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">the honest gate-to-live · #9 report · VRP monitor · ops health</small></div>
   <div class="grid2">
     <div class="card">
@@ -864,7 +898,7 @@
   </div>
 
   </section>
-  <section class="pane compact">
+  <section data-tab="signals" class="pane compact">
   <div class="sec-h">⚡ Gamma-Blast <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">expiry-day option BUYING · the only buy strategy with a rationale · paper</small></div>
   <div class="card">
     <div class="card-h">⚡ Gamma-Blast Engine <small id="gbState">—</small></div>
@@ -2012,5 +2046,44 @@ setInterval(loadIndicators, 5000);
 })();
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
+<script>
+/* Hiding a pane is a display concern, not a lifecycle one: the pane keeps its
+   pollers, so returning to a tab shows the current number rather than re-fetching. */
+(function(){
+  var bar = document.querySelector(".dtabs"); if(!bar) return;
+  var panes = Array.prototype.slice.call(document.querySelectorAll(".wrap-cols section.pane"));
+  var KEY = "ag-dash-tab", storageOk = true;
+  function show(tab){
+    for(var i=0;i<panes.length;i++) panes[i].hidden = (tab!=="all" && panes[i].getAttribute("data-tab")!==tab);
+    var bs = bar.querySelectorAll("button");
+    for(var j=0;j<bs.length;j++){
+      var on = bs[j].getAttribute("data-go")===tab;
+      bs[j].classList.toggle("on", on);
+      bs[j].setAttribute("aria-selected", on ? "true" : "false");
+    }
+    if(storageOk){ try{ localStorage.setItem(KEY, tab); }catch(e){ storageOk = false; } }
+    window.dispatchEvent(new Event("resize"));   // let canvases size to the box they can now see
+  }
+  bar.addEventListener("click", function(e){
+    var b = e.target.closest ? e.target.closest("button[data-go]") : null;
+    if(b) show(b.getAttribute("data-go"));
+  });
+  // The default must name a tab that exists. A stored preference is honoured only
+  // if some pane still carries it, so renaming a tab shows High/Low rather than an
+  // empty page.
+  var start = "hl";
+  try{
+    var s = localStorage.getItem(KEY);
+    if(s === "all") start = s;
+    else if(s) for(var k=0;k<panes.length;k++) if(panes[k].getAttribute("data-tab")===s){ start = s; break; }
+  }catch(e){ storageOk = false; }
+  /* Bounding the grid to the viewport is /js/fit.js's job — this page marks
+     .wrap-cols with data-fit. Doing it here instead meant recomputing only on
+     window resize, so the index cards arriving and pushing the grid down left the
+     old, too-generous height in place and the page overflowed by 13%. */
+  show(start);
+})();
+</script>
 </body>
 </html>

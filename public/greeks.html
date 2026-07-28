@@ -195,17 +195,7 @@ details p b{color:var(--text);}
 <header class="topbar">
   <div class="brand">Greeks → P&amp;L</div>
   <span class="chip" title="Research view. No orders can be placed from this page.">RESEARCH · READ-ONLY</span>
-  <nav class="nav-links" aria-label="Pages">
-    <a class="nav-link" href="/">Command</a>
-    <a class="nav-link" href="/dashboard.html">Dashboard</a>
-    <a class="nav-link" href="/strategy.html">Strategy</a>
-    <a class="nav-link active" href="/greeks.html" aria-current="page">Greeks</a>
-    <a class="nav-link" href="/pop.html">PoP</a>
-    <a class="nav-link" href="/heatmap.html">OI Heatmap</a>
-    <a class="nav-link" href="/strike-history.html">Strike History</a>
-    <button class="btn" id="themeBtn" onclick="toggleTheme()" aria-label="Switch colour theme"
-      style="min-height:32px;padding:var(--s1) var(--s2)">◐ Theme</button>
-  </nav>
+  
 </header>
 
 <div class="controls">
@@ -223,7 +213,7 @@ details p b{color:var(--text);}
   <div class="ctx" id="ctxLine"><span>loading…</span></div>
 </div>
 
-<main class="wrap">
+<main class="wrap" data-fit>
 
   <!-- ═══ 1. POSITION + NET GREEKS ═══ -->
   <section class="card" aria-labelledby="h-pos">
@@ -817,5 +807,6 @@ refreshAll();
 setInterval(refreshAll, 30000);
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

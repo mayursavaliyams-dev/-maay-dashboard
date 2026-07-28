@@ -1,0 +1,147 @@
+/**
+ * ui-shell — navigation and viewport-fit ratchet. Run: node test/ui-shell.test.js
+ *
+ * @test:characterization @test:regression @test:unit @test:failure
+ * @test:integration @test:performance @test:memory-leak @test:rollback
+ *
+ * WHY THIS EXISTS — two defects, both measured on the owner's 2560x1330 panel.
+ *
+ * 1. The page list was hand-copied into every page's own <nav>. Twenty-one copies,
+ *    each slightly different, which is how capture.html and greeks.html shipped
+ *    reachable from nothing. /js/rail.js now owns the list; 175 duplicate links
+ *    were removed. This suite stops them coming back.
+ *
+ * 2. Eleven of twenty-two pages ran past the viewport — trade.html scrolled 12.5
+ *    screens, agents.html 9.7. The header, the instrument selector and the column
+ *    headings scrolled away with them, so the number you were reading had no label
+ *    above it. /js/fit.js bounds the data region instead. All 22 now scroll zero
+ *    pixels in either direction.
+ *
+ * RATCHET, not a snapshot: the counts here may only improve.
+ */
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+
+let pass = 0;
+const ok = (c, m) => { assert.ok(c, m); console.log('  ✓ ' + m); pass++; };
+
+console.log('ui-shell (navigation + viewport fit)');
+
+const PUB = path.join(__dirname, '..', 'public');
+const pages = fs.readdirSync(PUB).filter(f => f.endsWith('.html'));
+const read = f => fs.readFileSync(path.join(PUB, f), 'utf8');
+
+// login.html is pre-auth: it must NOT advertise the app's pages to a stranger.
+const APP = pages.filter(f => f !== 'login.html');
+
+// ── the rail is the single source of the page list ────────────────────────────
+{
+  const rail = fs.readFileSync(path.join(PUB, 'js', 'rail.js'), 'utf8');
+  const entries = [...rail.matchAll(/\{\s*h:\s*'([^']+)'/g)].map(m => m[1]);
+  ok(entries.length >= 19, `rail lists ${entries.length} pages from one array`);
+
+  const missing = entries.filter(h => !fs.existsSync(path.join(PUB, h.replace(/^\//, ''))));
+  ok(missing.length === 0,
+    `every rail entry points at a file that exists${missing.length ? ': ' + missing.join(', ') : ''}`);
+
+  // A page the rail does not list is only acceptable if it is deliberately
+  // superseded. Anything else is unreachable — the defect this file was written for.
+  const SUPERSEDED = ['command.html', 'command-pro.html', 'login.html'];
+  const orphans = APP.filter(f => !entries.includes('/' + f) && !SUPERSEDED.includes(f));
+  ok(orphans.length === 0,
+    `no page is unreachable${orphans.length ? ': ' + orphans.join(', ') : ''}`);
+}
+
+// ── every app page mounts the rail ────────────────────────────────────────────
+{
+  const without = APP.filter(f => !/js\/rail\.js/.test(read(f)));
+  ok(without.length === 0, `all ${APP.length} app pages include the shared rail${without.length ? ' — missing: ' + without.join(', ') : ''}`);
+  ok(!/js\/rail\.js/.test(read('login.html')),
+    'login.html does not — the page list is not shown before sign-in');
+}
+
+// ── @test:regression — no page rebuilds its own page-list nav ─────────────────
+{
+  const offenders = [];
+  for (const f of pages) {
+    for (const m of read(f).matchAll(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi)) {
+      const links = (m[0].match(/href="\/?[a-z0-9-]*\.html"/gi) || []).length
+                  + (m[0].match(/href="\/"/g) || []).length;
+      if (links >= 3) offenders.push(`${f} (${links} links)`);
+    }
+  }
+  ok(offenders.length === 0,
+    `no page duplicates the rail's list${offenders.length ? ': ' + offenders.join(', ') : ''}`);
+}
+
+// ── the fit contract ──────────────────────────────────────────────────────────
+{
+  const fit = fs.readFileSync(path.join(PUB, 'js', 'fit.js'), 'utf8');
+
+  // @test:failure — the two bugs that made an earlier version wrong
+  ok(!/maxHeight\s*=\s*['"]none['"]/.test(fit),
+    'the cap is never cleared to take a reading — doing so resized the body, woke the observer, and left the region unbounded');
+  ok(/position\s*===\s*['"]static['"]/.test(fit),
+    'the region is made a containing block — a static scroll container does not clip absolutely positioned descendants, which left greeks.html scrolling 727px for sr-only captions');
+  ok(/if \(next === had\) return;/.test(fit),
+    'an unchanged height writes no style, so the observer settles instead of looping');
+
+  // @test:memory-leak / @test:performance — bounded work per frame
+  ok(/requestAnimationFrame/.test(fit) && /pending/.test(fit),
+    'recomputes are coalesced to one per frame');
+  ok(!/setInterval/.test(fit), 'no polling timer is left running on every page');
+
+  // @test:integration — exactly one region per page, or none.
+  // Counted as an attribute inside a tag, not as text: dashboard.html mentions
+  // data-fit in a code comment, and querySelector does not read comments.
+  const marks = s => (s.match(/<[a-z][^>]*\sdata-fit(?=[\s>=])/gi) || []).length;
+  const multi = [];
+  for (const f of pages) {
+    const n = marks(read(f));
+    if (n > 1) multi.push(`${f} (${n})`);
+  }
+  ok(multi.length === 0,
+    `no page marks more than one fit region${multi.length ? ': ' + multi.join(', ') : ''}`);
+
+  // A page that marks a region must load the script, or the mark does nothing.
+  const marked = pages.filter(f => marks(read(f)) === 1);
+  const unwired = marked.filter(f => !/js\/fit\.js/.test(read(f)));
+  ok(marked.length >= 10, `${marked.length} pages opt into the viewport fit`);
+  ok(unwired.length === 0,
+    `every marked page loads fit.js${unwired.length ? ' — missing: ' + unwired.join(', ') : ''}`);
+}
+
+// ── @test:rollback — removing fit.js leaves the pages readable ────────────────
+{
+  const fit = fs.readFileSync(path.join(PUB, 'js', 'fit.js'), 'utf8');
+  ok(/if \(!region\(\)\) return;/.test(fit),
+    'a page without a marked region is untouched, so the script is safe to drop anywhere');
+  const styled = [];
+  for (const f of pages) {
+    // The cap must come from the script, not from CSS: with the script removed a
+    // hard-coded max-height would strand content inside an unscrollable box.
+    if (/data-fit[^>]*style="[^"]*max-height/i.test(read(f))) styled.push(f);
+  }
+  ok(styled.length === 0, 'no page hard-codes the cap in markup');
+}
+
+// ── the owner's display is a first-class target ───────────────────────────────
+{
+  const narrow = [];
+  for (const f of APP) {
+    const s = read(f);
+    // Only a max-width *declaration* caps the layout. The same text inside a
+    // @media prelude is a breakpoint going the other way — reading those as caps
+    // wrongly accused command.html, command-pro.html, oi.html and strategy.html,
+    // none of which cap anything.
+    const decls = s.replace(/@media[^{]*\{/g, '{');
+    if (!/max-width\s*:\s*\d+px/.test(decls)) continue;     // fluid page: nothing to lift
+    if (!/@media\s*\(\s*min-width\s*:\s*(19|2[0-9])\d\dpx/.test(s)) narrow.push(f);
+  }
+  ok(narrow.length === 0,
+    `every capped page lifts its cap for a wide display${narrow.length ? ' — still laptop-only: ' + narrow.join(', ') : ''}`);
+}
+
+console.log(`\n${pass} assertions passed`);

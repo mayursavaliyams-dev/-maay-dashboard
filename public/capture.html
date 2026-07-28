@@ -64,15 +64,7 @@ tbody tr{cursor:pointer;}
 <header class="topbar">
   <div class="brand">Buy Low → Sell High</div>
   <span class="tok-badge tok-est">HINDSIGHT · UPPER BOUND</span>
-  <nav class="tok-nav" style="margin-left:auto" aria-label="Pages">
-    <a href="/">Command</a>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/strategy.html">Strategy</a>
-    <a href="/greeks.html">Greeks</a>
-    <a href="/pop.html">PoP</a>
-    <a href="/capture.html" class="active" aria-current="page">Capture</a>
-    <a href="/strike-history.html">Strike History</a>
-  </nav>
+  
 </header>
 
 <div class="ctl">
@@ -105,7 +97,10 @@ tbody tr{cursor:pointer;}
   </div>
 
   <div class="counts" id="counts"></div>
-  <div class="tbl-wrap">
+  <!-- The caveat and the counts stay on screen; only the rows scroll. Reading a
+       hindsight table with its "this is not a strategy" note scrolled away is how
+       a ceiling gets mistaken for a result. -->
+  <div class="tbl-wrap" data-fit>
     <table>
       <caption class="sr-only">Every strike's best available buy-low to sell-high for the selected day.</caption>
       <thead><tr>
@@ -218,5 +213,6 @@ function openStrike(inst, strike, type){
 loadDays().then(load);
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

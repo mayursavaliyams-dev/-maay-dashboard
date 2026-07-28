@@ -44,20 +44,17 @@
   .muted{ color:var(--muted); } .up{ color:var(--green); } .dn{ color:var(--red); }
   .empty{ padding:26px; text-align:center; color:var(--muted); font-size:0.72rem; font-style:italic; }
   .note{ font-size:0.6rem; color:#6b7787; margin:16px 2px 0; line-height:1.5; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
-  <nav>
-    <a href="/">Command</a>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/pattern-signals.html">Patterns</a>
-    <a href="/chart.html">Chart</a>
-    <a href="/signals4.html" class="active">4 Engines</a>
-    <a href="/payoff.html">Payoff</a>
-    <a href="/agents.html">AI Agents</a>
-  </nav>
+  
   <div class="hd">
     <h1>⚡ 4 Signal Engines</h1>
     <span class="sub">Pattern × Candle · OI Build-up · Early H/L break · ORB — live, auto-refresh · <b>paper / educational, not advice</b></span>

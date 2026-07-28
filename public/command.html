@@ -277,18 +277,7 @@
 </div>
 
 <!-- ===== NAVIGATION ===== -->
-<nav class="topnav">
-  <a href="/command.html" class="active">Command</a>
-  <a href="/command-pro.html">Pro</a>
-  <a href="/trade.html">Trade</a>
-  <a href="/dashboard.html">Dashboard</a>
-  <a href="/signal-heatmap.html">Signal Heatmap</a>
-  <a href="/strategy.html">Strategy</a>
-  <a href="/heatmap.html">OI Heatmap</a>
-  <a href="/pop.html">PoP</a>
-  <a href="/strike-history.html">Strike History</a>
-  <a href="/ami-heatmap.html">AMI Heatmap</a>
-</nav>
+
 
 <!-- ===== KPI RAIL ===== -->
 <div class="kpirail" id="kpirail">
@@ -304,7 +293,7 @@
 <div id="dataBanner" style="display:none;margin:6px 14px 0;padding:8px 12px;border-radius:9px;font-family:var(--mono);font-size:11.5px;font-weight:700;text-align:center;letter-spacing:.4px;animation:dbpulse 1.6s ease-in-out infinite"></div>
 
 <!-- ===== MAIN GRID ===== -->
-<div class="grid">
+<div class="grid" data-fit>
 
   <!-- LEFT COLUMN -->
   <div class="col">
@@ -1131,5 +1120,6 @@ document.addEventListener('keydown', function(e){
 });
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

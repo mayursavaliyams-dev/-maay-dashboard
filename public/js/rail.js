@@ -42,6 +42,7 @@
     { g: 'Engines' },
     { h: '/agents.html',         i: '🤖', t: 'AI Agents' },
     { h: '/quant.html',          i: '⚡', t: 'Quant Center' },
+    { h: '/strangle-monitor.html', i: '🎚️', t: 'Strangle' },
     { h: '/signals4.html',       i: '✅', t: '4 Engines' },
     { h: '/trade.html',          i: '💼', t: 'Trade' },
     { h: '/health-dashboard.html', i: '🩺', t: 'Health' }

@@ -161,26 +161,18 @@ nav{ padding:3px 8px !important; gap:2px !important; } nav a{ padding:2px 8px !i
 .orb-wrap{ padding:12px 15px !important; margin-bottom:12px !important; } .orb-cards{ gap:10px !important; } .orb-card{ padding:11px 12px !important; }
 .tbl-wrap{ margin-top:18px !important; } .tbl-hd{ padding:10px 14px !important; }
 th,td{ padding:7px 12px !important; font-size:0.7rem !important; line-height:1.35 !important; } thead th{ font-size:0.6rem !important; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 <div class="wrap">
   <div class="topbar">
     <div class="brand">🚀 ANTIGRAVITY <b>PRO</b></div>
     <div class="tally" id="tally"></div>
   </div>
-  <nav>
-    <a href="/">Command</a>
-    <a href="/command-pro.html">Pro</a>
-    <a href="/trade.html">Trade</a>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/signal-heatmap.html">Signal Heatmap</a>
-    <a href="/strategy.html">Strategy</a>
-    <a href="/heatmap.html">OI Heatmap</a>
-    <a href="/pop.html">PoP</a>
-    <a href="/strike-history.html">Strike History</a>
-    <a href="/ami-heatmap.html">AMI Heatmap</a>
-    <a href="/pattern-signals.html" class="active">🕯️ Patterns</a>
-    <a href="/signals4.html">⚡ 4 Engines</a>
-  </nav>
+  
 
   <div class="hd">
     <div>
@@ -215,6 +207,10 @@ th,td{ padding:7px 12px !important; font-size:0.7rem !important; line-height:1.3
     <div class="orb-bt" id="orbBt"></div>
   </div>
 
+  <!-- Cards and table scroll together. Bounding the table alone left it at the
+       320px floor while the cards above still pushed the page over: the space has
+       to be shared between them, not taken by whichever comes first. -->
+  <div data-fit>
   <div class="cards" id="cards"><div class="empty">Loading signals…</div></div>
 
   <div class="tbl-wrap">
@@ -227,6 +223,7 @@ th,td{ padding:7px 12px !important; font-size:0.7rem !important; line-height:1.3
       <tbody id="tblBody"><tr><td colspan="10" class="empty">Loading…</td></tr></tbody>
     </table>
   </div>
+  </div><!-- /data-fit -->
 
   <div class="note">
     Patterns are read off the last <b>closed</b> 15m / 1hr candle (real Upstox OHLC). The verdict blends the
@@ -442,5 +439,6 @@ timer = setInterval(load, 20000);
 setInterval(loadOrb, 30000);
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

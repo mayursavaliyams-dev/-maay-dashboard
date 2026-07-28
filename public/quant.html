@@ -85,15 +85,16 @@
   nav a{ color:#7c8aa0; text-decoration:none; font-size:0.68rem; font-weight:700; padding:3px 9px; border-radius:7px; }
   nav a:hover{ background:rgba(122,162,255,.14); color:#cfe0ff; } nav a.active{ background:rgba(160,107,255,.18); color:#cfe0ff; }
   .note{ font-size:0.56rem; color:#4a5670; margin-top:14px; line-height:1.5; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <nav>
-    <a href="/dashboard.html">Dashboard</a><a href="/chart.html">Chart</a>
-    <a href="/agents.html">AI Agents</a><a href="/payoff.html">Payoff</a>
-    <a href="/quant.html" class="active">⚡ Quant Center</a>
-  </nav>
+  
 
   <header class="hdr">
     <div class="logo"><b>CLAUDE</b> × <span>QUANT</span></div>

@@ -104,22 +104,16 @@
       .ltp { font-size: 1.7rem; }
       .chart-svg { height: 280px; }
     }
-  </style>
+    /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .shell{ max-width:2400px; } }
+  @media (min-width:2560px){ .shell{ max-width:2800px; } }
+</style>
 </head>
 <body>
   <div class="shell">
-    <nav style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:rgba(9,17,29,.78);border:1px solid #243041;border-radius:12px;">
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/">Command</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/command-pro.html">Pro</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/trade.html">Trade</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/dashboard.html">Dashboard</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/signal-heatmap.html">Signal Heatmap</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/strategy.html">Strategy</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/heatmap.html">OI Heatmap</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/pop.html">PoP</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#78a8ff;text-decoration:none;border:1px solid rgba(120,168,255,.3);background:rgba(120,168,255,.1);white-space:nowrap;" href="/strike-history.html">Strike History</a>
-      <a style="padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:600;color:#94a3b8;text-decoration:none;border:1px solid transparent;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''" href="/ami-heatmap.html">AMI Heatmap</a>
-    </nav>
+    
     <section class="hero">
       <div>
         <div class="eyebrow">Option Strike Details</div>
@@ -133,7 +127,7 @@
       <div class="muted" id="heroFocus">Tracking live strike history</div>
     </section>
 
-    <section class="stack">
+    <section class="stack" data-fit>
       <!-- LIVE premium candles (Highcharts) + EMA — opens for the selected strike -->
       <article class="chart-card">
         <div class="chart-head">
@@ -670,5 +664,6 @@
     setInterval(() => scLoad(false), 5000);
   </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

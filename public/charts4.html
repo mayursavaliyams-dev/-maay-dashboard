@@ -34,21 +34,17 @@
   .ohlc{ position:absolute; left:8px; top:34px; z-index:5; font-size:0.58rem; font-weight:700; pointer-events:none; display:flex; gap:7px; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,.7); }
   .ohlc .lbl{ color:var(--muted); }
   .note{ font-size:0.55rem; color:#5a6678; margin-top:8px; line-height:1.5; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
-  <nav>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/chart.html">Chart</a>
-    <a href="/charts4.html" class="active">4 Charts</a>
-    <a href="/pattern-signals.html">Patterns</a>
-    <a href="/signals4.html">4 Engines</a>
-    <a href="/payoff.html">Payoff</a>
-    <a href="/agents.html">AI Agents</a>
-    <a href="/quant.html">⚡ Quant</a>
-  </nav>
+  
 
   <div class="toolbar">
     <span style="color:var(--muted);font-weight:700">Presets:</span>

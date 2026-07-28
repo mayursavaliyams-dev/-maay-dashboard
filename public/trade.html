@@ -153,6 +153,11 @@
 
   .foot{text-align:center; color:var(--dimmer); font-size:10.5px; margin-top:24px; line-height:1.6}
   .foot a{color:var(--blue); text-decoration:none}
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ body{ max-width:2400px; } }
+  @media (min-width:2560px){ body{ max-width:2800px; } }
 </style>
 </head>
 <body>
@@ -167,18 +172,12 @@
   </div>
 </header>
 
-<nav class="topnav">
-  <a href="/command.html">Command</a>
-  <a href="/command-pro.html">Pro</a>
-  <a href="/trade.html" class="active">Trade</a>
-  <a href="/dashboard.html">Dashboard</a>
-  <a href="/signal-heatmap.html">Signal Heatmap</a>
-  <a href="/strategy.html">Strategy</a>
-  <a href="/heatmap.html">OI Heatmap</a>
-  <a href="/pop.html">PoP</a>
-  <a href="/strike-history.html">Strike History</a>
-  <a href="/ami-heatmap.html">AMI Heatmap</a>
-</nav>
+
+
+<!-- The header carries the spot prices and the PAPER badge. On a page that ran
+     twelve screens deep those scrolled away, so a BUY could be pressed with no
+     reminder of which mode was live. They stay; the trading surface scrolls. -->
+<div data-fit>
 
 <!-- LIVE TRADES (both instruments) -->
 <div class="sec"><h2>⚡ Live Trades</h2><div class="ln"></div><span class="meta" id="liveMeta"></span></div>
@@ -236,6 +235,8 @@
     </div>
   </div>
 </div>
+
+</div><!-- /data-fit -->
 
 <div class="foot">
   PAPER mode — orders are simulated. SL / target / trailing use your configured engine settings.<br>
@@ -474,5 +475,6 @@ setInterval(loadLiveTrades, 2000);
 setInterval(loadStrangle, 4000);
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

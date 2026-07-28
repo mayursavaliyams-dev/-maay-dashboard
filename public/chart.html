@@ -95,21 +95,17 @@
   .stt{ background:var(--panel2,#0e1726); border:1px solid var(--border); border-radius:9px; padding:8px 11px; }
   .stt .l{ font-size:0.52rem; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; } .stt .v{ font-size:1rem; font-weight:900; margin-top:2px; font-variant-numeric:tabular-nums; }
   .strat-eq{ height:60px; padding:0 14px 12px; }
+  /* AG-WIDE-DISPLAY — the owner runs a 32-inch panel. The cap above was written for a
+     laptop; on 2560px it left roughly a thousand pixels of empty margin on each
+     side while the tables stayed cramped. Same steps capture/greeks/pop use. */
+  @media (min-width:1900px){ .wrap{ max-width:2400px; } }
+  @media (min-width:2560px){ .wrap{ max-width:2800px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar"><div class="brand">🚀 ANTIGRAVITY PRO</div></div>
-  <nav>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/pattern-signals.html">Patterns</a>
-    <a href="/chart.html" class="active">Chart</a>
-    <a href="/charts4.html">4 Charts</a>
-    <a href="/signals4.html">4 Engines</a>
-    <a href="/payoff.html">Payoff</a>
-    <a href="/agents.html">AI Agents</a>
-    <a href="/quant.html">⚡ Quant</a>
-  </nav>
+  
 
   <div class="bar">
     <div class="seg" id="instSeg"><button data-v="NIFTY" class="on">NIFTY</button><button data-v="SENSEX">SENSEX</button><button data-v="BANKNIFTY">BANKNIFTY</button></div>
