@@ -113,6 +113,25 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
 .ind-fill.pos{left:50%;background:linear-gradient(90deg,rgba(0,230,118,.35),var(--green));}
 .ind-fill.neg{right:50%;background:linear-gradient(270deg,rgba(255,68,68,.35),var(--red));}
 .ind-sc{font-size:.56rem;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+/* ── honesty layer: an unfed factor is UNKNOWN (amber), never a grey zero ── */
+.ind-sc.unk{color:var(--yellow);font-size:.48rem;letter-spacing:.3px;}
+.ind-note.unk{color:var(--yellow);opacity:.85;}
+.ind-unk{position:absolute;inset:0;background:repeating-linear-gradient(45deg,
+  rgba(255,215,64,.20) 0 4px, transparent 4px 8px);}
+.na-dash{color:var(--muted);}
+.cell-pop.pop-na{background:rgba(255,215,64,.14);color:var(--yellow);}
+/* factor coverage — stated in words, sized like the decision */
+.cov-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.6rem;color:var(--muted);
+  padding:5px 8px;border-radius:7px;background:#12121e;border:1px solid #1f1f30;margin-bottom:6px;}
+.cov-line b{color:var(--text);font-size:.68rem;}
+.cov-line.thin{border-color:rgba(255,215,64,.45);background:rgba(255,215,64,.07);}
+.cov-line.thin b{color:var(--yellow);}
+.cov{flex:1;min-width:60px;height:6px;border-radius:99px;background:#141422;overflow:hidden;}
+.cov-fill{height:100%;background:var(--green);}
+.cov-fill.thin{background:var(--yellow);}
+.ind-qual{font-size:.56rem;line-height:1.55;color:#f0e0b0;background:rgba(255,215,64,.10);
+  border:1px solid rgba(255,215,64,.45);border-radius:7px;padding:6px 8px;margin-bottom:6px;}
+.ind-dec.thin{opacity:.9;}
 .ind-note{font-size:.5rem;color:var(--muted);padding:0 0 2px 70px;margin-top:-1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ind-empty{color:var(--muted);font-size:.6rem;text-align:center;padding:20px 8px;}
 
@@ -538,15 +557,40 @@ const CHAIN_REFRESH_MS = 3000;
 const ALGO_API_BASE = 'http://127.0.0.1:8091';
 
 // ── PoP helpers ──────────────────────────────────────────────────────────────
-function pop(delta){ return Math.max(0,Math.min(100,(1-Math.abs(Number(delta)||0))*100)); }
+// PoP = 1−|Δ|, the RISK-NEUTRAL chance of finishing OTM. Not a probability of profit
+// and not a safety margin.
+// `Number(delta)||0` used to turn a MISSING delta into 0, which then printed
+// (1−0)×100 = "100%" — a certainty manufactured out of absent data. A missing delta
+// now returns null and the badge renders "—".
+function pop(delta){
+  const d = Number(delta);
+  if (delta === null || delta === undefined || delta === '' || !isFinite(d)) return null;
+  return Math.max(0, Math.min(100, (1 - Math.abs(d)) * 100));
+}
 function popCls(p,side){
   const s=side==='CE'?'ce':'pe';
+  // An unknown PoP falls to the LOWEST-confidence shade on purpose, not by the
+  // accident of null>=99 being false. It must never be painted as a safe strike.
+  if (p === null || p === undefined || !isFinite(p)) return s+'-70';
   if(p>=99)return s+'-100'; if(p>=95)return s+'-95'; if(p>=90)return s+'-90';
   if(p>=85)return s+'-85';  if(p>=80)return s+'-80'; return s+'-70';
 }
+// A delta the feed did not send is unknown, not 0.00. `Math.abs(x||0)` printed
+// "Δ0.00", which reads as a real, measured, perfectly-neutral delta.
+function dTxt(delta){
+  const d = Number(delta);
+  if (delta === null || delta === undefined || delta === '' || !isFinite(d))
+    return '<span class="na-dash" title="Delta not reported for this strike">Δ—</span>';
+  return 'Δ' + Math.abs(d).toFixed(2);
+}
 function popBadge(p){
-  const c=p>=90?'pop-hi':p>=75?'pop-mid':'pop-lo';
-  return `<span class="cell-pop ${c}">${p.toFixed(0)}%</span>`;
+  if (p === null || p === undefined || !isFinite(p))
+    return `<span class="cell-pop pop-na" title="No delta for this strike — probability of finishing OTM is unknown, not 100%">—</span>`;
+  const c = p>=90?'pop-hi':p>=75?'pop-mid':'pop-lo';
+  // Never print a bare 100%: this is a model number and the platform does not own
+  // certainty. Anything at or above 99 reads "≥99%".
+  const txt = p >= 99 ? '≥99%' : p.toFixed(0)+'%';
+  return `<span class="cell-pop ${c}" title="PoP ${txt} — risk-neutral (1−|Δ|), the chance of finishing OTM. Not a probability of profit.">${txt}</span>`;
 }
 
 function legHighLow(leg, ltp) {
@@ -1094,16 +1138,19 @@ function renderHeatmap() {
     const ceCnt = `
       <div class="cell-top"><span class="cell-ltp">₹${fmtP(ceLtp,1)}</span>${popBadge(cePop)}</div>
       ${highLowHtml(ce, ceLtp)}
-      <div class="cell-bot"><span>${fmtOI(ceOI)}</span><span>Δ${fmtP(Math.abs(ce.delta||0),2)}</span></div>
+      <div class="cell-bot"><span>${fmtOI(ceOI)}</span><span>${dTxt(ce.delta)}</span></div>
       <div class="oi-bar"><div class="oi-bar-fill" style="width:${ceBarW}%;background:rgba(0,230,118,.5)"></div></div>`;
     const peCnt = `
       <div class="cell-top"><span class="cell-ltp">₹${fmtP(peLtp,1)}</span>${popBadge(pePop)}</div>
       ${highLowHtml(pe, peLtp)}
-      <div class="cell-bot"><span>${fmtOI(peOI)}</span><span>Δ${fmtP(Math.abs(pe.delta||0),2)}</span></div>
+      <div class="cell-bot"><span>${fmtOI(peOI)}</span><span>${dTxt(pe.delta)}</span></div>
       <div class="oi-bar"><div class="oi-bar-fill" style="width:${peBarW}%;background:rgba(255,68,68,.5)"></div></div>`;
 
-    const ceD=`data-strike="${s.strike}" data-inst="${activeInst}" data-type="CE" data-ltp="${ceLtp}" data-high="${ceHL.high}" data-low="${ceHL.low}" data-pop="${cePop.toFixed(1)}" data-delta="${fmtP(Math.abs(ce.delta||0),4)}" data-iv="${ce.iv||0}" data-oi="${ceOI}" data-chgoi="${ceChg}"`;
-    const peD=`data-strike="${s.strike}" data-inst="${activeInst}" data-type="PE" data-ltp="${peLtp}" data-high="${peHL.high}" data-low="${peHL.low}" data-pop="${pePop.toFixed(1)}" data-delta="${fmtP(Math.abs(pe.delta||0),4)}" data-iv="${pe.iv||0}" data-oi="${peOI}" data-chgoi="${peChg}"`;
+    // pop() and the delta may legitimately be null now (no feed for that strike).
+    // Empty data-* attributes so the detail view shows "—" rather than a fabricated 0.
+    const attrNum = (v,d=4) => (v===null||v===undefined||!isFinite(Number(v))) ? '' : Number(v).toFixed(d);
+    const ceD=`data-strike="${s.strike}" data-inst="${activeInst}" data-type="CE" data-ltp="${ceLtp}" data-high="${ceHL.high}" data-low="${ceHL.low}" data-pop="${attrNum(cePop,1)}" data-delta="${attrNum(ce.delta===null||ce.delta===undefined?null:Math.abs(Number(ce.delta)),4)}" data-iv="${attrNum(ce.iv,2)}" data-oi="${ceOI}" data-chgoi="${ceChg}"`;
+    const peD=`data-strike="${s.strike}" data-inst="${activeInst}" data-type="PE" data-ltp="${peLtp}" data-high="${peHL.high}" data-low="${peHL.low}" data-pop="${attrNum(pePop,1)}" data-delta="${attrNum(pe.delta===null||pe.delta===undefined?null:Math.abs(Number(pe.delta)),4)}" data-iv="${attrNum(pe.iv,2)}" data-oi="${peOI}" data-chgoi="${peChg}"`;
     const algoChipHtml = isAlgo
       ? `<span class="strike-signal-chip algo">ALGO ${algoTarget.optionType} ${algoTarget.ltp ? fmtP(algoTarget.ltp,1) : '--'}</span>`
       : '';
@@ -1321,17 +1368,26 @@ async function loadIndicators() {
   const decCol = d.decision==='BUY'?'var(--green)':d.decision==='SELL'?'var(--red)':'var(--yellow)';
   const rows = Object.entries(d.factors).map(([k,f]) => {
     if (!f) return '';
+    // A factor with no feed is UNKNOWN — amber and named as such. Grey read as
+    // "neutral", i.e. as though the factor had been measured and come out at zero.
     const na = f.available === false || typeof f.score !== 'number';
-    const sc = na ? 0 : Math.max(-100, Math.min(100, f.score));
+    if (na) {
+      return `<div class="ind-item">
+        <div class="ind-row">
+          <div class="ind-lbl na" title="${f.label||k}">${f.label||k}</div>
+          <div class="ind-bar"><div class="ind-unk"></div></div>
+          <div class="ind-sc unk" title="No feed for this factor — it was not scored, and it is not a zero">UNKNOWN</div>
+        </div>${f.note ? `<div class="ind-note unk">${f.note}</div>` : ''}
+      </div>`;
+    }
+    const sc = Math.max(-100, Math.min(100, f.score));
     const w  = Math.abs(sc)/2;   // half-width max (0..50%)
-    const bar = na ? `<div class="ind-bar"></div>`
-      : `<div class="ind-bar"><div class="ind-fill ${sc>=0?'pos':'neg'}" style="width:${w}%"></div></div>`;
     const note = f.note ? `<div class="ind-note">${f.note}</div>` : '';
     return `<div class="ind-item">
       <div class="ind-row">
-        <div class="ind-lbl ${na?'na':''}" title="${f.label||k}">${f.label||k}</div>
-        ${bar}
-        <div class="ind-sc" style="color:${na?'var(--muted)':sc>0?'var(--green)':sc<0?'var(--red)':'var(--muted)'}">${na?'–':(sc>0?'+':'')+Math.round(sc)}</div>
+        <div class="ind-lbl" title="${f.label||k}">${f.label||k}</div>
+        <div class="ind-bar"><div class="ind-fill ${sc>=0?'pos':'neg'}" style="width:${w}%"></div></div>
+        <div class="ind-sc" style="color:${sc>0?'var(--green)':sc<0?'var(--red)':'var(--muted)'}">${(sc>0?'+':'')+Math.round(sc)}</div>
       </div>${note}
     </div>`;
   }).join('');
@@ -1350,15 +1406,41 @@ async function loadIndicators() {
       ${(driverChips||againstChips) ? `<div class="ind-chips">${driverChips}${againstChips}</div>` : ''}
     </div>`;
 
+  // ── coverage: how much of the board actually had a feed ──────────────────────
+  // A verdict computed from a minority of its inputs must not read like a verdict
+  // computed from all of them. The count is stated in words, sized like the decision,
+  // and when most factors are dark the decision itself is visibly qualified.
+  const av = Number(d.availableFactors), tf = Number(d.totalFactors);
+  const covKnown = isFinite(av) && isFinite(tf) && tf > 0;
+  const covPct   = covKnown ? av / tf : null;
+  const thin     = covKnown && covPct < 0.7;          // fewer than ~7 of 11 live
+  const dark     = covKnown ? tf - av : null;
+  const covBar = covKnown
+    ? `<div class="cov"><div class="cov-fill ${thin?'thin':''}" style="width:${(covPct*100).toFixed(0)}%"></div></div>`
+    : '';
+  const covLine = covKnown
+    ? `<div class="cov-line ${thin?'thin':''}">
+         <b>${av} of ${tf} factors live</b>${dark ? ` · ${dark} dark` : ''}
+         ${covBar}
+       </div>`
+    : `<div class="cov-line thin"><b>factor coverage unknown</b></div>`;
+  const qualifier = thin
+    ? `<div class="ind-qual">⚠ This verdict was computed from <b>${av} of ${tf}</b> factors —
+         ${dark} had no feed and were <b>not scored</b>. Read it as a partial reading, not a
+         confident call.</div>`
+    : '';
+
   el.innerHTML = `
     <div class="ind-hd">
       <span class="ind-hd-l">Analysis · ${activeInst}</span>
       <span class="ind-verdict">
-        <span class="ind-dec" style="color:${decCol}">${d.decision||'HOLD'} ${arrow}</span>
-        <span class="ind-prob">${d.probability!=null?d.probability+'% · conv '+(d.conviction??'–'):''} · ${d.availableFactors??'?'}/${d.totalFactors??'?'} live</span>
+        <span class="ind-dec ${thin?'thin':''}" style="color:${thin?'var(--yellow)':decCol}">${d.decision||'HOLD'} ${arrow}</span>
+        <span class="ind-prob">${d.probability!=null?d.probability+'% · conv '+(d.conviction??'–'):''}</span>
       </span>
     </div>
     <div class="ind-body">
+      ${covLine}
+      ${qualifier}
       ${verdictBlock}
       <div class="ind-rows">${rows || '<div class="ind-empty">no factors</div>'}</div>
     </div>`;
