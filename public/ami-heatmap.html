@@ -14,15 +14,21 @@
 html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospace;font-size:12px;height:100%;overflow:hidden;}
 
 /* ── TOP BAR ── */
+/* The height was pinned at 44px while the contents were allowed to wrap. At the
+   real type size the AMI panel needed a second line, wrapped inside a box that
+   could not grow, and spilled over the page title. A minimum, not a maximum. */
 .topbar{
-  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   background:#0d0d18;border-bottom:1px solid var(--border);
-  padding:0 10px;height:44px;flex-shrink:0;z-index:100;
+  padding:5px 10px;min-height:44px;flex-shrink:0;z-index:100;
 }
 .brand{font-weight:800;color:var(--green);font-size:.9rem;white-space:nowrap;}
 .tb-sep{width:1px;height:22px;background:var(--border);flex-shrink:0;}
-.tb-chip{display:flex;flex-direction:column;gap:1px;}
-.tb-lbl{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+/* A chip is a label stacked over a value. With no horizontal breathing room the
+   labels ran together across chips and read as one string — "CONF STRIKE TARGET
+   PRICE" — which names nothing. */
+.tb-chip{display:flex;flex-direction:column;gap:1px;padding:0 5px;min-width:max-content;}
+.tb-lbl{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;}
 .tb-val{font-weight:700;font-size:.82rem;}
 .signal-pill{padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:800;}
 .sig-call{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);}
@@ -30,7 +36,7 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
 .sig-wait{background:rgba(74,74,106,.2);color:var(--muted);border:1px solid #333;}
 
 /* AMI panel */
-.ami-panel{display:flex;align-items:center;gap:5px;background:rgba(206,147,216,.06);border:1px solid rgba(206,147,216,.2);border-radius:6px;padding:3px 8px;flex-shrink:0;}
+.ami-panel{display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:rgba(206,147,216,.06);border:1px solid rgba(206,147,216,.2);border-radius:6px;padding:4px 9px;flex-shrink:0;}
 .ami-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;}
 .ami-dot.live{background:var(--green);box-shadow:0 0 5px rgba(0,230,118,.7);animation:pulse 1.5s infinite;}
 .ami-dot.stale{background:var(--red);}
@@ -151,6 +157,32 @@ html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',monospac
 .cell-bot{display:flex;justify-content:space-between;font-size:.58rem;color:rgba(255,255,255,.5);}
 .oi-bar-bg{height:2px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:2px;overflow:hidden;}
 .oi-bar-fill{height:100%;border-radius:99px;}
+
+/* ── high/low mapping ────────────────────────────────────────────────────────
+   This page showed a price, a PoP badge, open interest and a delta — nothing at
+   all about the day's range, which is the first thing you need when choosing a
+   strike. Each leg now carries the session high and low, a pin for where the live
+   price sits between them, the size of that range in points, and what one lot of
+   it is worth. The rupee figure uses the broker-verified registry lot and reads a
+   dash where the lot is unknown, never a plausible guess. Same contract as
+   signal-heatmap so the two pages cannot disagree. */
+.hlm-row{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:2px 0 0;}
+.hlm-box{display:flex;align-items:center;justify-content:space-between;gap:3px;
+  padding:1px 4px;border-radius:3px;background:rgba(255,255,255,.05);min-width:0;}
+.hlm-tag{font-size:.55rem;font-weight:900;color:rgba(255,255,255,.45);}
+.hlm-val{font-size:.58rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hlm-box.high .hlm-tag,.hlm-box.high .hlm-val{color:var(--green);}
+.hlm-box.low  .hlm-tag,.hlm-box.low  .hlm-val{color:var(--red);}
+.hlm-meter{height:3px;border-radius:99px;position:relative;margin:3px 0 2px;overflow:hidden;
+  background:linear-gradient(90deg,rgba(255,68,68,.55),rgba(255,215,64,.4),rgba(0,230,118,.6));}
+.hlm-pin{position:absolute;top:-2px;width:3px;height:7px;border-radius:99px;background:#fff;
+  box-shadow:0 0 8px rgba(255,255,255,.7);}
+.hlm-range{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;font-size:.6rem;font-weight:800;}
+.hlm-range i{font-style:normal;font-weight:600;font-size:.5rem;opacity:.55;margin-left:2px;}
+.hlm-pts{color:var(--yellow);}
+.hlm-amt{color:#9fd8ff;}
+.hlm-from{margin-left:auto;color:rgba(255,255,255,.42);font-weight:700;font-size:.54rem;white-space:nowrap;}
+.hlm-dash{color:var(--muted);}
 
 /* Tooltip */
 .tooltip{
@@ -383,6 +415,11 @@ th,td{ padding:1px 2px !important; font-size:9.5px !important; line-height:1 !im
   <div class="ami-card2" id="amiCard"></div>
 </div>
 
+<!-- Lot sizes come from the broker-verified registry, never a constant on this page.
+     Loaded before the render script so the rupee column is right on the first paint;
+     without it the column reads '—' rather than a plausible guess. -->
+<script src="/js/instrument-meta.js"></script>
+
 <script>
 const INSTS = ['NIFTY','SENSEX','BANKNIFTY'];
 const CHAIN_REFRESH_MS = 5000;
@@ -524,6 +561,59 @@ function paintPanel(inst) {
   document.getElementById(`sVW-${inst}`).textContent   = sig?.vwap||'--';
 }
 
+// ── High/low mapping for one leg ─────────────────────────────────────────────
+// Rupees per lot for a move of `pts`. Null when the registry has no broker-verified
+// lot: a rupee figure built on a guessed contract size is a fabricated number
+// wearing a currency symbol.
+function hlMoney(pts, inst) {
+  const lot = (typeof window.instLot === 'function') ? window.instLot(inst) : null;
+  // A zero range is worth zero rupees, and that is a fact, not a gap. Returning null
+  // here printed a dash on every strike whose high equalled its low — claiming the
+  // value was unknown when it was known and it was nought. Null is reserved for the
+  // lot we genuinely do not have.
+  if (!lot || !isFinite(pts) || pts < 0) return null;
+  return pts * lot;
+}
+function hlFmtMoney(v) {
+  if (v === null) return null;
+  if (v >= 1e7) return '₹' + (v / 1e7).toFixed(2) + 'Cr';
+  if (v >= 1e5) return '₹' + (v / 1e5).toFixed(2) + 'L';
+  return '₹' + Math.round(v).toLocaleString('en-IN');
+}
+/* The session high and low for this leg, where the live price sits between them,
+   the range in points, and what one lot of that range is worth. Returns '' when the
+   feed has no high/low for the strike — an absent range is left absent rather than
+   drawn as a zero-width one. */
+function hlBlock(leg, ltp, inst) {
+  const hi = Number(leg?.high || 0), lo = Number(leg?.low || 0);
+  if (!(hi > 0) || !(lo > 0) || hi < lo) return '';
+  const price = Number(ltp || 0);
+  const range = hi - lo;
+  const pos = (range > 0 && price > 0)
+    ? Math.max(0, Math.min(100, ((price - lo) / range) * 100)) : 50;
+  const lot = (typeof window.instLot === 'function') ? window.instLot(inst) : null;
+  const money = hlMoney(range, inst);
+
+  const amt = money === null
+    ? `<span class="hlm-dash" title="No broker-verified lot size for ${inst} — the rupee value of this range is unknown, not zero.">—</span>`
+    : `<span title="${fmtP(range,1)} points × ${lot} (registry lot) = ₹${Math.round(money).toLocaleString('en-IN')} for one lot. The whole day's swing, not a P&L anyone captured.">${hlFmtMoney(money)}</span>`;
+
+  const from = price > 0
+    ? `<span class="hlm-from" title="The live price sits ${fmtP(price-lo,1)} points above the session low and ${fmtP(hi-price,1)} points below its high.">+${fmtP(price-lo,1)} / −${fmtP(hi-price,1)}</span>`
+    : '';
+
+  return `<div class="hlm-row">
+      <div class="hlm-box high"><span class="hlm-tag">H</span><span class="hlm-val">${fmtP(hi,1)}</span></div>
+      <div class="hlm-box low"><span class="hlm-tag">L</span><span class="hlm-val">${fmtP(lo,1)}</span></div>
+    </div>
+    <div class="hlm-meter"><span class="hlm-pin" style="left:calc(${pos.toFixed(0)}% - 1px)"></span></div>
+    <div class="hlm-range">
+      <span class="hlm-pts" title="Session high minus session low for this leg, in points.">${fmtP(range,1)}<i>pts</i></span>
+      <span class="hlm-amt">${amt}<i>/lot</i></span>
+      ${from}
+    </div>`;
+}
+
 // ── Render heatmap for one instrument ────────────────────────────────────────
 function renderHeatmap(inst) {
   const chain = store[inst].chain;
@@ -537,12 +627,17 @@ function renderHeatmap(inst) {
   let maxCe=1, maxPe=1;
   strikes.forEach(s=>{maxCe=Math.max(maxCe,s.ce?.oi||0);maxPe=Math.max(maxPe,s.pe?.oi||0);});
 
-  const cols = '1fr 50px 1fr';
+  // 50px was sized against 7px type. Once the root was lifted for the 32-inch panel
+  // a five-digit SENSEX strike no longer fitted and spilled over the PE cell beside
+  // it. minmax(0,1fr) on the sides stops the price columns from pushing back.
+  const cols = 'minmax(0,1fr) 104px minmax(0,1fr)';
   let html = `<div class="hm-header" style="grid-template-columns:${cols}">
     <div class="hm-col-hdr ce-hdr">CE</div>
     <div class="hm-col-hdr st-hdr">STRIKE</div>
     <div class="hm-col-hdr pe-hdr">PE</div>
   </div>`;
+
+  const hlOf = (leg, ltp) => hlBlock(leg, ltp, inst);
 
   for (const s of strikes) {
     const isATM = s.strike===atm;
@@ -563,9 +658,11 @@ function renderHeatmap(inst) {
       ceCls = isATM?'hm-cell ce-atm':`hm-cell ${popCls(cePop,'CE')}`;
       peCls = isATM?'hm-cell pe-atm':`hm-cell ${popCls(pePop,'PE')}`;
       ceCnt = `<div class="cell-top"><span class="cell-ltp">₹${fmtP(ceLtp,1)}</span>${popBadge(cePop)}</div>
+               ${hlOf(ce, ceLtp)}
                <div class="cell-bot"><span>${fmtOI(ceOI)}</span><span>Δ${fmtP(Math.abs(ce.delta||0),2)}</span></div>
                <div class="oi-bar-bg"><div class="oi-bar-fill" style="width:${ceBarW}%;background:rgba(0,230,118,.5)"></div></div>`;
       peCnt = `<div class="cell-top"><span class="cell-ltp">₹${fmtP(peLtp,1)}</span>${popBadge(pePop)}</div>
+               ${hlOf(pe, peLtp)}
                <div class="cell-bot"><span>${fmtOI(peOI)}</span><span>Δ${fmtP(Math.abs(pe.delta||0),2)}</span></div>
                <div class="oi-bar-bg"><div class="oi-bar-fill" style="width:${peBarW}%;background:rgba(255,68,68,.5)"></div></div>`;
     } else if (activeView==='oi') {
@@ -576,17 +673,21 @@ function renderHeatmap(inst) {
       const cCol=ceChg>0?'var(--green)':ceChg<0?'var(--red)':'var(--muted)';
       const pCol=peChg>0?'var(--green)':peChg<0?'var(--red)':'var(--muted)';
       ceCnt = `<div class="cell-top"><span class="cell-ltp">${fmtOI(ceOI)}</span><span style="font-size:.58rem;color:${cCol}">${ceChg>0?'+':''}${fmtOI(ceChg)}</span></div>
+               ${hlOf(ce, ceLtp)}
                <div class="cell-bot"><span>Vol ${fmtOI(ce.volume||0)}</span><span>₹${fmtP(ceLtp,1)}</span></div>
                <div class="oi-bar-bg"><div class="oi-bar-fill" style="width:${ceBarW}%;background:rgba(0,230,118,.5)"></div></div>`;
       peCnt = `<div class="cell-top"><span style="font-size:.58rem;color:${pCol}">${peChg>0?'+':''}${fmtOI(peChg)}</span><span class="cell-ltp">${fmtOI(peOI)}</span></div>
+               ${hlOf(pe, peLtp)}
                <div class="cell-bot"><span>₹${fmtP(peLtp,1)}</span><span>Vol ${fmtOI(pe.volume||0)}</span></div>
                <div class="oi-bar-bg"><div class="oi-bar-fill" style="width:${peBarW}%;background:rgba(255,68,68,.5)"></div></div>`;
     } else { // ltp
       ceCls = isATM?'hm-cell ce-atm':`hm-cell ${s.itmCE?'ce-itm':'ce-70'}`;
       peCls = isATM?'hm-cell pe-atm':`hm-cell ${s.itmPE?'pe-itm':'pe-70'}`;
       ceCnt = `<div class="cell-top"><span class="cell-ltp">₹${fmtP(ceLtp,2)}</span><span style="font-size:.58rem;color:var(--muted)">${ce.iv?fmtP(ce.iv,1)+'%':'--'}</span></div>
+               ${hlOf(ce, ceLtp)}
                <div class="cell-bot"><span>${fmtOI(ceOI)}</span></div>`;
       peCnt = `<div class="cell-top"><span style="font-size:.58rem;color:var(--muted)">${pe.iv?fmtP(pe.iv,1)+'%':'--'}</span><span class="cell-ltp">₹${fmtP(peLtp,2)}</span></div>
+               ${hlOf(pe, peLtp)}
                <div class="cell-bot"><span>${fmtOI(peOI)}</span></div>`;
     }
 

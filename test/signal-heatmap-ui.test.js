@@ -81,21 +81,27 @@ console.log('signal-heatmap-ui');
     'the registry loads before the code that uses it, so the first paint is right');
 }
 
-// ── @test:failure — an unknown lot yields no rupee figure, never a zero ───────
+// ── @test:failure — an unknown lot yields no rupee figure; a zero range yields ₹0 ─
 {
   // rangeMoney's contract, exercised directly. A rupee number built on a guessed
-  // contract size is a fabricated number wearing a currency symbol.
+  // contract size is a fabricated number wearing a currency symbol — but a range of
+  // zero really is worth zero, and calling that "unknown" is the same lie in reverse.
   const rangeMoney = (pts, lot) => {
-    if (!lot || !isFinite(pts) || pts <= 0) return null;
+    if (!lot || !isFinite(pts) || pts < 0) return null;
     return pts * lot;
   };
   assert.strictEqual(rangeMoney(42.1, 65), 42.1 * 65); n++;
   assert.strictEqual(rangeMoney(42.1, null), null); n++;
-  assert.strictEqual(rangeMoney(0, 65), null); n++;
+  assert.strictEqual(rangeMoney(0, 65), 0); n++;         // known, and nought
   assert.strictEqual(rangeMoney(NaN, 65), null); n++;
-  console.log('  ✓ unknown lot, zero range and NaN all yield null — never 0');
+  assert.strictEqual(rangeMoney(-1, 65), null); n++;
+  console.log('  ✓ missing lot and NaN yield null; a zero range yields ₹0, not a dash');
 
-  ok(/return null;/.test(SRC.slice(SRC.indexOf('function rangeMoney'), SRC.indexOf('function rangeMoney') + 400)),
+  // Anchored on the guard itself. An earlier version sliced a fixed 400 characters
+  // after the function name and broke when a comment was added — a test that a
+  // comment can fail is testing the wrong thing.
+  const guard = /function rangeMoney[\s\S]{0,600}?if \(!lot \|\| !isFinite\(pts\) \|\| pts < 0\) return null;/;
+  ok(guard.test(SRC),
     'the page fails closed on a missing lot rather than substituting a default');
   ok(/class="hl-dash"/.test(SRC), 'and renders a dash the reader can see');
 }

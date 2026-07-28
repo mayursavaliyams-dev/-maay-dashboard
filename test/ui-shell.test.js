@@ -171,4 +171,31 @@ const APP = pages.filter(f => f !== 'login.html');
     'and are sized from the same breakpoints the CSS uses');
 }
 
+// ── the high/low mapping contract, shared by both heatmaps ───────────────────
+{
+  // Both pages answer the same question about a strike, so they must answer it the
+  // same way. signal-heatmap showed two prices and a pin; ami-heatmap showed no
+  // range at all. Each leg on both now states the session high and low, the range
+  // in points, and what one lot of that range is worth.
+  for (const f of ['signal-heatmap.html', 'ami-heatmap.html']) {
+    const s = read(f);
+    ok(/<i>pts<\/i>/.test(s), `${f} states the range in points`);
+    ok(/<i>\/lot<\/i>/.test(s), `${f} states what one lot of it is worth`);
+    ok(/instrument-meta\.js/.test(s), `${f} takes the lot from the registry, not a constant`);
+    ok(/window\.instLot/.test(s) && /return null;/.test(s),
+      `${f} fails closed when the lot is unknown`);
+  }
+
+  // A zero range is worth zero rupees, and that is a fact. Reserving null for the
+  // lot we genuinely lack is what keeps the dash meaningful — both pages first
+  // printed a dash on every strike whose high equalled its low.
+  for (const [f, fn] of [['ami-heatmap.html', 'function hlMoney'],
+                         ['signal-heatmap.html', 'function rangeMoney']]) {
+    const s = read(f);
+    const body = s.slice(s.indexOf(fn), s.indexOf(fn) + 700);
+    ok(/pts < 0/.test(body) && !/pts <= 0/.test(body),
+      `${f}: a zero range yields ₹0, not a dash — null means "no lot", never "no movement"`);
+  }
+}
+
 console.log(`\n${pass} assertions passed`);

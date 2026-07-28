@@ -654,7 +654,10 @@ function legHighLow(leg, ltp) {
    on a guessed contract size is a fabricated number wearing a currency symbol. */
 function rangeMoney(pts) {
   const lot = (typeof window.instLot === 'function') ? window.instLot(activeInst) : null;
-  if (!lot || !isFinite(pts) || pts <= 0) return null;
+  // A zero range is worth zero rupees, and that is a fact, not a gap. Rejecting it
+  // printed a dash on every strike whose high equalled its low — claiming the value
+  // was unknown when it was known and it was nought. Null is for the missing lot.
+  if (!lot || !isFinite(pts) || pts < 0) return null;
   return pts * lot;
 }
 
