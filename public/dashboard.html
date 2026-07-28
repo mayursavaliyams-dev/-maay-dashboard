@@ -52,6 +52,21 @@
     .rail-toggle{ display:none; }
   }
   @media (prefers-reduced-motion: reduce){ body,.rail{ transition:none; } }
+  /* ── two-column content: narrow monitoring left, wide market data right ───── */
+  /* `dense` matters: without it each pane claims its own row, so the ten narrow
+     panes stack far below the four wide ones instead of filling the empty left
+     cells beside them. */
+  .wrap-cols{ display:grid; grid-template-columns:minmax(320px,400px) minmax(0,1fr);
+    gap:0 16px; align-items:start; grid-auto-flow:row dense; }
+  .pane{ min-width:0; }
+  .pane.c1{ grid-column:1; }
+  .pane.c2{ grid-column:2; }
+  /* the first header in each column should not push a double gap */
+  .pane > .sec-h:first-child{ margin-top:16px; }
+  @media(max-width:1180px){
+    .wrap-cols{ grid-template-columns:1fr; }
+    .pane.c1,.pane.c2{ grid-column:1; }
+  }
   .wrap{ max-width:1500px; margin:0 auto; padding:0 16px 48px; }
   a{ color:inherit; text-decoration:none; }
   .up{ color:var(--up); } .dn{ color:var(--dn); } .flat{ color:#9aa7ba; }
@@ -560,9 +575,14 @@
 
   <div class="idxrow" id="idxRow"></div>
 
+  <!-- two-column shell: narrow monitoring rail on the left, wide market data on the right -->
+  <div class="wrap-cols">
+  <section class="pane c1">
   <div class="sec-h">High / Low levels <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">day range · ORB · VWAP</small></div>
   <div class="hlrow" id="hlRow"></div>
 
+  </section>
+  <section class="pane c2">
   <div class="sec-h" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Strike price timeline <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">CE/PE live price · high &amp; low record timeline</small>
     <span style="margin-left:auto;display:inline-flex;gap:6px;align-items:center;font-size:.5rem;font-weight:600;color:var(--dim2)" title="Confirmation tier: how each recorded high/low was verified before it was saved">
       confirmed: <span class="cf exch">EXCH</span><span style="color:var(--mut)">candle</span><span class="cf feed">FEED</span><span style="color:var(--mut)">next-poll</span></span></div>
@@ -606,6 +626,8 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c2">
   <div class="sec-h">Option chain · OI buildup <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">LTP · High/Low · OI increase/decrease</small></div>
   <div class="card">
     <div class="card-b">
@@ -630,6 +652,8 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c2">
   <div class="sec-h">Market quotes <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">full option quote · LTP · H/L · OI · UCL/LCL · 52W · PoP</small></div>
   <div class="card">
     <div class="card-b">
@@ -664,6 +688,8 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c2">
   <div class="sec-h">High / Low mapping <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">every strike · CE/PE day High &amp; Low · date-wise archive</small></div>
   <div class="card">
     <div class="card-b">
@@ -694,9 +720,13 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">Performance · paper</div>
   <div class="stats" id="stats"></div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">Positions & P&L verification <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">what makes the paper P&L · reconciled + math-checked</small></div>
   <div class="card">
     <div class="card-b">
@@ -722,12 +752,16 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">Open book</div>
   <div class="card" style="margin-bottom:16px">
     <div class="card-h">📒 Positions <small id="posSub">every open paper position · all engines</small></div>
     <div class="card-b" id="posBox"><div class="flat" style="font-size:.72rem">loading…</div></div>
   </div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">Signals & regime</div>
   <div class="grid2">
     <div class="card">
@@ -740,6 +774,8 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">Technical indicators <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">live multi-confirm · 13 indicators</small></div>
   <div class="card">
     <div class="card-b">
@@ -755,6 +791,8 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">Live signals & positioning
     <span class="instsel" id="posSel" style="margin-left:12px">
       <button class="isbtn on" onclick="setPosInst('NIFTY')">NIFTY</button>
@@ -809,6 +847,8 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">Trade plan & engine health <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">signal-engine · defined-risk only</small></div>
   <div class="grid2">
     <div class="card">
@@ -821,6 +861,8 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">🚦 Forward-test gate & validation <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">the honest gate-to-live · #9 report · VRP monitor · ops health</small></div>
   <div class="grid2">
     <div class="card">
@@ -833,6 +875,8 @@
     </div>
   </div>
 
+  </section>
+  <section class="pane c1">
   <div class="sec-h">⚡ Gamma-Blast <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">expiry-day option BUYING · the only buy strategy with a rationale · paper</small></div>
   <div class="card">
     <div class="card-h">⚡ Gamma-Blast Engine <small id="gbState">—</small></div>
@@ -858,28 +902,8 @@
     </div>
   </div>
 
-  <div class="sec-h">Quick access <small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--dim2)">every feature</small></div>
-  <div class="links">
-    <a class="lk" href="/chart.html"><span class="e">📈</span>Chart<div class="d">TradingView · indicators · backtest</div></a>
-    <a class="lk" href="/charts4.html"><span class="e">▦</span>4 Charts<div class="d">multi-timeframe grid</div></a>
-    <a class="lk" href="/agents.html"><span class="e">🤖</span>AI Agents<div class="d">news → signal → paper trade</div></a>
-    <a class="lk" href="/quant.html"><span class="e">⚡</span>Quant Center<div class="d">live P&L · swarm</div></a>
-    <a class="lk" href="/payoff.html"><span class="e">📐</span>Payoff<div class="d">multi-leg · Greeks · PoP</div></a>
-    <a class="lk" href="/signals4.html"><span class="e">✅</span>4 Engines<div class="d">confirmed signals</div></a>
-    <a class="lk" href="/pattern-signals.html"><span class="e">🕯️</span>Patterns<div class="d">candlestick × OI × trend</div></a>
-    <a class="lk" href="/oi.html"><span class="e">🧱</span>OI Analysis<div class="d">open-interest walls · PCR</div></a>
-    <a class="lk" href="/strategy.html"><span class="e">🧪</span>Strategy<div class="d">Pine-style backtester</div></a>
-    <a class="lk" href="/pop.html"><span class="e">🎲</span>PoP<div class="d">probability of profit</div></a>
-    <a class="lk" href="/capture.html"><span class="e">🎯</span>Buy Low → Sell High<div class="d">every strike's best capture today</div></a>
-    <a class="lk" href="/greeks.html"><span class="e">Δ</span>Greeks → P&amp;L<div class="d">what the Greeks do to money</div></a>
-    <a class="lk" href="/signal-heatmap.html"><span class="e">🔥</span>Signal Heatmap<div class="d">strike-wise heat</div></a>
-    <a class="lk" href="/heatmap.html"><span class="e">🗺️</span>Heatmap<div class="d">market heat grid</div></a>
-    <a class="lk" href="/strike-history.html"><span class="e">🕘</span>Strike History<div class="d">option premium candles</div></a>
-    <a class="lk" href="/trade.html"><span class="e">🎛️</span>Trade Desk<div class="d">manual paper desk</div></a>
-    <a class="lk" href="/ami-heatmap.html"><span class="e">📊</span>Ami Heatmap<div class="d">AmiBroker signals</div></a>
-    <a class="lk" href="/login.html"><span class="e">🔐</span>Login<div class="d">JWT/RBAC (opt-in auth)</div></a>
+  </section>
   </div>
-
   <div class="note" id="note">Paper / educational — not investment advice. Restart-safe: this command center reads the aggregate paper feeds and guards against a stale server.</div>
 </div>
 
