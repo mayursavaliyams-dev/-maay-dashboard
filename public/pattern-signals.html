@@ -166,6 +166,12 @@ th,td{ padding:7px 12px !important; font-size:0.7rem !important; line-height:1.3
      side while the tables stayed cramped. Same steps capture/greeks/pop use. */
   @media (min-width:1900px){ .wrap{ max-width:2400px; } }
   @media (min-width:2560px){ .wrap{ max-width:2800px; } }
+  /* AG-ROOT-SCALE — measured, not guessed. On the owner's 2560px panel the dominant text
+     on this page rendered far below a comfortable reading size; rem here drives
+     font-size only, so lifting the root enlarges the type without moving a box.
+     Declared last so source order settles any tie with an earlier html rule. */
+  @media (min-width:1900px){ html{ font-size:20px; } }
+  @media (min-width:2400px){ html{ font-size:22px; } }
 </style>
 <div class="wrap">
   <div class="topbar">

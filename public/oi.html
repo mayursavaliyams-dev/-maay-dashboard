@@ -87,6 +87,43 @@ th,td{ padding:1px 2px !important; font-size:9.5px !important; line-height:1 !im
 .pcr-tbl th,.pcr-tbl td{ padding:1px 7px !important; } nav.topnav a{ padding:1px 6px !important; font-size:10px !important; }
 .sig-cols{ gap:8px !important; } .sig-col{ padding:7px 10px !important; } .sig-it{ padding:5px 8px !important; }
 #chart{ height:360px !important; }
+  /* AG-ROOT-SCALE — measured, not guessed. On the owner's 2560px panel the dominant text
+     on this page rendered far below a comfortable reading size; rem here drives
+     font-size only, so lifting the root enlarges the type without moving a box.
+     Declared last so source order settles any tie with an earlier html rule. */
+  @media (min-width:1900px){ html{ font-size:17px; } }
+  @media (min-width:2400px){ html{ font-size:18px; } }
+  /* AG-PX-SCALE — this page sizes type in px, so the root has no effect on it. Each
+     font-size below is the page's own rule re-stated 1.4x larger for the owner's
+     32-inch panel; selectors are copied verbatim so specificity is unchanged and
+     nothing but font-size is rewritten.
+     2 inline font-size(s) are NOT covered — a stylesheet cannot reach them. */
+  @media (min-width:1900px){
+    .hdr-pcr .hp-lab{ font-size:14px; }
+    .hdr-pcr #hpBias{ font-size:15.4px; }
+    nav.topnav a{ font-size:15.4px; }
+    .grp b{ font-size:15.4px; }
+    button.pill{ font-size:16.8px; }
+    .upd{ font-size:15.4px; }
+    .chart-hd h2{ font-size:21px; }
+    .chart-hd .legend{ font-size:16.8px; }
+    .pg-bias{ font-size:13.3px; }
+    .pg-lab{ font-size:14px; }
+    .summary{ font-size:17.5px; }
+    .note{ font-size:15.4px; }
+    .axlbl{ font-size:14px; }
+    .stk{ font-size:13.3px; }
+    .pcr-tbl{ font-size:18.2px; }
+    .pcr-tbl th{ font-size:15.4px; }
+    .sig-net{ font-size:16.8px; }
+    .sig-h{ font-size:16.8px; }
+    .sig-it .sk{ font-size:18.2px; }
+    .sig-it .sk .ty{ font-size:12.6px; }
+    .sig-it .bd{ font-size:14px; }
+    .sig-it .chg{ font-size:15.4px; }
+    .sig-it .act{ font-size:14px; }
+    .sig-empty{ font-size:15.4px; }
+  }
 </style>
   <div class="top">
     <span class="brand">⚡ ANTIGRAVITY<small>OI CHANGE</small></span>

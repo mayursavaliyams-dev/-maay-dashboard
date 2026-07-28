@@ -549,6 +549,12 @@
   .wrap-cols::-webkit-scrollbar{ width:10px; }
   .wrap-cols::-webkit-scrollbar-thumb{ background:#243247; border-radius:6px; }
   .wrap-cols section.pane[hidden]{ display:none; }
+  /* AG-ROOT-SCALE — measured, not guessed. On the owner's 2560px panel the dominant text
+     on this page rendered far below a comfortable reading size; rem here drives
+     font-size only, so lifting the root enlarges the type without moving a box.
+     Declared last so source order settles any tie with an earlier html rule. */
+  @media (min-width:1900px){ html{ font-size:22px; } }
+  @media (min-width:2400px){ html{ font-size:24px; } }
 </style>
 </head>
 <body>

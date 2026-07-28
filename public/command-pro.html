@@ -114,6 +114,45 @@
   #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
   #toast.ok{border-color:#1f6b4a} #toast.err{border-color:#7a2b2b} #toast.warn{border-color:#7a5e1f}
   @media (max-width:1080px){ .grid{grid-template-columns:1fr} .col{overflow:visible} body{overflow:auto; height:auto} }
+  /* AG-PX-SCALE — this page sizes type in px, so the root has no effect on it. Each
+     font-size below is the page's own rule re-stated 1.4x larger for the owner's
+     32-inch panel; selectors are copied verbatim so specificity is unchanged and
+     nothing but font-size is rewritten. */
+  @media (min-width:1900px){
+    .brand{ font-size:19.6px; }
+    .tab{ font-size:16.8px; }
+    .sp .l{ font-size:13.3px; }
+    .sp .v{ font-size:19.6px; }
+    .mode{ font-size:12.6px; }
+    .topnav a{ font-size:16.1px; }
+    .refreshbtn{ font-size:21px; }
+    .data-banner{ font-size:17.5px; }
+    .data-banner .r{ font-size:15.4px; }
+    .col-h .ico{ font-size:19.6px; }
+    .col-h h2{ font-size:16.8px; }
+    .col-h .sub{ font-size:13.3px; }
+    .sech{ font-size:14px; }
+    .ai-act{ font-size:19.6px; }
+    .ai-conf{ font-size:14px; }
+    .ai-conf b{ font-size:18.2px; }
+    .ai-cell .k{ font-size:11.9px; }
+    .ai-cell .v{ font-size:18.2px; }
+    .ai-logic{ font-size:16.1px; }
+    .ai-meta{ font-size:14px; }
+    .ai-off{ font-size:16.1px; }
+    .chart-legend{ font-size:14px; }
+    .levels .m .k{ font-size:11.9px; }
+    .levels .m .v{ font-size:18.2px; }
+    .ctl-lbl{ font-size:16.8px; }
+    .ctl-sub{ font-size:14px; }
+    .pill{ font-size:14px; }
+    .pnlbig{ font-size:33.6px; }
+    .pnlsub{ font-size:14.7px; }
+    .pnlsub b{ font-size:18.2px; }
+    .estop{ font-size:15.4px; }
+    .foot{ font-size:14px; }
+    #toast{ font-size:17.5px; }
+  }
 </style>
 </head>
 <body>

@@ -78,6 +78,21 @@
   --focus:  0 0 0 2px var(--bg), 0 0 0 4px var(--blue);   /* keyboard focus ring */
 }
 
+/* ── the type scale on a large display ──────────────────────────────────────
+   The scale above was written for a laptop. Measured on the owner's 2560×1330
+   panel, the pages that draw their sizes from here — capture, pop, charts4,
+   greeks, strategy — rendered their dominant text at 9–12px, and capture had 471
+   elements under 12px. Only font-size tokens move; --sp-* and --radius are left
+   alone, so the type grows and the layout does not. Every page reading these
+   tokens gets the benefit from this one place, which is the reason the file
+   exists. */
+@media (min-width:1900px){
+  :root{ --fs-xs: 13px;   --fs-sm: 15px; --fs-md: 17px;   --fs-lg: 20px; --fs-xl: 25px; }
+}
+@media (min-width:2400px){
+  :root{ --fs-xs: 14.5px; --fs-sm: 16px; --fs-md: 18.5px; --fs-lg: 22px; --fs-xl: 28px; }
+}
+
 /* ── light theme (3/21 pages support any theme today; this makes it a token
       swap instead of a per-page rewrite) ─────────────────────────────────── */
 :root[data-theme="light"] {

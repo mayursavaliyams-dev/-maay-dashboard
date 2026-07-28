@@ -144,4 +144,31 @@ const APP = pages.filter(f => f !== 'login.html');
     `every capped page lifts its cap for a wide display${narrow.length ? ' — still laptop-only: ' + narrow.join(', ') : ''}`);
 }
 
+// ── type scale: nothing on the owner's panel may be laptop-sized ──────────────
+{
+  // Measured in headless Edge at 2560x1330 before this ratchet existed: the dominant
+  // rendered text was under 13px on 17 of 22 pages — ami-heatmap at 7px, heatmap 8px,
+  // charts4 9px. Three mechanisms carry the fix, and each is asserted here because
+  // each was needed for a different set of pages.
+  const tokens = fs.readFileSync(path.join(PUB, 'css', 'tokens.css'), 'utf8');
+  const wide = /@media\s*\(\s*min-width:\s*(19|2[0-9])\d\dpx\s*\)\s*\{\s*:root\s*\{([^}]*)\}/g;
+  const steps = [...tokens.matchAll(wide)];
+  ok(steps.length >= 2, `the shared type scale has ${steps.length} wide-display steps`);
+  ok(steps.every(m => /--fs-xs:\s*1[3-9]/.test(m[2])),
+    'even the smallest shared token (--fs-xs) clears 13px on a wide display');
+  ok(steps.every(m => !/--sp-\d/.test(m[2])),
+    'only type tokens move — spacing is untouched, so the layout does not shift');
+
+  // Pages whose rem scale drives font-size get a lifted root.
+  const scaled = APP.filter(f => /AG-ROOT-SCALE/.test(read(f)));
+  ok(scaled.length >= 13, `${scaled.length} pages lift their root for the panel`);
+
+  // Highcharts writes font-size straight into SVG, where no stylesheet reaches it.
+  const c4 = read('charts4.html');
+  ok(!/fontSize:\s*'\d+px'/.test(c4),
+    'chart labels are not pinned to a literal px size — they were the smallest text in the app at 8-9px');
+  ok(/matchMedia\('\(min-width:2400px\)'\)/.test(c4),
+    'and are sized from the same breakpoints the CSS uses');
+}
+
 console.log(`\n${pass} assertions passed`);

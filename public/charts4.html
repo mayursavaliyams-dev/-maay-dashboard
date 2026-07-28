@@ -39,6 +39,16 @@
      side while the tables stayed cramped. Same steps capture/greeks/pop use. */
   @media (min-width:1900px){ .wrap{ max-width:2400px; } }
   @media (min-width:2560px){ .wrap{ max-width:2800px; } }
+  /* AG-ROOT-SCALE — measured, not guessed. On the owner's 2560px panel the dominant text
+     on this page rendered far below a comfortable reading size; rem here drives
+     font-size only, so lifting the root enlarges the type without moving a box.
+     Declared last so source order settles any tie with an earlier html rule. */
+  @media (min-width:1900px){ html{ font-size:22px; } }
+  @media (min-width:2400px){ html{ font-size:25px; } }
+  /* The 130px above is the toolbar, the presets row and the footnote. Those grew
+     with the type, and the page scrolled by a measured 3px. Remeasured per step. */
+  @media (min-width:1900px){ .grid{ height:calc(100vh - 165px); } }
+  @media (min-width:2400px){ .grid{ height:calc(100vh - 180px); } }
 </style>
 </head>
 <body>
@@ -112,21 +122,33 @@ function setOHLC(i, idx) {
 
 const patFlags = (d, s) => d.patterns.filter(p => p.sentiment === s).map(p => ({ x: p.t, title: s === 'Bullish' ? '▲' : '▼', text: `<b>${p.name}</b> ${p.strength}` }));
 
+/* Highcharts writes its axis and flag labels straight into SVG with an inline
+   font-size, so no stylesheet and no root font-size can reach them. Measured on the
+   owner's 2560px panel: 88 axis labels at 9px and 60 flag labels at 8px — the
+   smallest text anywhere in the app, on the page whose whole purpose is reading a
+   chart. They are sized here from the same breakpoints the CSS uses, and read at
+   build time so a chart rebuilt after a resize picks up the right step. */
+const chartFs = () => matchMedia('(min-width:2400px)').matches ? '14px'
+               : matchMedia('(min-width:1900px)').matches ? '13px' : '9px';
+const flagFs  = () => matchMedia('(min-width:2400px)').matches ? '12px'
+               : matchMedia('(min-width:1900px)').matches ? '11px' : '8px';
+
 function build(i, d) {
+  const AXIS_FS = chartFs(), FLAG_FS = flagFs();
   charts[i] = Highcharts.stockChart('ch' + i, {
     chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' }, animation: false,
       events: { load() { const n = d.candles.length; if (n > 45) this.xAxis[0].setExtremes(d.candles[n - 45][0], d.candles[n - 1][0], true, false); setOHLC(i, n - 1); } } },
     time: { timezone: 'Asia/Kolkata', timezoneOffset: -330 },
     rangeSelector: { enabled: false }, scrollbar: { enabled: false }, credits: { enabled: false }, navigator: { enabled: false },
     xAxis: { lineColor: '#1c2735', tickColor: '#1c2735', gridLineColor: 'rgba(255,255,255,.03)', gridLineWidth: 1,
-      labels: { style: { color: '#7c8aa0', fontSize: '9px' } }, ordinal: true,
+      labels: { style: { color: '#7c8aa0', fontSize: AXIS_FS } }, ordinal: true,
       crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot' } },
-    yAxis: { labels: { style: { color: '#7c8aa0', fontSize: '9px' }, align: 'left', x: 4 }, gridLineColor: 'rgba(255,255,255,.04)', opposite: true, lineWidth: 0,
-      crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot', label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: '9px' }, format: '{value:,.0f}' } } },
+    yAxis: { labels: { style: { color: '#7c8aa0', fontSize: AXIS_FS }, align: 'left', x: 4 }, gridLineColor: 'rgba(255,255,255,.04)', opposite: true, lineWidth: 0,
+      crosshair: { width: 1, color: 'rgba(255,255,255,.22)', dashStyle: 'ShortDot', label: { enabled: true, backgroundColor: '#2a3346', style: { color: '#e6edf6', fontSize: AXIS_FS }, format: '{value:,.0f}' } } },
     tooltip: { enabled: false },
     plotOptions: {
       candlestick: { pointPadding: 0.18, maxPointWidth: 7, point: { events: { mouseOver() { setOHLC(i, this.index); } } },
-        lastPrice: { enabled: true, color: '#5b9cff' }, lastVisiblePrice: { enabled: true, label: { enabled: true, backgroundColor: '#5b9cff', style: { color: '#04101e', fontWeight: '800', fontSize: '9px' } } } },
+        lastPrice: { enabled: true, color: '#5b9cff' }, lastVisiblePrice: { enabled: true, label: { enabled: true, backgroundColor: '#5b9cff', style: { color: '#04101e', fontWeight: '800', fontSize: AXIS_FS } } } },
       line: { marker: { enabled: false }, enableMouseTracking: false, dataGrouping: { enabled: false } }, flags: { useHTML: false },
     },
     series: [
@@ -135,8 +157,8 @@ function build(i, d) {
       { type: 'line', id: 'e21', data: d.ema21, color: '#1565c0', lineWidth: 1 },
       { type: 'line', id: 'e2u', data: d.ema200up || [], color: UP, lineWidth: 1.6, connectNulls: false },
       { type: 'line', id: 'e2d', data: d.ema200dn || [], color: DN, lineWidth: 1.6, connectNulls: false },
-      { type: 'flags', data: patFlags(d, 'Bullish'), onSeries: 'px', shape: 'flag', width: 11, fillColor: 'rgba(38,166,154,.16)', color: UP, style: { color: UP, fontSize: '8px', fontWeight: '900' }, y: -18 },
-      { type: 'flags', data: patFlags(d, 'Bearish'), onSeries: 'px', shape: 'flag', width: 11, fillColor: 'rgba(239,83,80,.16)', color: DN, style: { color: DN, fontSize: '8px', fontWeight: '900' }, y: -18 },
+      { type: 'flags', data: patFlags(d, 'Bullish'), onSeries: 'px', shape: 'flag', width: 11, fillColor: 'rgba(38,166,154,.16)', color: UP, style: { color: UP, fontSize: FLAG_FS, fontWeight: '900' }, y: -18 },
+      { type: 'flags', data: patFlags(d, 'Bearish'), onSeries: 'px', shape: 'flag', width: 11, fillColor: 'rgba(239,83,80,.16)', color: DN, style: { color: DN, fontSize: FLAG_FS, fontWeight: '900' }, y: -18 },
     ],
   });
 }

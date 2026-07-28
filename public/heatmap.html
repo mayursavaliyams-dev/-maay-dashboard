@@ -166,16 +166,28 @@ tr.mp-row td.strike::before { content: "MP "; color: var(--orange); font-size: .
 
 .loading { text-align: center; padding: 60px; color: var(--muted); font-size: 1rem; }
 
-/* MAIN LAYOUT */
+/* MAIN LAYOUT
+   The 90px is the header above this block. It was measured against 8px type; once
+   the root was lifted for the 32-inch panel the header grew and the page scrolled
+   by a measured 25px. The wide-screen values below are the same measurement redone
+   at each step, with room to spare — the header is the only thing above this. */
 .main-layout {
   height: calc(100vh - 90px);
   overflow: hidden;
 }
+@media (min-width:1900px){ .main-layout{ height: calc(100vh - 125px); } }
+@media (min-width:2400px){ .main-layout{ height: calc(100vh - 135px); } }
 .chain-side { height: 100%; overflow-y: auto; overflow-x: auto; }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 99px; }
+  /* AG-ROOT-SCALE — measured, not guessed. On the owner's 2560px panel the dominant text
+     on this page rendered far below a comfortable reading size; rem here drives
+     font-size only, so lifting the root enlarges the type without moving a box.
+     Declared last so source order settles any tie with an earlier html rule. */
+  @media (min-width:1900px){ html{ font-size:19px; } }
+  @media (min-width:2400px){ html{ font-size:21px; } }
 </style>
 </head>
 <body>
