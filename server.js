@@ -607,6 +607,48 @@ function _persistOptCandles() {
     while (files.length > 40) { try { fs2.unlinkSync(path2.join(_optCandDir, files.shift())); } catch (_) {} }
   } catch (_) {}
 }
+// ── RESTORE TODAY'S BARS AT BOOT ────────────────────────────────────────────
+// `_optMin` lives in memory, so every restart used to discard the bars recorded
+// so far that day. Measured 2026-07-28 across twelve archived sessions: only one
+// began at 09:15 — the rest started at 11:28, 12:02, 13:36, 14:20, 15:01, because
+// that is when the process last came up. The morning was gone from the record.
+//
+// That silently invalidates anything computed from the session open: a hero-zero
+// base rate built on those files would be measuring "bought at 2pm", not
+// "bought at the open", and would read as a real number.
+//
+// This is the exact inverse of _persistOptCandles: bars already on disk for TODAY
+// are read back so the session continues instead of restarting. Older days are
+// untouched — they are already whole files.
+function _restoreOptCandles() {
+  const day = _istDateStr();
+  let keys = 0, bars = 0;
+  try {
+    const file = require('path').join(_optCandDir, `${day}.json`);
+    if (!require('fs').existsSync(file)) return;
+    const doc = require('./safe-write.js').readJsonSync(file, { fallback: null });
+    if (!doc || doc.date !== day || !doc.series) return;
+    for (const [key, rows] of Object.entries(doc.series)) {
+      if (!Array.isArray(rows) || !rows.length) continue;
+      const m = new Map();
+      for (const r of rows) {
+        // [minuteMs, o, h, l, c] — anything malformed is skipped, never patched
+        if (!Array.isArray(r) || r.length < 5) continue;
+        if (![r[0], r[1], r[2], r[3], r[4]].every(Number.isFinite)) continue;
+        m.set(r[0], [r[1], r[2], r[3], r[4]]);
+        bars++;
+      }
+      if (m.size) { _optMin.set(key, { day, bars: m }); keys++; }
+    }
+    if (keys) console.log(`[opt-candles] restored ${bars} bars across ${keys} strikes from ${day} — the session continues instead of restarting`);
+  } catch (e) {
+    // A torn file must not stop the boot; it means today starts fresh, and saying
+    // so is the point — silence here is what hid the missing mornings.
+    console.warn(`[opt-candles] could not restore ${day}: ${e.message} — today's bars start from now`);
+  }
+}
+_restoreOptCandles();
+
 setInterval(_persistOptCandles, 60 * 1000);
 // Load a strike's saved 1-min bars across the last N days (persisted files) +
 // today's in-memory bars → merged {timestamp,open,high,low,close} for aggregate().
