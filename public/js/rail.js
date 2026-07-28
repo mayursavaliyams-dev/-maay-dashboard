@@ -133,16 +133,26 @@
     if (b) { b.textContent = min ? '›' : '‹'; b.title = (min ? 'Expand' : 'Collapse') + ' (b)'; }
   }
 
+  // localStorage throws in private mode and under some embedded webviews. That is a
+  // real condition, not something to swallow: the rail still works, the preference
+  // simply stops persisting, and we stop trying rather than throwing on every toggle.
+  var storageOk = true;
+
   function toggle() {
     var min = document.documentElement.classList.toggle('agrail-min');
-    try { localStorage.setItem('ag-rail-min', min ? '1' : '0'); } catch (_) {}
+    if (storageOk) {
+      try { localStorage.setItem('ag-rail-min', min ? '1' : '0'); }
+      catch (e) { storageOk = false; }
+    }
     applyOffset();
     // let any canvas on the page resize to the new width
     window.dispatchEvent(new Event('resize'));
   }
 
   function init() {
-    try { if (localStorage.getItem('ag-rail-min') === '1') document.documentElement.classList.add('agrail-min'); } catch (_) {}
+    try {
+      if (localStorage.getItem('ag-rail-min') === '1') document.documentElement.classList.add('agrail-min');
+    } catch (e) { storageOk = false; }        // no persistence available — rail still works
     injectCss();
     build();
     window.addEventListener('resize', applyOffset);
