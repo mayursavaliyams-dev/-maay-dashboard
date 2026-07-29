@@ -42,6 +42,40 @@
   a{ color:var(--blue); }
   .load{ color:var(--muted); padding:40px 0; text-align:center; }
   .err{ color:var(--red); }
+
+  /* ── PRINT / PDF ───────────────────────────────────────────────────────────
+     On screen this page is bounded to the viewport by fit.js and scrolls inside
+     its own box. Printing that verbatim would emit ONE page and silently drop the
+     rest of the manual — the cap has to be lifted, not merely hidden.
+     Paper is white and ink is expensive, so the dark theme is dropped rather than
+     flooding every page with a black background. */
+  @media print {
+    @page { size: A4; margin: 16mm 14mm; }
+    html, body { background:#fff !important; color:#111 !important; font-size:10.5pt; }
+    .agrail, .topbar { display:none !important; }
+    body { padding-left:0 !important; }
+    .wrap, [data-fit] {
+      max-width:none !important; max-height:none !important;
+      overflow:visible !important; padding:0 !important; margin:0 !important;
+    }
+    p, li, td { color:#333 !important; }
+    strong, td strong { color:#000 !important; }
+    h1, h2, h3 { color:#000 !important; }
+    /* A heading stranded at the foot of a page, and a table split across two, are
+       the two ways a printed manual becomes hard to read. */
+    h1, h2, h3 { break-after:avoid-page; page-break-after:avoid; }
+    table, pre, blockquote { break-inside:avoid; page-break-inside:avoid; }
+    h2 { border-top:1px solid #ccc; padding-top:8pt; margin-top:16pt; }
+    th { color:#000 !important; border-bottom:1px solid #999; }
+    td { border-bottom:1px solid #ddd; }
+    code { background:#f2f2f2 !important; color:#a34 !important; }
+    pre { background:#f7f7f7 !important; border:1px solid #ddd !important; }
+    pre code { color:#111 !important; }
+    blockquote { background:#fff8e6 !important; border-left:3px solid #c90 !important; }
+    blockquote p { color:#5a4500 !important; }
+    hr { border-top:1px solid #ddd; }
+    a { color:#0645ad !important; text-decoration:none; }
+  }
 </style>
 </head>
 <body>
@@ -106,8 +140,16 @@ function render(md) {
       continue;
     }
     if (/^[-*]\s+/.test(l)) {                   // unordered list
+      // A wrapped list item continues on an indented line that does NOT start with a
+      // bullet. Treating that continuation as a new paragraph split "See §1.4 — this
+      // is stated" from "plainly rather than buried" in the printed manual, which is
+      // how a renderer quietly rewrites the document it is supposed to display.
       const buf = [];
-      for (; i < lines.length && /^[-*]\s+/.test(lines[i]); i++) buf.push(lines[i].replace(/^[-*]\s+/, ''));
+      for (; i < lines.length; i++) {
+        if (/^[-*]\s+/.test(lines[i])) { buf.push(lines[i].replace(/^[-*]\s+/, '')); continue; }
+        if (buf.length && /^\s+\S/.test(lines[i])) { buf[buf.length - 1] += ' ' + lines[i].trim(); continue; }
+        break;
+      }
       out.push('<ul>' + buf.map(b => `<li>${inline(b)}</li>`).join('') + '</ul>');
       continue;
     }
