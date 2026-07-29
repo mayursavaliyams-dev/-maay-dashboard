@@ -17,6 +17,12 @@ const BASE = 'https://api.upstox.com/v2';
 // Latency knobs (env-tunable). Lower = fresher data / less lag, more API calls.
 // Upstox Plus comfortably handles these; raise if you ever hit rate limits.
 const CHAIN_CACHE_MS = Number(process.env.UPSTOX_CHAIN_CACHE_MS) || 2500;  // was 4500
+/* Bounds for the adaptive floor. 20s is the widest it may go: past that the chain is
+   too stale to trade from, and a screen showing minute-old option prices is worse
+   than one that admits it cannot reach the broker. Three clean fetches before
+   relaxing a step, so a single lucky call does not undo a backoff. */
+const MAX_INTERVAL_MS = Number(process.env.UPSTOX_MAX_INTERVAL_MS) || 20000;
+const CLEAN_RUNS_TO_RELAX = 3;
 const PRICE_CACHE_MS = Number(process.env.UPSTOX_PRICE_CACHE_MS) || 1500;  // was 4000
 
 // Upstox instrument keys
@@ -39,14 +45,53 @@ class UpstoxConnector {
     this.accessToken = config.accessToken || process.env.UPSTOX_ACCESS_TOKEN || '';
     this.connected = false;
     this._priceCache = {};   // inst -> { at, data }
-    this._chainCache = {};   // inst -> { at, data }
+    this._chainCache = {};   // inst -> { at, data, promise }
     this._expiryCache = {};  // inst -> { at, list }
-    this._stats = { calls: 0, errors: 0, lastError: null, lastCallAt: 0 };
+    /* Cooldown after the broker says 429. Measured 2026-07-29 on a live session:
+       477 rate-limit responses in one log, 458 of them from a single caller. The
+       connector had no 429 handling at all — it logged the refusal and the next
+       poll a second later asked again at exactly the same rate. */
+    this._cooldown = {};     // inst -> epoch ms until which we must not call
+    /* Adaptive minimum interval per instrument.
+     *
+     * Single-flight collapses SIMULTANEOUS callers, but the dashboard's fourteen
+     * timers are staggered, not simultaneous — measured on the live connector after
+     * coalescing was added, only 5 of 219 requests coalesced and the cache hit rate
+     * was 7.3%. With a 2.5s TTL and something asking every 2 seconds, essentially
+     * every tick is a miss, so the front end sets the broker call rate: about 24
+     * chain fetches a minute per instrument, 72 across three.
+     *
+     * The TTL comment in this file records that it was lowered from 4500ms to 2500ms
+     * to cut update lag. That loosened the only governor there was.
+     *
+     * I do not know the broker's exact limit, and guessing one would be a number
+     * pretending to be a fact. So the interval widens when the broker refuses and
+     * narrows again when it stops — the system finds the limit instead of asserting
+     * it, and the stats say what it settled on. */
+    this._minInterval = {};  // inst -> ms, starts at CHAIN_CACHE_MS
+    this._cleanRuns = {};    // inst -> consecutive successful fetches
+    /* `rateLimited` counts refusals seen at the HTTP layer; `cooldowns` counts the
+       times we actually stopped calling because of one. They are not the same number
+       and conflating them would hide whichever is the interesting one — a rising
+       rateLimited with a flat cooldowns would mean the backoff is not engaging. */
+    this._stats = { calls: 0, errors: 0, lastError: null, lastCallAt: 0,
+                    coalesced: 0, cacheHits: 0, rateLimited: 0,
+                    cooldowns: 0, cooldownServes: 0 };
+    this._inflight = 0;
     // .client shim so server.js's live.client._post('/v2/charts/intraday', body) works.
     this.client = {
       _post: (path, body, opts) => this._clientPost(path, body, opts),
-      getStats: () => ({ ...this._stats, coalesced: 0, cacheHits: 0, inflight: 0, cached: 0,
-                         rateLimited: 0, authErrors: this._stats.errors, minIntervalMs: 0 }),
+      /* These were hard-coded zeros. A statistic that always reports nothing cannot
+         reveal the condition it exists to measure, and coalesced/inflight/rateLimited
+         are exactly the numbers that would have shown this problem months ago. */
+      getStats: () => ({ ...this._stats, inflight: this._inflight,
+                         cached: Object.keys(this._chainCache).length,
+                         authErrors: this._stats.errors,
+                         minIntervalMs: CHAIN_CACHE_MS,
+                         // What the floor has actually settled on per instrument —
+                         // the number the system learned, not the one it was given.
+                         effectiveIntervalMs: { ...this._minInterval },
+                         cooldownUntil: { ...this._cooldown } }),
     };
   }
 
@@ -60,7 +105,16 @@ class UpstoxConnector {
     let j; try { j = JSON.parse(txt); } catch { j = { raw: txt }; }
     if (!r.ok || j.status === 'error') {
       this._stats.errors++; this._stats.lastError = `${r.status} ${(j.errors && j.errors[0] && j.errors[0].message) || txt.slice(0, 120)}`;
-      const e = new Error(`Upstox ${path}: ${this._stats.lastError}`); e.status = r.status; throw e;
+      const e = new Error(`Upstox ${path}: ${this._stats.lastError}`); e.status = r.status;
+      // Carry the broker's own Retry-After up to the caller. Guessing a backoff when
+      // the server has told you the number is worse than not backing off at all,
+      // because it looks deliberate.
+      if (r.status === 429) {
+        this._stats.rateLimited++;
+        const ra = Number(r.headers && r.headers.get && r.headers.get('retry-after'));
+        e.retryAfterMs = Number.isFinite(ra) && ra > 0 ? ra * 1000 : null;
+      }
+      throw e;
     }
     return j;
   }
@@ -128,9 +182,77 @@ class UpstoxConnector {
     };
   }
 
+  /* One upstream chain call per instrument at a time, whatever the callers do.
+   *
+   * WHY: the cache was {at, data} with no in-flight slot, so every caller that
+   * arrived after the 2.5s TTL lapsed started its OWN fetch. The dashboard alone
+   * runs fourteen timers — auto-movers at 2s, high/low at 4s, chain and watchlist at
+   * 5-6s — and trade.html adds three more, across three instruments. Polling faster
+   * than the TTL meant every tick was a miss, and every miss was a burst of parallel
+   * calls rather than one. Measured result: 477 rate-limit refusals in a single
+   * session log, 458 of them from one endpoint.
+   *
+   * Callers arriving during a fetch now await the same promise. N callers, one call.
+   */
+  _interval(inst) { return this._minInterval[inst] || CHAIN_CACHE_MS; }
+
   async _chain(inst, spotPrice = null) {
     const cache = this._chainCache[inst];
-    if (cache && Date.now() - cache.at < CHAIN_CACHE_MS) return cache.data;
+    if (cache && Date.now() - cache.at < this._interval(inst)) { this._stats.cacheHits++; return cache.data; }
+    if (cache && cache.promise) { this._stats.coalesced++; return cache.promise; }
+
+    // The broker asked us to stop. Serve the last good chain and say nothing new was
+    // fetched, rather than spending the cooldown proving it meant it.
+    const until = this._cooldown[inst] || 0;
+    if (Date.now() < until) {
+      if (cache && cache.data) { this._stats.cooldownServes++; return cache.data; }
+      throw new Error(`Upstox ${inst}: rate-limited, cooling off for ${Math.ceil((until - Date.now())/1000)}s and no cached chain to serve`);
+    }
+
+    /* Both outcomes are booked HERE, next to each other. They used to be split —
+       failure handled in this function, success handled inside _fetchChain — and the
+       half that lived further away was the half that got missed: the floor widened on
+       a refusal but never narrowed again, because the relaxing branch sat behind a
+       function a test could replace. Bookkeeping that lives in two places is
+       bookkeeping where one place is wrong. */
+    const p = this._fetchChain(inst, spotPrice)
+      .then(data => {
+        delete this._cooldown[inst];
+        this._cleanRuns[inst] = (this._cleanRuns[inst] || 0) + 1;
+        if (this._cleanRuns[inst] >= CLEAN_RUNS_TO_RELAX && this._interval(inst) > CHAIN_CACHE_MS) {
+          this._cleanRuns[inst] = 0;
+          this._minInterval[inst] = Math.max(CHAIN_CACHE_MS, Math.round(this._interval(inst) / 1.5));
+        }
+        return data;
+      })
+      .catch(e => {
+        if (e && e.status === 429) {
+          // Honour Retry-After when the broker sends one; otherwise a flat 30s, which
+          // is long enough to actually clear a burst and short enough that a live
+          // session recovers on its own.
+          const wait = e.retryAfterMs || 30000;
+          this._cooldown[inst] = Date.now() + wait;
+          this._stats.cooldowns++;
+          // Widen the floor as well as pausing. The pause clears the burst; the floor
+          // is what stops it re-forming the moment the pause ends.
+          this._cleanRuns[inst] = 0;
+          this._minInterval[inst] = Math.min(MAX_INTERVAL_MS, this._interval(inst) * 2);
+          console.warn(`[upstox] ${inst} rate-limited — pausing chain fetches for ${Math.round(wait/1000)}s and widening the floor to ${this._minInterval[inst]}ms; serving the cached chain meanwhile`);
+        }
+        throw e;
+      })
+      .finally(() => {
+        this._inflight--;
+        const c = this._chainCache[inst];
+        if (c) c.promise = null;
+      });
+
+    this._inflight++;
+    this._chainCache[inst] = { ...(cache || { at: 0, data: null }), promise: p };
+    return p;
+  }
+
+  async _fetchChain(inst, spotPrice = null) {
     this._assertConnected();
     const expiry = await this._nextExpiry(inst);
     if (!expiry) throw new Error(`Upstox: no expiry for ${inst}`);
@@ -145,7 +267,14 @@ class UpstoxConnector {
     // C1c-7: interval from the registry; null (not a fabricated 0) when spot is unusable.
     const atmStrike = strikeResolver.atm(inst, spot);
     const data = { spotPrice: spot, atmStrike, strikes, timestamp: new Date(), source: 'upstox', expiry };
-    this._chainCache[inst] = { at: Date.now(), data };
+    // Keep the in-flight slot: replacing the whole entry here would drop the promise
+    // that concurrent callers are already awaiting. It happens to be safe today only
+    // because the fresh `at` makes them take the TTL branch first, and relying on
+    // that ordering is how a coalescing bug gets reintroduced.
+    const prev = this._chainCache[inst];
+    this._chainCache[inst] = { at: Date.now(), data, promise: prev ? prev.promise : null };
+    // Cooldown clearing and floor relaxation are booked by the caller, _chain, so
+    // that both outcomes are handled in one place. This function only fetches.
     return data;
   }
   async getNiftyOptionChain(spot = null)     { return this._chain('NIFTY', spot); }
