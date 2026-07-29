@@ -31,6 +31,10 @@ const ROOT = path.join(__dirname, '..');
 const SA = fs.readFileSync(path.join(ROOT, 'stock-analyst.js'), 'utf8');
 const PAGE = fs.readFileSync(path.join(ROOT, 'public', 'agents.html'), 'utf8');
 const SACODE = SA.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+// Comments wrap. A claim about WHY something was done must be matched against the
+// source with its line breaks flattened, or the test fails on a newline rather than
+// on a missing reason.
+const SAFLAT = SA.replace(/\s*\r?\n\s*(\/\/|\*)?\s*/g, ' ');
 
 console.log('stock-fundamentals');
 
@@ -134,6 +138,76 @@ console.log('stock-fundamentals');
                          SACODE.indexOf('async function analyze'));
   ok(!/setInterval|setTimeout|push\(/.test(f),
     'the fetcher builds a value and returns it — no timer, no growing collection');
+}
+
+// ── @test:failure — a zero the source did not mean ──────────────────────────
+{
+  // Measured 2026-07-29: Canara Bank returns grossMargins 0 and ebitdaMargins 0,
+  // because the source does not compute either for a lender. A business running at a
+  // genuine 0% gross margin is not a going concern, so for this family of ratios a
+  // zero is read as a silence. Margins that CAN truly be zero are left alone.
+  const ratio = v => { const p = (v === null || v === undefined) ? null : +(v * 100).toFixed(2);
+                       return (p === null || p === 0) ? null : p; };
+  assert.strictEqual(ratio(0), null); n++;
+  assert.strictEqual(ratio(0.40389), 40.39); n++;
+  assert.strictEqual(ratio(null), null); n++;
+  console.log('  ✓ a 0% gross or EBITDA margin is treated as not-reported, not as a fact');
+  ok(/is not a going concern/.test(SAFLAT),
+    'with the reasoning recorded, so it is not "simplified" back to a zero');
+
+  // The same trap in a different shape: the source sets gross profit EQUAL to total
+  // revenue for a lender. Echoing revenue under a second heading tells you nothing.
+  ok(/=== num\(fd\.totalRevenue\)\)\s*\n?\s*\? null/.test(SA.replace(/\s+/g, ' ')) ||
+     /grossProfit:[\s\S]{0,200}\? null/.test(SA),
+    'gross profit is dropped when it merely repeats total revenue');
+
+  // And a third: a trailing annual dividend rate of 0 alongside a declared dividend.
+  // Matched against whitespace-normalised source: these comments wrap, and a regex
+  // that only matches an unwrapped sentence fails on a line break rather than on a
+  // missing reason.
+  ok(/trailing annual rate of 0/.test(SAFLAT),
+    'the indicated dividend rate is used, because the trailing one read 0 while a dividend had been declared');
+}
+
+// ── @test:regression — one measurement is not shown as two ──────────────────
+{
+  ok(/same measurement under two names/.test(SAFLAT),
+    'earningsGrowth and earningsQuarterlyGrowth are recognised as one figure');
+  ok(!/Earnings QoQ/.test(PAGE),
+    'so the card does not present it twice as if two readings agreed');
+}
+
+// ── @test:unit — crore rounding keeps its precision ─────────────────────────
+{
+  const big = v => (v === null || !isFinite(v)) ? '—'
+    : v >= 1e7 ? (v / 1e7).toLocaleString('en-IN', { maximumFractionDigits: v >= 1e9 ? 0 : 2 }) + ' Cr'
+    : v.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  assert.strictEqual(big(14922511), '1.49 Cr'); n++;      // a day's volume
+  assert.strictEqual(big(9070651260), '907 Cr'); n++;     // shares outstanding
+  assert.strictEqual(big(null), '—'); n++;
+  console.log('  ✓ 1,49,22,511 reads 1.49 Cr, not the "2 Cr" whole-crore rounding produced');
+}
+
+// ── @test:integration — analyst targets are quarantined as opinion ──────────
+{
+  ok(/analysts: \{/.test(SA), 'analyst figures live in their own block');
+  ok(/OPINION/.test(PAGE), 'and the card badges them as opinion');
+  ok(/no more standing here than a headline/.test(PAGE + SAFLAT),
+    'saying outright that nothing acts on them');
+  ok(/analysts/.test(SA.slice(SA.indexOf('const out = {'))) === false,
+    'and they are not folded into the verdict payload as if measured');
+}
+
+// ── @test:integration — every group survives a symbol that lacks most of it ─
+{
+  // A lender is the hard case: it legitimately has no EBITDA, no current ratio, no
+  // debt-to-equity and no reported ROE. Each group must still render.
+  for (const g of ['valuation', 'perShare', 'returns', 'growth', 'balance',
+                   'dividend', 'shares', 'market', 'analysts'])
+    { assert.ok(new RegExp(`${g}:\\s*\\{`).test(SA), `${g} group exists`); n++; }
+  console.log('  ✓ nine groups, each independently absent-tolerant');
+  ok(/Every blank above is a figure the source does not report/.test(PAGE),
+    'and the card explains what a blank means, once, at the bottom');
 }
 
 console.log(`\n${n} assertions passed`);

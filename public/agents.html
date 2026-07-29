@@ -482,10 +482,11 @@ function fundamentalsHtml(f){
   const cr = v => (v===null||v===undefined||!isFinite(v)) ? '—' : '₹' + (v/1e7).toLocaleString('en-IN',{maximumFractionDigits:0}) + ' Cr';
   const cell = (l,v,t='') => `<div class="sa-m"${t?` title="${t}"`:''}><div class="l">${l}</div><div class="v">${v}</div></div>`;
 
-  const roe = f.roe !== null && f.roe !== undefined
-    ? cell('ROE', pc(f.roe), 'Return on equity, as reported by the data source.')
-    : f.roeDerived !== null && f.roeDerived !== undefined
-      ? cell('ROE <span class="pill p-res">DERIVED</span>', pc(f.roeDerived),
+  const _r = f.returns || {};
+  const roe = _r.roe !== null && _r.roe !== undefined
+    ? cell('ROE', pc(_r.roe), 'Return on equity, as reported by the data source.')
+    : _r.roeDerived !== null && _r.roeDerived !== undefined
+      ? cell('ROE <span class="pill p-res">DERIVED</span>', pc(_r.roeDerived),
              'Not reported for this symbol. Derived as EPS ÷ book value per share — arithmetic from two reported figures, not a source number.')
       : cell('ROE', '—', 'Not reported and not derivable — unknown, not zero.');
 
@@ -518,27 +519,102 @@ function fundamentalsHtml(f){
       — the source does not break the remainder into FII, DII and retail, so it is left unlabelled rather than guessed.
     </div>` : '';
 
+  const V = f.valuation||{}, PS = f.perShare||{}, R = f.returns||{}, G = f.growth||{},
+        B = f.balance||{}, D = f.dividend||{}, SH = f.shares||{}, M = f.market||{}, A = f.analysts||{};
+  // Share counts in crores. Two decimals below 100 Cr, because a day's volume of
+  // 1,49,22,511 rounded to whole crores reads "2 Cr" — a third of the way wrong on a
+  // figure whose whole point is its size.
+  const big = v => (v===null||v===undefined||!isFinite(v)) ? '—'
+    : v>=1e7 ? (v/1e7).toLocaleString('en-IN',{maximumFractionDigits: v>=1e9 ? 0 : 2})+' Cr'
+    : v.toLocaleString('en-IN',{maximumFractionDigits:0});
+  const grp = (title, cells) => cells.trim() ? `<div class="params" style="margin:8px 0 3px;font-weight:800;color:#93a2b8">${title}</div><div class="sa-grid">${cells}</div>` : '';
+
   return `
     <div class="book-h">📊 Fundamentals</div>
-    <div class="sa-grid">
-      ${cell('EPS (TTM)', n(f.eps), 'Trailing twelve-month earnings per share.')}
-      ${cell('EPS (fwd)', n(f.epsForward), 'Analyst consensus forward EPS — an estimate, not a result.')}
+
+    ${grp('Valuation', `
+      ${cell('Mkt cap', cr(V.marketCap))}
+      ${cell('Enterprise value', cr(V.enterpriseValue), 'Market cap plus debt, less cash.')}
+      ${cell('P/E', n(V.peTrailing), 'Trailing twelve months.')}
+      ${cell('P/E (fwd)', n(V.peForward), 'On consensus forward EPS — an estimate.')}
+      ${cell('PEG', n(V.peg), 'P/E divided by growth. Absent where the source has no growth figure.')}
+      ${cell('P/B', n(V.priceToBook))}
+      ${cell('P/S', n(V.priceToSales))}
+      ${cell('EV / revenue', n(V.evToRevenue))}
+      ${cell('EV / EBITDA', n(V.evToEbitda), 'Not computed by the source for lenders.')}`)}
+
+    ${grp('Per share', `
+      ${cell('EPS (TTM)', n(PS.eps))}
+      ${cell('EPS (fwd)', n(PS.epsForward), 'Consensus estimate, not a result.')}
+      ${cell('Book value', n(PS.bookValue))}
+      ${cell('Revenue / share', n(PS.revenuePerShare))}
+      ${cell('Cash / share', n(PS.cashPerShare))}`)}
+
+    ${grp('Returns and margins', `
       ${roe}
-      ${cell('ROA', pc(f.roa))}
-      ${cell('Book value', n(f.bookValue), 'Book value per share.')}
-      ${cell('P/B', n(f.priceToBook))}
-      ${cell('Profit margin', pc(f.profitMargin))}
-      ${cell('Div yield', pc(f.dividendYield))}
-      ${cell('Revenue growth', pc(f.revenueGrowth), 'Year on year, most recent period.')}
-      ${cell('Earnings growth', pc(f.earningsGrowth), 'Year on year, most recent period.')}
-    </div>
-    ${rows(yrs, '📅 Yearly results')}
-    ${rows(qts, '🗓️ Quarterly results')}
+      ${cell('ROA', pc(R.roa))}
+      ${cell('Profit margin', pc(R.profitMargin))}
+      ${cell('Operating margin', pc(R.operatingMargin))}
+      ${cell('Gross margin', pc(R.grossMargin), 'A lender reports no gross profit, so this is blank rather than 0%.')}
+      ${cell('EBITDA margin', pc(R.ebitdaMargin), 'Same — blank, not zero.')}`)}
+
+    ${grp('Growth', `
+      ${cell('Revenue YoY', pc(G.revenue))}
+      ${cell('Earnings YoY', pc(G.earnings), 'Latest quarter against the same quarter a year earlier — the source reports this figure once, under two names.')}
+      ${cell('52-week change', pc(G.change52w))}
+      ${cell('Index 52-week', pc(G.changeIndex52w), 'The benchmark over the same window, for comparison.')}`)}
+
+    ${grp('Balance sheet and cash', `
+      ${cell('Total revenue', cr(B.totalRevenue))}
+      ${cell('Gross profit', cr(B.grossProfit))}
+      ${cell('EBITDA', cr(B.ebitda))}
+      ${cell('Net income', cr(B.netIncome))}
+      ${cell('Total cash', cr(B.totalCash))}
+      ${cell('Total debt', cr(B.totalDebt))}
+      ${cell('Debt / equity', n(B.debtToEquity), 'Not reported for lenders, where the ratio means something different.')}
+      ${cell('Current ratio', n(B.currentRatio))}
+      ${cell('Quick ratio', n(B.quickRatio))}
+      ${cell('Operating cash flow', cr(B.operatingCashflow))}
+      ${cell('Free cash flow', cr(B.freeCashflow))}`)}
+
+    ${grp('Dividend', `
+      ${cell('Rate', n(D.rate), 'The indicated annual rate per share. Canara Bank reported a trailing rate of 0 while its last declared dividend was 4.2, so the indicated rate is used.')}
+      ${cell('Yield', pc(D.yield))}
+      ${cell('Payout ratio', pc(D.payoutRatio))}
+      ${cell('5-yr avg yield', n(D.fiveYearAvgYield))}
+      ${cell('Last dividend', n(D.lastValue))}
+      ${cell('Ex-date', D.exDate||'—')}`)}
+
+    ${grp('Shares and market', `
+      ${cell('Shares outstanding', big(SH.outstanding))}
+      ${cell('Free float', big(SH.float))}
+      ${cell('Last split', SH.lastSplitFactor ? `${SH.lastSplitFactor}<span style="color:#64748b"> ${SH.lastSplitDate||''}</span>` : '—')}
+      ${cell('Beta', n(M.beta), 'Volatility against the index. Below 1 moves less than the market.')}
+      ${cell('Volume', big(M.volume))}
+      ${cell('Avg volume', big(M.avgVolume))}
+      ${cell('All-time high', n(M.allTimeHigh))}
+      ${cell('All-time low', n(M.allTimeLow))}`)}
+
+    ${A.count ? `
+      <div class="params" style="margin:8px 0 3px;font-weight:800;color:#93a2b8">Analyst consensus <span class="pill p-res">OPINION</span></div>
+      <div class="sa-grid">
+        ${cell('Rating', (A.recommendation||'—').toUpperCase())}
+        ${cell('Mean score', n(A.mean), '1 is a strong buy, 5 a strong sell.')}
+        ${cell('Analysts', n(A.count,0))}
+        ${cell('Target low', n(A.targetLow))}
+        ${cell('Target mean', n(A.targetMean))}
+        ${cell('Target median', n(A.targetMedian))}
+        ${cell('Target high', n(A.targetHigh))}
+      </div>
+      <div class="params">These are published analyst views, not measurements. They carry no more standing here than a headline, and nothing in this platform acts on them.</div>` : ''}
+
+    ${rows(yrs, `📅 Yearly results${f.fiscalYearEnd?` <small style="font-weight:400;color:var(--muted)">— FY ends ${f.fiscalYearEnd}</small>`:''}`)}
+    ${rows(qts, `🗓️ Quarterly results${f.lastQuarter?` <small style="font-weight:400;color:var(--muted)">— latest ${f.lastQuarter}</small>`:''}`)}
     ${qeps.length ? `<div class="params" style="margin-top:6px">quarterly EPS: ` +
       qeps.map(q=>`${q.period} <b>${n(q.eps)}</b>${q.estimate!==null?` <span style="color:#64748b">(est ${n(q.estimate)})</span>`:''}`).join(' · ') +
       '</div>' : ''}
     ${bar}
-    <div class="params" style="margin:6px 0 8px">Fundamentals are context, not part of the verdict — the verdict above is the disclosed momentum-and-news heuristic and does not read any figure in this block.</div>`;
+    <div class="params" style="margin:6px 0 8px">Every blank above is a figure the source does not report for this issuer — unknown, never zero. Fundamentals are context, not part of the verdict: the verdict is the disclosed momentum-and-news heuristic and does not read any figure in this block.</div>`;
 }
 
 // ── Hedge pair: find another stock (different sector) leaning the OPPOSITE way,

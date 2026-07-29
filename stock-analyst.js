@@ -160,6 +160,16 @@ async function _getFundamentals(yf, yahooSym) {
         er = s.earnings || {}, sd = s.summaryDetail || {};
   const num = v => (v === null || v === undefined || !isFinite(Number(v))) ? null : Number(v);
   const pct = v => { const n = num(v); return n === null ? null : +(n * 100).toFixed(2); };
+  /* Some ratios come back as a literal 0 for issuers the source does not compute them
+   * for. Measured 2026-07-29: Canara Bank returns grossMargins 0 and ebitdaMargins 0,
+   * because a bank does not report a gross profit or an EBITDA the way a manufacturer
+   * does. Those are not zeros, they are silences — a company running at a genuine 0%
+   * gross margin is not a going concern. For this family of ratios only, zero is read
+   * as absent. Margins that CAN legitimately be zero, like a dividend, are left alone. */
+  const ratio = v => { const n = pct(v); return (n === null || n === 0) ? null : n; };
+  const amt   = v => { const n = num(v); return (n === null || n === 0) ? null : n; };
+  const ts    = v => { const d = v && v.raw ? v.raw * 1000 : (v instanceof Date ? v.getTime() : null);
+                       return Number.isFinite(d) ? new Date(d).toISOString().slice(0, 10) : null; };
 
   const eps = num(ks.trailingEps), book = num(ks.bookValue);
   const roeReported = pct(fd.returnOnEquity);
@@ -180,17 +190,84 @@ async function _getFundamentals(yf, yahooSym) {
     ? +(100 - insiders - institutions).toFixed(2) : null;
 
   return {
-    eps, epsForward: num(ks.forwardEps), bookValue: book, priceToBook: num(ks.priceToBook),
-    roe: roeReported, roeDerived,
-    roa: pct(fd.returnOnAssets), profitMargin: pct(fd.profitMargins),
-    revenueGrowth: pct(fd.revenueGrowth), earningsGrowth: pct(fd.earningsGrowth),
-    dividendYield: pct(sd.dividendYield),
+    currency: er.financialCurrency || fd.financialCurrency || 'INR',
+
+    valuation: {
+      marketCap: num(sd.marketCap), enterpriseValue: num(ks.enterpriseValue),
+      peTrailing: num(sd.trailingPE), peForward: num(ks.forwardPE), peg: num(ks.pegRatio),
+      priceToBook: num(ks.priceToBook), priceToSales: num(sd.priceToSalesTrailing12Months),
+      evToRevenue: num(ks.enterpriseToRevenue), evToEbitda: num(ks.enterpriseToEbitda),
+    },
+    perShare: {
+      eps, epsForward: num(ks.forwardEps), bookValue: book,
+      revenuePerShare: num(fd.revenuePerShare), cashPerShare: num(fd.totalCashPerShare),
+    },
+    returns: {
+      roe: roeReported, roeDerived,
+      roa: pct(fd.returnOnAssets),
+      profitMargin: pct(fd.profitMargins), operatingMargin: pct(fd.operatingMargins),
+      // ratio(), not pct(): a bank reports these as 0 because the source does not
+      // compute them, and 0% is not a fact about the business.
+      grossMargin: ratio(fd.grossMargins), ebitdaMargin: ratio(fd.ebitdaMargins),
+    },
+    growth: {
+      revenue: pct(fd.revenueGrowth),
+      // financialData.earningsGrowth and defaultKeyStatistics.earningsQuarterlyGrowth
+      // are the same measurement under two names — both came back 0.622 for Canara
+      // Bank. Showing it twice under different labels would imply two independent
+      // readings agreeing, which is the opposite of what it is.
+      earnings: pct(fd.earningsGrowth) ?? pct(ks.earningsQuarterlyGrowth),
+      change52w: pct(ks['52WeekChange']), changeIndex52w: pct(ks.SandP52WeekChange),
+    },
+    balance: {
+      totalRevenue: num(fd.totalRevenue),
+      // For a lender the source sets gross profit equal to total revenue, because
+      // there is no cost of goods to subtract. Echoing revenue back under a second
+      // heading tells the reader nothing, so it is dropped when the two match.
+      grossProfit: (num(fd.grossProfits) !== null && num(fd.grossProfits) === num(fd.totalRevenue))
+        ? null : amt(fd.grossProfits),
+      ebitda: amt(fd.ebitda), netIncome: num(ks.netIncomeToCommon),
+      totalCash: num(fd.totalCash), totalDebt: num(fd.totalDebt),
+      debtToEquity: num(fd.debtToEquity),
+      currentRatio: num(fd.currentRatio), quickRatio: num(fd.quickRatio),
+      operatingCashflow: num(fd.operatingCashflow), freeCashflow: num(fd.freeCashflow),
+    },
+    dividend: {
+      // The indicated rate, not the trailing one: Canara Bank returned a trailing
+      // annual rate of 0 while its last declared dividend was 4.2 a share. Reporting
+      // the 0 would have said it pays nothing.
+      rate: num(sd.dividendRate), yield: pct(sd.dividendYield),
+      payoutRatio: pct(sd.payoutRatio), fiveYearAvgYield: num(sd.fiveYearAvgDividendYield),
+      lastValue: num(ks.lastDividendValue), lastDate: ts(ks.lastDividendDate),
+      exDate: ts(sd.exDividendDate),
+    },
+    shares: {
+      outstanding: num(ks.sharesOutstanding), float: num(ks.floatShares),
+      lastSplitFactor: ks.lastSplitFactor || null,
+      lastSplitDate: ks.lastSplitDate ? ts({ raw: ks.lastSplitDate }) : null,
+    },
+    market: {
+      beta: num(sd.beta), volume: num(sd.regularMarketVolume),
+      avgVolume: num(sd.averageVolume), avgVolume10d: num(sd.averageDailyVolume10Day),
+      allTimeHigh: num(sd.allTimeHigh), allTimeLow: num(sd.allTimeLow),
+    },
+    /* Analyst targets are OPINION, not a measurement, and are kept in their own block
+     * so the card can label them that way. A price target is what a bank's analyst
+     * published; it has no more standing here than a headline. */
+    analysts: {
+      recommendation: fd.recommendationKey || null, mean: num(fd.recommendationMean),
+      count: num(fd.numberOfAnalystOpinions),
+      targetLow: num(fd.targetLowPrice), targetMean: num(fd.targetMeanPrice),
+      targetMedian: num(fd.targetMedianPrice), targetHigh: num(fd.targetHighPrice),
+    },
+
     yearly: line(er.financialsChart?.yearly),
     quarterly: line(er.financialsChart?.quarterly),
     quarterlyEps: (er.earningsChart?.quarterly || [])
       .map(q => ({ period: String(q.date), eps: num(q.actual), estimate: num(q.estimate) }))
       .filter(q => q.eps !== null),
-    currency: er.financialCurrency || 'INR',
+    lastQuarter: ts(ks.mostRecentQuarter), fiscalYearEnd: ts(ks.lastFiscalYearEnd),
+
     holding: (insiders === null && institutions === null) ? null
       : { insiders, institutions, other,
           note: 'Yahoo insiders/institutions split — not the SEBI promoter/FII/DII pattern' },
