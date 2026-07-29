@@ -156,6 +156,18 @@ app.use(express.static("public", {
   }
 }));
 
+/* The written docs, read-only, so /help.html can render the user manual from the one
+ * copy that exists rather than a second copy pasted into a page. A duplicated manual
+ * is a manual that drifts, and one that contradicts the repo is worse than none.
+ *
+ * Markdown only: `dotfiles: 'deny'` plus the extension check means this mount cannot
+ * be walked into anything but the documents themselves.
+ */
+app.use('/docs', (req, res, next) => {
+  if (!/\.md$/i.test(req.path)) return res.status(404).end();
+  next();
+}, express.static('docs', { dotfiles: 'deny', index: false, extensions: false }));
+
 const PORT = process.env.PORT || 3000;
 
 // ── CONNECTOR SELECTION ──────────────────────────────────────────

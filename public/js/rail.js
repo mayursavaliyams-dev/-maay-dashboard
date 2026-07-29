@@ -45,7 +45,10 @@
     { h: '/strangle-monitor.html', i: '🎚️', t: 'Strangle' },
     { h: '/signals4.html',       i: '✅', t: '4 Engines' },
     { h: '/trade.html',          i: '💼', t: 'Trade' },
-    { h: '/health-dashboard.html', i: '🩺', t: 'Health' }
+    { h: '/health-dashboard.html', i: '🩺', t: 'Health' },
+
+    { g: 'Learn' },
+    { h: '/help.html',           i: '📖', t: 'User Manual' }
   ];
 
   var W = 210, WMIN = 56;

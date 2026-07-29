@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User Manual · Antigravity Pro</title>
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg-wash); color:var(--text);
+        font-family:var(--font-ui); font-size:15px; line-height:1.6; }
+  .topbar{ display:flex; align-items:center; gap:12px; padding:10px 16px;
+           border-bottom:1px solid var(--border); background:var(--panel); }
+  .brand{ font-weight:800; color:var(--blue); }
+  .wrap{ max-width:1000px; margin:0 auto; padding:20px 24px 40px; }
+  /* Reading measure, not screen width: a manual read edge-to-edge on a 32-inch panel
+     is a manual nobody finishes. The rest of the app fills the panel because it shows
+     data; this page holds prose. */
+  @media (min-width:1900px){ body{ font-size:17px; } .wrap{ max-width:1100px; } }
+
+  h1{ font-size:1.7rem; margin:.2em 0 .1em; }
+  h2{ font-size:1.25rem; margin:1.6em 0 .4em; padding-top:.6em;
+      border-top:1px solid var(--border); color:var(--blue); }
+  h3{ font-size:1.02rem; margin:1.2em 0 .3em; color:var(--text); }
+  p, li{ color:var(--muted); }
+  strong{ color:var(--text); }
+  code{ font-family:var(--font-num); font-size:.9em; background:var(--panel2);
+        padding:1px 5px; border-radius:4px; color:var(--amber); }
+  pre{ background:var(--panel); border:1px solid var(--border); border-radius:8px;
+       padding:10px 14px; overflow-x:auto; }
+  pre code{ background:none; padding:0; color:var(--text); }
+  table{ border-collapse:collapse; width:100%; margin:.6em 0 1em; font-size:.94em; }
+  th{ text-align:left; color:var(--muted); font-weight:700; font-size:.82em;
+      text-transform:uppercase; letter-spacing:.04em; padding:6px 10px;
+      border-bottom:1px solid var(--border); }
+  td{ padding:6px 10px; border-bottom:1px solid var(--panel2); color:var(--muted); }
+  td strong{ color:var(--text); }
+  blockquote{ margin:.8em 0; padding:10px 14px; border-left:3px solid var(--amber);
+              background:rgba(255,194,75,.07); border-radius:0 8px 8px 0; }
+  blockquote p{ margin:0; color:#f0e0b0; }
+  hr{ border:0; border-top:1px solid var(--border); margin:1.6em 0; }
+  a{ color:var(--blue); }
+  .load{ color:var(--muted); padding:40px 0; text-align:center; }
+  .err{ color:var(--red); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">📖 User Manual</span>
+  <span style="color:var(--muted);font-size:.85rem">the same document as docs/056 — one source, not a second copy that drifts</span>
+</div>
+
+<div class="wrap" data-fit>
+  <div id="doc" class="load">loading the manual…</div>
+</div>
+
+<script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
+<script>
+/* The manual is fetched from docs/ and rendered here rather than being re-typed into
+   this page. A second copy of a document is a copy that goes stale, and a manual that
+   contradicts the repo is worse than no manual. */
+const MD = '/docs/056-USER-MANUAL.md';
+
+// A deliberately small Markdown subset — enough for this document, and nothing that
+// executes. Any HTML in the source is escaped before formatting is applied, so the
+// page cannot be made to render markup that came from a file.
+function render(md) {
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = s => esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  const out = [];
+  const lines = md.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const l = lines[i];
+
+    if (/^```/.test(l)) {                       // fenced code
+      const buf = [];
+      for (i++; i < lines.length && !/^```/.test(lines[i]); i++) buf.push(lines[i]);
+      i++;
+      out.push('<pre><code>' + esc(buf.join('\n')) + '</code></pre>');
+      continue;
+    }
+    if (/^\|/.test(l) && /^\|[\s:|-]+\|$/.test(lines[i + 1] || '')) {   // table
+      const cells = r => r.split('|').slice(1, -1).map(c => c.trim());
+      const head = cells(l);
+      i += 2;
+      const rows = [];
+      for (; i < lines.length && /^\|/.test(lines[i]); i++) rows.push(cells(lines[i]));
+      out.push('<table><thead><tr>' + head.map(h => `<th>${inline(h)}</th>`).join('') +
+        '</tr></thead><tbody>' +
+        rows.map(r => '<tr>' + r.map(c => `<td>${inline(c)}</td>`).join('') + '</tr>').join('') +
+        '</tbody></table>');
+      continue;
+    }
+    if (/^>\s?/.test(l)) {                      // blockquote
+      const buf = [];
+      for (; i < lines.length && /^>\s?/.test(lines[i]); i++) buf.push(lines[i].replace(/^>\s?/, ''));
+      out.push('<blockquote><p>' + inline(buf.join(' ')) + '</p></blockquote>');
+      continue;
+    }
+    if (/^[-*]\s+/.test(l)) {                   // unordered list
+      const buf = [];
+      for (; i < lines.length && /^[-*]\s+/.test(lines[i]); i++) buf.push(lines[i].replace(/^[-*]\s+/, ''));
+      out.push('<ul>' + buf.map(b => `<li>${inline(b)}</li>`).join('') + '</ul>');
+      continue;
+    }
+    let m;
+    if ((m = /^(#{1,4})\s+(.*)$/.exec(l))) { out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`); i++; continue; }
+    if (/^---+$/.test(l)) { out.push('<hr>'); i++; continue; }
+    if (!l.trim()) { i++; continue; }
+    const buf = [];                             // paragraph
+    for (; i < lines.length && lines[i].trim() && !/^(#{1,4}\s|[-*]\s|>|\||```|---+$)/.test(lines[i]); i++) buf.push(lines[i]);
+    out.push('<p>' + inline(buf.join(' ')) + '</p>');
+  }
+  return out.join('\n');
+}
+
+fetch(MD, { cache: 'no-store' })
+  .then(r => { if (!r.ok) throw new Error(`${r.status} — is docs/ served?`); return r.text(); })
+  .then(md => { document.getElementById('doc').className = ''; document.getElementById('doc').innerHTML = render(md); })
+  .catch(e => {
+    document.getElementById('doc').className = 'load err';
+    document.getElementById('doc').innerHTML =
+      `Could not load the manual (${e.message}).<br>It lives at <code>docs/056-USER-MANUAL.md</code> and can be read there directly.`;
+  });
+</script>
+</body>
+</html>
