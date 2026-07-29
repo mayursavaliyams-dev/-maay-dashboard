@@ -55,6 +55,12 @@ function analyseDay(fp) {
     }
     if (!atm) continue;
     const ce = strikes[atm].CE, pe = strikes[atm].PE;
+    // Capture only runs while the server is up, so many archived days START MID-SESSION.
+    // On those days "entry at the first bar" is not a 9:15 entry — flag it rather than
+    // silently reporting an afternoon entry as if it were a full-day 0-DTE trade.
+    const firstTs = new Date(ce[0][0]);
+    const firstMin = firstTs.getUTCHours() * 60 + firstTs.getUTCMinutes() + 330; // -> IST minutes
+    const partial = firstMin > 9 * 60 + 20 || ce.length < 350;
     const ceEntry = ce[0][1], peEntry = pe[0][1];
     const credit = ceEntry + peEntry;                     // per share
     const ceM = legMap(ce), peM = legMap(pe);
@@ -84,7 +90,8 @@ function analyseDay(fp) {
       note = "no stop";
     }
     const lot = LOT[sym];
-    out.push({ sym, atm, credit, dailyPL, intraPL, note,
+    out.push({ sym, atm, credit, dailyPL, intraPL, partial,
+               note: (partial ? "PARTIAL DAY · " : "") + note,
                dailyRs: dailyPL * lot, intraRs: intraPL * lot, gapRs: (intraPL - dailyPL) * lot });
   }
   return { date: day.date, rows: out };
@@ -108,9 +115,11 @@ for (const f of files) {
     console.log(` ${r.date.padEnd(11)}${row.sym.padEnd(10)}${row.atm.padStart(7)}` +
       `${Math.round(row.credit).toString().padStart(9)}${rs(row.dailyRs).padStart(13)}` +
       `${rs(row.intraRs).padStart(13)}${rs(row.gapRs).padStart(13)}  ${row.note}`);
-    (agg[row.sym] ||= { daily: 0, intra: 0, stops: 0, n: 0 });
+    (agg[row.sym] ||= { daily: 0, intra: 0, stops: 0, n: 0, partial: 0 });
     agg[row.sym].daily += row.dailyRs; agg[row.sym].intra += row.intraRs;
-    agg[row.sym].n++; if (row.note.startsWith("STOP")) agg[row.sym].stops++;
+    agg[row.sym].n++;
+    if (row.partial) agg[row.sym].partial++;
+    if (row.note.includes("STOPPED")) agg[row.sym].stops++;
   }
 }
 
@@ -121,7 +130,13 @@ for (const sym of Object.keys(agg)) {
   console.log(`   ${sym.padEnd(10)} days ${a.n}  stops ${a.stops}  |  DAILY ${rs(a.daily).padStart(13)}` +
     `   INTRADAY ${rs(a.intra).padStart(13)}   tail cost ${rs(a.intra - a.daily).padStart(13)}`);
 }
+const partialCount = Object.values(agg).reduce((a, b) => a + (b.partial || 0), 0);
 console.log("-".repeat(96));
-console.log(" Only ~9 real 1-min option days exist, so this is a DEMONSTRATION, not a full backtest.");
+if (partialCount) {
+  console.log(` WARNING: ${partialCount} of the rows above are PARTIAL days — the archive only records`);
+  console.log(" while the server is up, so 'entry at the first bar' was an AFTERNOON entry, not 09:15.");
+  console.log(" Run `py capture_health.py` (EMA NEW) for the full-day audit before trusting these.");
+}
+console.log(" Only a handful of real 1-min option days exist, so this is a DEMONSTRATION, not a full backtest.");
 console.log(" But it shows directly: the daily model never sees the intraday stop. Every rupee of");
 console.log(" 'tail cost' above is loss the 20-year backtest structurally cannot count.");
