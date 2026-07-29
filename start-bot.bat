@@ -1,34 +1,11 @@
 @echo off
-REM Antigravity Bot — start the trading server (port 3000)
-REM Logs to data/logs/server.log. Run via Task Scheduler at user-login.
+REM Antigravity Bot launcher. Kept as a .bat because both Task Scheduler entries
+REM (Antigravity-Bot-Auto-Start at 08:50 weekdays, AntigravityBot-Server at logon)
+REM already point at this path — the work itself lives in start-bot.ps1.
+REM
+REM It moved out of batch for a reason: the "is it already running?" guard has to
+REM match on a process command line, and that check nested inside batch quoting
+REM silently lost its $_ and never ran. See the header of start-bot.ps1.
 
-cd /d "C:\Users\Admin\Downloads\Expiry-Friday-5x"
-if not exist "data\logs" mkdir "data\logs"
-
-REM Append a banner so log restarts are visible
-echo. >> "data\logs\server.log"
-echo ============================================================ >> "data\logs\server.log"
-echo START %date% %time% >> "data\logs\server.log"
-echo ============================================================ >> "data\logs\server.log"
-
-REM Run server in background, redirecting stdout+stderr to log
-start "antigravity-server" /MIN cmd /c "node server.js >> data\logs\server.log 2>&1"
-
-REM Warehouse helpers (no pm2 — same task-based auto-start as the server):
-REM   mirror : rescues option history day-by-day before the 40-file purge (every 5 min)
-REM   derive : rebuilds each strike's High/Low record from the mirror (every 10 min)
-REM   api    : read-only archive on 127.0.0.1:3100 (powers the dashboard "day" dropdown)
-REM Separate log per helper (avoids append contention when they start together).
-start "wh-mirror" /MIN cmd /c "node option-warehouse.js --every 300 >> data\logs\wh-mirror.log 2>&1"
-start "wh-derive" /MIN cmd /c "node warehouse-derive.js --every 600 >> data\logs\wh-derive.log 2>&1"
-start "wh-api"    /MIN cmd /c "node warehouse-api.js >> data\logs\wh-api.log 2>&1"
-REM   capture: chain snapshots + outcome/NAV rows. 300s, NOT faster: the server's
-REM   option-snapshot cache is only 4s, so every capture cycle forces a fresh
-REM   upstream broker fetch. At 60s x 3 instruments that added ~180 chain calls an
-REM   hour and helped trigger an Upstox 429 on 2026-07-27. 300s costs 12/hour.
-start "wh-capture" /MIN cmd /c "node warehouse-capture.js --every 300 >> data\logs\wh-capture.log 2>&1"
-
-REM Phase-1 capture: intraday option chains (all Greeks + ivSource), position
-REM outcomes with entry Greeks, and the daily NAV series. Appends only when the
-REM content actually changed, so it self-gates outside market hours.
-start "wh-capture" /MIN cmd /c "node warehouse-capture.js --every 60 >> data\logs\wh-capture.log 2>&1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\Admin\Downloads\Expiry-Friday-5x\start-bot.ps1"
+exit /b %errorlevel%
