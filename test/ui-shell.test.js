@@ -42,7 +42,11 @@ const APP = pages.filter(f => f !== 'login.html');
   const entries = [...rail.matchAll(/\{\s*h:\s*'([^']+)'/g)].map(m => m[1]);
   ok(entries.length >= 19, `rail lists ${entries.length} pages from one array`);
 
-  const missing = entries.filter(h => !fs.existsSync(path.join(PUB, h.replace(/^\//, ''))));
+  // A rail entry may carry a query string — /help.html?doc=strategies is the same page
+  // rendering a different document. The file check is about the page, so the query is
+  // stripped; keeping it would fail on a link that works.
+  const fileOf = h => h.replace(/^\//, '').split('?')[0];
+  const missing = entries.filter(h => !fs.existsSync(path.join(PUB, fileOf(h))));
   ok(missing.length === 0,
     `every rail entry points at a file that exists${missing.length ? ': ' + missing.join(', ') : ''}`);
 

@@ -48,7 +48,8 @@
     { h: '/health-dashboard.html', i: '🩺', t: 'Health' },
 
     { g: 'Learn' },
-    { h: '/help.html',           i: '📖', t: 'User Manual' }
+    { h: '/help.html',                    i: '📖', t: 'User Manual' },
+    { h: '/help.html?doc=strategies',     i: '🎯', t: 'Strategy Guide' }
   ];
 
   var W = 210, WMIN = 56;

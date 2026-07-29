@@ -42,6 +42,10 @@
   a{ color:var(--blue); }
   .load{ color:var(--muted); padding:40px 0; text-align:center; }
   .err{ color:var(--red); }
+  .tab{ font-size:.85rem; font-weight:700; color:var(--muted); text-decoration:none;
+        padding:4px 12px; border-radius:7px; border:1px solid transparent; }
+  .tab:hover{ color:var(--text); border-color:var(--border); }
+  .tab.on{ color:var(--blue); background:rgba(91,156,255,.12); border-color:rgba(91,156,255,.3); }
 
   /* ── PRINT / PDF ───────────────────────────────────────────────────────────
      On screen this page is bounded to the viewport by fit.js and scrolls inside
@@ -81,8 +85,10 @@
 <body>
 
 <div class="topbar">
-  <span class="brand">📖 User Manual</span>
-  <span style="color:var(--muted);font-size:.85rem">the same document as docs/056 — one source, not a second copy that drifts</span>
+  <span class="brand">📖 Documentation</span>
+  <a href="/help.html?doc=manual" id="tabManual" class="tab">User Manual</a>
+  <a href="/help.html?doc=strategies" id="tabStrat" class="tab">Strategy Guide</a>
+  <span style="color:var(--muted);font-size:.82rem;margin-left:auto">rendered from docs/ — one source, not a second copy that drifts</span>
 </div>
 
 <div class="wrap" data-fit>
@@ -95,7 +101,13 @@
 /* The manual is fetched from docs/ and rendered here rather than being re-typed into
    this page. A second copy of a document is a copy that goes stale, and a manual that
    contradicts the repo is worse than no manual. */
-const MD = '/docs/056-USER-MANUAL.md';
+/* Which document to show. Defaults to the user manual; ?doc=<name> renders any other
+   markdown file under docs/. The name is restricted to the shape of a filename so a
+   query string cannot walk out of that directory. */
+const DOCS = { manual: '056-USER-MANUAL.md', strategies: '057-STRATEGY-GUIDE.md' };
+const _q = new URLSearchParams(location.search).get('doc') || 'manual';
+const _file = DOCS[_q] || (/^[\w.-]+\.md$/.test(_q) && !_q.includes('..') ? _q : DOCS.manual);
+const MD = '/docs/' + _file;
 
 // A deliberately small Markdown subset — enough for this document, and nothing that
 // executes. Any HTML in the source is escaped before formatting is applied, so the
@@ -163,6 +175,9 @@ function render(md) {
   }
   return out.join('\n');
 }
+
+document.getElementById(_file === DOCS.strategies ? 'tabStrat' : 'tabManual').classList.add('on');
+document.title = (_file === DOCS.strategies ? 'Strategy Guide' : 'User Manual') + ' · Antigravity Pro';
 
 fetch(MD, { cache: 'no-store' })
   .then(r => { if (!r.ok) throw new Error(`${r.status} — is docs/ served?`); return r.text(); })

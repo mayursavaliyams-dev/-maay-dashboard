@@ -3,7 +3,9 @@
    manual-pdf — print the user manual to a PDF.
 
    USAGE
-     node tools/manual-pdf.js [output.pdf]     default: docs/ANTIGRAVITY-PRO-User-Manual.pdf
+     node tools/manual-pdf.js                      the user manual
+     node tools/manual-pdf.js strategies           the strategy guide
+     node tools/manual-pdf.js <doc> [output.pdf]   any document /help.html can show
 
    It drives the real page at /help.html rather than converting the markdown
    separately, so the PDF and the screen cannot disagree. The page fetches
@@ -30,7 +32,14 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const BASE = process.env.UI_MEASURE_BASE || 'http://127.0.0.1:3000';
-const OUT = process.argv[2] || path.join(ROOT, 'docs', 'ANTIGRAVITY-PRO-User-Manual.pdf');
+const DOCS = {
+  manual:     { q: 'manual',     out: 'ANTIGRAVITY-PRO-User-Manual.pdf',   title: 'User Manual' },
+  strategies: { q: 'strategies', out: 'ANTIGRAVITY-PRO-Strategy-Guide.pdf', title: 'Strategy Guide' },
+};
+const which = DOCS[process.argv[2]] ? process.argv[2] : 'manual';
+const DOC = DOCS[which];
+const OUT = process.argv[3] || (DOCS[process.argv[2]] ? null : process.argv[2])
+  || path.join(ROOT, 'docs', DOC.out);
 
 const CANDIDATES = [
   process.env.UI_MEASURE_BROWSER,
@@ -61,7 +70,7 @@ const CANDIDATES = [
   p.on('pageerror', e => problems.push('page error: ' + e.message));
   p.on('requestfailed', r => problems.push('failed request: ' + r.url()));
 
-  await p.goto(`${BASE}/help.html`, { waitUntil: 'networkidle2', timeout: 30000 });
+  await p.goto(`${BASE}/help.html?doc=${DOC.q}`, { waitUntil: 'networkidle2', timeout: 30000 });
 
   // The manual arrives by fetch. Wait for real content, not for a timer — printing
   // early would produce a PDF of the word "loading".
@@ -85,7 +94,7 @@ const CANDIDATES = [
     headerTemplate: '<div></div>',
     footerTemplate:
       '<div style="width:100%;font-size:8pt;color:#888;padding:0 14mm;display:flex;justify-content:space-between">' +
-      '<span>ANTIGRAVITY PRO — User Manual</span>' +
+      `<span>ANTIGRAVITY PRO — ${DOC.title}</span>` +
       '<span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>',
   });
   await b.close();
