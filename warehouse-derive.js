@@ -165,6 +165,9 @@ if (require.main === module) {
     const s = deriveAll();
     console.log(`[derive ${s.at}] days=${s.days} written=${s.written} unchanged=${s.unchanged} error=${s.error}`);
   };
-  run();
-  if (everySec) { console.log(`[derive] continuous every ${everySec}s — Ctrl-C to stop.`); setInterval(run, everySec * 1000); }
+  // Guarded — same reason as the mirror: `run` is synchronous, reads and writes
+  // files, and an unguarded throw here or in the timer callback ends the process
+  // with nothing to restart it. See loop-guard.js.
+  if (everySec) console.log(`[derive] continuous every ${everySec}s — Ctrl-C to stop.`);
+  require('./loop-guard.js').runLoop('derive', run, everySec * 1000);
 }

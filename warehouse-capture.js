@@ -306,6 +306,10 @@ if (require.main === module) {
                 (s.errors.length ? ` errors=${s.errors.length}` : ''));
     s.errors.forEach(e => console.warn('  ! ' + e));
   };
-  run();
-  if (every) { console.log(`[capture] continuous every ${every}s — Ctrl-C to stop.`); setInterval(run, every * 1000); }
+  // Guarded: `run()` and `setInterval(run, …)` were both unprotected, and node 24
+  // terminates on an unhandled rejection. One rejected cycle would have ended this
+  // helper with nothing to restart it until the next logon or 08:50 — the bot would
+  // keep running and the warehouse would just stop filling. See loop-guard.js.
+  if (every) console.log(`[capture] continuous every ${every}s — Ctrl-C to stop.`);
+  require('./loop-guard.js').runLoop('capture', run, every * 1000);
 }

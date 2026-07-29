@@ -147,9 +147,10 @@ if (require.main === module) {
     const s = mirrorAll();
     console.log(`[warehouse ${s.at}] files=${s.files} created=${s.created} grown=${s.grown} unchanged=${s.unchanged} ignored_smaller=${s.ignored_smaller} error=${s.error}`);
   };
-  run();
-  if (everySec) {
-    console.log(`[warehouse] continuous mirror every ${everySec}s — Ctrl-C to stop.`);
-    setInterval(run, everySec * 1000);
-  }
+  // Guarded. `run` is synchronous and does file I/O, so a torn JSON file or a disk
+  // error throws — at top level or inside the timer callback, and either one ends the
+  // process. Nothing would restart the mirror until the next logon or 08:50, and the
+  // only symptom would be a day that quietly never reached the warehouse.
+  if (everySec) console.log(`[warehouse] continuous mirror every ${everySec}s — Ctrl-C to stop.`);
+  require('./loop-guard.js').runLoop('warehouse', run, everySec * 1000);
 }
