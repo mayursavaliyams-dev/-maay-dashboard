@@ -446,6 +446,7 @@ async function askStock() {
         <div class="sa-m"><div class="l">News (48h)</div><div class="v">${r.news?.articles||0} · ${r.news?.label||'—'}</div></div>
         <div class="sa-m"><div class="l">Deal events</div><div class="v">${(r.dealImpacts||[]).length}</div></div>
       </div>
+      ${fundamentalsHtml(r.fundamentals)}
       <div class="params" style="margin-bottom:8px;">verdict parameters: momentum ${p.momentumScore} · news ${p.newsScore} (${p.newsArticles} arts) · deals ${p.dealScore} (${p.dealEvents}) · sources agree: ${p.sourcesAgree?'YES ✓':'no'}</div>
       ${(r.dealImpacts||[]).length ? `<div class="book-h">🎯 Deal events on this stock</div><ul class="sa-news">` +
         r.dealImpacts.map(d=>`<li><span class="pill ${pillClass(d.type||'')}">${d.type}</span> ${d.title} → <b class="${d.direction==='UP'?'up':d.direction==='DOWN'?'dn':'flat'}">${d.direction} ${d.probability}%</b></li>`).join('') + '</ul>' : ''}
@@ -458,6 +459,86 @@ async function askStock() {
     renderHedge(r);
   } catch(e) { out.innerHTML = `<div class="sa-err">⚠️ ${e.message}</div>`; }
   finally { btn.disabled = false; btn.textContent = 'Analyze'; }
+}
+
+/* ── Fundamentals ────────────────────────────────────────────────────────────
+   Earnings power, returns, the profit line and who holds the stock. Every figure is
+   optional and a missing one renders a dash, because they genuinely are missing:
+   measured 2026-07-29, Yahoo reports return on equity for TCS and nothing at all for
+   Canara Bank. Filling that with a zero would say a state-owned lender earns nothing
+   on its equity — so where ROE is absent the card shows the arithmetic derivation
+   (EPS ÷ book value per share) with a DERIVED badge, and never as the reported one.
+
+   Shareholding is Yahoo's insiders/institutions split, NOT the SEBI promoter / FII /
+   DII / public pattern. For an Indian issuer "insiders" lands near the promoter
+   stake — Canara Bank 64.4% against a Government holding around 63% — but it is a
+   different taxonomy, so it is labelled as such and the unclassified remainder is
+   shown rather than quietly dropped. */
+function fundamentalsHtml(f){
+  if (!f) return '<div class="params" style="margin-bottom:8px">no fundamentals available for this symbol</div>';
+  const n  = (v,d=2) => (v===null||v===undefined||!isFinite(v)) ? '—' : Number(v).toLocaleString('en-IN',{maximumFractionDigits:d});
+  const pc = (v,d=1) => (v===null||v===undefined||!isFinite(v)) ? '—' : (v>=0?'':'') + Number(v).toFixed(d) + '%';
+  // Indian reporting units: a crore is 1e7. Yahoo returns absolute rupees.
+  const cr = v => (v===null||v===undefined||!isFinite(v)) ? '—' : '₹' + (v/1e7).toLocaleString('en-IN',{maximumFractionDigits:0}) + ' Cr';
+  const cell = (l,v,t='') => `<div class="sa-m"${t?` title="${t}"`:''}><div class="l">${l}</div><div class="v">${v}</div></div>`;
+
+  const roe = f.roe !== null && f.roe !== undefined
+    ? cell('ROE', pc(f.roe), 'Return on equity, as reported by the data source.')
+    : f.roeDerived !== null && f.roeDerived !== undefined
+      ? cell('ROE <span class="pill p-res">DERIVED</span>', pc(f.roeDerived),
+             'Not reported for this symbol. Derived as EPS ÷ book value per share — arithmetic from two reported figures, not a source number.')
+      : cell('ROE', '—', 'Not reported and not derivable — unknown, not zero.');
+
+  const yrs = (f.yearly||[]).slice(-4);
+  const qts = (f.quarterly||[]).slice(-4);
+  const qeps = (f.quarterlyEps||[]).slice(-4);
+
+  const rows = (list, label) => !list.length ? '' : `
+    <div class="book-h">${label}</div>
+    <table style="width:auto;min-width:min(560px,100%)">
+      <thead><tr><th>Period</th><th style="text-align:right">Revenue</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th></tr></thead>
+      <tbody>${list.map(r=>`<tr>
+        <td>${r.period}</td>
+        <td style="text-align:right">${cr(r.revenue)}</td>
+        <td style="text-align:right">${cr(r.profit)}</td>
+        <td style="text-align:right">${(r.revenue>0&&r.profit!==null)?pc(r.profit/r.revenue*100):'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+
+  const h = f.holding;
+  const bar = h ? `
+    <div class="book-h">🧾 Shareholding <small style="font-weight:400;color:var(--muted)">— ${h.note}</small></div>
+    <div class="bar" style="display:flex;height:12px">
+      ${h.insiders!==null?`<i style="width:${h.insiders}%;background:var(--blue)" title="Insiders / promoter-like: ${pc(h.insiders)}"></i>`:''}
+      ${h.institutions!==null?`<i style="width:${h.institutions}%;background:var(--green)" title="Institutions: ${pc(h.institutions)}"></i>`:''}
+      ${h.other!==null&&h.other>0?`<i style="width:${h.other}%;background:#475569" title="Everyone else, unclassified by the source: ${pc(h.other)}"></i>`:''}
+    </div>
+    <div class="params" style="margin-top:4px">
+      insiders <b>${pc(h.insiders)}</b> · institutions <b>${pc(h.institutions)}</b> · other <b>${pc(h.other)}</b>
+      — the source does not break the remainder into FII, DII and retail, so it is left unlabelled rather than guessed.
+    </div>` : '';
+
+  return `
+    <div class="book-h">📊 Fundamentals</div>
+    <div class="sa-grid">
+      ${cell('EPS (TTM)', n(f.eps), 'Trailing twelve-month earnings per share.')}
+      ${cell('EPS (fwd)', n(f.epsForward), 'Analyst consensus forward EPS — an estimate, not a result.')}
+      ${roe}
+      ${cell('ROA', pc(f.roa))}
+      ${cell('Book value', n(f.bookValue), 'Book value per share.')}
+      ${cell('P/B', n(f.priceToBook))}
+      ${cell('Profit margin', pc(f.profitMargin))}
+      ${cell('Div yield', pc(f.dividendYield))}
+      ${cell('Revenue growth', pc(f.revenueGrowth), 'Year on year, most recent period.')}
+      ${cell('Earnings growth', pc(f.earningsGrowth), 'Year on year, most recent period.')}
+    </div>
+    ${rows(yrs, '📅 Yearly results')}
+    ${rows(qts, '🗓️ Quarterly results')}
+    ${qeps.length ? `<div class="params" style="margin-top:6px">quarterly EPS: ` +
+      qeps.map(q=>`${q.period} <b>${n(q.eps)}</b>${q.estimate!==null?` <span style="color:#64748b">(est ${n(q.estimate)})</span>`:''}`).join(' · ') +
+      '</div>' : ''}
+    ${bar}
+    <div class="params" style="margin:6px 0 8px">Fundamentals are context, not part of the verdict — the verdict above is the disclosed momentum-and-news heuristic and does not read any figure in this block.</div>`;
 }
 
 // ── Hedge pair: find another stock (different sector) leaning the OPPOSITE way,

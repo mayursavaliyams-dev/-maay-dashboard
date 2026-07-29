@@ -128,6 +128,75 @@ async function _getQuote(yf, yahooSym) {
   } catch (_) { return null; }
 }
 
+/* Fundamentals for the analyst card: earnings power, returns, the yearly and
+ * quarterly profit line, and who holds the stock.
+ *
+ * EVERY FIELD IS OPTIONAL AND MAY COME BACK null. That is not defensive coding for
+ * its own sake — measured on 2026-07-29, Yahoo returns returnOnEquity for TCS
+ * (47.7%) and NOTHING for Canara Bank, which is a bank. A card that filled the gap
+ * with a zero would report a state-owned lender as earning nothing on its equity.
+ *
+ * SHAREHOLDING IS NOT THE SEBI PATTERN. Yahoo reports a US-shaped
+ * insiders/institutions split. For an Indian issuer "insiders" lands close to the
+ * promoter holding — Canara Bank came back 64.4%, against a Government stake around
+ * 63% — but it is not the official promoter / FII / DII / public breakdown and the
+ * parts do not sum to 100 (64.4 + 18.4 leaves 17% unclassified). It is labelled for
+ * what it is, and the remainder is shown rather than hidden.
+ */
+async function _getFundamentals(yf, yahooSym) {
+  if (!yf || !yahooSym) return null;
+  let s;
+  try {
+    s = await yf.quoteSummary(yahooSym, {
+      // incomeStatementHistory and balanceSheetHistory are deliberately not asked
+      // for: the library itself warns they have returned almost nothing since
+      // Nov 2024. The earnings module carries the same yearly line and does work.
+      modules: ['defaultKeyStatistics', 'financialData', 'earnings', 'summaryDetail'],
+    }, NOVALIDATE);
+  } catch (_) { return null; }
+  if (!s) return null;
+
+  const ks = s.defaultKeyStatistics || {}, fd = s.financialData || {},
+        er = s.earnings || {}, sd = s.summaryDetail || {};
+  const num = v => (v === null || v === undefined || !isFinite(Number(v))) ? null : Number(v);
+  const pct = v => { const n = num(v); return n === null ? null : +(n * 100).toFixed(2); };
+
+  const eps = num(ks.trailingEps), book = num(ks.bookValue);
+  const roeReported = pct(fd.returnOnEquity);
+  // A bank with no reported ROE still has an EPS and a book value per share, and
+  // their ratio IS return on equity. It is an arithmetic derivation from two
+  // reported figures, so it is offered — labelled as derived, never merged with the
+  // reported one.
+  const roeDerived = (roeReported === null && eps !== null && book > 0)
+    ? +((eps / book) * 100).toFixed(2) : null;
+
+  const line = rows => (rows || []).map(r => ({
+    period: String(r.date), revenue: num(r.revenue), profit: num(r.earnings),
+  })).filter(r => r.revenue !== null || r.profit !== null);
+
+  const insiders = pct(ks.heldPercentInsiders);
+  const institutions = pct(ks.heldPercentInstitutions);
+  const other = (insiders !== null && institutions !== null)
+    ? +(100 - insiders - institutions).toFixed(2) : null;
+
+  return {
+    eps, epsForward: num(ks.forwardEps), bookValue: book, priceToBook: num(ks.priceToBook),
+    roe: roeReported, roeDerived,
+    roa: pct(fd.returnOnAssets), profitMargin: pct(fd.profitMargins),
+    revenueGrowth: pct(fd.revenueGrowth), earningsGrowth: pct(fd.earningsGrowth),
+    dividendYield: pct(sd.dividendYield),
+    yearly: line(er.financialsChart?.yearly),
+    quarterly: line(er.financialsChart?.quarterly),
+    quarterlyEps: (er.earningsChart?.quarterly || [])
+      .map(q => ({ period: String(q.date), eps: num(q.actual), estimate: num(q.estimate) }))
+      .filter(q => q.eps !== null),
+    currency: er.financialCurrency || 'INR',
+    holding: (insiders === null && institutions === null) ? null
+      : { insiders, institutions, other,
+          note: 'Yahoo insiders/institutions split — not the SEBI promoter/FII/DII pattern' },
+  };
+}
+
 async function analyze(query, { newsItems, yf } = {}) {
   const q = String(query || '').trim();
   if (!q) return { ok: false, error: 'empty query' };
@@ -180,8 +249,13 @@ async function analyze(query, { newsItems, yf } = {}) {
   const momentum = momentumScore(quote || {});
   const verdict = fuseVerdict({ momentum, news, dealImpacts });
 
+  // Fundamentals are additive context, never an input to the verdict. The verdict is
+  // a momentum-and-news heuristic with disclosed parameters; quietly folding a P/B or
+  // an ROE into it would change what the number means without changing what it says.
+  const fundamentals = await _getFundamentals(yf, yahooSym);
+
   const out = {
-    ok: true, query: q, symbol: sym.symbol, sector, quote, momentum, news,
+    ok: true, query: q, symbol: sym.symbol, sector, quote, fundamentals, momentum, news,
     headlines: arts.slice(0, 6).map(a => ({ title: a.title, at: a.publishedAt, source: a.sourceName || a.source,
       sentiment: a.sentiment?.label, score: a.sentiment?.score, url: a.url })),
     dealImpacts: dealImpacts.map(d => ({ title: d.title, type: d.eventType, direction: d.direction, probability: d.probability, params: d.params })),
