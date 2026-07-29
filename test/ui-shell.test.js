@@ -198,4 +198,33 @@ const APP = pages.filter(f => f !== 'login.html');
   }
 }
 
+// ── the measurement tool is part of the repo, not of one session ─────────────
+{
+  // Every UI claim in docs/052 and docs/053 came from scripts in a session
+  // scratchpad. docs/052 §7 said promoting them was the next step, because a
+  // measurement nobody can repeat is an assertion with extra steps. It also caught a
+  // real regression the moment it was checked in: pop.html fitted in Edge and
+  // scrolled 422px in Chrome once the shared type tokens grew.
+  const REPO = path.join(__dirname, '..');
+  const tool = path.join(REPO, 'tools', 'ui-measure.js');
+  ok(fs.existsSync(tool), 'tools/ui-measure.js is checked in');
+  const src = fs.readFileSync(tool, 'utf8');
+  for (const c of ['scroll', 'fonts', 'colours', 'clip', 'requests'])
+    { assert.ok(new RegExp(`case '${c}'`).test(src), `it can measure ${c}`); pass++; }
+  console.log('  ✓ it measures scroll, fonts, colours, clipping and request rate');
+
+  ok(/window\.scrollTo\(0, 100000\)/.test(src),
+    'scroll is measured by attempting it, not by trusting scrollHeight');
+  ok(/userDataDir/.test(src),
+    'each run gets its own browser profile — a leftover locked one fails every later launch');
+  ok(/hands off to an already-running instance/.test(src),
+    'and the Edge handoff trap is written down where the next person hits it');
+  ok(/process\.exit\(code\)/.test(src),
+    'it exits non-zero when a page fails, so it can gate a commit rather than just inform');
+
+  const pkg = JSON.parse(fs.readFileSync(path.join(REPO, 'package.json'), 'utf8'));
+  ok(!!(pkg.devDependencies && pkg.devDependencies['puppeteer-core']),
+    'puppeteer-core is a devDependency — no browser is downloaded, an installed one is driven');
+}
+
 console.log(`\n${pass} assertions passed`);

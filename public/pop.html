@@ -147,7 +147,12 @@ tbody tr:hover td{background:var(--panel2);}
   <button class="btn" style="margin-left:auto" onclick="loadScan()">⟳ Scan</button>
 </div>
 
-<main class="layout">
+<!-- Bounded like every other page: the header, the warning bar and the context
+     chips stay put and the panels scroll. Without this pop.html fitted only by
+     luck — it fitted in Edge and overflowed by 422px in Chrome once the shared
+     type tokens grew. A page that fits in one browser and not another is not
+     fitting, it is coinciding. -->
+<main class="layout" data-fit>
 
   <!-- LEFT: scanner -->
   <section class="panel" aria-labelledby="h-scan">
@@ -578,5 +583,6 @@ tbody tr:hover td{background:var(--panel2);}
   setInterval(loadBook, 8000);
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>
