@@ -83,6 +83,14 @@ tbody tr{cursor:pointer;}
       <option value="">All</option><option value="NIFTY">NIFTY</option>
       <option value="SENSEX">SENSEX</option><option value="BANKNIFTY">BANKNIFTY</option>
     </select></div>
+  <div class="fld"><label>View</label>
+    <button class="btn on" id="mHind" onclick="setMode('hindsight')"
+      title="The best buy-low-then-sell-high the day actually offered on each strike. Perfect hindsight.">Day's best</button>
+    <button class="btn" id="mNow" onclick="setMode('now')"
+      title="Where each leg is trading inside today's range right now. A fact about price, not a signal.">At the low now</button></div>
+  <div class="fld" id="rangeFld" style="display:none"><label for="rngSel">Min day range %</label>
+    <input type="number" id="rngSel" value="15" min="0" step="5" onchange="load()"
+      title="A leg whose whole day spanned 1% of its premium has not moved. Below this it is not 'at a low', it simply sat still."></div>
   <div class="fld"><label for="minSel">Min buy ₹</label>
     <input type="number" id="minSel" value="10" min="0" step="1" onchange="load()"
       title="A +200% move on a ₹0.15 option is 30 paise a share. Below this floor a round-trip brokerage costs more than the position deploys."></div>
@@ -99,7 +107,22 @@ tbody tr{cursor:pointer;}
 </div>
 
 <main class="wrap">
-  <div class="note">
+  <!-- The two views answer different questions and must never be read as one. The
+       hindsight table says what the day offered; the live table says where price is
+       now. Neither says what to do. -->
+  <div class="note" id="noteNow" style="display:none">
+    <b>This is where the price is, not a reason to buy.</b> Each row is a leg trading
+    near <b>today's low</b> right now: <b>0%</b> means it is at the session low,
+    <b>100%</b> at the high. That is a fact about price and nothing more. A leg sits at
+    its low because it has been <b>falling</b> — this platform's own 1,200-trade backtest
+    put directional option <b>buying</b> at a profit factor of <b>0.94</b>, a net loser,
+    and the hero-zero base rate is still <b>Unknown</b>. The <b>min day range</b> filter
+    is doing real work: without it the list fills with deep-ITM strikes whose entire day
+    spanned 1% of their premium, which are not "at a low", they simply never moved.
+    Highs and lows are <b>confirmed</b> extremes, so a live tick can sit fractionally
+    outside them for one poll.
+  </div>
+  <div class="note" id="noteHind">
     <b>This is perfect hindsight, not a strategy.</b> Each row is the best
     <b>buy-low-then-sell-high</b> that was actually available <b>in time order</b> on that
     strike — the low must come before the high, so it is a pair someone could in principle
@@ -118,15 +141,26 @@ tbody tr{cursor:pointer;}
   <div class="tbl-wrap" data-fit>
     <table>
       <caption class="sr-only">Every strike's best available buy-low to sell-high for the selected day.</caption>
-      <thead><tr>
-        <th class="rank">#</th>
-        <th>Strike</th>
-        <th>Buy</th><th>Sell</th>
-        <th data-k="points" onclick="setSort('points')">Points</th>
-        <th data-k="gainPct" class="sorted" onclick="setSort('gainPct')">Capture %</th>
-        <th data-k="perLot" onclick="setSort('perLot')">₹ per lot</th>
-        <th>Day range</th>
-      </tr></thead>
+      <thead>
+        <tr id="headHind">
+          <th class="rank">#</th>
+          <th>Strike</th>
+          <th>Buy</th><th>Sell</th>
+          <th data-k="points" onclick="setSort('points')">Points</th>
+          <th data-k="gainPct" class="sorted" onclick="setSort('gainPct')">Capture %</th>
+          <th data-k="perLot" onclick="setSort('perLot')">₹ per lot</th>
+          <th>Day range</th>
+        </tr>
+        <tr id="headNow" style="display:none">
+          <th class="rank">#</th>
+          <th>Strike</th>
+          <th>Now</th><th>Day low</th>
+          <th>Above low</th>
+          <th>In range</th>
+          <th>Day range ₹/lot</th>
+          <th>Day range</th>
+        </tr>
+      </thead>
       <tbody id="tb"><tr><td colspan="8"><div class="tok-loading"><b>Loading…</b></div></td></tr></tbody>
     </table>
   </div>
@@ -165,6 +199,7 @@ async function load(opts){
   // A silent load is the one the timer fires. It must not blank the table: doing so
   // every minute would throw away your scroll position and flash a spinner over rows
   // that are, nine times out of ten, about to be identical.
+  if (MODE === 'now') return loadNow(opts);
   const silent = !!(opts && opts.silent);
   const date = $('dSel').value, inst = $('iSel').value, min = $('minSel').value;
   if (!date) { $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-empty"><b>No archived day</b>The capture loop has not written a day yet.</div></td></tr>`; return; }
@@ -233,8 +268,10 @@ function marketOpen(){
   return mins >= 555 && mins <= 935;          // 09:15 to 15:35, a little past the close
 }
 
-const shouldPoll = () => AUTO && $('dSel').value === istToday() && marketOpen()
-  && document.visibilityState === 'visible';
+// The live view is always about today by definition, so the day picker does not gate
+// it — the other three conditions still do.
+const shouldPoll = () => AUTO && marketOpen() && document.visibilityState === 'visible'
+  && (MODE === 'now' || $('dSel').value === istToday());
 
 function paintFreshness(){
   const el = $('freshness');
@@ -245,14 +282,20 @@ function paintFreshness(){
   const stamp = DERIVED_AT ? Date.parse(DERIVED_AT) : LAST_OK;
   const mins = Math.max(0, Math.round((Date.now() - stamp) / 60000));
   const live = shouldPoll();
-  el.className = 'fresh ' + (!live ? 'off' : mins <= 15 ? 'ok' : 'lag');
+  const now = MODE === 'now';
+  el.className = 'fresh ' + (!live ? 'off' : (now || mins <= 15) ? 'ok' : 'lag');
   el.textContent = (mins < 1 ? 'just now' : `${mins} min old`) + (live ? '' : ' · paused');
-  el.title = (DERIVED_AT ? `Derived at ${new Date(stamp).toLocaleTimeString('en-IN')}. ` : '')
-    + 'The archive trails the live price by the capture, mirror and derive cycles — up to about 15 minutes. '
-    + (live ? `Refreshing every ${POLL_MS/1000}s.`
-            : $('dSel').value !== istToday() ? 'A past day never changes, so it is not polled.'
+  // The two views have different lags and must not borrow each other's excuse: the
+  // live view reads the server's memory, so it is as fresh as the last fetch; the
+  // archive passes through capture, mirror and derive before it gets here.
+  el.title = (now
+      ? 'Read straight from the server\'s in-memory high/low tracker, so this is as fresh as the last fetch. '
+      : (DERIVED_AT ? `Derived at ${new Date(stamp).toLocaleTimeString('en-IN')}. ` : '')
+        + 'The archive trails the live price by the capture, mirror and derive cycles — up to about 15 minutes. ')
+    + (live ? `Refreshing every ${(now ? NOW_POLL_MS : POLL_MS)/1000}s.`
             : !marketOpen() ? 'The market is closed — nothing new is being captured.'
-            : 'This tab is in the background.');
+            : document.visibilityState !== 'visible' ? 'This tab is in the background.'
+            : 'A past day never changes, so it is not polled.');
 }
 
 function toggleAuto(){
@@ -272,6 +315,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function render(){
+  if (MODE === 'now') return renderNow();
   if (!ROWS.length) { $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-empty"><b>No strike cleared the floor</b>Lower “Min buy ₹” to widen the set.</div></td></tr>`; return; }
   const rows = ROWS.slice().sort((a,b) => {
     const av = a[SORT], bv = b[SORT];
@@ -294,6 +338,95 @@ function render(){
     </tr>`).join('');
 }
 
+/* ── "At the low now" ────────────────────────────────────────────────────────
+   Fed by /api/opt-at-low, which reads the server's in-memory high/low tracker. That
+   matters: the obvious source, /api/options/snapshot, forces an upstream broker
+   fetch whenever its 4-second cache has lapsed, so polling it every 20s would fire a
+   fresh chain call every single time — the mechanism behind the 2026-07-27 rate
+   limit. This path costs nothing upstream, so it can poll far more often than the
+   archive view without touching the broker at all. */
+const NOW_POLL_MS = 20000;
+let MODE = 'hindsight', NOW_ROWS = [], NOW_AT = 0;
+
+function setMode(m){
+  MODE = m;
+  $('mHind').classList.toggle('on', m === 'hindsight');
+  $('mNow').classList.toggle('on',  m === 'now');
+  $('noteHind').style.display = m === 'now' ? 'none' : '';
+  $('noteNow').style.display  = m === 'now' ? '' : 'none';
+  $('headHind').style.display = m === 'now' ? 'none' : '';
+  $('headNow').style.display  = m === 'now' ? '' : 'none';
+  $('rangeFld').style.display = m === 'now' ? '' : 'none';
+  // The day picker and the rank buttons belong to the archive view; leaving them
+  // live in a view they do not drive would be a set of controls that do nothing.
+  $('dSel').disabled = m === 'now';
+  $('byPct').disabled = $('byRs').disabled = m === 'now';
+  ROWS_SIG = '';                       // force a repaint on the way in
+  load();
+}
+
+async function loadNow(opts){
+  const silent = !!(opts && opts.silent);
+  const inst = $('iSel').value, min = $('minSel').value, rng = $('rngSel').value;
+  const list = inst ? [inst] : ['NIFTY','SENSEX','BANKNIFTY'];
+  if (!silent) $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-loading"><b>Reading the live range…</b></div></td></tr>`;
+  try {
+    const parts = await Promise.all(list.map(i =>
+      fetch(`${location.origin}/api/opt-at-low?inst=${i}&min=${encodeURIComponent(min)}&minRangePct=${encodeURIComponent(rng)}`,
+            {cache:'no-store'}).then(r => r.json())));
+    const rows = [], c = { returned:0, tracked:0, belowFloor:0, thinRange:0, noRange:0 };
+    for (const p of parts) {
+      if (!p || !p.ok) continue;
+      rows.push(...(p.rows || []));
+      for (const k of Object.keys(c)) c[k] += (p.counts && p.counts[k]) || 0;
+    }
+    rows.sort((a,b) => a.pos - b.pos || b.rangePct - a.rangePct);
+    NOW_ROWS = rows.map(r => {
+      const lot = lotOf(r.inst);
+      return { ...r, lot, perLot: (lot != null && isFinite(r.points)) ? r.points * lot : null };
+    });
+    NOW_AT = Date.now();
+    LAST_OK = Date.now(); LAST_ERR = null; DERIVED_AT = null;
+    const sig = NOW_ROWS.map(r => `${r.inst}${r.strike}${r.type}:${r.last}`).join(',');
+    if (sig !== ROWS_SIG) { ROWS_SIG = sig; renderNow(); }
+    // Same accounting discipline as the archive view: a list of survivors alone
+    // would read as though the whole chain were sitting at its low.
+    $('counts').innerHTML =
+      `<span><b>${fmtN(c.returned)}</b> legs near today's low</span>` +
+      `<span><b>${fmtN(c.belowFloor)}</b> below the ₹${min} floor</span>` +
+      `<span><b>${fmtN(c.thinRange)}</b> moved less than ${rng}% all day</span>` +
+      `<span><b>${fmtN(c.noRange)}</b> with no range yet</span>` +
+      `<span>of <b>${fmtN(c.tracked)}</b> tracked · live from the server's H/L tracker</span>`;
+    paintFreshness();
+  } catch(e) {
+    LAST_ERR = e.message; paintFreshness();
+    if (!silent) $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-error"><b>Live range unavailable</b>${e.message}</div></td></tr>`;
+  }
+}
+
+function renderNow(){
+  if (!NOW_ROWS.length) {
+    $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-empty"><b>Nothing clears both filters</b>Lower “Min day range %” or “Min buy ₹”. Early in a session almost nothing has built a range yet.</div></td></tr>`;
+    return;
+  }
+  const ago = t => { if (!t) return ''; const m = Math.round((Date.now() - t) / 60000);
+                     return m < 1 ? 'just now' : `${m}m ago`; };
+  $('tb').innerHTML = NOW_ROWS.map((r,i) => `
+    <tr onclick="openStrike('${r.inst}',${r.strike},'${r.type}')"
+        title="Open ${r.inst} ${r.strike} ${r.type} high/low history in a new tab">
+      <td class="rank">${i+1}</td>
+      <td><span class="${r.type==='CE'?'ce':'pe'}">${r.inst} ${fmtN(r.strike)} ${r.type}</span></td>
+      <td><span class="sell">₹${r.last}</span></td>
+      <td><span class="buy">₹${r.low}</span><span class="t">${ago(r.lowAt)}</span></td>
+      <td>${r.atLow || r.fromLowPct === 0
+            ? '<span class="buy">at the low</span>'
+            : '+' + r.fromLowPct + '%'}</td>
+      <td class="gain">${r.pos}%</td>
+      <td>${r.perLot != null ? '₹'+fmtN(Math.round(r.perLot)) : DASH}</td>
+      <td style="color:var(--faint)">${r.low} – ${r.high} · ${r.rangePct}%</td>
+    </tr>`).join('');
+}
+
 function openStrike(inst, strike, type){
   window.open(`/strike-history.html?inst=${encodeURIComponent(inst)}&strike=${strike}&type=${type}&focus=highlow`,
               '_blank', 'noopener');
@@ -310,7 +443,16 @@ loadDays().then(load).then(() => {
   // worth fetching, rather than being started and stopped as the day, the market and
   // the tab's visibility change underneath it — three conditions that would need
   // three sets of listeners to keep a start/stop timer honest.
-  TIMER = setInterval(() => { if (shouldPoll()) load({silent:true}); paintFreshness(); }, POLL_MS);
+  // The tick runs at the faster of the two cadences and the archive view skips the
+  // ones that are too soon for it. The live view costs nothing upstream, so it can
+  // afford 20s; the archive changes at most every ten minutes, so 60s is already
+  // generous.
+  TIMER = setInterval(() => {
+    if (!shouldPoll()) { paintFreshness(); return; }
+    const due = MODE === 'now' ? NOW_POLL_MS : POLL_MS;
+    if (Date.now() - LAST_OK >= due - 1000) load({silent:true});
+    paintFreshness();
+  }, NOW_POLL_MS);
   // The chip counts minutes, so it has to tick faster than the poll or it would sit
   // on "just now" for a whole minute after the data had aged.
   setInterval(paintFreshness, 10000);

@@ -6916,6 +6916,101 @@ app.get('/api/opthl-archive', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+/* Where each leg is sitting inside TODAY'S range, right now.
+ *
+ * WHY IT READS MEMORY AND NOT THE CHAIN
+ *   /api/options/snapshot triggers an upstream broker fetch whenever its 4-second
+ *   cache has lapsed, so a page polling it every 15-30s forces a fresh chain call
+ *   every single time — the exact mechanism that produced the Upstox 429 on
+ *   2026-07-27. `_optHL` already holds the running high, low and tick path for every
+ *   leg, filled as a side effect of chains fetched for other reasons. Reading it
+ *   costs nothing upstream, which is why this endpoint exists at all rather than the
+ *   page just calling the snapshot.
+ *
+ * WHAT IT IS NOT
+ *   `pos` is a fact: 0 means the leg is trading at its session low. It is NOT a
+ *   signal. A leg sits at its low because it has been falling, and this platform's
+ *   own 1200-trade backtest put directional option BUYING at a profit factor of 0.94
+ *   — a net loser. Nothing here contradicts that; it only says where the price is.
+ */
+app.get('/api/opt-at-low', (req, res) => {
+  try {
+    const inst = String(req.query.inst || 'NIFTY').toUpperCase();
+    const store = _optHL[inst];
+    if (!store) return res.status(400).json({ error: `unknown instrument ${inst}` });
+    const minLast = Math.max(0, Number(req.query.min ?? 10) || 0);
+    const minRangePct = Math.max(0, Number(req.query.minRangePct ?? 0) || 0);
+    const today = _istDateStr();
+
+    const rows = [];
+    let noTick = 0, noRange = 0, belowFloor = 0, thinRange = 0, staleDay = 0;
+    for (const [key, rec] of store) {
+      if (!rec || rec.date !== today) { staleDay++; continue; }
+      const us = key.lastIndexOf('_');
+      const strike = Number(key.slice(0, us)), type = key.slice(us + 1);
+      if (!Number.isFinite(strike) || (type !== 'CE' && type !== 'PE')) continue;
+
+      // Freshest first: the tick path is updated on every LTP move. But it is
+      // memory-only and is NOT restored at boot, so straight after a restart every
+      // leg looks untraded — measured on 2026-07-29, 138 of 138. The minute bars are
+      // restored from the day file, so they carry the price across a restart; the
+      // newest bar's close is the last price we saw. One source is live, the other
+      // survives, and between them the endpoint answers immediately either way.
+      const tail = rec.tickPath && rec.tickPath.length ? rec.tickPath[rec.tickPath.length - 1] : null;
+      let last = tail && Number.isFinite(tail.p) ? tail.p : null;
+      if (last === null) {
+        const d = _optMin.get(`${inst}|${strike}|${type}`);
+        if (d && d.day === today && d.bars && d.bars.size) {
+          let newest = -1;
+          for (const m of d.bars.keys()) if (m > newest) newest = m;
+          const bar = d.bars.get(newest);
+          if (bar && Number.isFinite(bar[3])) last = bar[3];
+        }
+      }
+      if (last === null) { noTick++; continue; }          // never traded here today
+      const high = Number(rec.high), low = Number(rec.low);
+      if (!Number.isFinite(high) || !Number.isFinite(low) || high <= low) { noRange++; continue; }
+      if (last < minLast) { belowFloor++; continue; }
+
+      // A leg whose whole day spanned 1% of its premium is not "at a low" in any
+      // usable sense — it has not moved. The range gate is what separates a strike
+      // that fell from one that simply sat there.
+      const rangePct = ((high - low) / low) * 100;
+      if (rangePct < minRangePct) { thinRange++; continue; }
+
+      rows.push({
+        inst, strike, type, last, high, low,
+        highAt: rec.highAt || null, lowAt: rec.lowAt || null,
+        points: +(high - low).toFixed(2),
+        rangePct: +rangePct.toFixed(2),
+        // 0 = trading at the session low, 100 = at the session high. Clamped, because
+        // rec.high only advances on a CONFIRMED extreme — the verifier makes a
+        // candidate wait a poll — so a live tick can legitimately sit just above the
+        // confirmed high and produce 100.8%. That is the verifier working, not an
+        // error, but a percentage over 100 reads as a bug.
+        pos: +Math.min(100, Math.max(0, ((last - low) / (high - low)) * 100)).toFixed(1),
+        // Clamped for the same reason as `pos`: a tick below the confirmed low means
+        // the leg is MAKING a new low that the verifier has not ratified yet. It is
+        // at its low, not minus two percent away from it.
+        fromLowPct: +Math.max(0, ((last - low) / low) * 100).toFixed(2),
+        // Stated plainly so the page does not have to infer it from a zero.
+        atLow: last <= low,
+      });
+    }
+    rows.sort((a, b) => a.pos - b.pos || b.rangePct - a.rangePct);
+
+    res.json({
+      ok: true, inst, date: today, at: Date.now(),
+      floor: minLast, minRangePct,
+      // Every leg is accounted for: a list that showed only the survivors would read
+      // as though the whole chain were sitting at its low.
+      counts: { returned: rows.length, tracked: store.size, noTick, noRange,
+                belowFloor, thinRange, otherDay: staleDay },
+      rows,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Black-Scholes greeks + option details from REAL per-strike IV (honest, model-derived).
 function _optionDetails(spot, strike, ltp, ivPct, dteDays, type) {
   const S = Number(spot), K = Number(strike), sigma = (Number(ivPct) || 0) / 100;
