@@ -1658,15 +1658,35 @@ async function loadHLMap(){
     for(const [key,v] of Object.entries(j.strikes||{})){
       const us=key.lastIndexOf('_'); const strike=+key.slice(0,us), type=key.slice(us+1);
       if(!isFinite(strike) || !(type==='CE'||type==='PE')) continue;
-      (map[strike]=map[strike]||{})[type]=v;
+      // The archive keys legs as 24300_CE, so `type` is upper case — but the render
+      // below reads map[k].ce / map[k].pe. Storing it as-is put every leg under a key
+      // nothing ever looked at, so every cell rendered a dash and the pane has shown
+      // an empty grid since it shipped on 2026-07-26. Normalise once, here.
+      (map[strike]=map[strike]||{})[type.toLowerCase()]=v;
     }
     let strikes=Object.keys(map).map(Number).sort((a,b)=>a-b);
     const total=strikes.length;
     if(HLM_FILT==='ATM' && total>26){
-      const both=strikes.filter(k=>map[k].ce&&map[k].pe);
-      const atm=(both.length?both:strikes)[Math.floor((both.length?both:strikes).length/2)];
-      const ai=strikes.indexOf(atm);
-      strikes=strikes.filter((k,i)=>Math.abs(i-ai)<=12);
+      // The at-the-money strike is the one where the call and the put are worth the
+      // same — put-call parity, readable straight off the archive and correct for any
+      // session, including one from months ago whose spot nobody recorded.
+      //
+      // This used to take the MIDDLE of the strike list instead, which is only the ATM
+      // if the archive happens to cover the same distance either side of it. Measured
+      // on 2026-07-29 it did not: the window came out 23450-24200 with NIFTY at 24230,
+      // so a filter labelled ATM±12 hid every strike nearest the money.
+      const mid = o => (o && isFinite(o.high) && isFinite(o.low)) ? (o.high + o.low) / 2 : null;
+      const both = strikes.filter(k => mid(map[k].ce) !== null && mid(map[k].pe) !== null);
+      let atm = null, best = Infinity;
+      for (const k of both) {
+        const d = Math.abs(mid(map[k].ce) - mid(map[k].pe));
+        if (d < best) { best = d; atm = k; }
+      }
+      // No strike has both legs priced: fall back to the middle rather than showing
+      // nothing, because a positional guess still beats an empty grid.
+      if (atm === null) atm = strikes[Math.floor(strikes.length / 2)];
+      const ai = strikes.indexOf(atm);
+      strikes = strikes.filter((k,i) => Math.abs(i - ai) <= 12);
     }
     const cell=(o,which)=> o && o[which]!=null
       ? `<td class="${which==='low'?'dn':'up'}">${fmt(o[which])}<span class="at">${_hlmTime(o[which+'At'])}</span></td>`
