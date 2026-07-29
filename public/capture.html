@@ -54,6 +54,15 @@ tbody tr{cursor:pointer;}
 ::-webkit-scrollbar{width:9px;height:9px;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
 
+/* Freshness chip. It states the age of the ARCHIVE, not of the market: the rows
+   come through mirror (5 min) then derive (10 min), so a brand-new capture can be
+   a quarter of an hour behind the live price. Saying "live" here would be a lie. */
+.fresh{font-family:var(--font-num);font-size:.78rem;font-weight:700;white-space:nowrap;color:var(--muted);}
+.fresh.ok{color:var(--green);}
+.fresh.lag{color:var(--amber);}
+.fresh.off{color:var(--dim);}
+.fresh.err{color:var(--red);}
+
 /* 32-inch panel: the cap below was written for a laptop. */
 @media (min-width:1900px){ html{font-size:17px;} .wrap,.layout{max-width:2400px;} }
 @media (min-width:2560px){ html{font-size:18px;} .wrap,.layout{max-width:2800px;} }
@@ -80,7 +89,13 @@ tbody tr{cursor:pointer;}
   <div class="fld"><label>Rank by</label>
     <button class="btn on" id="byPct" onclick="setSort('gainPct')">%</button>
     <button class="btn" id="byRs" onclick="setSort('perLot')">₹ per lot</button></div>
-  <button class="btn" style="margin-left:auto" onclick="load()">⟳ Reload</button>
+  <div class="fld" style="margin-left:auto">
+    <label for="autoBtn">Live</label>
+    <button class="btn on" id="autoBtn" onclick="toggleAuto()"
+      title="Refresh today's rows on their own. Only today is polled — a past day's file never changes.">⏵ Auto</button>
+  </div>
+  <div class="fld"><label>Archive</label><span id="freshness" class="fresh">—</span></div>
+  <button class="btn" onclick="load()">⟳ Reload</button>
 </div>
 
 <main class="wrap">
@@ -146,18 +161,29 @@ function setSort(k){
   render();
 }
 
-async function load(){
+async function load(opts){
+  // A silent load is the one the timer fires. It must not blank the table: doing so
+  // every minute would throw away your scroll position and flash a spinner over rows
+  // that are, nine times out of ten, about to be identical.
+  const silent = !!(opts && opts.silent);
   const date = $('dSel').value, inst = $('iSel').value, min = $('minSel').value;
   if (!date) { $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-empty"><b>No archived day</b>The capture loop has not written a day yet.</div></td></tr>`; return; }
-  $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-loading"><b>Loading ${date}…</b></div></td></tr>`;
+  if (!silent) $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-loading"><b>Loading ${date}…</b></div></td></tr>`;
   try {
     const q = `date=${encodeURIComponent(date)}&min=${encodeURIComponent(min)}` + (inst?`&inst=${inst}`:'');
     const j = await (await fetch(`${WH}/wh/capture?${q}`, {cache:'no-store'})).json();
     if (!j.found) {
-      $('counts').innerHTML = '';
-      $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-empty"><b>Nothing archived for ${date}</b>${j.reason||''}</div></td></tr>`;
+      if (!silent) {
+        $('counts').innerHTML = '';
+        $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-empty"><b>Nothing archived for ${date}</b>${j.reason||''}</div></td></tr>`;
+      }
+      LAST_ERR = j.reason || `nothing archived for ${date}`;
+      paintFreshness();
       return;
     }
+    LAST_ERR = null;
+    LAST_OK = Date.now();
+    DERIVED_AT = j.derivedAt || null;
     const c = j.counts || {};
     // Every strike is accounted for. A page that showed only the winners would read
     // as though every strike offered a capture.
@@ -166,15 +192,84 @@ async function load(){
       `<span><b>${fmtN(c.skippedBelowFloor||0)}</b> below the ₹${j.floor} floor</span>` +
       `<span><b>${fmtN(c.noForwardGain||0)}</b> never rose after their low</span>` +
       `<span>of <b>${fmtN(c.totalStrikes||0)}</b> archived · engine <b>${j.engine||'—'}</b></span>`;
-    ROWS = (j.rows||[]).map(r => {
+    const next = (j.rows||[]).map(r => {
       const lot = lotOf(r.inst);
       return { ...r, lot, perLot: (lot!=null && isFinite(r.points)) ? r.points*lot : null };
     });
-    render();
+    // Re-render only when something actually moved. A silent poll that rebuilds an
+    // identical table for no reason costs a scroll jump and a repaint every minute.
+    const sig = next.length + '|' + next.map(r => `${r.inst}${r.strike}${r.type}:${r.buy}:${r.sell}`).join(',');
+    if (sig !== ROWS_SIG) { ROWS = next; ROWS_SIG = sig; render(); }
+    paintFreshness();
   } catch(e) {
-    $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-error"><b>Archive unreachable</b>${e.message} — the read-only warehouse API on :3100 may be down.</div></td></tr>`;
+    LAST_ERR = e.message;
+    paintFreshness();
+    if (!silent)
+      $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-error"><b>Archive unreachable</b>${e.message} — the read-only warehouse API on :3100 may be down.</div></td></tr>`;
   }
 }
+
+/* ── keeping today's rows current ──────────────────────────────────────────────
+   The rows reach this page through the capture loop, then the mirror (5 min), then
+   derive (10 min), so the archive trails the live price by up to about a quarter of
+   an hour. Polling faster than that buys nothing, but polling once a minute means a
+   new derive shows up within a minute of landing, and the read is a local file on
+   :3100. Three things are deliberately NOT polled:
+     · a past day  — that file is finished and will never change again
+     · a closed market — nothing new is being captured to find
+     · a hidden tab — a background tab that keeps fetching is just a battery leak
+   The chip states the age of the ARCHIVE, never of the market. */
+const POLL_MS = 60000;
+let AUTO = true, TIMER = null, LAST_OK = 0, LAST_ERR = null, DERIVED_AT = null, ROWS_SIG = '';
+
+const istToday = () => new Date(Date.now() + (new Date().getTimezoneOffset() + 330) * 60000)
+  .toISOString().slice(0, 10);
+
+function marketOpen(){
+  const ist = new Date(Date.now() + (new Date().getTimezoneOffset() + 330) * 60000);
+  const day = ist.getDay();
+  if (day === 0 || day === 6) return false;
+  const mins = ist.getHours() * 60 + ist.getMinutes();
+  return mins >= 555 && mins <= 935;          // 09:15 to 15:35, a little past the close
+}
+
+const shouldPoll = () => AUTO && $('dSel').value === istToday() && marketOpen()
+  && document.visibilityState === 'visible';
+
+function paintFreshness(){
+  const el = $('freshness');
+  if (LAST_ERR) { el.className = 'fresh err'; el.textContent = 'unreachable'; el.title = LAST_ERR; return; }
+  if (!LAST_OK) { el.className = 'fresh off'; el.textContent = '—'; return; }
+  // Age of the DATA, taken from the derivation stamp when the API gives one — not
+  // the age of the fetch, which would read as fresh while showing hour-old rows.
+  const stamp = DERIVED_AT ? Date.parse(DERIVED_AT) : LAST_OK;
+  const mins = Math.max(0, Math.round((Date.now() - stamp) / 60000));
+  const live = shouldPoll();
+  el.className = 'fresh ' + (!live ? 'off' : mins <= 15 ? 'ok' : 'lag');
+  el.textContent = (mins < 1 ? 'just now' : `${mins} min old`) + (live ? '' : ' · paused');
+  el.title = (DERIVED_AT ? `Derived at ${new Date(stamp).toLocaleTimeString('en-IN')}. ` : '')
+    + 'The archive trails the live price by the capture, mirror and derive cycles — up to about 15 minutes. '
+    + (live ? `Refreshing every ${POLL_MS/1000}s.`
+            : $('dSel').value !== istToday() ? 'A past day never changes, so it is not polled.'
+            : !marketOpen() ? 'The market is closed — nothing new is being captured.'
+            : 'This tab is in the background.');
+}
+
+function toggleAuto(){
+  AUTO = !AUTO;
+  $('autoBtn').classList.toggle('on', AUTO);
+  $('autoBtn').textContent = AUTO ? '⏵ Auto' : '⏸ Paused';
+  paintFreshness();
+  if (AUTO) load({silent:true});
+}
+
+document.addEventListener('visibilitychange', () => {
+  // Coming back to a tab that has been hidden for a while: catch up at once rather
+  // than waiting out the rest of an interval that ticked away unseen.
+  if (document.visibilityState === 'visible' && shouldPoll() && Date.now() - LAST_OK > POLL_MS)
+    load({silent:true});
+  paintFreshness();
+});
 
 function render(){
   if (!ROWS.length) { $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-empty"><b>No strike cleared the floor</b>Lower “Min buy ₹” to widen the set.</div></td></tr>`; return; }
@@ -210,7 +305,17 @@ function openStrike(inst, strike, type){
   if (t==='light'||t==='dark') document.documentElement.setAttribute('data-theme', t);
 })();
 
-loadDays().then(load);
+loadDays().then(load).then(() => {
+  // One timer for the page's life. It decides on each tick whether there is anything
+  // worth fetching, rather than being started and stopped as the day, the market and
+  // the tab's visibility change underneath it — three conditions that would need
+  // three sets of listeners to keep a start/stop timer honest.
+  TIMER = setInterval(() => { if (shouldPoll()) load({silent:true}); paintFreshness(); }, POLL_MS);
+  // The chip counts minutes, so it has to tick faster than the poll or it would sit
+  // on "just now" for a whole minute after the data had aged.
+  setInterval(paintFreshness, 10000);
+  paintFreshness();
+});
 </script>
 <script src="/js/rail.js"></script>
 <script src="/js/fit.js"></script>

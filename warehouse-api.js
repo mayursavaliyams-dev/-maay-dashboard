@@ -104,6 +104,11 @@ function getCapture(date, opts = {}) {
   rows.sort((a, b) => b.gainPct - a.gainPct);
   return {
     found: true, date, inst, floor,
+    // When the rows were DERIVED, not when they were fetched. A page that polls this
+    // endpoint can otherwise only report the age of its own request, which reads as
+    // "just now" while showing rows that are a quarter of an hour old — the capture
+    // loop, the mirror and derive each add their own lag.
+    derivedAt: doc.derivedAt || null,
     engine: doc.engine || null, source: doc.source || null,
     counts: { returned: rows.length, skippedBelowFloor, noForwardGain: noCapture,
               totalStrikes: Object.keys(doc.strikes || {}).length },
