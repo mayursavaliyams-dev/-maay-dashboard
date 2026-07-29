@@ -100,6 +100,15 @@
   summary::-webkit-details-marker{ display:none; }
   summary .caret{ margin-left:auto; color:#475569; font-size:0.6rem; }
   .gate-body{ padding:0 14px 10px; }
+  /* A ticker you can click. It has to LOOK clickable — a bold word that happens to be
+     a button teaches nobody it is one. */
+  .tkr{ font:inherit; font-weight:800; color:var(--blue); background:rgba(91,156,255,.10);
+        border:1px solid rgba(91,156,255,.28); border-radius:6px; padding:1px 7px;
+        cursor:pointer; letter-spacing:.2px; }
+  .tkr:hover{ background:rgba(91,156,255,.22); color:#cfe0ff; border-color:var(--blue); }
+  .tkr:active{ transform:translateY(1px); }
+  .tkr:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+
   .note{ font-size:0.58rem; color:#6b7787; margin:12px 2px 0; line-height:1.5; }
 
   /* stock analyst */
@@ -376,7 +385,7 @@ async function load() {
     return `<tr>
       <td style="max-width:250px;">${(e.title||'').slice(0,88)}</td>
       <td><span class="pill ${pillClass(e.eventType||'')}">${e.eventType||''}</span></td>
-      <td><b>${(e.stocks||[]).join(', ')||'—'}</b></td>
+      <td>${tickers(e.stocks)}</td>
       <td class="${e.direction==='UP'?'up':e.direction==='DOWN'?'dn':'flat'}">${e.direction==='UP'?'▲ UP':e.direction==='DOWN'?'▼ DOWN':'— FLAT'}</td>
       <td class="prob" style="color:${e.probability>=65?'var(--green)':e.probability>=50?'var(--amber)':'#9ca3af'}">${e.probability}%</td>
       <td class="prob" style="color:${e.expectedMovePct>0?'var(--green)':e.expectedMovePct<0?'var(--red)':'#9ca3af'}">${e.expectedMovePct>0?'+':''}${e.expectedMovePct??'—'}%</td>
@@ -409,6 +418,37 @@ async function load() {
         <div class="gate-body">${renderChecks(s)}</div>
       </details>`;
   }).join('');
+}
+
+/* ── Clickable tickers ───────────────────────────────────────────────────────
+   Every table that names a stock now lets you click it and get the full analysis —
+   price, verdict, the disclosed verdict parameters, fundamentals, headlines and the
+   hedge pair. Before this, a ticker in the news tables was dead text: you could read
+   that ADANIENT was named in an event with an 82% probability and had no way to ask
+   what ADANIENT actually looks like without retyping it into the box above.
+
+   The click runs the SAME analyse path as typing the name, so there is one code path
+   and one answer — a second "quick view" would be a second opinion that drifts. */
+function tickers(list) {
+  const arr = (list || []).filter(Boolean);
+  if (!arr.length) return '<span style="color:var(--muted)">—</span>';
+  return arr.map(s => {
+    const sym = String(s).trim();
+    return `<button class="tkr" onclick="event.stopPropagation();showStock('${sym.replace(/'/g, "\\'")}')"` +
+           ` title="Full analysis for ${sym} — price, verdict, fundamentals, headlines and a hedge pair">${sym}</button>`;
+  }).join(' ');
+}
+
+/* Fill the box and run the existing analyser, then bring the panel into view.
+   The panel sits above these tables, so without the scroll the click would look like
+   nothing happened. */
+function showStock(sym) {
+  const box = document.getElementById('askInput');
+  if (!box) return;
+  box.value = sym;
+  askStock();
+  const out = document.getElementById('askOut');
+  if (out && out.scrollIntoView) out.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── Stock Analyst: ask any stock ──
@@ -691,7 +731,7 @@ function renderHist() {
     return `<tr>
       <td style="white-space:nowrap;color:#94a3b8;">${h.date||''}</td>
       <td style="max-width:200px;">${(h.title||'').slice(0,72)}</td>
-      <td><b>${(h.stocks||[]).join(', ')||'—'}</b></td>
+      <td>${tickers(h.stocks)}</td>
       <td class="${h.direction==='UP'?'up':h.direction==='DOWN'?'dn':'flat'}">${h.direction==='UP'?'▲':h.direction==='DOWN'?'▼':'—'}</td>
       <td class="prob" style="color:${h.probability>=65?'var(--green)':h.probability>=50?'var(--amber)':'#9ca3af'}">${h.probability}%</td>
       <td class="prob" style="color:${h.expectedMovePct>0?'var(--green)':h.expectedMovePct<0?'var(--red)':'#9ca3af'}">${h.expectedMovePct>0?'+':''}${h.expectedMovePct??'—'}%</td>
