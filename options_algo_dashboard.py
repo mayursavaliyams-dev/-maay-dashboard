@@ -685,6 +685,35 @@ def place_and_log(
     lots: int,
     trend: str,
 ) -> TradeLog:
+    """Place an order and record it.
+
+    TWO KEYS — docs/085, docs/089 §1D, the last one-key path, closed 2026-08-12.
+
+        KEY 1  cfg.live_trading (LIVE_TRADING)  — this deployable may act
+        KEY 2  OPTIONS_API_ALLOW_LIVE           — it may reach a broker
+
+    The check lives HERE rather than at the two call sites above it. This is the
+    only function in this module that reaches a broker, so guarding it guards
+    every route to one — the Streamlit button, the CLI `--execute`, and anything
+    added later that nobody remembers to update. Guarding the call sites is how
+    /api/nifty/engine/mode came to be ungated while its twin was gated.
+
+    `options_algo_api.py` already enforces both keys for the HTTP path and has
+    its own test. This closes the module's own CLI and UI paths.
+
+    Read at call time, not at import: a flag evaluated once at import is a flag
+    that cannot be turned OFF on a running process, which is defect D-17 in
+    exactly this file's neighbour.
+    """
+    _key2_raw = os.getenv("OPTIONS_API_ALLOW_LIVE")
+    _key2 = isinstance(_key2_raw, str) and _key2_raw.strip().lower() == "true"
+    if not _key2:
+        raise PermissionError(
+            "OPTIONS_API_ALLOW_LIVE is not set to 'true' — refusing to place an order. "
+            "LIVE_TRADING alone is capability, not permission; both keys are required. "
+            "See docs/085."
+        )
+
     quantity = max(1, int(lots)) * int(contract.lot_size)
     order_id, payload = broker.place_buy_order(contract, quantity)
     ts = now_ist()

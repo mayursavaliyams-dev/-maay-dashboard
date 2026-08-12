@@ -8,7 +8,7 @@ require('dotenv').config();
 const http = require('http');
 
 const BASE = process.env.PREFLIGHT_BASE || `http://localhost:${process.env.PORT || 3100}`;
-const LIVE = (process.env.TRADE_MODE || 'paper') === 'live';
+const LIVE = require('./arming').armingState().live;   // this deployable's own arming, not the shared TRADE_MODE
 
 let pass = 0, fail = 0, warn = 0;
 const c = (code, s) => `\x1b[${code}m${s}\x1b[0m`;

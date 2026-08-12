@@ -104,6 +104,7 @@ app.use(express.json());
 
 // ── AUTH (opt-in · no-op unless AUTH_ENABLED=true) ───────────────────────────
 const auth = require('./auth');
+const instrumentGuard = require('./instrument-guard');
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body || {};
   const r = auth.login(String(username || ''), String(password || ''));
@@ -170,35 +171,44 @@ app.use('/docs', (req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
-// ── CONNECTOR SELECTION ──────────────────────────────────────────
-// Set LIVE_CONNECTOR=kotak  → use Kotak Neo
-// Set LIVE_CONNECTOR=dhan   → use Dhan
-// Set LIVE_CONNECTOR=auto   → try Kotak first, fallback to Dhan
-const CONNECTOR_MODE = (process.env.LIVE_CONNECTOR || 'auto').toLowerCase();
-let live;
-if (CONNECTOR_MODE === 'upstox') {
-  live = new UpstoxConnector({ accessToken: process.env.UPSTOX_ACCESS_TOKEN });
-  console.log('[server] Using Upstox connector');
-} else if (CONNECTOR_MODE === 'kotak') {
-  live = new KotakNeoConnector();
-  console.log('[server] Using Kotak Neo connector');
-} else if (CONNECTOR_MODE === 'dhan') {
-  live = new LiveConnector({ dhanClientId: process.env.DHAN_CLIENT_ID, dhanAccessToken: process.env.DHAN_ACCESS_TOKEN });
-  console.log('[server] Using Dhan connector');
-} else {
-  // AUTO — prefer Upstox when its token is set (Dhan Data API often unsubscribed).
-  const upstoxTok = process.env.UPSTOX_ACCESS_TOKEN;
-  const kotakKey = process.env.KOTAK_CONSUMER_KEY;
-  if (upstoxTok && upstoxTok.length > 40) {
-    live = new UpstoxConnector({ accessToken: upstoxTok });
-    console.log('[server] AUTO — Upstox connector selected');
-  } else if (kotakKey && kotakKey !== 'your_consumer_key_here') {
-    live = new KotakNeoConnector();
-    console.log('[server] AUTO — Kotak Neo connector selected');
-  } else {
-    live = new LiveConnector({ dhanClientId: process.env.DHAN_CLIENT_ID, dhanAccessToken: process.env.DHAN_ACCESS_TOKEN });
-    console.log('[server] AUTO — Dhan connector selected (no Upstox/Kotak)');
-  }
+/* ── CONNECTOR SELECTION ──────────────────────────────────────────────────────
+   LIVE_CONNECTOR names the broker. It is REQUIRED — one of upstox, kotak, dhan.
+
+   There used to be an "auto" mode here that chose by inspecting credentials:
+   Upstox if its token was longer than 40 characters, else Kotak if its key was
+   not the placeholder, else Dhan. Measured on 2026-07-31 by executing that exact
+   block (docs/078 §2):
+
+       auto, token intact          → UpstoxConnector   placeOrder: THROWS
+       auto, token cut to 30 chars → LiveConnector     placeOrder: IMPLEMENTED
+       auto, token cleared         → LiveConnector     placeOrder: IMPLEMENTED
+
+   Losing the Upstox token therefore did not stop this system. It promoted it,
+   from a connector that cannot place an order to one that can — at exactly the
+   moment something was already wrong. A missing credential is now a startup
+   failure naming what is missing, and nothing is ever substituted for anything
+   else. See connector-select.js. */
+const { selectConnector, orderCapability } = require('./connector-select');
+
+let live, CONNECTOR_NAME, CONNECTOR_ORDER_CAPABILITY;
+try {
+  const sel = selectConnector(process.env, {
+    upstox: UpstoxConnector, kotak: KotakNeoConnector, dhan: LiveConnector,
+  });
+  live = sel.connector;
+  CONNECTOR_NAME = sel.name;
+  /* Captured HERE, before the risk guard replaces the connector's placeOrder
+     with a thrower. Read after wrapping, orderCapability() is inspecting the
+     guard's stub, not the connector — measured 2026-07-31, it returned
+     'live-capable' for a connector that refuses. */
+  CONNECTOR_ORDER_CAPABILITY = orderCapability(live);
+  console.log(`[server] connector: ${sel.name} (declared) — order capability: ${CONNECTOR_ORDER_CAPABILITY}`);
+} catch (e) {
+  /* Refusing to start is the point. A process that will not boot is solved in
+     minutes; a process that booted against the wrong broker is discovered from
+     a contract note. */
+  console.error(`\n[server] REFUSING TO START — ${e.code}\n  ${e.message}\n`);
+  throw e;
 }
 
 // Human-readable name of the active data source — used in `source:` fields and
@@ -215,6 +225,183 @@ const liveConnectPromise = live.connect().catch(err => {
   console.error('[live] connect failed:', err.message);
 });
 
+/* ── PORTFOLIO RISK LAYER ─────────────────────────────────────────────────────
+   Sits between strategy signals and order placement. Nothing reaches a broker
+   without an approval from it — enforced by wrapping the broker itself rather
+   than by asking eight call sites to remember, which is the arrangement that
+   fails silently the one time it matters.
+
+   The layer is ON by default. That is deliberate and it is the only flag in
+   this codebase that defaults to enabled: a risk layer that has to be switched
+   on is a risk layer that will be off on the day it was needed.
+
+   IT IS CONSTRUCTED HERE, DIRECTLY AFTER THE CONNECTOR, AND NOT LOWER DOWN.
+   It used to be built ~2,250 lines further on — after every engine that needed
+   it. Each of those lines was correct read on its own; only the order was
+   wrong, which is why it survived review. `guardedBroker` did not exist yet
+   when `new ExecutionEngine({...})` ran, so the engines could not have been
+   handed the guard even deliberately. Anything that consumes the guard must
+   therefore be constructed BELOW this block, and test/order-path-chokepoint
+   asserts that ordering so the defect cannot come back quietly. */
+const { placeGuarded } = require('./place-guarded');
+const { enforceRetention } = require('./retention');
+const { renderBanner } = require('./banner');
+const { sealCodeVersion, loadedProjectFiles, computeAttestation } = require('./attestation');
+const instrumentRegistry = require('./instrument-registry');
+const riskConfig = require('./risk-config');
+const { KillSwitch } = require('./kill-switch');
+const { RiskManager } = require('./risk-manager');
+const { RiskGuardedBroker } = require('./risk-guard');
+
+riskConfig.reload({ by: 'startup' });
+const killSwitch = new KillSwitch({ cfg: riskConfig.get });
+const riskManager = new RiskManager({ cfg: riskConfig.get, killSwitch });
+const guardedBroker = new RiskGuardedBroker(live, { riskManager, killSwitch });
+
+/* ── CONTROL SURFACE GATE ─────────────────────────────────────────────────────
+   Trip the kill switch, RESET it, reload risk config, emergency stop. These were
+   unauthenticated and reachable through the public tunnel.
+
+   NOT auth.requireRole: that middleware is a no-op when AUTH_ENABLED is false,
+   which is its default, so it would have looked like a gate and been none. This
+   one never no-ops — with nothing configured it falls back to loopback only and
+   says so. See control-auth.js. */
+const { ControlAuth } = require('./control-auth');
+const controlAuth = new ControlAuth({ auth: require('./auth') });
+const control = (action) => controlAuth.gate(action);
+console.log(`[control-auth] control endpoints: ${controlAuth.mode().mode} — ${controlAuth.mode().note}`);
+
+/* ── DEFAULT-DENY ON EVERY MUTATING ROUTE ─────────────────────────────────────
+   docs/089 §1A. Installed HERE — after `control` exists, before any route is
+   registered — because route-guard wraps app.post/put/patch/delete/all/route,
+   and a route registered above this line is not wrapped. `app.__routeGuard
+   .preExisting` records any that were, so the gap is visible rather than assumed
+   absent.
+
+   WHY NOT "GATE THE 54 OPEN ROUTES"
+   That is what was done last time, and it produced /api/nifty/engine/mode — a
+   three-line route that flips NIFTY between paper and live, ungated, while its
+   SENSEX twin two hundred lines earlier was gated. Enumerating by hand
+   reproduces the defect. Here a route is gated because it was REGISTERED, and
+   leaving one open costs an allowlist entry with a written reason.
+
+   THE ALLOWLIST IS MEASURED, NOT GUESSED
+   Every page was loaded in a real browser with request logging, and every page
+   and shared script was scanned for `fetch(..., method:'POST')`. Both, because
+   neither alone is enough: the browser misses calls that only fire on a click,
+   and the scan misses computed URLs. Result on 2026-08-10 — the entire UI calls
+   SEVEN mutating routes. Gating the other 47 breaks nothing on screen.
+   Raw measurement: data/route-usage.json. */
+const { installRouteGuard } = require('./route-guard');
+installRouteGuard(app, {
+  gate: control,
+  allowlist: [
+    /* Pure calculations. They POST because a payoff request does not fit in a
+       URL, and they change nothing. */
+    { path: '/api/strategy/payoff', methods: ['post'],
+      reason: 'a payoff calculation, POST only because the body is too large for a URL; changes no state and fires on page load' },
+    { path: '/api/pop/payoff', methods: ['post'],
+      reason: 'a payoff calculation; changes no state' },
+    { path: '/api/screener/run', methods: ['post'],
+      reason: 'a read-only screen query; POST only because a query string is too long for a URL' },
+    { path: '/api/screener/backtest', methods: ['post'],
+      reason: 'a read-only backtest over cached bars; reads only, writes nothing' },
+
+    /* Reducing risk is never gated. An action that needs a credential during the
+       incident that made it necessary is an action that will not happen — the
+       same reason flatten.js carries no live-permission key. */
+    { path: '/api/pop/close', methods: ['post'],
+      reason: 'closes a position, so it only ever reduces exposure; an exit that needs a credential is a position that cannot be closed' },
+    { path: '/api/engine/halt-all', methods: ['post'],
+      reason: 'stops the engines; the operator must be able to halt without finding a token first' },
+
+    /* External senders that ALREADY carry their own credential. Measured:
+       amibroker-bridge.js calls self.authenticate(req) on every one of its
+       routes and returns 401 without it; the TradingView receiver rejects a bad
+       key at server.js:8273. Adding the control token on top would demand a
+       SECOND, different credential from a client that cannot easily send one,
+       and the practical outcome of that is a disabled integration rather than a
+       safer one. */
+    { path: '/api/amibroker/order', methods: ['post'],
+      reason: 'AmiBroker carries its own shared secret — amibroker-bridge.js authenticate(); a second credential would break the AFL sender' },
+    { path: '/api/amibroker/signal', methods: ['post'],
+      reason: 'as /api/amibroker/order — the bridge authenticates every route itself' },
+    { path: '/api/amibroker/webhook', methods: ['post'],
+      reason: 'as /api/amibroker/order — the bridge authenticates every route itself' },
+    { path: '/api/webhook/tradingview', methods: ['post'],
+      reason: 'TradingView carries its own key and is rejected without it; it cannot send an x-control-token header' },
+
+    /* REGISTERED ABOVE THIS GUARD (server.js:108 and :115), so they are not
+       wrapped by it. They are listed anyway so their openness is a DECISION on
+       the record rather than an accident of line order — which is the exact
+       distinction this whole programme is about.
+
+       They must be open on their merits too: requiring a credential to obtain a
+       credential is a locked door with the key inside.
+
+       They are not MOVED above the guard, and the guard is not moved above them.
+       That would mean relocating controlAuth 160 lines earlier in a file whose
+       dependency mechanism is construction order — the same class of change that
+       put the risk guard 2,300 lines after the engines that needed it. The
+       ratchet in test/route-guard-install.test.js pins this set at exactly two,
+       so a THIRD route appearing above the guard turns the suite red. */
+    { path: '/api/auth/login', methods: ['post'],
+      reason: 'obtains a credential; requiring one to get one is a locked door with the key inside. Registered at server.js:108, above the guard' },
+    { path: '/api/auth/logout', methods: ['post'],
+      reason: 'discards a credential — it only ever reduces access. Registered at server.js:115, above the guard' },
+  ],
+});
+console.log(`[route-guard] mutating routes gated by default; ${app.__routeGuard.entries.length} allowlisted, ${app.__routeGuard.preExisting.length} registered before the guard`);
+
+/* ── THE PORTFOLIO STATE EVERY ORDER IS EVALUATED AGAINST ────────────────────
+   Until 2026-07-31 nothing in this file called `requestApproval`, so the risk
+   layer had never evaluated anything — the guarded path would have refused its
+   own orders for having no approval. This is the missing half.
+
+   It reads the live engine states through positions-book, which reports which
+   engines failed to answer rather than treating silence as "flat". Anything it
+   cannot measure stays null, the corresponding limit reports UNEVALUABLE, and
+   the order blocks. That is the intended direction.
+
+   Defined here, beside the guard, and called only at order time — long after
+   the engines below have been constructed. */
+function _riskStateNow() {
+  try {
+    const positionsBook = require('./positions-book');
+    const { buildRiskState } = require('./risk-state');
+    const S = (fn) => { try { return fn(); } catch (_) { return null; } };
+
+    const book = positionsBook.build({
+      strangle:       S(() => strangleEngine && strangleEngine.status()),
+      bounce:         S(() => bounceEngine && bounceEngine.status()),
+      'gamma-blast':  S(() => gammaBlastEngine && gammaBlastEngine.status()),
+      'signal-paper': S(() => signalPaperEngine && signalPaperEngine.status()),
+      'ai-agents':    S(() => agentsEngine && agentsEngine.status()),
+    });
+
+    const capital = parseFloat(process.env.CAPITAL_TOTAL || '') || null;
+    const { state, complete, gaps } = buildRiskState(book, {
+      equity: capital,
+      startOfDayEquity: capital,
+      peakEquityToday: capital,
+      // Not yet measured. Left null on purpose: a zero here would tell the day
+      // loss limit that nothing has been lost today.
+      dayRealisedPnl: null,
+      greeks: null,                       // no portfolio greeks source yet
+      dataAgeMs: _livePriceAt ? Date.now() - _livePriceAt : null,
+      consecutiveLosses: null,
+      isExpiryDay: null,
+      minutesToClose: null,
+    });
+    if (!complete) console.warn(`[risk-state] incomplete — ${gaps.join(' | ')}`);
+    return state;
+  } catch (e) {
+    // A state builder that throws must not become "no limits". It becomes no order.
+    console.error(`[risk-state] could not be built: ${e.message}`);
+    return null;
+  }
+}
+
 // ==================== STATE — SENSEX ====================
 // Auto-start the bot loop on boot. The per-engine `autoEnabled` flag
 // (NIFTY_AUTO_ENABLED / SENSEX_AUTO_ENABLED in .env) is the real gate for
@@ -223,7 +410,60 @@ const liveConnectPromise = live.connect().catch(err => {
 // validation attempt to silently no-op because nobody POSTed /api/bot/start
 // after the server boot. Override by setting BOT_AUTOSTART=false in .env.
 let botRunning = String(process.env.BOT_AUTOSTART ?? 'true').toLowerCase() !== 'false';
-let tradesToday = 0;
+/* DAILY TRADE COUNTS SURVIVE A RESTART — docs/089 §1C.
+
+   These were `let tradesToday = 0`, in memory, under a supervisor configured for
+   ten restarts. Ten restarts was ten fresh daily budgets, and the engine reported
+   "0 trades today" while telling the truth about its memory.
+
+   DayCounter keys the count to the IST CALENDAR DATE and to nothing else. Not to
+   the process, not to a session, not to "since the engine started" — each of
+   those makes a restart look like a new day. It does NOT reset at 09:15 either:
+   a restart at 09:20 loads what was recorded at 09:00.
+
+   THE FAIL-CLOSED PART, which is the reason this is not a one-line swap:
+   `count()` returns NULL when the state file cannot be read. The engines compare
+   `tradesToday >= maxTrades`, and `null >= 5` is FALSE — so a null would remove
+   the cap exactly the way a NaN limit does (docs/089 §1B). `_tradesToday()`
+   therefore returns MAX_SAFE_INTEGER on an unreadable count, which blocks every
+   new entry and says so. Refusing to trade when we cannot count what we have
+   already traded is the only safe direction. */
+const { readLimit } = require('./limits');
+const { DayCounter } = require('./day-counter');
+/* MAX_TRADES_PER_DAY through limits.js — docs/089 section 1B.
+   Was `parseInt(process.env.MAX_TRADES_PER_DAY || 2)` at two call sites. A
+   non-numeric value became NaN, and `count >= NaN` is false for every count, so
+   the daily cap silently ceased to exist on BOTH the manual route and the
+   webhook. Read once, refused loudly, rather than parsed twice and trusted. */
+// max 1000, not 200: the deployed .env sets 100 and a rail that refuses a real
+// configuration teaches people to widen rails rather than read them.
+const _MAX_TRADES = readLimit('MAX_TRADES_PER_DAY', { default: 2, min: 0, max: 1000, integer: true });
+if (!_MAX_TRADES.ok) console.error(`[limits] ${_MAX_TRADES.error} — new entries will be BLOCKED`);
+function _maxTradesPerDay() {
+  // A limit we could not parse blocks, rather than defaulting to something the
+  // operator did not ask for.
+  return _MAX_TRADES.ok ? _MAX_TRADES.value : 0;
+}
+
+const _dayCounter = new DayCounter({ file: require('path').join(__dirname, 'data', 'trades-today.json') });
+if (!_dayCounter.loaded) {
+  console.error(`[day-counter] state unreadable: ${_dayCounter.loadError} — new entries will be BLOCKED until this is fixed`);
+}
+let _countWarned = false;
+function _tradesToday(key) {
+  const n = _dayCounter.count(key);
+  if (n !== null) return n;
+  if (!_countWarned) {
+    _countWarned = true;
+    console.error(`[day-counter] cannot read today's count for ${key} — blocking new entries rather than assuming zero`);
+  }
+  return Number.MAX_SAFE_INTEGER;
+}
+function _incrementTrades(key) {
+  try { _dayCounter.increment(key); }
+  catch (e) { console.error(`[day-counter] could not record a trade for ${key}: ${e.message}`); }
+}
+
 let orbHigh = null;
 let orbLow = null;
 let dayHigh = null;
@@ -240,7 +480,6 @@ let todayDate = new Date().toDateString();
 let _lastAiResult = { signal: 'WAIT', confidence: 0, reasons: [], warnings: [] };
 
 // ==================== STATE — NIFTY ====================
-let niftyTradesToday = 0;
 let niftyOrbHigh = null;
 let niftyOrbLow = null;
 let niftyDayHigh = null;
@@ -285,9 +524,23 @@ const INSTRUMENT_META = {
   }
 };
 
+/* An unknown instrument is refused, not swapped for SENSEX.
+
+   This used to end in `|| INSTRUMENT_META.SENSEX`, which meant
+   /api/options/snapshot?instrument=TMPV answered with SENSEX's 77654.6 under
+   the label "TMPV". See instrument-guard.js for the full account. */
 function getInstrumentMeta(inst = 'SENSEX') {
-  return INSTRUMENT_META[String(inst || 'SENSEX').toUpperCase()] || INSTRUMENT_META.SENSEX;
+  return instrumentGuard.resolveMeta(INSTRUMENT_META, inst, 'SENSEX');
 }
+
+/* Mounted here rather than beside the other middleware because it takes its list
+   of valid names from INSTRUMENT_META above — one source, so the guard cannot
+   start disagreeing with the table it is guarding. Still ahead of every route
+   below, which is all the ordering that matters.
+
+   One mount covers all 42 handlers that read an instrument, and every handler
+   added after today, without any of them being edited. */
+app.use('/api', instrumentGuard.guard({ known: Object.keys(INSTRUMENT_META) }));
 
 const IST_OFFSET_MIN = 330;
 const MARKET_OPEN_MIN = 9 * 60 + 15;
@@ -359,7 +612,13 @@ amiBridge.registerRoutes(app, {
   }),
   executeAmiSignal: (signal, opts) => executeAmiSignal(signal, opts),
   exitAmiPosition: (signal, opts) => exitAmiPosition(signal, opts),
-  liveConnector: live
+  /* Phase 2.3 — the bridge gets the chokepoint, not the raw connector.
+     `liveConnector: live` used to be here. It was removed rather than kept
+     alongside: leaving it would have left a raw handle in a deps object that a
+     future edit could reach for, which is the arrangement this phase exists to
+     delete. */
+  broker: guardedBroker,
+  getRiskState: _riskStateNow
 });
 
 // ==================== HELPER FUNCTIONS ====================
@@ -578,10 +837,16 @@ function _persistOptHLDay() {
     if (!count) return false;
     fs2.mkdirSync(_optHLDir, { recursive: true });
     fs2.writeFileSync(path2.join(_optHLDir, `${date}.json`), JSON.stringify(out));
-    const files = fs2.readdirSync(_optHLDir).filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
-    while (files.length > 120) { try { fs2.unlinkSync(path2.join(_optHLDir, files.shift())); } catch (_) {} }
+    // Same policy as opt-candles above. 27 files against a cap of 120 today, so
+    // this one was not close to firing — which is exactly why it would have been
+    // the one nobody noticed. See docs/089 §0b.
+    const r = enforceRetention({ dir: _optHLDir, cap: 120, log: console });
+    if (r.refused) console.warn(`[opthl] ${r.reason}`);
     return true;
-  } catch (_) { return false; }
+  } catch (e) {
+    console.error('[opthl] persist failed:', e.message);
+    return false;
+  }
 }
 // Regular save — every 60s writes today's records if any exist (captures the
 // post-close final state too, since _updateOptHL only mutates during hours).
@@ -615,9 +880,28 @@ function _persistOptCandles() {
     if (!Object.keys(series).length) return;
     fs2.mkdirSync(_optCandDir, { recursive: true });
     fs2.writeFileSync(path2.join(_optCandDir, `${day}.json`), JSON.stringify({ date: day, savedAt: Date.now(), series }));
-    const files = fs2.readdirSync(_optCandDir).filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
-    while (files.length > 40) { try { fs2.unlinkSync(path2.join(_optCandDir, files.shift())); } catch (_) {} }
-  } catch (_) {}
+    /* RETENTION IS A POLICY, NOT A LOOP.  (2026-08-08, docs/089 §0b)
+
+       This was:
+         while (files.length > 40) { try { fs2.unlinkSync(…files.shift()); } catch (_) {} }
+
+       Proven against the shipped line in test/retention.test.js §1: 45 files in,
+       40 out — five days of intraday option chain unlinked, with no log. Price
+       history can be re-bought from the broker; an option chain at 11:00 on a
+       particular Tuesday cannot be bought back at any price.
+
+       The archive held 19 files on the day this changed. Headroom was 21 trading
+       days; the earliest deletion would have been 2026-09-07.
+
+       enforceRetention reports the pressure and refuses. Deleting needs
+       permission, a destination, and a re-read digest match — see retention.js. */
+    const r = enforceRetention({ dir: _optCandDir, cap: 40, log: console });
+    if (r.refused) console.warn(`[opt-candles] ${r.reason}`);
+  } catch (e) {
+    /* The outer catch was `catch (_) {}`. Removing the deletion without removing
+       the silence would leave the archive safe and every failure invisible. */
+    console.error('[opt-candles] persist failed:', e.message);
+  }
 }
 // ── RESTORE TODAY'S BARS AT BOOT ────────────────────────────────────────────
 // `_optMin` lives in memory, so every restart used to discard the bars recorded
@@ -1394,10 +1678,13 @@ function resetDailyCheck() {
   const currentDate = new Date().toDateString();
   if (currentDate !== todayDate) {
     todayDate = currentDate;
-    tradesToday = 0;
+    /* tradesToday/niftyTradesToday are no longer reset here. DayCounter owns
+       the roll and keys it to the IST calendar date; this function keyed it to
+       `new Date().toDateString()`, which is the LOCAL date and drifts from IST
+       for anything running outside +05:30. Two resets with two definitions of
+       "day" is worse than one. See docs/089 section 1C. */
     orbHigh = null; orbLow = null; dayHigh = null; dayLow = null;
     prices = []; volumes = [];
-    niftyTradesToday = 0;
     niftyOrbHigh = null; niftyOrbLow = null; niftyDayHigh = null; niftyDayLow = null;
     niftyPrices = []; niftyVolumes = [];
     _persistMarketState();  // wipe yesterday's persistence too
@@ -1606,7 +1893,7 @@ app.get("/api/sensex", async (req, res) => {
         suggestedStrike: "--",
         target: "--",
         botRunning: botRunning,
-        tradesToday: tradesToday,
+        tradesToday: _dayCounter.count('SENSEX'),
         marketOpen: false,
         marketStatus: session.status,
         time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -1678,7 +1965,7 @@ app.get("/api/sensex", async (req, res) => {
       suggestedStrike: suggestedStrike,
       target: targetMultiplier,
       botRunning: botRunning,
-      tradesToday: tradesToday,
+      tradesToday: _dayCounter.count('SENSEX'),
       marketOpen: true,
       marketStatus: session.status,
       time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })
@@ -1702,7 +1989,7 @@ app.get("/api/sensex", async (req, res) => {
         confidence: sig.confidence,
         suggestedStrike: sig.suggestedStrike,
         target: sig.target,
-        botRunning, tradesToday,
+        botRunning, tradesToday: _dayCounter.count('SENSEX'),
         marketOpen: session.inMarketHours,
         marketStatus: session.status,
         time: now2.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -1758,7 +2045,7 @@ app.get("/api/nifty", async (req, res) => {
         suggestedStrike: '--',
         target:          '--',
         botRunning,
-        tradesToday: niftyTradesToday,
+        tradesToday: _dayCounter.count('NIFTY'),
         marketOpen: false,
         marketStatus: session.status,
         time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -1819,7 +2106,7 @@ app.get("/api/nifty", async (req, res) => {
       suggestedStrike: niftySuggestedStrike,
       target:          niftyTargetMultiplier,
       botRunning,
-      tradesToday: niftyTradesToday,
+      tradesToday: _dayCounter.count('NIFTY'),
       marketOpen: true,
       marketStatus: session.status,
       time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -1844,7 +2131,7 @@ app.get("/api/nifty", async (req, res) => {
           suggestedStrike: '--',
           target: '--',
           botRunning,
-          tradesToday: niftyTradesToday,
+          tradesToday: _dayCounter.count('NIFTY'),
           marketOpen: session.inMarketHours,
           marketStatus: session.status,
           time: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -1924,7 +2211,7 @@ app.post("/api/bot/stop", (req, res) => {
 app.get("/api/bot/status", (req, res) => {
   res.json({
     running: botRunning,
-    tradesToday: tradesToday,
+    tradesToday: _dayCounter.count('SENSEX'),
     maxTradesPerDay: parseInt(process.env.MAX_TRADES_PER_DAY || 2),
     currentSignal: currentSignal,
     confidence: confidence
@@ -1935,8 +2222,8 @@ app.get("/api/bot/status", (req, res) => {
 app.post("/api/trade/execute", async (req, res) => {
   const { securityId, strike, type, quantity } = req.body;
 
-  const maxTrades = parseInt(process.env.MAX_TRADES_PER_DAY || 2);
-  if (tradesToday >= maxTrades) {
+  const maxTrades = _maxTradesPerDay();
+  if (_tradesToday('SENSEX') >= maxTrades) {
     return res.status(400).json({
       error: `Daily trade limit reached (${maxTrades}/${maxTrades})`
     });
@@ -1953,7 +2240,7 @@ app.post("/api/trade/execute", async (req, res) => {
   try {
     const tradeMode = process.env.TRADE_MODE || 'paper';
     if (tradeMode !== 'live') {
-      tradesToday++;
+      _incrementTrades('SENSEX');
       tradeHistory.push({
         time: new Date().toLocaleTimeString(),
         securityId,
@@ -1967,16 +2254,31 @@ app.post("/api/trade/execute", async (req, res) => {
       return res.json({ status: 'PAPER', orderId: tradeHistory[tradeHistory.length - 1].orderId, trade: { securityId, strike, type } });
     }
 
-    const orderResult = await live.placeOrder({
-      securityId,
-      exchangeSegment: 'BSE_FNO',
-      transactionType: 'BUY',
-      productType: 'INTRADAY',
-      orderType: 'MARKET',
-      quantity: Number(quantity) || 10
+    /* Phase 2.3 — through the chokepoint. A manual trade is still a trade: it
+       is evaluated against the same limits as an engine's, because the reason
+       a limit exists does not change when a human presses the button. */
+    const orderResult = await placeGuarded({
+      broker: guardedBroker,
+      intent: {
+        strategy: 'MANUAL', instrument: 'SENSEX',
+        strike: Number(strike) || null, optionType: type || null, side: 'BUY',
+        expiry: (() => { try { return instrumentRegistry.nextExpiry('SENSEX') || null; } catch (_) { return null; } })(),
+        stopDistance: null, lotSize: null,
+        requestedLots: null,
+        marginVerdict: null,
+      },
+      state: _riskStateNow(),
+      order: {
+        securityId,
+        exchangeSegment: 'BSE_FNO',
+        transactionType: 'BUY',
+        productType: 'INTRADAY',
+        orderType: 'MARKET',
+        quantity: Number(quantity) || 10
+      },
     });
 
-    tradesToday++;
+    _incrementTrades('SENSEX');
     tradeHistory.push({
       time: new Date().toLocaleTimeString(),
       securityId,
@@ -1998,7 +2300,7 @@ app.post("/api/trade/execute", async (req, res) => {
 // Get trade history
 app.get("/api/trades", (req, res) => {
   res.json({
-    tradesToday: tradesToday,
+    tradesToday: _dayCounter.count('SENSEX'),
     history: tradeHistory
   });
 });
@@ -2450,9 +2752,18 @@ async function _buildOptionSnapshot(instrument = 'NIFTY') {
   try {
     const data = await promise;
     _optionSnapshotCache.set(inst, { data, at: Date.now(), promise: null });
+    /* Every FRESH snapshot is observed by the data-quality gate here — at the
+       one point the chain is actually built, rather than in each engine that
+       consumes it. A cached read (the early return above) is deliberately not
+       re-observed: counting the same snapshot twice would halve every measured
+       inter-tick gap and make a dying feed look twice as lively as it is. */
+    if (typeof _observeChain === 'function') _observeChain(inst, data);
     return data;
   } catch (error) {
     _optionSnapshotCache.delete(inst);
+    if (typeof feedHealth !== 'undefined' && feedHealth) {
+      feedHealth.notePoll({ ok: false, error: error.message });
+    }
     throw error;
   }
 }
@@ -3201,6 +3512,10 @@ app.post('/api/nifty/position/exit', (req, res) => {
 // ==================== EXECUTION ENGINE — SENSEX ====================
 const engine = new ExecutionEngine({
   live,
+  // Phase 2.3 — orders go through the chokepoint. `live` stays for READS;
+  // its placeOrder is neutralised by the guard and throws if reached.
+  broker: guardedBroker,
+  getRiskState: _riskStateNow,
   getSignal:           () => currentSignal,
   getPrice:            () => _livePrice,
   getOrbLevels:        () => ({ high: orbHigh, low: orbLow }),
@@ -3208,8 +3523,8 @@ const engine = new ExecutionEngine({
   getOpenPosition:     () => openPosition,
   setOpenPosition:     (p) => { openPosition = p; },
   pushClosedPosition:  (p) => { closedPositions.push(p); },
-  incrementTrades:     () => { tradesToday++; },
-  getTradesToday:      () => tradesToday,
+  incrementTrades:     () => _incrementTrades('SENSEX'),
+  getTradesToday:      () => _tradesToday('SENSEX'),
   getMaxTrades:        () => parseInt(process.env.MAX_TRADES_PER_DAY || 2),
   lotSize:         20,
   strikeInterval:  100,
@@ -3229,14 +3544,14 @@ engine.setTrendProvider(() => _computeTrendFromHL('SENSEX',
 // restoreEquity() moved below _loadConfigOverrides() — see the ORDER MATTERS note there.
 
 // Engine control endpoints — SENSEX
-app.post('/api/engine/auto', (req, res) => {
+app.post('/api/engine/auto', control('engine-arm'), (req, res) => {
   const { enabled } = req.body;
   engine.setAutoEnabled(!!enabled);
   _persistEngineOverride({ SENSEX_DIRECTIONAL_AUTO: !!enabled });   // survives restarts
   res.json({ ok: true, autoEnabled: !!enabled });
 });
 
-app.post('/api/engine/mode', (req, res) => {
+app.post('/api/engine/mode', control('engine-TRADE-MODE'), (req, res) => {
   const { mode } = req.body;
   engine.setTradeMode(mode);
   res.json({ ok: true, mode });
@@ -3355,7 +3670,7 @@ app.post('/api/engine/halt-all', (req, res) => {
 
 // Manual reset of consecutive-loss halt. Operator action after reviewing
 // what went wrong — clears _consecLosses and re-enables auto trading.
-app.post('/api/engine/reset', (req, res) => {
+app.post('/api/engine/reset', control('engine-halt-reset'), (req, res) => {
   const inst = String(req.query.inst || 'SENSEX').toUpperCase();
   const target = inst === 'NIFTY' ? niftyEngine : engine;
   if (!target.resetHalt) return res.status(400).json({ error: 'engine has no resetHalt method' });
@@ -3366,6 +3681,10 @@ app.post('/api/engine/reset', (req, res) => {
 // ==================== EXECUTION ENGINE — NIFTY ====================
 const niftyEngine = new ExecutionEngine({
   live,
+  // Phase 2.3 — orders go through the chokepoint. `live` stays for READS;
+  // its placeOrder is neutralised by the guard and throws if reached.
+  broker: guardedBroker,
+  getRiskState: _riskStateNow,
   getSignal:           () => niftySignal,
   getPrice:            () => _niftyLivePrice,
   getOrbLevels:        () => ({ high: niftyOrbHigh, low: niftyOrbLow }),
@@ -3373,8 +3692,8 @@ const niftyEngine = new ExecutionEngine({
   getOpenPosition:     () => niftyOpenPosition,
   setOpenPosition:     (p) => { niftyOpenPosition = p; },
   pushClosedPosition:  (p) => { niftyClosedPositions.push(p); },
-  incrementTrades:     () => { niftyTradesToday++; },
-  getTradesToday:      () => niftyTradesToday,
+  incrementTrades:     () => _incrementTrades('NIFTY'),
+  getTradesToday:      () => _tradesToday('NIFTY'),
   getMaxTrades:        () => parseInt(process.env.MAX_TRADES_PER_DAY || 2),
   lotSize:         65,
   strikeInterval:  50,
@@ -3487,6 +3806,10 @@ app.get('/api/nifty/engine/status', (req, res) => {
 // ==================== AFTERNOON ENGINE — SENSEX ====================
 const afternoonEngine = new AfternoonEngine({
   live,
+  // Phase 2.3 — orders go through the chokepoint. `live` stays for READS;
+  // its placeOrder is neutralised by the guard and throws if reached.
+  broker: guardedBroker,
+  getRiskState: _riskStateNow,
   getPrice:            () => _livePrice,
   getOpenPosition:     () => afternoonOpenPosition,
   setOpenPosition:     (p) => { afternoonOpenPosition = p; },
@@ -3548,6 +3871,10 @@ afternoonEngine.onTradeEvent = (event, data) => {
 // ==================== AFTERNOON ENGINE — NIFTY ====================
 const niftyAfternoonEngine = new AfternoonEngine({
   live,
+  // Phase 2.3 — orders go through the chokepoint. `live` stays for READS;
+  // its placeOrder is neutralised by the guard and throws if reached.
+  broker: guardedBroker,
+  getRiskState: _riskStateNow,
   getPrice:            () => _niftyLivePrice,
   getOpenPosition:     () => niftyAfternoonOpenPosition,
   setOpenPosition:     (p) => { niftyAfternoonOpenPosition = p; },
@@ -5781,6 +6108,622 @@ app.post('/api/agents/score-outcomes', async (req, res) => {
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+/* The PORTFOLIO RISK LAYER used to be constructed here, ~2,250 lines below the
+   engines that were supposed to receive it. It now lives immediately after the
+   connector — see the block near the top of this file. Phase 2.2 of
+   docs/075; the defect it fixes is recorded in docs/074 §0.2. */
+
+/* ── DATA QUALITY GATE ────────────────────────────────────────────────────────
+   Sits in front of every trading decision. If the data is not trustworthy, the
+   bot does not trade on it.
+
+   Freshness is judged PER INSTRUMENT against that instrument's own trailing
+   median inter-change gap. A single global threshold is wrong in both directions
+   on the same chain: measured on this system's archive for 2026-07-29, 70 of 662
+   strike-side series never printed a different price all day while the ATM
+   strikes moved constantly. */
+const { DataQuality } = require('./data-quality');
+const { FeedHealth } = require('./feed-health');
+const { DataGate, GATE_DEFAULTS } = require('./data-gate');
+
+const dataQuality = new DataQuality({});
+const feedHealth = new FeedHealth({ dataQuality });
+const dataGate = new DataGate({
+  dataQuality, feedHealth,
+  cfg: () => {
+    const c = riskConfig.get();
+    return {
+      DQ_GATE_ENABLED: c.DQ_GATE_ENABLED ?? GATE_DEFAULTS.DQ_GATE_ENABLED,
+      DQ_BLOCK_ON_STALE: c.DQ_BLOCK_ON_STALE ?? GATE_DEFAULTS.DQ_BLOCK_ON_STALE,
+      DQ_BLOCK_ON_FLAGS: c.DQ_BLOCK_ON_FLAGS ?? GATE_DEFAULTS.DQ_BLOCK_ON_FLAGS,
+      DQ_REQUIRE_FULL_COVERAGE: c.DQ_REQUIRE_FULL_COVERAGE ?? GATE_DEFAULTS.DQ_REQUIRE_FULL_COVERAGE,
+      DQ_MIN_STRATEGY_COVERAGE_PCT: c.DQ_MIN_STRATEGY_COVERAGE_PCT ?? GATE_DEFAULTS.DQ_MIN_STRATEGY_COVERAGE_PCT,
+      DQ_OUTAGE_POLICY: c.DQ_OUTAGE_POLICY ?? GATE_DEFAULTS.DQ_OUTAGE_POLICY,
+    };
+  },
+});
+
+/* Feed every chain snapshot through the quality tracker. This is the only place
+   the gate learns anything, so it is wired at the point the chain is built
+   rather than left for each engine to remember. */
+function _observeChain(inst, snap) {
+  try {
+    const keys = [];
+    for (const row of (snap.strikes || [])) {
+      for (const side of ['ce', 'pe']) {
+        const s = row[side];
+        if (!s) continue;
+        const key = `${inst}|${row.strike}|${side.toUpperCase()}`;
+        keys.push(key);
+        dataQuality.ingest(key, {
+          bid: s.bid, ask: s.ask, ltp: s.ltp, volume: s.volume, oi: s.oi,
+          bidQty: s.bidQty, askQty: s.askQty,
+          dayHigh: s.high, dayLow: s.low,
+          exchangeTs: Date.parse(snap.timestamp || snap.ts) || null,
+        });
+      }
+    }
+    feedHealth.expectInstruments(keys);
+    feedHealth.notePoll({ ok: true, instrumentsReturned: keys.length, targetIntervalMs: 2500 });
+  } catch (e) {
+    // A failure to OBSERVE is itself a feed failure, and is recorded as one.
+    feedHealth.notePoll({ ok: false, error: e.message });
+  }
+}
+
+app.get('/api/data-quality/status', (req, res) => res.json({ ok: true, ...dataGate.status() }));
+app.get('/api/data-quality/scorecard', (req, res) => res.json({ ok: true, ...dataGate.scorecard() }));
+app.get('/api/data-quality/instruments', (req, res) => {
+  const all = dataQuality.snapshotAll();
+  const stale = /^(1|true|yes)$/i.test(String(req.query.staleOnly || ''));
+  res.json({ ok: true, count: all.length, instruments: stale ? all.filter(x => x.priceStale !== false) : all.slice(0, 500) });
+});
+app.get('/api/data-quality/check', (req, res) => {
+  const key = String(req.query.key || '');
+  if (!key) return res.status(400).json({ ok: false, error: 'pass ?key=INSTRUMENT|STRIKE|CE' });
+  res.json({ ok: true, decision: dataGate.checkInstrument(key, { needsOi: /^(1|true|yes)$/i.test(String(req.query.needsOi || '')) }) });
+});
+
+/* ── MARGIN AWARENESS ─────────────────────────────────────────────────────────
+   The broker's own calculator is the source of truth. `position-sizer.js` still
+   carries `SIZER_STRANGLE_MARGIN || 130000`; measured against the live account on
+   2026-07-30 a NIFTY short strangle costs ₹1,80,959 — the assumption is 28% low,
+   so a sizer using it takes about 1.4× the lots the account can carry. Nothing in
+   this layer uses a formula. */
+const { MarginCalculator } = require('./margin-calculator');
+const { MarginOptimiser } = require('./margin-optimiser');
+const { MarginMonitor } = require('./margin-monitor');
+
+const marginCalculator = new MarginCalculator({ broker: live });
+const marginOptimiser = new MarginOptimiser({ calculator: marginCalculator });
+const marginMonitor = new MarginMonitor({
+  calculator: marginCalculator,
+  cfg: () => {
+    const c = riskConfig.get();
+    return {
+      MARGIN_WARN_UTIL_PCT: c.MARGIN_WARN_UTIL_PCT ?? 70,
+      MARGIN_STOP_ENTRY_UTIL_PCT: c.MARGIN_STOP_ENTRY_UTIL_PCT ?? 85,
+      MARGIN_HARD_UTIL_PCT: c.MARGIN_HARD_UTIL_PCT ?? 95,
+      MARGIN_HEADROOM_BUFFER_PCT: c.MARGIN_HEADROOM_BUFFER_PCT ?? 5,
+    };
+  },
+  // A margin level change is a risk event, so it reaches the kill switch rather
+  // than only the log.
+  onAlert: ({ level, snapshot }) => {
+    if (level === 'HARD') {
+      killSwitch.trip({
+        reason: 'MARGIN_UTILISATION',
+        detail: `projected margin utilisation ${snapshot.projectedUtilisationPct}% is at the hard threshold`,
+        observed: snapshot.projectedUtilisationPct, threshold: snapshot.thresholds.hard,
+      });
+    }
+  },
+});
+
+app.post('/api/margin/basket', async (req, res) => {
+  try {
+    const instruments = (req.body || {}).instruments;
+    if (!Array.isArray(instruments) || !instruments.length) return res.status(400).json({ ok: false, error: 'need { instruments: [...] }' });
+    res.json(await marginCalculator.forBasket(instruments, { fresh: !!(req.body || {}).fresh }));
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/margin/hedge-tradeoff', async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!b.naked || !b.hedged) return res.status(400).json({ ok: false, error: 'need { naked, hedged, tail? }' });
+    res.json(await marginOptimiser.evaluateHedge(b));
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/margin/rank', async (req, res) => {
+  try {
+    const c = (req.body || {}).candidates;
+    if (!Array.isArray(c) || !c.length) return res.status(400).json({ ok: false, error: 'need { candidates: [...] }' });
+    res.json(await marginOptimiser.rank(c));
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/margin/unwind-plan', async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!Array.isArray(b.instruments)) return res.status(400).json({ ok: false, error: 'need { instruments, available? }' });
+    res.json(await marginOptimiser.unwindPlan(b));
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/margin/status', async (req, res) => {
+  try {
+    res.json({
+      ok: true,
+      calculator: marginCalculator.status(),
+      utilisation: await marginMonitor.snapshot({
+        totalMargin: Number(req.query.total) || null,
+        usedMargin: Number(req.query.used) || null,
+      }),
+      // Named openly: the sizer is still using a figure the broker contradicts.
+      knownAssumption: {
+        where: 'position-sizer.js:45 SIZER_STRANGLE_MARGIN',
+        assumed: 130000,
+        brokerMeasured: 180959,
+        errorPct: -28.16,
+        measuredOn: '2026-07-30, NIFTY 2026-08-04 strangle 23900P/24700C, 1 lot',
+      },
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/risk/status', (req, res) => {
+  res.json({
+    ok: true,
+    config: riskConfig.get(),
+    rejectedLimits: riskConfig.rejected(),
+    killSwitch: killSwitch.status(),
+    guard: guardedBroker.status(),
+    recentBlocks: riskManager.auditTrail(50),
+  });
+});
+
+app.get('/api/risk/config', control('risk-config-read'), (req, res) => res.json({ ok: true, current: riskConfig.get(), ...riskConfig.describe(), changeLog: riskConfig.changeLog().slice(-100) }));
+
+/* Re-read limits without a restart. Every difference is logged by name, old
+   value and new value — a limit that changed and nobody noticed is the same as
+   no limit. */
+app.post('/api/risk/reload', control('risk-config-reload'), (req, res) => {
+  const by = String((req.body || {}).by || req.user?.name || 'api').trim() || 'api';
+  const r = riskConfig.reload({ by });
+  res.json({ ok: true, changes: r.changes, rejected: r.rejected, config: r.config });
+});
+
+app.post('/api/risk/kill', control('kill-switch-trip'), (req, res) => {
+  const b = req.body || {};
+  const r = killSwitch.trip({
+    reason: 'MANUAL', detail: String(b.reason || 'manual kill').slice(0, 300),
+    by: String(b.by || req.user?.name || 'api'), action: b.action,
+    observed: 'manual', threshold: null,
+  });
+  res.json({ ok: true, ...r });
+});
+
+/* Reset needs a human and a reason, and there is no automatic path back. */
+app.post('/api/risk/kill/reset', control('kill-switch-RESET'), (req, res) => {
+  const b = req.body || {};
+  const r = killSwitch.reset({ by: b.by, note: b.note });
+  res.status(r.ok ? 200 : 400).json(r);
+});
+
+/* Evaluate an intent without sending anything — for tuning limits against the
+   real book and the real position state before any of this is relied on. */
+app.get('/api/control/audit', control('control-audit-read'), (req, res) => {
+  res.json({ ok: true, mode: controlAuth.mode(), stats: controlAuth.stats, recent: controlAuth.recent(Number(req.query.limit) || 100) });
+});
+
+/* ── P1: SEE EVERY POSITION, AND FLATTEN IT ───────────────────────────────────
+   Read-only view first, flatten second, and the flatten is the SECONDARY path —
+   the broker's own app remains primary because it works when this process does
+   not. See docs/081 and broker-positions.js. */
+app.get('/api/positions/broker', control('positions-read'), async (req, res) => {
+  try {
+    const view = await require('./broker-positions').readBrokerPositions(guardedBroker);
+    if (String(req.query.format || '').toLowerCase() === 'text') {
+      res.type('text/plain').send(require('./broker-positions').renderText(view));
+      return;
+    }
+    res.json({ ok: true, ...view });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+/* THE SECONDARY EXIT PATH. Ratified 2026-07-31 (docs/081 §2c, resolved).
+
+   Goes THROUGH the guarded broker: flatten.js:_exit() calls approveReducing(),
+   so every exit is recorded, counted by the breaker, labelled REDUCING in the
+   audit trail — and cannot be refused, because the guard skips the kill-switch
+   check and the breaker denial for reducing approvals by design.
+
+   The PRIMARY path remains the broker's own app (docs/073 §6). This one runs
+   inside the process that may itself be the fault. */
+app.post('/api/flatten', control('FLATTEN'), async (req, res) => {
+  try {
+    const out = await require('./flatten').flattenAll({
+      broker: guardedBroker, killSwitch,
+      dryRun: String(req.query.dryRun || req.body?.dryRun || '') === '1',
+      by: req.controlVia || 'api',
+    });
+    /* 200 only when there is nothing left to do. SENT_UNVERIFIED, PARTIAL and
+       UNEVALUABLE each require the operator to open the broker app, and a 200
+       on any of them would be read as "handled". */
+    const settled = out.outcome === 'FLAT' || out.outcome === 'NOTHING_TO_DO' || out.outcome === 'DRY_RUN';
+    res.status(settled ? 200 : 409).json({ ok: settled, ...out });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/risk/evaluate', control('risk-evaluate'), (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!b.intent) return res.status(400).json({ ok: false, error: 'need { intent, state }' });
+    res.json({ ok: true, decision: riskManager.evaluate(b.intent, b.state || {}) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+/* ── EXECUTION LAYER ──────────────────────────────────────────────────────────
+   Limit-order placement, liquidity gating, slicing and a slippage ledger.
+
+   OFF by default and PAPER by default — two separate flags, because enabling
+   the engine and letting it send a real order are different decisions. Nothing
+   in the existing path changes until EXEC_ENGINE_ENABLED is set.
+
+   The connector's placeOrder currently throws ("paper mode only"), so the live
+   branch cannot fire even if both flags were set. That is deliberate and is
+   noted here so nobody reads the flag names as meaning more than they do. */
+const execConfig = require('./execution-config');
+const slippageLedger = require('./slippage-ledger');
+const { LimitOrderEngine } = require('./limit-order-engine');
+
+/* Pull one strike's book out of the live chain. The execution layer never sees
+   the raw chain, so it cannot accidentally price off an LTP. */
+async function _bookForStrike({ instrument, strike, optionType }) {
+  const snap = await _buildOptionSnapshot(instrument);
+  const row = (snap.strikes || []).find(s => Number(s.strike) === Number(strike));
+  if (!row) return null;
+  const side = String(optionType).toUpperCase() === 'PE' ? row.pe : row.ce;
+  if (!side) return null;
+  return {
+    bid: side.bid, ask: side.ask, bidQty: side.bidQty, askQty: side.askQty,
+    ltp: side.ltp,
+    // The snapshot's own timestamp is the age of this quote. Passing null here
+    // would make every staleness check fail open.
+    at: Date.parse(snap.timestamp || snap.ts) || null,
+  };
+}
+
+const executionEngine = new LimitOrderEngine({
+  cfgFor: execConfig.get,
+  // The GUARDED broker, not the raw one. The execution layer decides HOW to buy;
+  // the risk layer decides WHETHER and HOW MUCH, and it does so first.
+  broker: guardedBroker,
+  getBook: _bookForStrike,
+  ledger: slippageLedger,
+});
+
+app.get('/api/execution/config', (req, res) => {
+  const strategy = req.query.strategy || null;
+  res.json({ ok: true, resolved: execConfig.get(strategy), ...execConfig.describe() });
+});
+
+app.get('/api/execution/status', (req, res) => {
+  const cfg = execConfig.get();
+  res.json({
+    ok: true,
+    enabled: cfg.EXEC_ENGINE_ENABLED,
+    paper: cfg.EXEC_PAPER_MODE,
+    /* Derived, not asserted.
+
+       `typeof live.placeOrder === 'function'` used to answer this. Since the
+       risk guard replaces the raw method with a thrower (risk-guard.js), and a
+       thrower is a function, that test reported TRUE for a connector that
+       cannot place an order — the exact opposite of what the field name says.
+       And `liveOrdersPossible: false` plus its note were hardcoded claims about
+       a runtime fact: the day the connector changed, this endpoint would have
+       stated a falsehood with nothing to flag it.
+
+       `orderCapability()` reads the connector's actual method, is already
+       imported at the top of this file, and is the single answer to this
+       question. The note is generated from the same values rather than written
+       alongside them, so it cannot drift from them. */
+    ...(() => {
+      const cap = CONNECTOR_ORDER_CAPABILITY;                  // captured at startup, before the guard neutralised the raw method
+      const mode = process.env.TRADE_MODE || 'paper';
+      const possible = cap === 'live-capable' && mode === 'live';
+      return {
+        connector: CONNECTOR_NAME,
+        brokerOrderCapability: cap,
+        brokerCanPlaceOrders: cap === 'live-capable',
+        tradeMode: mode,
+        liveOrdersPossible: possible,
+        liveOrdersNote: possible
+          ? `${CONNECTOR_NAME} can place orders and TRADE_MODE=live — orders CAN reach the broker.`
+          : cap !== 'live-capable'
+            ? `The ${CONNECTOR_NAME} connector's placeOrder ${cap === 'none' ? 'is absent' : 'throws'} — no order can reach a broker regardless of TRADE_MODE.`
+            : `${CONNECTOR_NAME} can place orders, but TRADE_MODE=${mode} — orders are not sent.`,
+      };
+    })(),
+    ledger: slippageLedger.status(),
+    rejectedConfigValues: cfg._rejected,
+    // Knobs that are individually valid and jointly wrong — surfaced here
+    // rather than left for someone to notice from a fill that never happened.
+    configWarnings: ['STRANGLE', 'GAMMA_BLAST', 'BOUNCE', 'TREND_RIDE', 'AFTERNOON']
+      .map(s => ({ strategy: s, warnings: execConfig.get(s)._warnings }))
+      .filter(x => x.warnings.length),
+  });
+});
+
+/* Dry-run one order through the whole path — gate, slice, ladder — WITHOUT
+   sending anything, so the thresholds can be tuned against the real book
+   before any engine is switched on. */
+app.post('/api/execution/dry-run', async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!b.instrument || b.strike === undefined || !b.optionType) {
+      return res.status(400).json({ ok: false, error: 'need instrument, strike, optionType' });
+    }
+    const meta = getInstrumentMeta(b.instrument);
+    const snap = await _buildOptionSnapshot(b.instrument);
+    const rec = await executionEngine.execute({
+      strategy: b.strategy || null,
+      instrument: b.instrument, strike: Number(b.strike), optionType: b.optionType,
+      side: b.side || 'BUY', quantity: Number(b.quantity) || meta.lotSize,
+      tick: 0.05, atmStrike: snap.atmStrike, strikeStep: meta.step,
+      paper: true, reason: 'dry-run',
+    });
+    res.json({ ok: true, record: rec });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/execution/slippage', (req, res) => {
+  try {
+    res.json(slippageLedger.report({
+      strategy: req.query.strategy || undefined,
+      instrument: req.query.instrument || undefined,
+      from: req.query.from || undefined,
+      to: req.query.to || undefined,
+      paper: req.query.paper === undefined ? undefined : /^(1|true|yes)$/i.test(String(req.query.paper)),
+    }));
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/execution/enable', (req, res) => {
+  const enabled = !!(req.body || {}).enabled;
+  _persistEngineOverride({ EXEC_ENGINE_ENABLED: enabled });
+  res.json({ ok: true, enabled, paper: execConfig.get().EXEC_PAPER_MODE });
+});
+
+/* ── STOCK SEARCH — autocomplete over every listed Indian equity ──────────────
+   Backs the dropdown in the Stock View box. 5,798 symbols across NSE and BSE,
+   built from the broker's instrument master by scripts/build-stock-universe.js.
+
+   Deliberately NOT the market-data vendor's search endpoint: measured on
+   2026-07-30, "rel" returned no RELIANCE, "hdf" no HDFCBANK, "sun" no
+   SUNPHARMA. It is US-biased and unusable here.
+
+   No auth-sensitive data, no broker call, no rate limit to respect — this is an
+   in-memory search over a local file, so it can answer on every keystroke. */
+const stockUniverse = require('./stock-universe');
+
+app.get('/api/stock/search', (req, res) => {
+  try {
+    const q = String(req.query.q || '');
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+    const out = stockUniverse.search(q, limit);
+    // A universe that was never built returns ok:false with the command to fix
+    // it. Returning an empty list would say "no such stock in India", which is a
+    // different and false claim.
+    res.status(out.ok ? 200 : 503).json(out);
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/stock/universe/status', (req, res) => res.json({ ok: true, ...stockUniverse.status() }));
+
+/* The whole list, once, for the browser page to filter locally.
+   5,798 rows is small enough to send in one response and filter client-side;
+   paging it would mean a round trip per keystroke for no benefit. */
+/* ── SCREENER ─────────────────────────────────────────────────────────────────
+   A Screener.in-style query language over the stock universe. Research, the
+   measured field coverage and the units trap are in docs/090.
+
+   The three routes are READ-ONLY. /api/screener/run is a POST only because a
+   query is too long for a URL and belongs in a body — it changes no state, and
+   when route-guard is installed it belongs on the allowlist for that reason
+   rather than being gated as if it moved money.
+
+   /api/screener/fetch DOES change state (it writes the cache) and DOES call an
+   external vendor, so it is gated. */
+const { ScreenerData, toYahooSymbol } = require('./screener-data');
+const screenerQuery = require('./screener-query');
+const screenerFields = require('./screener-fields');
+const screenerBacktest = require('./screener-backtest');
+const screenerData = new ScreenerData();
+
+app.get('/api/screener/fields', (req, res) => {
+  res.json({ ok: true, ...screenerFields.describe(), cache: screenerData.status() });
+});
+
+app.post('/api/screener/run', (req, res) => {
+  const q = String((req.body && req.body.query) || '').trim();
+  if (!q) return res.status(400).json({ ok: false, error: 'no query' });
+
+  const u = stockUniverse.load();
+  if (u.error) return res.status(503).json({ ok: false, error: u.error });
+
+  /* Default to the F&O names: they are the ones with liquid options, which is
+     what this platform trades. Screening 5,798 instruments the platform cannot
+     act on would be a longer wait for a less useful answer. */
+  const wantAll = String(req.body.scope || 'fno') === 'all';
+  const picked = u.stocks.filter((r) => wantAll || r.f === 1);
+  const symbols = picked.map((r) => toYahooSymbol(r.s, r.e));
+  const nameOf = new Map(picked.map((r) => [toYahooSymbol(r.s, r.e), r.n]));
+
+  const { rows, neverFetched, asOf } = screenerData.rowsFor(symbols);
+  for (const r of rows) r.name = nameOf.get(r.symbol) || null;
+
+  let result;
+  try {
+    result = screenerQuery.screen(q, rows, screenerFields.fieldNames(), { typeOf: screenerFields.typeOf });
+  } catch (e) {
+    const why = e.word ? screenerFields.unavailableReason(e.word) : null;
+    return res.status(400).json({
+      ok: false, error: e.message, at: e.at ?? null, word: e.word || null,
+      unavailableReason: why,        // names WHY a known-missing ratio is missing
+    });
+  }
+
+  res.json({
+    ok: true,
+    query: q,
+    scope: wantAll ? 'all' : 'fno',
+    counts: result.counts,
+    /* neverFetched is NOT folded into unevaluable: "we have never looked at this
+       symbol" and "the vendor does not carry this field" are different facts and
+       call for different actions — one is a fetch, the other is a query change. */
+    neverFetched: { count: neverFetched.length, sample: neverFetched.slice(0, 20) },
+    asOf,
+    fieldsUsed: result.fieldsUsed,
+    missingByField: result.missingByField,
+    matched: result.matched.slice(0, 300),
+    unevaluable: result.unevaluable.slice(0, 100),
+  });
+});
+
+/* Read-only. Refuses any field that cannot be rebuilt from bars — see
+   screener-backtest.js. The refusal is the feature, so it returns 400 with the
+   reason rather than quietly dropping the condition. */
+app.post('/api/screener/backtest', (req, res) => {
+  const q = String((req.body && req.body.query) || '').trim();
+  if (!q) return res.status(400).json({ ok: false, error: 'no query' });
+
+  const universe = screenerData.universeWithBars();
+  if (!universe.length) {
+    return res.status(503).json({
+      ok: false,
+      error: 'no cached bars — run POST /api/screener/fetch {"bars":true} first',
+    });
+  }
+
+  const sessions = Math.min(Math.max(Number(req.body.sessions) || 20, 1), 120);
+  const dates = Array.isArray(req.body.asOfDates) && req.body.asOfDates.length
+    ? req.body.asOfDates.slice(0, 24)
+    : screenerBacktest.monthlyDates(universe, sessions);
+
+  try {
+    const r = screenerBacktest.backtest({ queryText: q, universe, asOfDates: dates, sessions });
+    res.json({ ok: true, universeSize: universe.length, ...r });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message, word: e.word || null });
+  }
+});
+
+app.post('/api/screener/fetch', control('screener-fetch'), async (req, res) => {
+  const u = stockUniverse.load();
+  if (u.error) return res.status(503).json({ ok: false, error: u.error });
+  const wantAll = String((req.body && req.body.scope) || 'fno') === 'all';
+  const picked = u.stocks.filter((r) => wantAll || r.f === 1);
+  const limit = Math.min(Number(req.body && req.body.limit) || 250, 600);
+  const symbols = picked.slice(0, limit).map((r) => toYahooSymbol(r.s, r.e));
+  try {
+    const r = await screenerData.fetchInto(symbols, {
+      deep: req.body && req.body.deep === true,
+      bars: req.body && req.body.bars === true,
+      // A caller may force a refresh. Absent, the module's own default applies —
+      // this route does not invent one.
+      ...(Number.isFinite(Number(req.body && req.body.maxAgeMs))
+        ? { maxAgeMs: Number(req.body.maxAgeMs) } : {}),
+    });
+    res.json({ ok: true, ...r, errors: r.errors.slice(0, 25), cache: screenerData.status() });
+  } catch (e) {
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/stock/universe/all', (req, res) => {
+  const u = stockUniverse.load();
+  if (u.error) return res.status(503).json({ ok: false, error: u.error });
+  res.json({
+    ok: true, builtAt: u.builtAt, source: u.source, counts: u.counts,
+    stocks: u.stocks.map(r => ({ symbol: r.s, name: r.n, exchange: r.e, board: r.t, fno: r.f === 1 })),
+  });
+});
+
+/* ── INDEX TICKER — every index this system knows, in one call ────────────────
+   Powers the strip that sits on top of every page (public/js/ticker.js).
+
+   The instrument list and the broker keys come from the REGISTRY, not from a
+   list typed here. That matters twice over: the registry is broker-verified, and
+   it already held the correct FINNIFTY key — `NSE_INDEX|Nifty Fin Service`,
+   singular "Service" — which the obvious guess ("Nifty Fin Services") does not
+   resolve to. Verified against the live broker on 2026-07-29: five of six keys
+   answered on the first attempt and FINNIFTY needed that exact spelling.
+
+   ONE broker call for all six, cached, because this strip renders on every page
+   and every open tab would otherwise multiply the traffic. Six indices × N tabs
+   is the shape that produced 458 rate-limit refusals before the governance work.
+
+   `tradingEnabled` is passed through so the strip can show that three of the six
+   are watched but NOT traded by any engine here. Showing a price beside a name
+   implies nothing about whether this system trades it, and the difference is
+   worth stating rather than leaving to be assumed. */
+const _idxCache = { at: 0, data: null };
+const IDX_CACHE_MS = 4000;
+
+app.get('/api/indices', async (req, res) => {
+  try {
+    if (_idxCache.data && Date.now() - _idxCache.at < IDX_CACHE_MS) {
+      return res.json({ ..._idxCache.data, cached: true });
+    }
+    const registry = require('./instrument-registry');
+    const names = registry.allInstruments();
+    const metas = names.map(n => ({ inst: n, ...registry.catalog(n) }));
+
+    // Weekday in IST — the expiry badge is wrong by a day if computed in UTC.
+    const ist = new Date(Date.now() + 330 * 60 * 1000);
+    const dow = ist.getUTCDay();
+
+    let quotes = {};
+    let quoteError = null;
+    try {
+      quotes = await live.getIndexQuotes(metas.map(m => m.underlyingKey).filter(Boolean));
+    } catch (e) { quoteError = e.message; }
+
+    const indices = metas.map(m => {
+      const q = m.underlyingKey ? quotes[m.underlyingKey] : null;
+      return {
+        inst: m.inst,
+        // null, never 0. A missing quote renders as a blank; a flat market and an
+        // unreachable feed must not look the same.
+        price: q ? q.price : null,
+        change: q ? q.change : null,
+        changePct: q ? q.changePct : null,
+        prevClose: q ? q.prevClose : null,
+        expiryToday: Number.isInteger(m.expiryDow) ? m.expiryDow === dow : null,
+        expiryDow: Number.isInteger(m.expiryDow) ? m.expiryDow : null,
+        traded: m.tradingEnabled === true,
+        source: q ? 'broker' : null,
+      };
+    });
+
+    const out = {
+      ok: true,
+      indices,
+      quoted: indices.filter(i => i.price !== null).length,
+      total: indices.length,
+      // Surfaced rather than swallowed: if the feed failed, the strip says so
+      // instead of showing six blanks that look like a quiet market.
+      error: quoteError,
+      ts: new Date().toISOString(),
+    };
+    _idxCache.at = Date.now(); _idxCache.data = out;
+    res.json(out);
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // QUANT COMMAND CENTER — one aggregate feed powering /quant.html: merges every
 // PAPER engine (AI agents, strangle/condor forward-test, gamma-blast) into a
 // single scoreboard + the live execution-cycle stage + agent-swarm states.
@@ -5810,6 +6753,95 @@ app.get('/api/quant', async (req, res) => {
     const netPnl = engines.reduce((s, e) => s + e.netPnl, 0);
     const dayPnl = engines.reduce((s, e) => s + e.dayPnl, 0);
     const openNow = engines.reduce((s, e) => s + e.open, 0);
+
+    // ── what is open right now, position by position ─────────────────────
+    // The header has always said how MANY are open; this says WHICH, and what
+    // each one is currently worth.
+    //
+    // One rule throughout: a leg whose LTP has not arrived yet is not a leg
+    // worth zero.  Where the live price is missing the unrealised figure goes
+    // out as null with the reason attached, so the screen can say "waiting for
+    // a price" rather than print a number that is quietly wrong.  The condor
+    // engine already works this way; this matches it for the other three.
+    const priced = v => Number.isFinite(Number(v)) && Number(v) > 0;
+    const hhmm = m => (Number.isFinite(m)
+      ? `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+      : null);
+    const positions = [];
+
+    // 1. AI agents - directional option buys
+    for (const p of (A.open || [])) {
+      const live = priced(p.last) ? Number(p.last) : null;
+      const units = num(p.lot) * num(p.qty);
+      positions.push({
+        engine: 'AI AGENTS', kind: 'DIRECTIONAL', inst: p.inst,
+        label: `${p.inst} ${p.strike} ${p.side}`, side: 'LONG',
+        qty: p.qty, lot: p.lot, units, entry: p.entry, last: live,
+        unrealizedPnl: (live !== null && units) ? +((live - p.entry) * units).toFixed(0) : null,
+        unrealizedPct: (live !== null && p.entry) ? +(((live - p.entry) / p.entry) * 100).toFixed(1) : null,
+        unrealizedReason: live === null ? 'waiting for a live price on this strike' : null,
+        openedAt: p.openedAt || null, openMins: hhmm(p.openMins),
+        extra: p.probability != null ? `${p.probability}% signal` : null, risk: null,
+      });
+    }
+
+    // 2. AI agents - iron condors: credit taken in vs cost to close now
+    for (const p of (A.condors || [])) {
+      const cost = priced(p.lastCost) ? Number(p.lastCost) : null;
+      const units = num(p.lot) * num(p.qty);
+      const L = p.legs || {};
+      positions.push({
+        engine: 'AI AGENTS', kind: 'IRON CONDOR', inst: p.inst,
+        label: `${p.inst} ${L.shortPE?.strike ?? '?'}PE / ${L.shortCE?.strike ?? '?'}CE`,
+        side: 'SHORT', qty: p.qty, lot: p.lot, units, entry: p.credit, last: cost,
+        unrealizedPnl: (cost !== null && units) ? +((p.credit - cost) * units).toFixed(0) : null,
+        unrealizedPct: (cost !== null && p.credit) ? +(((p.credit - cost) / p.credit) * 100).toFixed(1) : null,
+        unrealizedReason: cost === null ? 'waiting for live prices on all four legs' : null,
+        openedAt: p.openedAt || null, openMins: hhmm(p.openMins),
+        extra: p.expiry ? `exp ${p.expiry}` : null,
+        risk: Number.isFinite(p.maxLossDefined) ? +Number(p.maxLossDefined).toFixed(0) : null,
+      });
+    }
+
+    // 3. Condor VRP - its engine already decorates these, reason and all
+    for (const p of (S.openPositions || [])) {
+      const k = [p.pe?.strike, p.ce?.strike].filter(v => v != null);
+      positions.push({
+        engine: 'CONDOR VRP', kind: 'DEFINED-RISK SHORT', inst: p.inst,
+        label: k.length === 2 ? `${p.inst} ${k[0]}PE / ${k[1]}CE` : p.inst,
+        side: 'SHORT', qty: p.qty, lot: p.lot, units: num(p.lot) * num(p.qty),
+        entry: p.entryNet, last: p.nowNet,
+        unrealizedPnl: p.unrealizedPnl != null ? +Number(p.unrealizedPnl).toFixed(0) : null,
+        unrealizedPct: (p.unrealizedPnl != null && p.entryNet)
+          ? +(((p.entryNet - p.nowNet) / p.entryNet) * 100).toFixed(1) : null,
+        unrealizedReason: p.unrealizedPnlReason || null,
+        openedAt: p.openedAt || null, openMins: hhmm(p.openMins),
+        extra: p.expiry ? `exp ${p.expiry}` : null,
+        risk: Number.isFinite(p.maxLossDefined) ? +Number(p.maxLossDefined).toFixed(0) : null,
+      });
+    }
+
+    // 4. Gamma blast - 0-DTE buys
+    for (const p of (G.openPositions || [])) {
+      const live = priced(p.last) ? Number(p.last) : null;
+      const units = num(p.lot) * num(p.qty);
+      positions.push({
+        engine: 'GAMMA BLAST', kind: 'EXPIRY BUY', inst: p.inst,
+        label: `${p.inst} ${p.strike} ${p.side}`, side: 'LONG',
+        qty: p.qty, lot: p.lot, units, entry: p.entry, last: live,
+        unrealizedPnl: (live !== null && units) ? +((live - p.entry) * units).toFixed(0) : null,
+        unrealizedPct: p.changePct != null ? p.changePct : null,
+        unrealizedReason: live === null ? 'waiting for a live price on this strike' : null,
+        openedAt: p.openedAt || null, openMins: hhmm(p.openMins),
+        extra: p.expiry ? `exp ${p.expiry}` : null, risk: null,
+      });
+    }
+
+    // The running total covers only the positions that actually have a price;
+    // `pending` says how many are still waiting, so a partial total is never
+    // mistaken for the whole book.
+    const livePos = positions.filter(p => p.unrealizedPnl !== null);
+    const openPnl = livePos.reduce((s, p) => s + p.unrealizedPnl, 0);
 
     // execution-cycle live stage from the agents pipeline
     const st = k => A.agents?.[k]?.state || 'IDLE';
@@ -5855,6 +6887,9 @@ app.get('/api/quant', async (req, res) => {
       score: { netPnl: +netPnl.toFixed(0), dayPnl: +dayPnl.toFixed(0), trades: totalTrades, wins: totalWins,
         winRate: totalTrades ? +(totalWins / totalTrades * 100).toFixed(1) : null, openNow,
         biggestWin: +biggest.toFixed(0), biggestSrc, since: S.allTime?.since || A.allTime?.since || null },
+      positions,
+      openBook: { count: positions.length, priced: livePos.length,
+        pending: positions.length - livePos.length, unrealizedPnl: +openPnl.toFixed(0) },
       engines, cycle, swarm, signals, ivp, instruments: agentsEngine.instruments,
       ticker: [
         { sym: 'NIFTY', px: nifty }, { sym: 'SENSEX', px: sensex }, { sym: 'BANKNIFTY', px: banknifty },
@@ -6308,7 +7343,14 @@ app.get('/api/agents/stock', async (req, res) => {
     const YF = mod.default || mod;
     const yf = (typeof YF === 'function') ? new YF() : YF;
     try { yf.suppressNotices && yf.suppressNotices(['yahooSurvey']); } catch (_) {}
-    const out = await stockAnalyst.analyze(q, { newsItems: newsEngine.items, yf });
+    // ?deep=1 adds the broker-page panels: company profile, next earnings and
+    // ex-dividend dates, the analyst rating distribution, shareholding, insider
+    // filings, forward estimates, a computed technical block and similar stocks.
+    // Off by default — the agents pipeline polls this route and renders none of
+    // it, so the extra modules and the two extra calls would be paid for on a
+    // timer with no reader.
+    const deep = /^(1|true|yes)$/i.test(String(req.query.deep || ''));
+    const out = await stockAnalyst.analyze(q, { newsItems: newsEngine.items, yf, deep });
     if (out.ok) agentsEngine.noteAnalyst(out);
     res.status(out.ok ? 200 : 404).json(out);
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -6597,7 +7639,7 @@ app.get('/api/risk', (req, res) => {
 });
 
 // Emergency stop: disable both instrument auto-engines immediately
-app.post('/api/risk/emergency-stop', (req, res) => {
+app.post('/api/risk/emergency-stop', control('emergency-stop'), (req, res) => {
   try { engine.autoEnabled = false; } catch(_) {}
   try { niftyEngine.autoEnabled = false; } catch(_) {}
   console.log('[risk] EMERGENCY STOP — both auto engines disabled');
@@ -7349,9 +8391,10 @@ app.post("/api/webhook/tradingview", async (req, res) => {
 
     // Rate limit: max trades per day
     resetDailyCheck();
-    const maxTrades = parseInt(process.env.MAX_TRADES_PER_DAY || 2);
-    if (tradesToday >= maxTrades) {
-      console.log(`[webhook/tv] Max trades/day reached (${tradesToday}/${maxTrades}) — skipping`);
+    const maxTrades = _maxTradesPerDay();
+    const _n = _tradesToday('SENSEX');
+    if (_n >= maxTrades) {
+      console.log(`[webhook/tv] Max trades/day reached (${_n}/${maxTrades}) — skipping`);
       return res.json({ ok: false, reason: 'max_trades_reached' });
     }
 
@@ -7368,14 +8411,29 @@ app.post("/api/webhook/tradingview", async (req, res) => {
 
     if (tradeMode === 'live' && live.connected) {
       try {
-        const liveResult = await live.placeOrder({
-          transactionType: 'BUY',
-          exchangeSegment: 'BFO',
-          productType: 'INTRADAY',
-          orderType: 'MARKET',
-          securityId: symbol,
-          quantity: 1,
-          price: 0
+        /* Phase 2.3 — through the chokepoint. This route is an UNAUTHENTICATED
+           external webhook (docs/074 §0.5) whose callers cannot be enumerated
+           from source. It is therefore the single call site that most needs the
+           risk layer in front of it, not the one that least does. */
+        const liveResult = await placeGuarded({
+          broker: guardedBroker,
+          intent: {
+            strategy: 'TV_WEBHOOK', instrument: 'SENSEX',
+            strike: strikeNum, optionType: optType, side: 'BUY',
+            expiry: (() => { try { return instrumentRegistry.nextExpiry('SENSEX') || null; } catch (_) { return null; } })(),
+            stopDistance: null, lotSize: null, requestedLots: 1,
+            marginVerdict: null,
+          },
+          state: _riskStateNow(),
+          order: {
+            transactionType: 'BUY',
+            exchangeSegment: 'BFO',
+            productType: 'INTRADAY',
+            orderType: 'MARKET',
+            securityId: symbol,
+            quantity: 1,
+            price: 0
+          },
         });
         orderId = liveResult.orderId;
         orderStatus = liveResult.status || 'SENT';
@@ -7388,7 +8446,7 @@ app.post("/api/webhook/tradingview", async (req, res) => {
       console.log(`[webhook/tv] Paper mode — logged ${signal} ${strikeNum}${optType}`);
     }
 
-    tradesToday++;
+    _incrementTrades('SENSEX');
     currentSignal   = signal;
     suggestedStrike = `${strikeNum} ${optType}`;
 
@@ -7512,6 +8570,119 @@ async function _restoreFromRedis() {
   }
 }
 
+/* ── ATTESTATION ──────────────────────────────────────────────────────────────
+   docs/088. Sealed HERE, immediately before listen, because loadedProjectFiles()
+   reads require.cache and every top-level require must already have run — DataGate
+   is required around line 5980. Sealing earlier under-reports the loaded set, and
+   a file outside the sealed set can change without the verifier noticing, which
+   would make the tool report PASS on a stale process. That is worse than not
+   having the tool.
+
+   Never recompute this. Serving a freshly computed hash would report the tree
+   this process can SEE rather than the code it is RUNNING — the exact defect
+   attestation exists to detect. See attestation.js. */
+const ATTESTATION_SEAL = sealCodeVersion(loadedProjectFiles());
+console.log(`[attestation] sealed ${ATTESTATION_SEAL.hash.slice(0, 16)} over ${ATTESTATION_SEAL.fileCount} loaded files`);
+
+/* Read-only and deliberately ungated: an operator must be able to ask "what is
+   running?" from a phone during an incident, and this response carries no
+   credential. It DOES list loaded file paths and control status, which has
+   reconnaissance value — once CONTROL_TOKEN is set, wrap this in
+   control('attestation-read'); scripts/attest-verify.js already sends the token
+   as an x-control-token header, so that becomes a config change, not a code one. */
+/* ── HEARTBEATS AND RECONCILIATION ────────────────────────────────────────────
+   docs/093 §1–2. Both were built, tested, and would have been wired to nothing
+   without these lines — which is the defect this whole programme has been about.
+
+   The server beats every 15s. It declares its own interval, so staleness is
+   judged against what it promised rather than against one global threshold that
+   would call the 300s capture loop dead. */
+const { Heartbeat } = require('./heartbeat');
+const reconciliation = require('./reconciliation');
+const _heartbeat = new Heartbeat();
+_heartbeat.start('server', {
+  intervalMs: 15_000,
+  meta: () => ({ connector: CONNECTOR_NAME, tradeMode: process.env.TRADE_MODE || 'paper' }),
+});
+
+/* Components that MUST be present. Without this list a process that was never
+   started is invisible: the store simply has no row for it, and an absent row
+   reads as an absent problem. */
+const EXPECTED_COMPONENTS = ['server', 'warehouse-capture', 'reconcile'];
+
+app.get('/api/heartbeat', (req, res) => res.json(_heartbeat.status(EXPECTED_COMPONENTS)));
+
+/* The reconciliation loop. It beats under its own name, so a run that stops is
+   visible — and reconciliation.verdict() refuses to report AGREED from a stale
+   one, because a check that silently stopped reads as agreement. */
+let _lastReconcile = null;
+async function _runReconcile() {
+  const positionsBook = require('./positions-book');
+  const brokerPositions = require('./broker-positions');
+  const S = (fn) => { try { return fn(); } catch (_) { return null; } };
+  try {
+    const book = positionsBook.build({
+      strangle:       S(() => strangleEngine && strangleEngine.status()),
+      bounce:         S(() => bounceEngine && bounceEngine.status()),
+      'gamma-blast':  S(() => gammaBlastEngine && gammaBlastEngine.status()),
+      'signal-paper': S(() => signalPaperEngine && signalPaperEngine.status()),
+      'ai-agents':    S(() => agentsEngine && agentsEngine.status()),
+    });
+    const read = brokerPositions.brokerPositions || brokerPositions.read || brokerPositions.get
+      || Object.values(brokerPositions).find((v) => typeof v === 'function');
+    const broker = await read(live);
+    _lastReconcile = reconciliation.reconcile({
+      internal: { ok: true, positions: book.positions || [] },
+      broker,
+    });
+  } catch (e) {
+    /* A reconciliation that crashed did not agree with anything. Recording the
+       failure as an UNAVAILABLE result is the whole point — the alternative is
+       leaving the previous AGREED on screen while nothing is checking. */
+    _lastReconcile = {
+      at: new Date().toISOString(), verdict: 'UNAVAILABLE', blocking: true,
+      differences: null, counts: null,
+      reason: `reconciliation threw: ${e.message}`,
+      operatorAction: 'The comparison itself failed. Do not treat the last result as current.',
+    };
+  }
+  _heartbeat.beat('reconcile', { intervalMs: 60_000, meta: { verdict: _lastReconcile.verdict } });
+}
+setInterval(_runReconcile, 60_000).unref?.();
+setTimeout(_runReconcile, 8_000).unref?.();
+
+app.get('/api/reconciliation', (req, res) => {
+  const hb = (_heartbeat.status(EXPECTED_COMPONENTS).components || [])
+    .find((c) => c.name === 'reconcile') || null;
+  res.json(reconciliation.verdict(_lastReconcile, hb));
+});
+
+app.get('/api/attestation', (req, res) => {
+  res.json(computeAttestation({
+    sealed: ATTESTATION_SEAL,
+    graph: {
+      app,
+      controlAuth,
+      guardedBroker,
+      killSwitch,
+      /* The property each consumer ACTUALLY holds, read from each class rather
+         than assumed alike: ExecutionEngine and LimitOrderEngine assign
+         `this.broker`; `this.live` is the raw connector kept for READS and is a
+         different thing. Writing `guardedBroker` on both sides here would compare
+         a value with itself and pass unconditionally. */
+      orderConsumers: {
+        sensexEngine:         engine.broker,
+        niftyEngine:          niftyEngine.broker,
+        sensexAfternoon:      afternoonEngine.broker,
+        niftyAfternoon:       niftyAfternoonEngine.broker,
+        limitOrderEngine:     executionEngine.broker,
+      },
+      killConsumers: { riskManager: riskManager && riskManager.killSwitch },
+      dataGate: typeof dataGate !== 'undefined' ? dataGate : null,
+    },
+  }));
+});
+
 app.listen(PORT, '0.0.0.0', async () => {
   // Connect Redis + restore today's high/low data
   await redisStore.connect();
@@ -7524,7 +8695,8 @@ app.listen(PORT, '0.0.0.0', async () => {
 ║   ANTIGRAVITY AI BOT - SENSEX EXPIRY SYSTEM             ║
 ║                                                          ║
 ║   Listening on 0.0.0.0:${PORT}                              ║
-║   Mode: ${live.connected ? "LIVE (Dhan)" : "DISCONNECTED - set DHAN creds"}    ║
+║   ${renderBanner({ connector: CONNECTOR_NAME, tradeMode: process.env.TRADE_MODE, orderCapability: CONNECTOR_ORDER_CAPABILITY })}
+║   Feed: ${live.connected ? 'connected' : 'DISCONNECTED'}
 ║   Max trades/day: ${process.env.MAX_TRADES_PER_DAY || 2}                                      ║
 ║   Redis: ${redisStore.isReady() ? "ON (high/low persisted)" : "OFF (in-memory only)"}
 ║   Public: ${PUBLIC_BASE}

@@ -196,6 +196,11 @@
   table.pnl td{ padding:6px 8px; text-align:right; border-bottom:1px solid #0e1622; white-space:nowrap; }
   table.pnl td.up{ color:var(--up); } table.pnl td.dn{ color:var(--dn); }
   .vok{ color:var(--up); } .vbad{ color:var(--dn); }
+  /* Position size: lots × contract size. The multiplier is dimmed because the
+     lot count is the decision and the contract size is a market fact — they are
+     not the same kind of number and should not read as one. */
+  .psz{ font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .pszx{ color:var(--mut); margin:0 2px; font-size:.86em; }
   .rtag{ font-size:.58rem; font-weight:800; padding:2px 6px; border-radius:5px; }
   .rtag.win{ background:rgba(38,208,160,.14); color:var(--up); } .rtag.loss{ background:rgba(255,84,112,.14); color:var(--dn); }
   .possub{ font-size:.58rem; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; margin:13px 0 7px; }
@@ -766,8 +771,8 @@
         <span class="finfo" id="fltInfo"></span>
       </div>
       <div style="overflow-x:auto"><table class="pnl">
-        <thead><tr><th>Contract</th><th>Qty</th><th>Entry</th><th>Exit</th><th>Amount</th><th>Reason</th><th>Gross</th><th>Charges</th><th>Net P&L</th><th>Verify</th></tr></thead>
-        <tbody id="pnlClosed"><tr><td colspan="10" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
+        <thead><tr><th>Contract</th><th title="lots × contract size — the sizing decision, and the market fact it was multiplied by">Size</th><th>Qty</th><th>Entry</th><th>Exit</th><th>Amount</th><th>Reason</th><th>Gross</th><th>Charges</th><th>Net P&L</th><th>Verify</th></tr></thead>
+        <tbody id="pnlClosed"><tr><td colspan="11" style="text-align:center;color:var(--dim2)">loading…</td></tr></tbody>
       </table></div>
       <div class="possub">Open positions (live · unrealized)</div>
       <div style="overflow-x:auto"><table class="pnl">
@@ -1152,23 +1157,43 @@ function renderClosedTrades(){
   const fmt = (v,d=2)=>{ const n=parseFloat(v); return isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:d}):'--'; };
   const minQty = _pnlNum('fltQty'), minAmt = _pnlNum('fltAmt');
   let rows = CLOSED_TRADES.map(t=>{
+    /* POSITION SIZE, decomposed. The table used to show only `contracts` under a
+       "Qty" header, which hides the two separate things it is made of:
+
+         lots     — the sizing DECISION. 1 lot and 3 lots are different trades.
+         lotSize  — a MARKET FACT (NIFTY 65, SENSEX 20), not a choice. It is why
+                    a SENSEX row at the same lot count shows a smaller Amount,
+                    which reads as a smaller position and is not one.
+
+       lotSize is NOT defaulted to 1 when the trade did not record it. A missing
+       contract size makes `contracts` and `amount` wrong by exactly that factor
+       and the row would look perfectly ordinary. It is shown as `?` so the gap
+       is visible; the arithmetic below still uses 1 so the rest of the row is
+       unchanged, and the `?` is the flag that it cannot be trusted. */
+    const lots    = Number.isFinite(+t.qty) && +t.qty > 0 ? +t.qty : null;
+    const lotSize = Number.isFinite(+t.lot) && +t.lot > 0 ? +t.lot : null;
     const contracts = (t.lot||1)*(t.qty||1);            // total quantity
     const amount = Math.abs((t.entry||0)*contracts);    // ₹ value the trade was done in
-    return { t, contracts, lots:(t.qty||1), amount };
+    return { t, contracts, lots:(t.qty||1), lotsKnown:lots, lotSize, amount };
   }).filter(r => r.contracts >= minQty && r.amount >= minAmt);
   if (PNL_SORT==='qty') rows.sort((a,b)=>b.contracts-a.contracts);
   else if (PNL_SORT==='amt') rows.sort((a,b)=>b.amount-a.amount);
   const body = document.getElementById('pnlClosed');
-  if (!CLOSED_TRADES.length) body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--dim2)">no closed trades yet</td></tr>';
-  else if (!rows.length)     body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--dim2)">no trade matches this filter</td></tr>';
-  else body.innerHTML = rows.map(({t,contracts,lots,amount})=>{
+  if (!CLOSED_TRADES.length) body.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--dim2)">no closed trades yet</td></tr>';
+  else if (!rows.length)     body.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--dim2)">no trade matches this filter</td></tr>';
+  else body.innerHTML = rows.map(({t,contracts,lots,lotsKnown,lotSize,amount})=>{
     const reGross = ((t.exit||0)-(t.entry||0))*contracts;
     const reNet = reGross - (t.charges||0);
     const stored = t.pnl||0;
     const mathOk = Math.abs(reNet - stored) < 1.5;
     const win = stored>=0;
+    const sizeCell = `<span class="psz">${lotsKnown!=null?lotsKnown:'?'}<span class="pszx">×</span>${lotSize!=null?lotSize:'?'}</span>`;
+    const sizeTitle = (lotsKnown!=null && lotSize!=null)
+      ? `${lotsKnown} lot${lotsKnown>1?'s':''} × ${lotSize} per lot = ${contracts} contracts`
+      : 'this trade did not record its lot count or contract size — the quantity and amount beside it cannot be verified';
     return `<tr>
       <td>${t.inst} ${t.strike} ${t.side}</td>
+      <td title="${sizeTitle}" class="${(lotsKnown!=null&&lotSize!=null)?'':'vbad'}">${sizeCell}</td>
       <td>${contracts}${lots>1?`<span style="color:var(--mut)"> (${lots}L)</span>`:''}</td>
       <td>${fmt(t.entry)}</td><td>${fmt(t.exit)}</td>
       <td>₹${fmt(amount,0)}</td>
@@ -1181,7 +1206,7 @@ function renderClosedTrades(){
   }).join('');
   const info = document.getElementById('fltInfo');
   if (info) info.textContent = CLOSED_TRADES.length
-    ? `showing ${rows.length}/${CLOSED_TRADES.length} · Σqty ${rows.reduce((s,r)=>s+r.contracts,0)} · Σamt ₹${Math.round(rows.reduce((s,r)=>s+r.amount,0)).toLocaleString('en-IN')}`
+    ? `showing ${rows.length}/${CLOSED_TRADES.length} · Σlots ${rows.reduce((s,r)=>s+(r.lotsKnown||0),0)}${rows.some(r=>r.lotsKnown==null)?'+?':''} · Σqty ${rows.reduce((s,r)=>s+r.contracts,0)} · Σamt ₹${Math.round(rows.reduce((s,r)=>s+r.amount,0)).toLocaleString('en-IN')}`
     : '';
 }
 function setPnlSort(k){
@@ -1233,20 +1258,54 @@ async function loadPnL(){
   // `unrealizedPnl` is now the engine's number. When the engine cannot know it — a leg with
   // no live LTP, or an instrument with no verified contract size — it sends null and says
   // why, and we show that reason. A missing price is not a price of zero.
-  const condors = (strg && strg.openPositions) || [];
-  document.getElementById('pnlOpen').innerHTML = condors.length ? condors.map(c=>{
-    const pnl = c.unrealizedPnl;                        // null ⇒ unknown, never 0
-    const known = pnl !== null && pnl !== undefined;
-    const legs = `${c.pe?.strike}PE/${c.ce?.strike}CE`;
-    const lots = c.qty ? ` × ${c.qty} lot${c.qty>1?'s':''}` : '';
-    return `<tr>
-      <td>${c.inst}${c.lot?` <span style="color:var(--mut)">${c.lot}${lots}</span>`:''} <span style="color:var(--mut)">exp ${c.expiry||''}</span></td>
-      <td>${c.structure||'CONDOR'}</td><td style="color:var(--mut)">${legs}</td>
-      <td>₹${fmt(c.entryNet)}</td><td>${c.nowNet!=null?'₹'+fmt(c.nowNet):'<span style="color:var(--mut)">—</span>'}</td>
-      <td class="${known?(pnl>=0?'up':'dn'):''}" ${known?'':`title="${c.unrealizedPnlReason||'unknown'}"`}>
-        ${known?money(pnl):'<span style="color:var(--mut)">—</span>'}</td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--dim2)">no open positions</td></tr>';
+  /* EVERY ENGINE, not one.
+     This panel read `strangle.openPositions` and nothing else. Measured
+     2026-07-31: the bounce engine held 28 open NIFTY positions worth ₹1.58L of
+     notional while this table said "no open positions", because strangle
+     happened to be flat. /api/positions is the aggregated book — it already
+     adapts all five engines and, crucially, reports which engines did NOT
+     answer instead of treating silence as flat. */
+  const book = await gj('/api/positions');
+  const rows = (book && book.positions) || [];
+  const unavail = (book && book.unavailable) || [];
+  const T = (book && book.totals) || {};
+
+  const openEl = document.getElementById('pnlOpen');
+  if (!book) {
+    openEl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--dn)">position book unreachable — this is NOT "no positions"</td></tr>';
+  } else if (!rows.length) {
+    /* Silence is not flatness. If an engine did not answer, say so here rather
+       than rendering an empty table that reads as "you are flat". */
+    openEl.innerHTML = `<tr><td colspan="6" style="text-align:center;color:${unavail.length?'var(--dn)':'var(--dim2)'}">`
+      + (unavail.length
+          ? `no positions reported — but ${unavail.length} engine(s) did not answer: ${unavail.join(', ')}`
+          : 'no open positions')
+      + '</td></tr>';
+  } else {
+    openEl.innerHTML = rows.map(p=>{
+      const pnl = p.pnl;                                  // null ⇒ unknown, never 0
+      const known = pnl !== null && pnl !== undefined;
+      const legs = (p.legs||[]).map(l=>`${l.strike??'?'}${l.type||''}`).join('/') || '—';
+      const lots = p.qty ? ` × ${p.qty}` : '';
+      return `<tr>
+        <td>${p.inst} <span style="color:var(--mut)">${p.engine}${p.lot?` · ${p.lot}${lots}`:''}</span>${p.entryAt?` <span style="color:var(--mut)">${p.entryAt}</span>`:''}</td>
+        <td>${p.structure||'—'}</td><td style="color:var(--mut)">${legs}</td>
+        <td>${p.entryPx!=null?'₹'+fmt(p.entryPx):'<span style="color:var(--mut)">—</span>'}</td>
+        <td>${p.mtm!=null?'₹'+fmt(p.mtm):'<span style="color:var(--mut)">—</span>'}</td>
+        <td class="${known?(pnl>=0?'up':'dn'):''}" ${known?'':'title="the engine holding this position does not publish a live price for it"'}>
+          ${known?money(pnl):'<span style="color:var(--mut)">—</span>'}</td>
+      </tr>`;
+    }).join('')
+    /* Footer states the total AND how much of the book it covers. A sum that
+       silently omits the legs it could not price is a smaller number that reads
+       like a complete one. */
+    + `<tr style="border-top:1px solid var(--dim2)">
+        <td colspan="3" style="color:var(--mut)">${T.open} open · ${T.engines} engine(s)${unavail.length?` · <span style="color:var(--dn)">${unavail.length} did not answer</span>`:''}</td>
+        <td colspan="2" style="color:var(--mut)">notional ${T.notional!=null?'₹'+fmt(T.notional,0):'—'}</td>
+        <td class="${T.pnl!=null?(T.pnl>=0?'up':'dn'):''}">${T.pnl!=null?money(T.pnl):'<span style="color:var(--mut)">—</span>'}${T.pnlUnknown?` <span style="color:var(--dn)" title="${T.pnlUnknown} position(s) could not be priced and are NOT in this total">+${T.pnlUnknown}?</span>`:''}</td>
+      </tr>`;
+  }
+  void strg;
 }
 
 // COND-2: badge each extreme with HOW the verifier confirmed it — never a bare

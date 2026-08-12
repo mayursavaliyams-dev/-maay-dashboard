@@ -403,7 +403,21 @@ async function loadLiveTrades(){
     const trail = Number(d.trailStop ?? p.movingStop ?? 0);
     const locked = !!(d.trailLocked || p.trailLocked);
     const pct = Number(d.pnlPct ?? ((ltp-entry)/entry*100));
-    const abs = (ltp-entry) * Number(p.quantity || p.lots || 1);
+    /* CONTRACTS, not lots, and never a guess.
+       This was `Number(p.quantity || p.lots || 1)`, which mixed two different
+       units in one fallback chain: `quantity` is total contracts (lots × lot
+       size, see execution-engine.js:535) while `lots` is the lot COUNT. If
+       `quantity` were ever absent the rupee figure would be understated by the
+       whole contract size — 65× on NIFTY — and the final `|| 1` made that a
+       confident number rather than a blank.
+       Third instance of this class in this codebase: the dashboard once carried
+       its own LOT={NIFTY:75}, and bounce-engine's pnlAbs omitted the lot too. */
+    const contracts = Number.isFinite(Number(p.quantity)) && Number(p.quantity) > 0
+      ? Number(p.quantity)
+      : (Number.isFinite(Number(p.lots)) && Number(p.lots) > 0 && Number.isFinite(Number(p.lotSize)) && Number(p.lotSize) > 0
+          ? Number(p.lots) * Number(p.lotSize)
+          : null);
+    const abs = contracts !== null ? (ltp - entry) * contracts : null;
     const cls = pct>0.05?'up':pct<-0.05?'dn':'flat';
     const side = (p.type||'').toLowerCase();
     const key = `${p.strike}_${p.type}`;
@@ -415,7 +429,7 @@ async function loadLiveTrades(){
         <span class="side ${side}">${p.type}</span>
         <span class="pnl">
           <span class="pct mono ${cls}">${pct>=0?'+':''}${pct.toFixed(1)}%</span>
-          <span class="abs mono ${cls}">${abs>=0?'+':''}₹${Math.round(abs)}</span>
+          <span class="abs mono ${abs===null?'':cls}" ${abs===null?'title="this position did not record its contract size — the rupee figure cannot be computed and is not guessed"':''}>${abs===null?'₹—':((abs>=0?'+':'')+'₹'+Math.round(abs))}</span>
         </span>
       </div>
       <div class="metrics">

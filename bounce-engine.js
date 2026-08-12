@@ -14,6 +14,14 @@
  * ⚠️ Validated on a SINGLE day of data — treat as experimental until multi-day
  * walk-forward confirms it. Off by default (BOUNCE_ENGINE_ENABLED).
  */
+/* Contract size from the broker-verified registry. Returns null — never 1 —
+   when the instrument is unknown, so a P&L is either right or absent. */
+const _registry = require('./instrument-registry.js');
+function _lotOf(inst) {
+  try { const l = _registry.lotSize(String(inst || '').toUpperCase()); return Number.isFinite(l) && l > 0 ? l : null; }
+  catch (_) { return null; }
+}
+
 class BounceEngine {
   constructor(cfg = {}) {
     this.enabled  = String(cfg.enabled ?? process.env.BOUNCE_ENGINE_ENABLED ?? 'false').toLowerCase() === 'true';
@@ -69,12 +77,34 @@ class BounceEngine {
     } else {
       const pos = st.pos;
       if (ltp > pos.peak) pos.peak = ltp;
+
+      /* MARK THE POSITION TO MARKET, HERE, WHERE THE PRICE ALREADY IS.
+         This engine saw `ltp` on every tick and kept only `peak`, so an open
+         position carried no current price and no P&L. positions-book already
+         maps `mtm: p.ltp` and `pnl: p.pnl` — the adapter was wired for numbers
+         that were never set, and 28 open positions showed "—" on the dashboard
+         while the engine had the price in hand.
+
+         The contract size comes from the registry. If it is unknown the P&L
+         stays NULL rather than being computed against an assumed lot of 1 — a
+         wrong rupee figure on a live panel is worse than a blank one. */
+      pos.ltp = ltp;
+      pos.ltpAt = this._hms();
+      const lot = _lotOf(pos.inst);
+      pos.pnl = lot != null ? +(((ltp - pos.entry) * pos.qty * lot).toFixed(2)) : null;
+      pos.pnlPct = pos.entry > 0 ? +((((ltp - pos.entry) / pos.entry) * 100).toFixed(2)) : null;
+
       const tgtHit = (ltp - pos.entry) / pos.entry >= this.targetPct / 100;
       const slHit  = (pos.entry - ltp) / pos.entry >= this.slPct / 100;
       if (tgtHit || slHit) {
         const pnlPct = ((ltp - pos.entry) / pos.entry) * 100;
+        /* pnlAbs was (exit - entry) * qty — the CONTRACT SIZE was missing, so
+           every closed-trade rupee figure was understated by the lot (65 for
+           NIFTY). Found 2026-07-31 while wiring the live panel. Null when the
+           lot is unknown, never a number computed against an assumed 1. */
         const closed = { ...pos, exit: ltp, exitAt: this._hms(), pnlPct: +pnlPct.toFixed(1),
-                         pnlAbs: +((ltp - pos.entry) * pos.qty).toFixed(2), reason: slHit ? 'SL' : 'TARGET' };
+                         pnlAbs: lot != null ? +((ltp - pos.entry) * pos.qty * lot).toFixed(2) : null,
+                         lot, reason: slHit ? 'SL' : 'TARGET' };
         this._closed.push(closed);
         this._open.delete(key);
         st.pos = null; st.runLow = ltp; // reset, look for next bounce
@@ -90,6 +120,15 @@ class BounceEngine {
       enabled: this.enabled,
       config: { bouncePct: this.bouncePct, targetPct: this.targetPct, slPct: this.slPct, maxStrikes: this.maxStrikes },
       openPositions: [...this._open.values()],
+      /* Live totals, computed where the positions are. The dashboard renders;
+         it does not compute (see the DASHBOARD RULE in dashboard.html). Unknown
+         legs are COUNTED, not silently dropped from the sum. */
+      openPnl: (() => {
+        const known = [...this._open.values()].filter(p => typeof p.pnl === 'number');
+        return known.length ? +known.reduce((a, p) => a + p.pnl, 0).toFixed(2) : null;
+      })(),
+      openPnlKnown: [...this._open.values()].filter(p => typeof p.pnl === 'number').length,
+      openPnlUnknown: [...this._open.values()].filter(p => typeof p.pnl !== 'number').length,
       closedToday: this._closed.length,
       wins, winRate: this._closed.length ? +(100 * wins / this._closed.length).toFixed(0) : 0,
       netPnlPct: +net.toFixed(1),

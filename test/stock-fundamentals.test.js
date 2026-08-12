@@ -110,14 +110,30 @@ console.log('stock-fundamentals');
 
 // ── @test:performance — one extra call, and only on demand ─────────────────
 {
+  // Bounded at _deepPanels, which is where _getFundamentals now ends. Slicing to
+  // `analyze` would sweep in the deep-mode fetchers below it and count their
+  // calls as this function's.
   const f = SACODE.slice(SACODE.indexOf('async function _getFundamentals'),
-                         SACODE.indexOf('async function analyze'));
+                         SACODE.indexOf('function _deepPanels'));
   const calls = (f.match(/await yf\./g) || []).length;
   ok(calls === 1, `one quoteSummary call, not one per module (${calls})`);
-  ok(/modules: \['defaultKeyStatistics', 'financialData', 'earnings', 'summaryDetail'\]/.test(SACODE),
-    'four modules in a single request');
+  ok(/const BASE_MODULES = \['defaultKeyStatistics', 'financialData', 'earnings', 'summaryDetail'\]/.test(SACODE),
+    'the card still asks for its four modules');
+  ok(/modules: deep \? BASE_MODULES\.concat\(DEEP_MODULES\) : BASE_MODULES/.test(SACODE),
+    'and deep mode lengthens that one request rather than issuing a second');
   ok(!/incomeStatementHistory|balanceSheetHistory/.test(SACODE),
     'and not the two the library itself warns have returned almost nothing since Nov 2024');
+
+  // The deep path costs two further calls — the chart and the peer list — and
+  // must cost them ONLY when asked for, because the agents pipeline polls this
+  // same function on a timer and renders none of it.
+  const a = SACODE.slice(SACODE.indexOf('async function analyze'));
+  ok(/if \(deep\) \{[\s\S]{0,400}Promise\.allSettled/.test(a),
+    'the technical and peer fetches are inside `if (deep)`, so the fast path never pays for them');
+  ok(/Promise\.allSettled\(\[_getTechnicals\(yf, yahooSym\), _getPeers\(yf, yahooSym\)\]\)/.test(a),
+    'and run together, so the page waits for the slower of the two rather than for their sum');
+  ok(/const ck = yahooSym \+ \(deep \? '\|deep' : ''\)/.test(a),
+    'the cache key carries the depth — a card-depth result must not be served to the full view');
 }
 
 // ── @test:failure / @test:rollback — a dead source degrades, never throws ──

@@ -160,11 +160,11 @@ tr.mp-row td.strike::before { content: "MP "; color: var(--orange); font-size: .
    by a measured 25px. The wide-screen values below are the same measurement redone
    at each step, with room to spare — the header is the only thing above this. */
 .main-layout {
-  height: calc(100vh - 90px);
+  height: calc(100vh - 90px - var(--agtk-h, 0px));
   overflow: hidden;
 }
-@media (min-width:1900px){ .main-layout{ height: calc(100vh - 125px); } }
-@media (min-width:2400px){ .main-layout{ height: calc(100vh - 135px); } }
+@media (min-width:1900px){ .main-layout{ height: calc(100vh - 125px - var(--agtk-h, 0px)); } }
+@media (min-width:2400px){ .main-layout{ height: calc(100vh - 135px - var(--agtk-h, 0px)); } }
 .chain-side { height: 100%; overflow-y: auto; overflow-x: auto; }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }

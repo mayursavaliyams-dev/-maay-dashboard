@@ -19,17 +19,52 @@
 'use strict';
 const { STOCKS } = require('./news-engine');
 const { detectDealEvents, computeImpact } = require('./agents-engine');
+const technicals = require('./stock-technicals');
+const universe = require('./stock-universe');
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round = (v, d = 2) => +(+v).toFixed(d);
 
-// ── resolve a user query against the known NIFTY-universe dictionary ─────────
+/* Resolve a user query to a symbol.
+
+   Two dictionaries, in order:
+
+   1. STOCKS — 49 hand-curated NIFTY names, each with news ALIASES ("reliance
+      industries", "mukesh ambani"). Those aliases are what connect a headline to
+      a ticker, so this list stays first and stays authoritative for the names it
+      covers.
+
+   2. The full listed universe — 5,798 NSE and BSE symbols from the broker's
+      instrument master. Before this, anything outside those 49 fell through to a
+      vendor search that does not work for Indian equities, which is why typing
+      "consumer" answered "could not resolve to a listed stock".
+
+   The universe path returns no aliases and no sector, and that is correct: it
+   knows the symbol exists and nothing more. An empty alias list means news
+   matching finds nothing for it rather than matching the wrong headlines, which
+   is the safer of the two failures. */
 function resolveLocal(q) {
   const t = String(q || '').trim().toLowerCase();
   if (!t) return null;
   for (const [sym, sector, aliases] of STOCKS) {
     if (sym.toLowerCase() === t) return { symbol: sym, sector, aliases };
     for (const a of aliases) if (a === t || t.includes(a) || a.includes(t)) return { symbol: sym, sector, aliases };
+  }
+
+  // Exact symbol in the full universe — what the autocomplete dropdown sends.
+  const exact = universe.bySymbol(t);
+  if (exact) return { symbol: exact.symbol, sector: null, aliases: [], name: exact.name, exchange: exact.exchange };
+
+  /* A typed company name, resolved only when the universe is UNAMBIGUOUS about
+     it. Taking the top of a 38-result list would silently pick a stock the user
+     did not ask for, which is worse than saying nothing — so a single match, or
+     a match that is an exact symbol or a clear name prefix, is required. */
+  const hits = universe.search(t, 3);
+  if (hits.ok && hits.results.length) {
+    const top = hits.results[0];
+    const unambiguous = hits.total === 1 || top.tier === 0 ||
+      (top.tier <= 2 && (hits.results.length === 1 || hits.results[1].tier > top.tier));
+    if (unambiguous) return { symbol: top.symbol, sector: null, aliases: [], name: top.name, exchange: top.exchange };
   }
   return null;
 }
@@ -143,15 +178,28 @@ async function _getQuote(yf, yahooSym) {
  * parts do not sum to 100 (64.4 + 18.4 leaves 17% unclassified). It is labelled for
  * what it is, and the remainder is shown rather than hidden.
  */
-async function _getFundamentals(yf, yahooSym) {
+/* The four modules the analyst card has always needed.
+   incomeStatementHistory and balanceSheetHistory are deliberately not asked for:
+   the library itself warns they have returned almost nothing since Nov 2024. The
+   earnings module carries the same yearly line and does work. */
+const BASE_MODULES = ['defaultKeyStatistics', 'financialData', 'earnings', 'summaryDetail'];
+
+/* The rest of what a broker's stock page shows. Asked for only in deep mode —
+   the agents pipeline calls analyze() on a timer and does not render any of it,
+   so making every tick pay for seven more modules would be a cost with no reader.
+   Measured available on 2026-07-29 for all three issuer shapes tested: a 2026
+   demerger (TMPV), an IT major (TCS) and a state-owned bank (CANBK). */
+const DEEP_MODULES = ['assetProfile', 'calendarEvents', 'recommendationTrend',
+  'majorHoldersBreakdown', 'insiderHolders', 'netSharePurchaseActivity', 'earningsTrend'];
+
+async function _getFundamentals(yf, yahooSym, deep = false) {
   if (!yf || !yahooSym) return null;
   let s;
   try {
     s = await yf.quoteSummary(yahooSym, {
-      // incomeStatementHistory and balanceSheetHistory are deliberately not asked
-      // for: the library itself warns they have returned almost nothing since
-      // Nov 2024. The earnings module carries the same yearly line and does work.
-      modules: ['defaultKeyStatistics', 'financialData', 'earnings', 'summaryDetail'],
+      // Still ONE request. Deep mode lengthens the module list; it does not add
+      // a second round trip per panel.
+      modules: deep ? BASE_MODULES.concat(DEEP_MODULES) : BASE_MODULES,
     }, NOVALIDATE);
   } catch (_) { return null; }
   if (!s) return null;
@@ -271,10 +319,162 @@ async function _getFundamentals(yf, yahooSym) {
     holding: (insiders === null && institutions === null) ? null
       : { insiders, institutions, other,
           note: 'Yahoo insiders/institutions split — not the SEBI promoter/FII/DII pattern' },
+
+    // Present only in deep mode. Undefined rather than null when not asked for,
+    // so the card can tell "not requested" from "requested and not reported".
+    deep: deep ? _deepPanels(s, num, pct, ts) : undefined,
   };
 }
 
-async function analyze(query, { newsItems, yf } = {}) {
+/* The broker-page panels, mapped from the deep modules.
+
+   Each block returns null in full when the source gave nothing, rather than an
+   object of nulls: a panel that renders its own headings above six blanks reads
+   as "this company has no analysts", which is a claim the data did not make. */
+function _deepPanels(s, num, pct, ts) {
+  const ap = s.assetProfile || {}, ce = s.calendarEvents || {},
+        rt = s.recommendationTrend || {}, mh = s.majorHoldersBreakdown || {},
+        ih = s.insiderHolders || {}, ns = s.netSharePurchaseActivity || {},
+        et = s.earningsTrend || {};
+
+  const date = (v) => {
+    const d = Array.isArray(v) ? v[0] : v;
+    if (!d) return null;
+    const t = d instanceof Date ? d.getTime() : (d && d.raw ? d.raw * 1000 : Date.parse(d));
+    return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : null;
+  };
+  const txt = (v) => (typeof v === 'string' && v.trim()) ? v.trim() : null;
+
+  const profile = (ap.sector || ap.industry || ap.longBusinessSummary) ? {
+    sector: txt(ap.sector), industry: txt(ap.industry),
+    employees: num(ap.fullTimeEmployees),
+    website: txt(ap.website), phone: txt(ap.phone),
+    city: txt(ap.city), state: txt(ap.state), country: txt(ap.country),
+    summary: txt(ap.longBusinessSummary),
+    // Yahoo's own governance risk scores, 1–10, lower is better. Kept because
+    // the broker screens carry a governance block; labelled as the vendor's
+    // score, not as a fact about the board.
+    governance: (num(ap.auditRisk) !== null || num(ap.boardRisk) !== null) ? {
+      audit: num(ap.auditRisk), board: num(ap.boardRisk),
+      compensation: num(ap.compensationRisk), shareholderRights: num(ap.shareHolderRightsRisk),
+      overall: num(ap.overallRisk),
+      note: 'Yahoo governance risk score, 1 (better) to 10 (worse) — the vendor’s ranking, not an audit',
+    } : null,
+  } : null;
+
+  const e = ce.earnings || {};
+  const events = (date(e.earningsDate) || date(ce.exDividendDate) || date(ce.dividendDate)) ? {
+    nextEarnings: date(e.earningsDate),
+    // The vendor flags an estimated date. A date shown without that flag is read
+    // as scheduled, and planning a position around an estimate is a different
+    // decision from planning around a confirmed one.
+    nextEarningsIsEstimate: e.isEarningsDateEstimate === true,
+    lastEarningsCall: date(e.earningsCallDate),
+    epsEstimate: num(e.earningsAverage), epsEstimateLow: num(e.earningsLow), epsEstimateHigh: num(e.earningsHigh),
+    revenueEstimate: num(e.revenueAverage),
+    exDividend: date(ce.exDividendDate), dividendPay: date(ce.dividendDate),
+  } : null;
+
+  // Current-month analyst distribution — the buy/hold/sell bar on a broker page.
+  const t0 = (rt.trend || []).find(t => t && t.period === '0m') || (rt.trend || [])[0] || null;
+  const total = t0 ? ['strongBuy', 'buy', 'hold', 'sell', 'strongSell']
+    .reduce((a, k) => a + (num(t0[k]) || 0), 0) : 0;
+  const analystTrend = (t0 && total > 0) ? {
+    strongBuy: num(t0.strongBuy) || 0, buy: num(t0.buy) || 0, hold: num(t0.hold) || 0,
+    sell: num(t0.sell) || 0, strongSell: num(t0.strongSell) || 0, total,
+    // History, so a reader can see whether the view is moving rather than only
+    // where it stands.
+    history: (rt.trend || []).filter(t => t && t.period).map(t => ({
+      period: String(t.period), strongBuy: num(t.strongBuy) || 0, buy: num(t.buy) || 0,
+      hold: num(t.hold) || 0, sell: num(t.sell) || 0, strongSell: num(t.strongSell) || 0,
+    })),
+    note: 'Counts of published analyst ratings — opinion, not measurement',
+  } : null;
+
+  const holders = (num(mh.insidersPercentHeld) !== null || num(mh.institutionsPercentHeld) !== null) ? {
+    insidersPct: pct(mh.insidersPercentHeld), institutionsPct: pct(mh.institutionsPercentHeld),
+    institutionsOfFloatPct: pct(mh.institutionsFloatPercentHeld),
+    institutionsCount: num(mh.institutionsCount),
+    note: 'Vendor’s insiders/institutions split. NOT the SEBI promoter/FII/DII/public pattern, and the parts need not sum to 100.',
+  } : null;
+
+  const rows = (ih.holders || []).map(h => ({
+    name: txt(h.name), relation: txt(h.relation),
+    transaction: txt(h.transactionDescription), date: date(h.latestTransDate),
+    shares: num(h.positionDirect) ?? num(h.positionIndirect),
+  })).filter(r => r.name);
+  // Measured 2026-07-29: TMPV returned 1 row, TCS and CANBK returned 0. An empty
+  // list is the normal case for an Indian issuer, so it is reported as "none
+  // filed" rather than as an empty table that looks like a loading failure.
+  const insiderActivity = {
+    rows,
+    netSixMonthShares: num(ns.netInfoShares), netSixMonthPct: pct(ns.netPercentInsiderShares),
+    boughtShares: num(ns.buyInfoShares), soldShares: num(ns.sellInfoShares),
+    reported: rows.length > 0 || num(ns.netInfoShares) !== null,
+    note: 'US-style insider filings. Indian issuers rarely populate this; an empty list is not a data failure.',
+  };
+
+  const outlook = (et.trend || []).filter(t => t && t.period).map(t => ({
+    period: String(t.period), endDate: date(t.endDate),
+    epsEstimate: num(t.earningsEstimate?.avg), epsYearAgo: num(t.earningsEstimate?.yearAgoEps),
+    epsGrowthPct: pct(t.earningsEstimate?.growth),
+    revenueEstimate: num(t.revenueEstimate?.avg), revenueGrowthPct: pct(t.revenueEstimate?.growth),
+    analysts: num(t.earningsEstimate?.numberOfAnalysts),
+  })).filter(r => r.epsEstimate !== null || r.revenueEstimate !== null);
+
+  return {
+    profile, events, analystTrend, holders, insiderActivity,
+    earningsOutlook: outlook.length ? outlook : null,
+  };
+}
+
+/* Daily bars → the technical block. The indicator maths lives in
+   stock-technicals.js, which has no network and is tested against worked
+   examples; this function only fetches. */
+async function _getTechnicals(yf, yahooSym) {
+  if (!yf || !yahooSym) return null;
+  try {
+    // Two years, so a 200-day average exists for anything that has traded that
+    // long — and is honestly absent for anything that has not.
+    const from = new Date(Date.now() - 730 * 86400000).toISOString().slice(0, 10);
+    const c = await yf.chart(yahooSym, { period1: from, interval: '1d' }, NOVALIDATE);
+    const bars = (c && c.quotes) || [];
+    if (!bars.length) return null;
+    return technicals.compute(bars);
+  } catch (_) { return null; }
+}
+
+/* The "similar stocks" strip. Names only — no prices, because pricing five more
+   symbols on every open is five more calls for a row the reader skims. */
+async function _getPeers(yf, yahooSym) {
+  if (!yf || !yahooSym) return null;
+  try {
+    const r = await yf.recommendationsBySymbol(yahooSym, undefined, NOVALIDATE);
+    const list = (r?.recommendedSymbols || [])
+      .map(x => ({ symbol: String(x.symbol || '').replace(/\.(NS|BO)$/, ''), yahooSymbol: x.symbol, score: x.score ?? null }))
+      .filter(x => x.symbol);
+    return list.length ? list : null;
+  } catch (_) { return null; }
+}
+
+/* Panels a broker shows that a market-data vendor cannot supply.
+
+   This list is part of the response on purpose. The alternative — quietly
+   rendering nine panels where the broker shows fifteen — leaves the reader to
+   assume the missing six were checked and found empty. Naming them says the
+   opposite: they were not available at all, and where they would have to come
+   from. Every entry below was tested, not assumed.  */
+const NOT_AVAILABLE = [
+  { panel: 'Market depth (bid/ask ladder)', why: 'Exchange Level-2 feed — a broker terminal entitlement, not in a market-data vendor’s API' },
+  { panel: 'Delivery percentage', why: 'Published by NSE/BSE in end-of-day bhavcopy, not carried by this vendor' },
+  { panel: 'Circuit limits (LCL / UCL)', why: 'Exchange band file; not in the quote feed' },
+  { panel: 'SEBI shareholding pattern (promoter / FII / DII / public)', why: 'Filed quarterly with the exchanges. The vendor’s insiders/institutions split is a different, US-shaped measure — shown, and labelled as such' },
+  { panel: 'Top mutual funds invested', why: 'Vendor returned zero rows for Indian issuers when measured on 2026-07-29' },
+  { panel: 'ROCE, EV / capital employed', why: 'Needs capital-employed line items the vendor stopped returning in Nov 2024' },
+  { panel: 'Analyst upgrades / downgrades history', why: 'Vendor endpoint fails for Indian issuers' },
+];
+
+async function analyze(query, { newsItems, yf, deep = false } = {}) {
   const q = String(query || '').trim();
   if (!q) return { ok: false, error: 'empty query' };
 
@@ -287,7 +487,11 @@ async function analyze(query, { newsItems, yf } = {}) {
   }
   if (!yahooSym) return { ok: false, error: `could not resolve "${q}" to a listed stock` };
 
-  const ck = yahooSym;
+  // The depth is part of the key. Without it a shallow result cached by the
+  // agents pipeline would be served to the full view, which would then render
+  // every deep panel as "not reported" for the next 30 seconds — a data outage
+  // that is really a cache collision.
+  const ck = yahooSym + (deep ? '|deep' : '');
   const hit = _cache.get(ck);
   if (hit && Date.now() - hit.at < 30000) return hit.out;
 
@@ -329,10 +533,26 @@ async function analyze(query, { newsItems, yf } = {}) {
   // Fundamentals are additive context, never an input to the verdict. The verdict is
   // a momentum-and-news heuristic with disclosed parameters; quietly folding a P/B or
   // an ROE into it would change what the number means without changing what it says.
-  const fundamentals = await _getFundamentals(yf, yahooSym);
+  const fundamentals = await _getFundamentals(yf, yahooSym, deep);
+
+  /* Deep mode only. Run together rather than in sequence — they are independent
+     calls to the same host and awaiting them one after the other doubles the
+     time the page waits for no benefit. allSettled, not all: a peers lookup that
+     fails must not take the technicals down with it. Each already returns null
+     on its own failure, so a rejection here is the unexpected case. */
+  let technicalsOut = null, peers = null;
+  if (deep) {
+    const [t, p] = await Promise.allSettled([_getTechnicals(yf, yahooSym), _getPeers(yf, yahooSym)]);
+    technicalsOut = t.status === 'fulfilled' ? t.value : null;
+    peers = p.status === 'fulfilled' ? p.value : null;
+  }
 
   const out = {
     ok: true, query: q, symbol: sym.symbol, sector, quote, fundamentals, momentum, news,
+    // Deep panels are absent, not null, on the fast path — "not asked for" and
+    // "asked for and unavailable" are different states and the page shows them
+    // differently.
+    ...(deep ? { technicals: technicalsOut, peers, notAvailable: NOT_AVAILABLE, depth: 'full' } : { depth: 'card' }),
     headlines: arts.slice(0, 6).map(a => ({ title: a.title, at: a.publishedAt, source: a.sourceName || a.source,
       sentiment: a.sentiment?.label, score: a.sentiment?.score, url: a.url })),
     dealImpacts: dealImpacts.map(d => ({ title: d.title, type: d.eventType, direction: d.direction, probability: d.probability, params: d.params })),
@@ -344,4 +564,5 @@ async function analyze(query, { newsItems, yf } = {}) {
   return out;
 }
 
-module.exports = { analyze, resolveLocal, newsForStock, aggregateNewsSentiment, momentumScore, fuseVerdict };
+module.exports = { analyze, resolveLocal, newsForStock, aggregateNewsSentiment, momentumScore,
+  fuseVerdict, BASE_MODULES, DEEP_MODULES, NOT_AVAILABLE };

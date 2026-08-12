@@ -59,3 +59,13 @@ backtest-tv
 deprecated
 stock
 antigravity-py
+
+# Research corpora are not runtime inputs. market-data/ appeared 2026-08-12 and
+# holds india_stock_master in three formats (11.2 MB json + 2.8 MB csv + 2.6 MB
+# xlsx). Nothing in the codebase reads any of them, and the image is not where a
+# dataset belongs — test/docker-context.test.js caps a single context file at
+# 5 MB for exactly this reason.
+#
+# Deliberately NOT added to .gitignore: whether a stock master should be version
+# controlled is the owner's call, not a side effect of a docker fix.
+market-data

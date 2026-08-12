@@ -75,13 +75,107 @@ function writeState(s) {
   } catch (e) { console.warn(`[capture] state write failed: ${e.message}`); }
 }
 
-async function jget(url) {
+/* ── THE RAW JOURNAL AND THE COVERAGE RECORD ───────────────────────────────────
+   docs/089 §2. Both modules existed, were tested, and were wired to NOTHING —
+   the same defect class as a risk guard that no engine holds.
+
+   raw-journal keeps the bytes the transport delivered, BEFORE they are parsed.
+   The old jget called `r.json()` and the original bytes were gone: a field the
+   parser did not know about, a value it coerced, a response shape that changed —
+   all unrecoverable. Price history can be re-bought from the broker; an option
+   chain at 11:00 on a particular Tuesday cannot be bought back at any price.
+
+   capture-coverage answers "were we watching?" independently of whether anything
+   changed. The capture writes a snapshot only when the fingerprint moves, so a
+   gap in the archive meant either "the market did not move" or "we were not
+   looking" — and those were indistinguishable, which turns our downtime into a
+   quiet market in every backtest. */
+const { RawJournal } = require('./raw-journal.js');
+const { CaptureCoverage } = require('./capture-coverage.js');
+
+const _journal = new RawJournal({
+  root: path.join(__dirname, 'data', 'raw-journal'),
+  stream: 'warehouse-capture',
+  writer: `warehouse-capture@${process.pid}`,
+});
+const _coverage = new CaptureCoverage({ dir: path.join(__dirname, 'data', 'capture-coverage') });
+
+/* source -> sha256 of the last body written as a full observation. In memory
+   only: on restart the first poll writes a full observation again, which is the
+   safe direction — a repeat pointing at a hash this journal never wrote would be
+   the unrecoverable hole the write() guard refuses. */
+const _lastBodyHash = new Map();
+
+/* This loop beats too. A capture that dies at 09:40 is otherwise discovered by
+   noticing a hole in the archive days later — which is exactly the failure mode
+   the coverage record was built to expose, and it cannot expose a process that
+   is not running to write it. Interval is declared by the loop itself below. */
+const { Heartbeat } = require('./heartbeat.js');
+const _heartbeat = new Heartbeat();
+
+/** Fetch, JOURNAL THE BYTES, then parse.
+ *
+ *  Returns { ok, json, status, error } — never a bare null. The old signature
+ *  returned `null` for a network failure, a 500, and a legitimately empty
+ *  response alike, so a feed outage was indistinguishable from a quiet market at
+ *  the one place that could still tell them apart.
+ *
+ *  The journal write is inside its own try: losing the archive copy must not
+ *  lose the live capture, but it must not be silent either.
+ */
+async function jget(url, source) {
+  const src = source || url;
+  let r;
   try {
-    const r = await fetch(url, { cache: 'no-store' });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch (_) { return null; }
+    r = await fetch(url, { cache: 'no-store' });
+  } catch (e) {
+    try { _journal.error(src, `fetch failed: ${e.message}`, { url }); }
+    catch (je) { console.warn(`[capture] journal error-write failed: ${je.message}`); }
+    return { ok: false, json: null, status: 0, error: e.message };
+  }
+
+  const text = await r.text();
+
+  if (!r.ok) {
+    try { _journal.error(src, `HTTP ${r.status}`, { url, bytes: text.length }); }
+    catch (je) { console.warn(`[capture] journal error-write failed: ${je.message}`); }
+    return { ok: false, json: null, status: r.status, error: `HTTP ${r.status}` };
+  }
+
+  /* Bytes first, parse second. If the parse throws, the bytes are already on
+     disk and the response can be re-read later — which is the whole point.
+
+     CONTENT-ADDRESSED, like every other writer in this file. MEASURED
+     2026-08-12, after one full day of real use: writing the full body on every
+     poll grew the journal 3.7 MB an hour, around the clock, because the loop
+     polls all night and an out-of-hours chain never changes — 88 MB a day, 31.5
+     GB a year, nearly all of it byte-identical copies.
+
+     An unchanged poll now writes a `repeat` carrying the SHA-256 of the bytes it
+     repeats. Nothing is lost: the payload is still reconstructable from the
+     earlier record, and the fact that we polled and something answered is still
+     on disk. That distinction is why this is a `repeat` and not a skipped write —
+     skipping is what destroyed the coverage record in the first place. */
+  try {
+    const digest = crypto.createHash('sha256').update(text).digest('hex');
+    if (_lastBodyHash.get(src) === digest) {
+      _journal.repeat(src, digest, text.length, { url, status: r.status });
+    } else {
+      _journal.write({ kind: 'observation', source: src, body: text, meta: { url, status: r.status, sha256: digest } });
+      _lastBodyHash.set(src, digest);
+    }
+  } catch (je) { console.warn(`[capture] journal write failed for ${src}: ${je.message}`); }
+
+  try {
+    return { ok: true, json: JSON.parse(text), status: r.status, error: null };
+  } catch (e) {
+    return { ok: false, json: null, status: r.status, error: `unparseable: ${e.message}` };
+  }
 }
+
+/** The old call shape, for the sites that only want the payload.
+ *  Kept deliberately thin so nothing reads `null` and infers a reason. */
+async function jgetJson(url, source) { return (await jget(url, source)).json; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    1. CHAIN SNAPSHOT  —  every column the feed gives, verbatim, unknown stays null
@@ -232,21 +326,51 @@ async function captureOnce(opts = {}) {
   // ── 1. chain snapshots (sequential: the server's OptionAnalyzer is a shared
   //       singleton mutated per request — TD-2 — so never fan these out) ──
   for (const inst of INSTRUMENTS) {
-    const chain = await jget(`${API}/api/options/chain?instrument=${inst}`);
-    const snap = buildChainSnapshot(inst, chain, now);
-    if (!snap) { summary.chain[inst] = 'no-data'; continue; }
+    const res = await jget(`${API}/api/options/chain?instrument=${inst}`, `chain:${inst}`);
+
+    /* EVERY poll produces a coverage record, including the ones that changed
+       nothing and the ones that failed. `unchanged` is a POSITIVE observation —
+       we looked and it was the same — and it is not the same as `absent`, which
+       is us not looking. That distinction is the entire point of the module. */
+    if (!res.ok) {
+      _coverage.record('error', res.error, now);
+      summary.chain[inst] = `error(${res.error})`;
+      summary.errors.push(`chain ${inst}: ${res.error}`);
+      continue;
+    }
+
+    const snap = buildChainSnapshot(inst, res.json, now);
+    if (!snap) {
+      /* The call succeeded and produced nothing usable. That is a gap in the
+         DATA, not in our watching — recorded as both, because they are separate
+         facts: the journal says the feed answered, coverage says we were here. */
+      try { _journal.gap(`chain:${inst}`, 'response carried no usable chain', { url: `${API}/api/options/chain?instrument=${inst}` }); }
+      catch (je) { console.warn(`[capture] journal gap-write failed: ${je.message}`); }
+      _coverage.record('unchanged', `no usable chain for ${inst}`, now);
+      summary.chain[inst] = 'no-data';
+      continue;
+    }
+
     snaps[inst] = snap;
     const fp = chainFingerprint(snap);
-    if (state[`chain:${inst}`] === fp) { summary.chain[inst] = 'unchanged'; continue; }
+    if (state[`chain:${inst}`] === fp) {
+      _coverage.record('unchanged', inst, now);
+      summary.chain[inst] = 'unchanged';
+      continue;
+    }
     try {
       appendLine(path.join(CHAIN_DIR, inst, `${snap.tradingDay}.jsonl`), snap);
       state[`chain:${inst}`] = fp;
+      _coverage.record('captured', inst, now);
       summary.chain[inst] = `appended(${snap.strikes.length})`;
-    } catch (e) { summary.errors.push(`chain ${inst}: ${e.message}`); }
+    } catch (e) {
+      _coverage.record('error', `append failed: ${e.message}`, now);
+      summary.errors.push(`chain ${inst}: ${e.message}`);
+    }
   }
 
   // ── 2. outcomes: diff the open paper book ──
-  const pop = await jget(`${API}/api/pop/status`);
+  const pop = await jgetJson(`${API}/api/pop/status`, 'pop:status');
   if (pop && Array.isArray(pop.book)) {
     const prev = Array.isArray(state.book) ? state.book : null;
     if (prev === null) {
@@ -270,8 +394,8 @@ async function captureOnce(opts = {}) {
   }
 
   // ── 3. NAV ──
-  const sensex = await jget(`${API}/api/engine/status`);
-  const nifty  = await jget(`${API}/api/nifty/engine/status`);
+  const sensex = await jgetJson(`${API}/api/engine/status`, 'engine:sensex');
+  const nifty  = await jgetJson(`${API}/api/nifty/engine/status`, 'engine:nifty');
   const shape = s => s ? { equity: (s.halt && s.halt.currentEquity != null) ? s.halt.currentEquity : s.capital,
                            peakEquity: s.halt ? s.halt.peakEquity : null,
                            consecLosses: s.halt ? s.halt.consecLosses : null,
@@ -310,6 +434,14 @@ if (require.main === module) {
   // terminates on an unhandled rejection. One rejected cycle would have ended this
   // helper with nothing to restart it until the next logon or 08:50 — the bot would
   // keep running and the warehouse would just stop filling. See loop-guard.js.
-  if (every) console.log(`[capture] continuous every ${every}s — Ctrl-C to stop.`);
+  if (every) {
+    console.log(`[capture] continuous every ${every}s — Ctrl-C to stop.`);
+    // Declares the loop's OWN cadence, so staleness is judged against the promise
+    // this process actually made rather than against a global guess.
+    _heartbeat.start('warehouse-capture', {
+      intervalMs: every * 1000,
+      meta: () => ({ instruments: INSTRUMENTS.length, api: API }),
+    });
+  }
   require('./loop-guard.js').runLoop('capture', run, every * 1000);
 }

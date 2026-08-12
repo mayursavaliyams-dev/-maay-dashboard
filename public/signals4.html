@@ -67,6 +67,12 @@
     <span class="sub">Pattern × Candle · OI Build-up · Early H/L break · ORB — live, auto-refresh · <b>paper / educational, not advice</b></span>
   </div>
 
+  <!-- Bounded to the viewport by fit.js. This page's height is data-driven — four
+       engine tables whose row counts change through the session — so it fit the
+       screen by luck rather than by design, and adding the index strip pushed it
+       over. The panes now scroll inside their own region instead. -->
+  <div data-fit>
+
   <!-- ✅ CONFIRMED — the low-false-signal hero: ≥3 engines agree, tracked accuracy -->
   <section class="pane" style="margin-bottom:16px;border-color:#1c5a38;">
     <div class="pane-hd" style="background:rgba(34,211,154,.06)"><span class="ic">✅</span><div><h2>CONFIRMED Signals <span style="font-size:0.6rem;color:var(--muted);font-weight:400">— ≥3 of 4 engines agree, none opposing → far fewer, higher-quality</span></h2><div class="desc" id="cfAcc">accuracy: building…</div></div><div class="upd"><span class="dot"></span><span id="updConfirmed">—</span></div></div>
@@ -99,8 +105,8 @@
     </section>
   </div>
   <div class="note">All four read the same live Upstox feed. Strikes are ATM-referenced. BUY leg = directional option (theta-risk); SELL leg = premium credit with the same bias. Educational only — not investment advice.</div>
+  </div><!-- /data-fit -->
 </div>
-
 <script>
 const money = v => '₹' + Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const symCls = s => (s || '').toLowerCase();
@@ -222,5 +228,6 @@ setInterval(loadAll, 12000);
 })();
 </script>
 <script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
 </body>
 </html>

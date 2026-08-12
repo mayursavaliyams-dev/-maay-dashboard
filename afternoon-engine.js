@@ -20,6 +20,52 @@
  */
 
 const { roundTripCharges } = require('./charges');
+const { placeGuarded } = require('./place-guarded');
+const { maySendLive } = require('./live-permission');
+const { assertLimits } = require('./limits');
+
+/* RISK LIMITS THROUGH limits.js — docs/089 §1B.
+
+   Each of these was `parseInt(process.env.X || d)`. Measured against the real
+   engine on 2026-08-10:
+
+       AFTERNOON_MAX_TRADES=abc  ->  parseInt  ->  NaN
+       tradesToday >= NaN  is false for EVERY count — the cap does not exist
+
+   No error, no log, no test failure. Number() rather than parseInt, because
+   parseInt("12abc") is 12: a typo silently becomes a DIFFERENT valid limit.
+
+   A malformed value is a REFUSAL, not the default. Falling back to the default
+   feels safe and converts an operator's typo into a silent policy change.
+
+   Bounds are the operator's to set; these are the shipped defaults made
+   explicit. */
+  /* BOUNDS ARE A SANITY RAIL, NOT A POLICY.
+
+     The first version of this bounded AFTERNOON_MAX_TRADES at 50 and refused to
+     start: the deployed .env sets 100. The limits module was right and the bound
+     was a guess — so these are now set from what is ACTUALLY configured
+     (AFTERNOON_MAX_TRADES=100, MAX_TRADES_PER_DAY=100, MAX_CONSECUTIVE_LOSSES=8)
+     with headroom, and their job is to catch a fat finger — a stray zero, a
+     negative, a percentage written as a fraction — not to express an opinion
+     about how much the operator may trade.
+
+     A bound that refuses a real configuration is worse than no bound: it teaches
+     whoever hits it to widen the rail rather than read it. */
+const RISK_LIMITS = assertLimits({
+  MAX_DAILY_LOSS_PERCENT: { default: 2,  min: 0, max: 100 },
+  MAX_CONSECUTIVE_LOSSES: { default: 5,  min: 1, max: 1000, integer: true },
+  MAX_DRAWDOWN_PERCENT:   { default: 20, min: 0, max: 100 },
+  AFTERNOON_MAX_TRADES:   { default: 1,  min: 0, max: 1000, integer: true },
+});
+
+const _registry = require('./instrument-registry');
+
+/* Fails closed: an unknown expiry leaves the risk layer's expiry-concentration
+   check UNEVALUABLE, and the order blocks. */
+function safeExpiry(inst) {
+  try { return _registry.nextExpiry(inst) || null; } catch (_) { return null; }
+}
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
@@ -53,6 +99,21 @@ class AfternoonEngine {
    */
   constructor(opts) {
     this.live             = opts.live;
+    /* THE GUARD. server.js:3674 and :3739 have always passed `broker:
+       guardedBroker`; this line was missing, so it was dropped on the floor and
+       `this.broker` was undefined. Consequences until 2026-08-10:
+         :532  placeGuarded({ broker: undefined })  — every entry refused
+         :697  if (!this.broker) throw ORDER_NO_BROKER — every EXIT threw
+
+       Found by filling attestation's orderConsumers with the property each
+       engine actually holds instead of assuming they were alike; /api/attestation
+       reported `bypassing: niftyAfternoon, sensexAfternoon` from the live object
+       graph before this was fixed.
+
+       `|| null` rather than leaving it undefined: the :697 check reads
+       `!this.broker`, and null says "deliberately absent" where undefined says
+       "nobody thought about it". */
+    this.broker           = opts.broker || null;
     this.getPrice         = opts.getPrice;
     this.getOpenPosition  = opts.getOpenPosition;
     this.setOpenPosition  = opts.setOpenPosition;
@@ -87,7 +148,7 @@ class AfternoonEngine {
     this.trailLockPct  = parseFloat(process.env.AFTERNOON_TRAIL_LOCK_PERCENT   || 60) / 100;
     this.targetMult    = parseFloat(process.env.AFTERNOON_TARGET_PERCENT       || 300) / 100 + 1; // 4x
     this.scoreThreshold= parseInt(process.env.AFTERNOON_SCORE_THRESHOLD        || 70);
-    this.maxTrades     = parseInt(process.env.AFTERNOON_MAX_TRADES             || 1);
+    this.maxTrades     = RISK_LIMITS.AFTERNOON_MAX_TRADES;
     this.timeStopMins  = parseInt(process.env.AFTERNOON_TIME_STOP_MINUTES      || 20);
     // Minimum minutes to wait after an exit before re-entering. 0 = no cooldown.
     this.reentryCooldownMins = parseInt(process.env.AFTERNOON_REENTRY_COOLDOWN_MINUTES || 0);
@@ -122,9 +183,9 @@ class AfternoonEngine {
     this.minPremium = parseFloat(process.env[`${inst}_MIN_PREMIUM`] || 0) || null;
 
     // Global risk caps (shared with morning)
-    this.maxDailyLossPct = parseFloat(process.env.MAX_DAILY_LOSS_PERCENT || 2) / 100;
-    this.maxConsecLosses = parseInt(process.env.MAX_CONSECUTIVE_LOSSES   || 5);
-    this.maxDrawdownPct  = parseFloat(process.env.MAX_DRAWDOWN_PERCENT   || 20) / 100;
+    this.maxDailyLossPct = RISK_LIMITS.MAX_DAILY_LOSS_PERCENT / 100;
+    this.maxConsecLosses = RISK_LIMITS.MAX_CONSECUTIVE_LOSSES;
+    this.maxDrawdownPct  = RISK_LIMITS.MAX_DRAWDOWN_PERCENT / 100;
 
     // Internal state
     this._tradesToday     = 0;
@@ -515,20 +576,55 @@ class AfternoonEngine {
 
     // Place order
     let orderId = `PAPER-AFT-${Date.now()}`;
-    if (!this.paperMode && securityId) {
+
+    /* TWO KEYS. docs/085, docs/089 §1D.
+         KEY 1  TRADE_MODE — this component may act at all
+         KEY 2  ALLOW_LIVE — it may reach a broker
+
+       One key gives you PAPER, not live: without key 2 the entry falls through
+       and is recorded as a paper trade, loudly. Returning instead would silently
+       drop a signal the engine believed in, and the operator would be debugging a
+       missing trade rather than a missing flag.
+
+       The EXIT path has no key 2, deliberately: an exit that needs a permission
+       is a position that cannot be closed during the incident that made closing
+       necessary — the same reason flatten.js is exempt. */
+    const _perm = !this.paperMode
+      ? maySendLive({ capability: true, capabilityFlag: 'TRADE_MODE', liveFlag: 'ALLOW_LIVE' })
+      : { allowed: false, reason: 'paper mode', key: 1 };
+    if (!this.paperMode && !_perm.allowed) {
+      console.warn(`[${this.instrumentName}] LIVE ENTRY BLOCKED — ${_perm.reason}. Recording as paper.`);
+    }
+
+    if (!this.paperMode && _perm.allowed && securityId) {
       try {
-        const res = await this.live.placeOrder({
-          securityId,
-          exchangeSegment: this.exchangeSegment,
-          transactionType: 'BUY',
-          productType:     'INTRADAY',
-          orderType:       'MARKET',
-          quantity
+        /* Phase 2.3 — through the chokepoint. An ENTRY adds risk, so it is
+           evaluated in full and may be refused. A refusal returns; there is no
+           other route to the broker from here. */
+        const res = await placeGuarded({
+          broker: this.broker,
+          intent: {
+            strategy: 'AFTERNOON', instrument: this.instrumentName,
+            strike, optionType: type, side: 'BUY',
+            expiry: safeExpiry(this.instrumentName),
+            stopDistance: ltp * (this.slPct || 0),
+            lotSize: this.lotSize, requestedLots: lots,
+            marginVerdict: this.getMarginVerdict ? this.getMarginVerdict({ instrument: this.instrumentName, strike, type, lots }) : null,
+          },
+          state: this.getRiskState ? this.getRiskState() : null,
+          order: {
+            securityId,
+            exchangeSegment: this.exchangeSegment,
+            transactionType: 'BUY',
+            productType:     'INTRADAY',
+            orderType:       'MARKET',
+            quantity
+          },
         });
         orderId = res.orderId || orderId;
         console.log(`[${this.instrumentName}-AFT] LIVE BUY order placed: ${orderId}`);
       } catch (err) {
-        console.error(`[${this.instrumentName}-AFT] Order placement failed:`, err.message);
+        console.error(`[${this.instrumentName}-AFT] Order placement failed (${err.code || 'ERROR'}):`, err.message);
         return;
       }
     } else {
@@ -668,13 +764,28 @@ class AfternoonEngine {
 
     if (!this.paperMode && pos.securityId) {
       try {
-        await this.live.placeOrder({
+        /* Phase 2.3 — through the chokepoint as a REDUCING order: recorded and
+           counted, never refused. Blocking an exit would hold the position open
+           in exactly the conditions that caused the block. */
+        if (!this.broker) throw Object.assign(new Error('no guarded broker wired for exit'), { code: 'ORDER_NO_BROKER' });
+        const _d = this.broker.approveReducing({
+          strategy: 'AFTERNOON', instrument: this.instrumentName,
+          strike: pos.strike, optionType: pos.type, side: 'SELL',
+          requestedLots: pos.lots ?? null,
+        });
+        await this.broker.placeOrder({
+          instrument:      this.instrumentName,
+          strike:          pos.strike,
+          optionType:      pos.type,
+          side:            'SELL',
+          lots:            pos.lots ?? null,
           securityId:      pos.securityId,
           exchangeSegment: this.exchangeSegment,
           transactionType: 'SELL',
           productType:     'INTRADAY',
           orderType:       'MARKET',
-          quantity:        pos.quantity
+          quantity:        pos.quantity,
+          approval:        _d.approval,
         });
         console.log(`[${this.instrumentName}-AFT] LIVE SELL order placed`);
       } catch (err) {

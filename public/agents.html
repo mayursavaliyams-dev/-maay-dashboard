@@ -104,7 +104,10 @@
      a button teaches nobody it is one. */
   .tkr{ font:inherit; font-weight:800; color:var(--blue); background:rgba(91,156,255,.10);
         border:1px solid rgba(91,156,255,.28); border-radius:6px; padding:1px 7px;
-        cursor:pointer; letter-spacing:.2px; }
+        cursor:pointer; letter-spacing:.2px;
+        /* it is an <a> now, so it must not pick up link underlining, and it needs
+           inline-block so the padding does not collapse inside a table cell */
+        text-decoration:none; display:inline-block; }
   .tkr:hover{ background:rgba(91,156,255,.22); color:#cfe0ff; border-color:var(--blue); }
   .tkr:active{ transform:translateY(1px); }
   .tkr:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
@@ -434,8 +437,14 @@ function tickers(list) {
   if (!arr.length) return '<span style="color:var(--muted)">—</span>';
   return arr.map(s => {
     const sym = String(s).trim();
-    return `<button class="tkr" onclick="event.stopPropagation();showStock('${sym.replace(/'/g, "\\'")}')"` +
-           ` title="Full analysis for ${sym} — price, verdict, fundamentals, headlines and a hedge pair">${sym}</button>`;
+    /* A ticker click opens the full stock view rather than filling the inline card.
+       The card carries a verdict and a handful of numbers; the full view carries
+       the whole broker-style page — technicals, results history, shareholding,
+       analyst ratings — and is what a reader clicking a company name is asking
+       for. It is a real <a>, so middle-click and "open in new tab" work. */
+    const href = '/stock.html?q=' + encodeURIComponent(sym);
+    return `<a class="tkr" href="${href}" onclick="event.stopPropagation()"` +
+           ` title="Open the full view for ${sym} — price, technicals, fundamentals, shareholding, analysts and news">${sym}</a>`;
   }).join(' ');
 }
 
@@ -468,7 +477,7 @@ async function askStock() {
     const fmtCap = c => c ? (c >= 1e12 ? (c/1e12).toFixed(2)+'L Cr' : (c/1e7).toFixed(0).replace(/\B(?=(\d{2})+(?!\d))/g,',')+' Cr') : '—';
     out.innerHTML = `<div class="sa">
       <div class="sa-hd">
-        <span class="sa-nm">${qt.name || r.symbol} <span style="color:var(--muted);font-size:0.62rem;">${r.symbol}${r.sector ? ' · '+r.sector : ''}</span></span>
+        <span class="sa-nm"><a class="tkr" href="/stock.html?q=${encodeURIComponent(r.symbol)}" title="Open the full view — technicals, results history, shareholding, analyst ratings">${qt.name || r.symbol} ↗</a> <span style="color:var(--muted);font-size:0.62rem;">${r.symbol}${r.sector ? ' · '+r.sector : ''}</span></span>
         <span class="sa-px">₹${(qt.price||0).toLocaleString('en-IN')}</span>
         <span class="sa-chg ${qt.changePct>=0?'up':'dn'}">${qt.changePct>=0?'+':''}${(qt.changePct||0).toFixed(2)}%</span>
         <div class="sa-verdict">
@@ -675,7 +684,7 @@ function _hedgeCol(r, tag, tagCol){
   return `<div style="flex:1;min-width:200px;background:#0b1119;border:1px solid #17324a;border-radius:10px;padding:11px 13px">
     <div style="font-size:.5rem;font-weight:800;letter-spacing:.5px;color:${tagCol};text-transform:uppercase;margin-bottom:4px">${tag}</div>
     <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
-      <span style="font-weight:800">${r.symbol}</span>
+      <a class="tkr" href="/stock.html?q=${encodeURIComponent(r.symbol)}" title="Open the full view for ${r.symbol}">${r.symbol}</a>
       <span style="color:var(--muted);font-size:.6rem">${r.sector||''}</span>
       <span style="margin-left:auto;font-size:.66rem">₹${(qt.price||0).toLocaleString('en-IN')}</span>
       <span class="${qt.changePct>=0?'up':'dn'}" style="font-size:.62rem">${qt.changePct>=0?'+':''}${(qt.changePct||0).toFixed(2)}%</span></div>

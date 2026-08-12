@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Screener — ANTIGRAVITY PRO</title>
+<link rel="stylesheet" href="/css/tokens.css">
+<script src="/js/rail.js"></script>
+<style>
+  body{margin:0;background:#080d15;color:#dbe4f0;font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+  /* The index ticker is a fixed 30px strip that shifts the page down with body
+     padding-top and publishes its own height as --agtk-h. A bare 100vh here
+     measured 30px of scroll on every viewport — the page was exactly one ticker
+     too tall. Read the variable rather than hard-coding 30: the strip's height
+     is ticker.js's to change. */
+  .wrap{padding:14px 18px 0;display:flex;flex-direction:column;
+        height:calc(100vh - var(--agtk-h, 0px));box-sizing:border-box;}
+  h1{font-size:15px;font-weight:800;letter-spacing:.4px;margin:0 0 2px;}
+  .sub{font-size:11px;color:#7c8aa0;margin-bottom:10px;}
+  .bar{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;}
+  textarea{flex:1;min-height:52px;max-height:52px;background:#0d1420;border:1px solid #24304a;border-radius:8px;
+    color:#dbe4f0;font:12px/1.5 ui-monospace,"Cascadia Code",Consolas,monospace;padding:8px 10px;resize:none;}
+  textarea:focus{outline:none;border-color:#5b9cff;}
+  button{background:#16233a;border:1px solid #2a3547;color:#cfe0ff;border-radius:8px;padding:8px 14px;
+    font:700 12px system-ui;cursor:pointer;white-space:nowrap;}
+  button:hover{border-color:#5b9cff;}
+  button.primary{background:#1d3a6b;border-color:#2f5fa8;}
+  select{background:#0d1420;border:1px solid #24304a;color:#dbe4f0;border-radius:8px;padding:8px;font:12px system-ui;}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+  .chip{background:#101a2b;border:1px solid #24304a;border-radius:999px;padding:3px 9px;font-size:10.5px;
+    color:#93a2b8;cursor:pointer;}
+  .chip:hover{border-color:#5b9cff;color:#cfe0ff;}
+  .verdicts{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .v{border:1px solid #24304a;border-radius:8px;padding:6px 12px;background:#0d1420;min-width:104px;}
+  .v b{display:block;font-size:17px;font-weight:800;line-height:1.2;}
+  .v span{font-size:9.5px;letter-spacing:.7px;text-transform:uppercase;color:#7c8aa0;}
+  .v.m b{color:#4ade80;} .v.r b{color:#8b97ab;} .v.u b{color:#fbbf24;} .v.n b{color:#f87171;}
+  .note{font-size:11px;color:#7c8aa0;margin-bottom:8px;}
+  .note b{color:#cfe0ff;}
+  .err{background:#2a1420;border:1px solid #5a2436;color:#fca5a5;border-radius:8px;padding:8px 10px;
+    font-size:12px;margin-bottom:8px;white-space:pre-wrap;}
+  .region{flex:1;min-height:0;overflow:auto;border:1px solid #1c2735;border-radius:8px;background:#0b1119;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{position:sticky;top:0;background:#101a2b;text-align:right;padding:7px 10px;font-size:10px;
+    letter-spacing:.5px;text-transform:uppercase;color:#8ea0b8;border-bottom:1px solid #24304a;white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th:nth-child(2),td:nth-child(2){text-align:left;}
+  td{padding:6px 10px;text-align:right;border-bottom:1px solid #131c29;white-space:nowrap;}
+  tr:hover td{background:rgba(91,156,255,.06);}
+  td.sym{font-weight:700;color:#cfe0ff;}
+  td.nul{color:#5a6577;}
+  .tabs{display:flex;gap:4px;margin-bottom:6px;}
+  .tab{background:none;border:1px solid transparent;color:#7c8aa0;border-radius:6px;padding:4px 10px;
+    font:700 10.5px system-ui;letter-spacing:.4px;text-transform:uppercase;cursor:pointer;}
+  .tab.on{background:rgba(91,156,255,.16);color:#cfe0ff;border-color:#2a3547;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Screener</h1>
+  <div class="sub">A query language over the stock universe. <b>A stock whose data is missing is
+    reported as unevaluable — never silently rejected.</b> Field list and units: <span id="fieldcount">…</span></div>
+
+  <div class="bar">
+    <textarea id="q" spellcheck="false" placeholder="Price to Earning &lt; 15 AND Debt to equity &lt; 50 AND Dividend yield &gt; 1"></textarea>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <button class="primary" id="run">Run</button>
+      <select id="scope"><option value="fno">F&amp;O names</option><option value="all">All 5,798</option></select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <button id="bt" title="Run this screen on past dates and measure what happened next">Backtest</button>
+      <select id="sessions">
+        <option value="5">5 sessions</option>
+        <option value="20" selected>20 sessions</option>
+        <option value="60">60 sessions</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div id="err" class="err" style="display:none"></div>
+
+  <div class="verdicts">
+    <div class="v m"><b id="cMatched">—</b><span>Matched</span></div>
+    <div class="v r"><b id="cRejected">—</b><span>Rejected</span></div>
+    <div class="v u"><b id="cUneval">—</b><span>Unevaluable</span></div>
+    <div class="v n"><b id="cNever">—</b><span>Never fetched</span></div>
+  </div>
+
+  <div class="note" id="prov">Run a query to see where its numbers came from.</div>
+
+  <div id="btbox" style="display:none;border:1px solid #24304a;border-radius:8px;background:#0b1119;padding:9px 12px;margin-bottom:8px;">
+    <div style="display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;">
+      <span style="font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:#7c8aa0;">Backtest</span>
+      <span id="btEdge" style="font-size:17px;font-weight:800;"></span>
+      <span id="btDetail" style="font-size:11.5px;color:#93a2b8;"></span>
+    </div>
+    <div id="btDates" style="font-size:10.5px;color:#7c8aa0;margin-top:5px;font-family:ui-monospace,Consolas,monospace;"></div>
+    <div id="btLimits" style="font-size:10.5px;color:#8a7a4a;margin-top:6px;line-height:1.5;"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-t="matched">Matched</button>
+    <button class="tab" data-t="unevaluable">Unevaluable</button>
+  </div>
+
+  <div class="region" data-fit-region>
+    <table><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+  </div>
+</div>
+
+<script src="/js/fit.js" defer></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var last = null, tab = 'matched';
+
+  var EXAMPLES = [
+    'Price to Earning < 15 AND Debt to equity < 50',
+    'Sector IN ("Financial Services", "Technology") AND Price to Earning < 25',
+    'RSI < 40 AND Volume ratio > 1.2',
+    'Range position < 25 AND Market Capitalization > 20000',
+    'Volatility > 40 AND Debt to equity < 50',
+    'Current price > 52 week low * 1.5',
+    'Price to book value < 2 AND Dividend yield > 1',
+    'NOT (Price to Earning > 40 OR Price to book value > 5)'
+  ];
+
+  EXAMPLES.forEach(function (e) {
+    var c = document.createElement('span');
+    c.className = 'chip'; c.textContent = e;
+    c.onclick = function () { $('q').value = e; run(); };
+    $('chips').appendChild(c);
+  });
+
+  fetch('/api/screener/fields').then(function (r) { return r.json(); }).then(function (j) {
+    if (!j.ok) return;
+    $('fieldcount').textContent = j.available.length + ' available, ' + j.unavailable.length
+      + ' deliberately absent (' + j.unavailable.map(function (u) { return u.name; }).slice(0, 3).join(', ') + '…)';
+    $('fieldcount').title = j.available.map(function (f) { return f.name + '  [' + f.unit + ', ' + f.source + ']'; }).join('\n');
+  }).catch(function () { $('fieldcount').textContent = '(field list unavailable)'; });
+
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.onclick = function () {
+      document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on'); tab = b.dataset.t; paint();
+    };
+  });
+
+  function fmt(v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v !== 'number') return String(v);
+    var a = Math.abs(v);
+    if (a >= 1e5) return v.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    if (a >= 100) return v.toFixed(1);
+    if (a >= 1) return v.toFixed(2);
+    return v.toFixed(4);
+  }
+
+  function paint() {
+    if (!last) return;
+    var rows = tab === 'matched' ? last.matched : last.unevaluable;
+    var cols = ['symbol', 'name'].concat(last.fieldsUsed);
+    if (tab === 'unevaluable') cols.push('missing');
+    cols.push('asOf');
+
+    $('thead').innerHTML = '<tr>' + cols.map(function (c) {
+      return '<th>' + (c === 'asOf' ? 'AS OF' : c) + '</th>';
+    }).join('') + '</tr>';
+
+    if (!rows.length) {
+      $('tbody').innerHTML = '<tr><td colspan="' + cols.length + '" style="text-align:center;color:#5a6577;padding:26px">'
+        + (tab === 'matched' ? 'No stock matched. That is an answer, not an error — check the Unevaluable count before trusting it.'
+                             : 'Nothing was unevaluable: every stock had every field this query needed.')
+        + '</td></tr>';
+      return;
+    }
+
+    $('tbody').innerHTML = rows.map(function (r) {
+      return '<tr>' + cols.map(function (c) {
+        if (c === 'symbol') return '<td class="sym">' + (r.symbol || '') + '</td>';
+        if (c === 'name') return '<td>' + (r.name || '') + '</td>';
+        if (c === 'missing') return '<td style="text-align:left;color:#fbbf24">' + (r.missing || []).join(', ') + '</td>';
+        if (c === 'asOf') return '<td class="nul">' + (r.asOf ? r.asOf.slice(5, 16).replace('T', ' ') : '—') + '</td>';
+        var v = fmt(r[c]);
+        return v === null ? '<td class="nul">—</td>' : '<td>' + v + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+  }
+
+  function run() {
+    var q = $('q').value.trim();
+    if (!q) return;
+    $('err').style.display = 'none';
+    $('run').textContent = '…';
+
+    fetch('/api/screener/run', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: q, scope: $('scope').value })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      $('run').textContent = 'Run';
+      if (!j.ok) {
+        var msg = j.error || 'query failed';
+        if (j.unavailableReason) msg += '\n\nWhy this field is absent: ' + j.unavailableReason;
+        $('err').textContent = msg;
+        $('err').style.display = '';
+        return;
+      }
+      last = j;
+      $('cMatched').textContent = j.counts.matched;
+      $('cRejected').textContent = j.counts.rejected;
+      $('cUneval').textContent = j.counts.unevaluable;
+      $('cNever').textContent = j.neverFetched.count;
+
+      var bits = [];
+      bits.push('<b>' + j.counts.total + '</b> stocks in scope (' + j.scope + ')');
+      if (j.asOf.newest) {
+        bits.push('data from <b>' + j.asOf.oldest.slice(5, 16).replace('T', ' ') + '</b> to <b>'
+          + j.asOf.newest.slice(5, 16).replace('T', ' ') + '</b>'
+          + (j.asOf.spreadMinutes > 60 ? ' — a spread of ' + Math.round(j.asOf.spreadMinutes / 60) + 'h' : ''));
+      }
+      if (j.neverFetched.count) {
+        bits.push('<b>' + j.neverFetched.count + '</b> symbols have never been fetched and were not screened at all');
+      }
+      var mb = Object.keys(j.missingByField || {});
+      if (mb.length) {
+        bits.push('missing: ' + mb.map(function (k) { return k + ' (' + j.missingByField[k] + ')'; }).join(', '));
+      }
+      $('prov').innerHTML = bits.join(' &nbsp;·&nbsp; ');
+      paint();
+    }).catch(function (e) {
+      $('run').textContent = 'Run';
+      $('err').textContent = String(e.message || e);
+      $('err').style.display = '';
+    });
+  }
+
+  function runBacktest() {
+    var q = $('q').value.trim();
+    if (!q) return;
+    $('err').style.display = 'none';
+    $('bt').textContent = '…';
+
+    fetch('/api/screener/backtest', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: q, sessions: Number($('sessions').value) })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      $('bt').textContent = 'Backtest';
+      if (!j.ok) {
+        $('btbox').style.display = 'none';
+        $('err').textContent = j.error;
+        $('err').style.display = '';
+        return;
+      }
+      $('btbox').style.display = '';
+      var a = j.aggregate;
+      if (!a) {
+        /* null, not 0. A backtest reporting 0% on no observations is
+           indistinguishable from one that measured no edge. */
+        $('btEdge').textContent = 'no observations';
+        $('btEdge').style.color = '#8b97ab';
+        $('btDetail').textContent = 'the data does not reach far enough back for this horizon';
+        $('btDates').textContent = '';
+      } else {
+        var e = a.edgePct;
+        $('btEdge').textContent = (e > 0 ? '+' : '') + e + '% edge';
+        $('btEdge').style.color = e > 0 ? '#4ade80' : '#f87171';
+        $('btDetail').textContent = 'screen ' + a.meanPct + '% vs market ' + a.benchMeanPct + '%'
+          + ' · win ' + a.winRatePct + '%'
+          + ' · n=' + a.observations + ' over ' + a.datesWithForward + ' dates'
+          + ' · ' + j.sessions + ' sessions forward · universe ' + j.universeSize;
+        $('btDates').textContent = j.dates.filter(function (d) { return d.withForward > 0; })
+          .map(function (d) {
+            return d.asOf.slice(2) + ' n' + d.matched + ' ' + (d.edgePct > 0 ? '+' : '') + d.edgePct + '%';
+          }).join('   ');
+      }
+      /* The limitations render WITH the number, every time. A caveat that lives
+         in a document nobody opens is not a caveat. */
+      $('btLimits').innerHTML = j.limitations.map(function (l) { return '▸ ' + l; }).join('<br>');
+    }).catch(function (e) {
+      $('bt').textContent = 'Backtest';
+      $('err').textContent = String(e.message || e);
+      $('err').style.display = '';
+    });
+  }
+
+  $('bt').onclick = runBacktest;
+  $('run').onclick = run;
+  $('q').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) run();
+  });
+})();
+</script>
+</body>
+</html>

@@ -251,7 +251,7 @@ class AgentsEngine {
       .map(s => String(s).trim().toUpperCase()).filter(i => lotOf(i) != null);   // C1b: registry is the whitelist
 
     // ── the VALIDATED edge: defined-risk premium selling (iron condor) ──
-    this.sellEnabled = String(cfg.sellEnabled ?? process.env.AGENTS_SELL_ENABLED ?? 'true').toLowerCase() === 'true';
+    this.sellEnabled = String(cfg.sellEnabled ?? process.env.AGENTS_SELL_ENABLED ?? 'false'   /* was 'true'. A permission granted when unstated is not a permission. Task 2b. */).toLowerCase() === 'true';
     this.sellTpPct = parseFloat(cfg.sellTpPct ?? process.env.AGENTS_SELL_TP ?? 50);          // book at 50% of credit captured
     this.sellStopMult = parseFloat(cfg.sellStopMult ?? process.env.AGENTS_SELL_STOP ?? 1.6); // exit if cost-to-close ≥ credit×1.6
     this.shortSteps = parseInt(cfg.shortSteps ?? process.env.AGENTS_SHORT_STEPS ?? 2);       // shorts at ATM ± 2 strikes

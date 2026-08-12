@@ -14,6 +14,10 @@
 const fetch = require('node-fetch');
 
 const BASE = 'https://api.upstox.com/v2';
+
+/* null, never 0. A margin figure the broker did not return must not become a
+   zero — a basket costing "₹0" would pass every headroom check there is. */
+const num = (v) => (v === null || v === undefined || !isFinite(Number(v))) ? null : Number(v);
 // Latency knobs (env-tunable). Lower = fresher data / less lag, more API calls.
 // Upstox Plus comfortably handles these; raise if you ever hit rate limits.
 const CHAIN_CACHE_MS = Number(process.env.UPSTOX_CHAIN_CACHE_MS) || 2500;  // was 4500
@@ -41,6 +45,14 @@ const strikeResolver = require('./strike-resolver.js');
 function enc(k) { return encodeURIComponent(k); }
 
 class UpstoxConnector {
+  /* An empty list from this connector means the broker really returned nothing.
+     Failures throw. A caller may therefore read [] as "flat".
+
+     Declared as a property rather than assumed from the class name: a caller
+     must be able to ask the OBJECT, because the object is what it holds. A
+     connector without this marker may still return [] for a failed call, and
+     broker-positions.js refuses to read those as flat. */
+  static distinguishesEmptyFromError = true;
   constructor(config = {}) {
     this.accessToken = config.accessToken || process.env.UPSTOX_ACCESS_TOKEN || '';
     this.connected = false;
@@ -147,6 +159,132 @@ class UpstoxConnector {
     this._priceCache[inst] = { at: Date.now(), data };
     return data;
   }
+  /* Basket margin, from the exchange's own calculator.
+
+     VERIFIED WORKING 2026-07-30 against the live account:
+       POST /v2/charges/margin   → 200, with span_margin and exposure_margin per
+                                   leg plus required_margin and final_margin
+       POST /v3/charges/margin   → 404 (does not exist)
+
+     `final_margin` is the number that matters: it is what the account is
+     actually charged after the exchange's own offsets, and it is NOT the sum of
+     the legs. Measured on a NIFTY 2026-08-04 basket, one lot per leg:
+
+       naked short strangle 23900P/24700C  legs ₹1,82,470 → final ₹1,80,959
+       the same plus 23400P/25200C wings   legs ₹1,82,769 → final ₹  92,694
+
+     Adding the wings RELEASES ₹88,265 — 48.8% of the margin — for the cost of
+     two long options. No local formula would have produced that number, which is
+     precisely why this call exists and why no local formula is trusted. */
+  async getBasketMargin(instruments) {
+    this._assertConnected();
+    const list = (instruments || []).filter(Boolean).map(x => ({
+      instrument_key: x.instrument_key || x.instrumentKey,
+      quantity: Number(x.quantity),
+      transaction_type: String(x.transaction_type || x.side || '').toUpperCase(),
+      product: x.product || 'D',
+    }));
+    if (!list.length) throw new Error('getBasketMargin: no instruments');
+    for (const l of list) {
+      if (!l.instrument_key) throw new Error('getBasketMargin: an instrument has no instrument_key');
+      if (!(l.quantity > 0)) throw new Error(`getBasketMargin: ${l.instrument_key} has a non-positive quantity`);
+      if (l.transaction_type !== 'BUY' && l.transaction_type !== 'SELL') {
+        throw new Error(`getBasketMargin: ${l.instrument_key} has transaction_type "${l.transaction_type}"`);
+      }
+    }
+
+    this._stats.calls++; this._stats.lastCallAt = Date.now();
+    const body = JSON.stringify({ instruments: list });
+    const r = await fetch(`${BASE}/charges/margin`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json', Accept: 'application/json',
+      },
+      body,
+      timeout: Number(process.env.UPSTOX_TIMEOUT_MS) || 6000,
+    });
+    const txt = await r.text();
+    let j; try { j = JSON.parse(txt); } catch { j = { raw: txt }; }
+    if (!r.ok || j.status === 'error') {
+      this._stats.errors++;
+      const msg = (j.errors && j.errors[0] && j.errors[0].message) || txt.slice(0, 160);
+      const e = new Error(`Upstox margin: ${r.status} ${msg}`); e.status = r.status;
+      if (r.status === 429) {
+        this._stats.rateLimited++;
+        const ra = Number(r.headers && r.headers.get && r.headers.get('retry-after'));
+        e.retryAfterMs = Number.isFinite(ra) && ra > 0 ? ra * 1000 : null;
+      }
+      throw e;
+    }
+
+    const d = (j && j.data) || {};
+    const legs = (d.margins || []).map((m, i) => ({
+      instrument_key: list[i] ? list[i].instrument_key : null,
+      span: num(m.span_margin), exposure: num(m.exposure_margin),
+      additional: num(m.additional_margin), netBuyPremium: num(m.net_buy_premium),
+      total: num(m.total_margin),
+    }));
+    const legSum = legs.reduce((s, l) => s + (l.total || 0), 0);
+    const final = num(d.final_margin);
+
+    return {
+      ok: true,
+      source: 'broker',                     // never 'estimate' — this path is the truth
+      legs,
+      span: legs.reduce((s, l) => s + (l.span || 0), 0),
+      exposure: legs.reduce((s, l) => s + (l.exposure || 0), 0),
+      legSum,
+      required: num(d.required_margin),
+      final,
+      /* What the exchange gave back for holding these legs together. It is the
+         whole reason a basket must be priced as a basket and not leg by leg. */
+      basketBenefit: (final === null) ? null : +(legSum - final).toFixed(2),
+      at: Date.now(),
+    };
+  }
+
+  /* Many indices, ONE request.
+
+     The ticker strip shows six indices on every page. Six separate LTP calls per
+     refresh, multiplied by every open tab, is exactly the traffic pattern that
+     produced 458 rate-limit refusals before the governance work — so this asks for
+     all of them in a single call and lets the caller cache the result.
+
+     `quotes` rather than `ltp` because it carries `net_change`. The index `ohlc.close`
+     is TODAY's close, not the previous one — measured 2026-07-29, when it came back
+     equal to last_price for all six — so a change computed from it would be zero all
+     day. `net_change` is the broker's own figure and is the only correct source here.
+
+     A key the broker does not return is left ABSENT from the result, never zeroed.
+     A missing index must render as a blank, not as a flat market. */
+  async getIndexQuotes(keys) {
+    this._assertConnected();
+    const list = (keys || []).filter(Boolean);
+    if (!list.length) return {};
+    const j = await this._get(`/market-quote/quotes?instrument_key=${list.map(enc).join(',')}`);
+    const data = (j && j.data) || {};
+    const out = {};
+    for (const key of list) {
+      // the response keys use ':' where the request used '|'
+      const rec = data[key.replace('|', ':')];
+      if (!rec || !(Number(rec.last_price) > 0)) continue;      // absent, not zero
+      const price = Number(rec.last_price);
+      const chg = Number.isFinite(Number(rec.net_change)) ? Number(rec.net_change) : null;
+      const prev = chg === null ? null : price - chg;
+      out[key] = {
+        price,
+        change: chg,
+        // Percentage against the PREVIOUS close, derived from the broker's own
+        // net_change — not against today's price, which would understate the move.
+        changePct: (chg === null || !(prev > 0)) ? null : +(chg / prev * 100).toFixed(2),
+        prevClose: prev,
+        at: Date.now(),
+      };
+    }
+    return out;
+  }
+
   async getNiftyPrice()     { return this._indexPrice('NIFTY'); }
   async getBankNiftyPrice() { return this._indexPrice('BANKNIFTY'); }
   async getSensexPrice()    { return this._indexPrice('SENSEX'); }
@@ -317,13 +455,51 @@ class UpstoxConnector {
   }
 
   // ── orders / positions (Upstox endpoints) ────────────────────
+  /* A FAILED CALL AND A FLAT ACCOUNT ARE DIFFERENT ANSWERS — defect A5 / D-8,
+     fixed 2026-08-12.
+
+     This was `catch { return []; }`. It conflated three states into one empty
+     array: the call failed, the session is disconnected, and the account is
+     genuinely flat.
+
+     `broker-positions.js` was already defending against it — it reports every
+     empty result as EMPTY_UNVERIFIABLE and names this defect in its own reason
+     string. So the system never claimed "you are flat" when it did not know. The
+     cost was subtler and permanent: because an empty list could always be a
+     failure, an empty list could NEVER be read as flat, so the operator could
+     never get a clean answer even when the account really was flat, and no
+     reconciliation could ever be built on it.
+
+     It now THROWS, with context. broker-positions already has the branch for it
+     (`getPositions() threw: …` → UNAVAILABLE, "open the broker app"), and an
+     empty array from here now means what it says.
+
+     `positionsDistinguishEmptyFromError` is the marker that says so. A caller
+     must not trust an empty list from a connector that does not carry it — an
+     older connector, a mock, or a future one written the old way. */
+  get positionsDistinguishEmptyFromError() { return true; }
+
   async getPositions() {
-    try { const j = await this._get('/portfolio/short-term-positions'); return j.data || []; }
-    catch { return []; }
+    try {
+      const j = await this._get('/portfolio/short-term-positions');
+      return j.data || [];
+    } catch (e) {
+      throw Object.assign(
+        new Error(`upstox getPositions failed: ${e.message}`),
+        { code: 'BROKER_POSITIONS_UNAVAILABLE', cause: e },
+      );
+    }
   }
   async getOrders() {
-    try { const j = await this._get('/order/retrieve-all'); return j.data || []; }
-    catch { return []; }
+    try {
+      const j = await this._get('/order/retrieve-all');
+      return j.data || [];
+    } catch (e) {
+      throw Object.assign(
+        new Error(`upstox getOrders failed: ${e.message}`),
+        { code: 'BROKER_ORDERS_UNAVAILABLE', cause: e },
+      );
+    }
   }
   async placeOrder(/* params */) {
     // Live order placement intentionally not implemented here — keep paper-mode safe.

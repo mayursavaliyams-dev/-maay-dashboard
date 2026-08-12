@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Universe · Antigravity Pro</title>
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg-wash); color:var(--text); font-family:var(--font-ui); }
+
+  .top{ display:flex; align-items:center; gap:10px; padding:8px 14px; flex-wrap:wrap;
+        border-bottom:1px solid var(--border); background:var(--panel); }
+  .ttl{ font-weight:800; color:var(--blue); font-size:.95rem; }
+  .top input{ background:var(--panel2); border:1px solid var(--border); color:var(--text);
+        border-radius:7px; padding:5px 10px; font-size:.88rem; width:260px; font-family:inherit; }
+  .top input:focus{ outline:none; border-color:var(--blue); }
+  .top select{ background:var(--panel2); border:1px solid var(--border); color:var(--text);
+        border-radius:7px; padding:5px 8px; font-size:.84rem; font-family:inherit; }
+  .top button{ background:var(--panel2); border:1px solid var(--border); color:var(--text);
+        border-radius:7px; padding:5px 11px; font-size:.84rem; font-weight:700; cursor:pointer; font-family:inherit; }
+  .top button:hover{ border-color:var(--blue); color:var(--blue); }
+  .cnt{ margin-left:auto; font-size:.84rem; color:var(--muted); font-family:var(--font-num); }
+
+  /* the breakdown strip — what the number is made of, before the rows */
+  .sum{ display:flex; gap:8px; flex-wrap:wrap; padding:8px 14px; border-bottom:1px solid var(--border); }
+  .chip{ font-size:.78rem; font-weight:700; padding:3px 10px; border-radius:7px; cursor:pointer;
+         background:var(--panel); border:1px solid var(--border); color:var(--muted); white-space:nowrap; }
+  .chip:hover{ border-color:var(--blue); color:var(--text); }
+  .chip.on{ background:rgba(91,156,255,.16); border-color:var(--blue); color:#cfe0ff; }
+  .chip b{ color:var(--text); font-family:var(--font-num); }
+
+  .body{ padding:0 14px 10px; overflow-y:auto; }
+  table{ border-collapse:collapse; width:100%; font-size:.86rem; }
+  thead th{ position:sticky; top:0; background:var(--panel); text-align:left; color:var(--muted);
+        font-weight:700; font-size:.74rem; text-transform:uppercase; letter-spacing:.04em;
+        padding:7px 10px; border-bottom:1px solid var(--border); z-index:2; }
+  td{ padding:5px 10px; border-bottom:1px solid var(--panel2); }
+  tbody tr:hover{ background:rgba(91,156,255,.07); }
+  .sym{ font-weight:800; color:var(--blue); font-family:var(--font-num); text-decoration:none; }
+  .sym:hover{ text-decoration:underline; }
+  .ex{ color:var(--muted); font-weight:700; font-size:.8rem; }
+  .bd{ color:#6d7a92; font-size:.78rem; }
+  .fo{ font-size:.7rem; font-weight:800; padding:1px 6px; border-radius:4px;
+       background:rgba(38,208,160,.12); color:var(--green); border:1px solid rgba(38,208,160,.35); }
+  .msg{ padding:36px 14px; text-align:center; color:var(--muted); font-size:.9rem; }
+  .msg.err{ color:var(--red); }
+  .note{ font-size:.76rem; color:#6d7a92; padding:6px 14px 0; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="ttl">🗂️ Stock Universe</span>
+  <input id="q" placeholder="Filter by symbol or company name" autocomplete="off">
+  <select id="ex"><option value="">All exchanges</option><option>NSE</option><option>BSE</option></select>
+  <button id="csv">Export CSV</button>
+  <span class="cnt" id="cnt">—</span>
+</div>
+
+<div class="sum" id="sum"></div>
+<div class="note" id="note"></div>
+
+<div class="body" data-fit>
+  <table>
+    <thead><tr><th style="width:150px">Symbol</th><th>Company</th><th style="width:80px">Exchange</th><th style="width:220px">Board</th><th style="width:70px">F&amp;O</th></tr></thead>
+    <tbody id="tb"><tr><td colspan="5" class="msg">loading the universe…</td></tr></tbody>
+  </table>
+</div>
+
+<script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Every listed Indian equity this system can search, and what each row is.
+
+   The board column is the point of this page. A "stock" on this list can be a
+   main-board company, an SME listing, a trade-to-trade scrip, a suspended one,
+   a REIT or an InvIT — and those are materially different things. A flat list of
+   5,798 names with no board column would imply they are all the same kind of
+   instrument, which is the quiet kind of wrong this platform tries not to be.
+
+   Filtering is local. The whole list arrives once; every keystroke after that
+   costs nothing.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const BOARD = {
+  EQ: 'Main board equity',          BE: 'Trade-to-trade equity',
+  SM: 'SME board',                  ST: 'SME trade-to-trade',
+  BZ: 'Suspended / blocked',        IV: 'Listed InvIT',
+  RR: 'Listed REIT',                IT: 'Equity (IT series)',
+  E1: 'Partly-paid shares',
+  A:  'Group A',                    B:  'Group B',
+  T:  'Trade-to-trade',             X:  'Group X',
+  XT: 'Group XT',                   M:  'SME',
+  MT: 'SME trade-to-trade',         Z:  'Group Z',
+  P:  'Group P',                    TS: 'Group TS',
+  ZP: 'Group ZP',                   MS: 'Group MS',
+  R:  'Group R',                    E:  'ETF / mutual-fund units',
+  IF: 'Fractional / SM-REIT units',
+};
+
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const nf = n => Number(n).toLocaleString('en-IN');
+
+let ALL = [], filter = { q: '', ex: '', board: '', fno: false };
+
+function paint() {
+  const q = filter.q.toUpperCase();
+  const rows = ALL.filter(r =>
+    (!q || r.symbol.includes(q) || r.name.toUpperCase().includes(q)) &&
+    (!filter.ex || r.exchange === filter.ex) &&
+    (!filter.board || (r.exchange + '|' + r.board) === filter.board) &&
+    (!filter.fno || r.fno));
+
+  // The count states both numbers. "1,204 shown" alone would leave the reader
+  // guessing whether that is the whole market or a slice of it.
+  document.getElementById('cnt').textContent =
+    rows.length === ALL.length ? `${nf(ALL.length)} listed` : `${nf(rows.length)} of ${nf(ALL.length)}`;
+
+  // Only the first 500 rows are rendered. Painting 5,798 rows on every keystroke
+  // is slower than any reader needs, and nobody scrolls past a few hundred — but
+  // the truncation is SAID, never silent.
+  const shown = rows.slice(0, 500);
+  document.getElementById('tb').innerHTML = shown.length ? shown.map(r => `<tr>
+      <td><a class="sym" href="/stock.html?q=${encodeURIComponent(r.symbol)}">${esc(r.symbol)}</a></td>
+      <td>${esc(r.name)}</td>
+      <td class="ex">${esc(r.exchange)}</td>
+      <td class="bd">${esc(BOARD[r.board] || r.board || '—')}</td>
+      <td>${r.fno ? '<span class="fo">F&amp;O</span>' : ''}</td>
+    </tr>`).join('') + (rows.length > shown.length
+      ? `<tr><td colspan="5" class="msg">showing the first ${nf(shown.length)} of ${nf(rows.length)} matches — narrow the filter to see the rest</td></tr>`
+      : '')
+    : `<tr><td colspan="5" class="msg">nothing matches this filter</td></tr>`;
+}
+
+function chips() {
+  const byE = {}, byB = {};
+  // Keyed by exchange AND board. NSE's ST and BSE's MT are both "SME
+  // trade-to-trade", and two chips with the same label and different counts is
+  // a legend nobody can read.
+  for (const r of ALL) {
+    byE[r.exchange] = (byE[r.exchange] || 0) + 1;
+    const k = r.exchange + '|' + r.board;
+    byB[k] = (byB[k] || 0) + 1;
+  }
+  const fno = ALL.filter(r => r.fno).length;
+
+  const mk = (label, count, on, click) =>
+    `<span class="chip${on ? ' on' : ''}" data-c="${click}">${label} <b>${nf(count)}</b></span>`;
+
+  const parts = [mk('All', ALL.length, !filter.ex && !filter.board && !filter.fno, 'all')];
+  for (const e of Object.keys(byE).sort()) parts.push(mk(e, byE[e], filter.ex === e && !filter.board, 'ex:' + e));
+  parts.push(mk('With F&amp;O', fno, filter.fno, 'fno'));
+  for (const [k, c] of Object.entries(byB).sort((a, b2) => b2[1] - a[1]).slice(0, 8)) {
+    const [e, b] = k.split('|');
+    parts.push(mk(`${esc(e)} · ${esc(BOARD[b] || b)}`, c, filter.board === k, 'board:' + k));
+  }
+  document.getElementById('sum').innerHTML = parts.join('');
+}
+
+document.getElementById('sum').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  const v = c.dataset.c;
+  if (v === 'all') filter = { ...filter, ex: '', board: '', fno: false };
+  else if (v === 'fno') filter = { ...filter, fno: !filter.fno, board: '' };
+  else if (v.startsWith('ex:')) filter = { ...filter, ex: filter.ex === v.slice(3) ? '' : v.slice(3), board: '' };
+  else if (v.startsWith('board:')) filter = { ...filter, board: filter.board === v.slice(6) ? '' : v.slice(6) };
+  document.getElementById('ex').value = filter.ex;
+  chips(); paint();
+});
+
+document.getElementById('q').addEventListener('input', e => { filter.q = e.target.value.trim(); paint(); });
+document.getElementById('ex').addEventListener('change', e => { filter.ex = e.target.value; chips(); paint(); });
+
+/* CSV of what is FILTERED, not of what is rendered. Exporting the 500 painted
+   rows while the header says 5,798 would be a file that quietly disagrees with
+   the screen. */
+document.getElementById('csv').addEventListener('click', () => {
+  const q = filter.q.toUpperCase();
+  const rows = ALL.filter(r =>
+    (!q || r.symbol.includes(q) || r.name.toUpperCase().includes(q)) &&
+    (!filter.ex || r.exchange === filter.ex) &&
+    (!filter.board || (r.exchange + '|' + r.board) === filter.board) &&
+    (!filter.fno || r.fno));
+  const csv = ['symbol,name,exchange,board,board_meaning,has_derivatives']
+    .concat(rows.map(r => [r.symbol, '"' + String(r.name).replace(/"/g, '""') + '"',
+      r.exchange, r.board, '"' + (BOARD[r.board] || '') + '"', r.fno ? 'yes' : 'no'].join(',')))
+    .join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `stock-universe-${rows.length}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+fetch('/api/stock/universe/all', { cache: 'no-store' })
+  .then(r => r.json())
+  .then(d => {
+    if (!d.ok) {
+      document.getElementById('tb').innerHTML = `<tr><td colspan="5" class="msg err">${esc(d.error)}</td></tr>`;
+      return;
+    }
+    /* Ordered by prominence, not by symbol.
+
+       Plain alphabetical opens this page on "08ABB · Nippon India Mutual Fund",
+       because numeric-prefixed fund units sort first. Every row correct, and a
+       first screen that tells the reader nothing about their market. Same
+       ordering idea as the search box: derivatives first, then the main boards,
+       then alphabetical inside each. */
+    const BOARD_ORDER = ['EQ', 'BE', 'A', 'B', 'RR', 'IV', 'T', 'X', 'XT', 'SM', 'ST', 'M', 'MT', 'Z', 'BZ'];
+    const rank = (r) => {
+      const b = BOARD_ORDER.indexOf(r.board);
+      return (r.fno ? 0 : 100) + (b === -1 ? 50 : b) + (r.exchange === 'NSE' ? 0 : 0.5);
+    };
+    ALL = (d.stocks || []).sort((a, b) => rank(a) - rank(b) || a.symbol.localeCompare(b.symbol));
+    document.getElementById('note').innerHTML =
+      `Built ${esc((d.builtAt || '').slice(0, 16).replace('T', ' '))} from the <b>${esc(d.source || 'broker instrument master')}</b>. ` +
+      `Refresh with <code>npm run build:universe</code>. ` +
+      `Bonds, government securities and treasury bills carried in the same exchange files are excluded — a stock search that answers ` +
+      `“IRFC 7.37% 2029 SR 181” is a worse search. <b>F&amp;O</b> marks a stock with listed derivatives: the exchange's own liquidity ` +
+      `judgement, used to order equally-good search matches. It is not a recommendation.`;
+    chips(); paint();
+  })
+  .catch(e => {
+    document.getElementById('tb').innerHTML =
+      `<tr><td colspan="5" class="msg err">could not load the universe — ${esc(e.message)}</td></tr>`;
+  });
+</script>
+</body>
+</html>

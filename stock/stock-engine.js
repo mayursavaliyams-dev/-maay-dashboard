@@ -92,7 +92,10 @@ class StockExecutionEngine {
     this.trailAfterPct = parseFloat(process.env.TRAIL_AFTER_PERCENT  || 1) / 100;
     this.trailLockPct  = parseFloat(process.env.TRAIL_LOCK_PERCENT   || 60) / 100;
     this.slipPct       = parseFloat(process.env.SLIPPAGE_PERCENT     || 0.1) / 100;
-    this.paperMode     = (process.env.TRADE_MODE || 'paper') !== 'live';
+    /* NOT TRADE_MODE — that is the main bot's flag, and this engine's order
+       path has none of the main bot's controls. See stock/arming.js. */
+    this.paperMode     = require('./arming').armingState().paperMode;
+const { maySendLive } = require('../live-permission');
 
     // Per-symbol auto flag overrides the global AUTO_TRADE_ENABLED.
     const perKey = `${this.symbol}_AUTO_ENABLED`;
@@ -412,7 +415,27 @@ class StockExecutionEngine {
     console.log(`[${this.symbol}] Sizing: risk ₹${riskRs.toFixed(0)} / SL-dist ₹${riskPerShare.toFixed(2)} = ${qty} shares (notional cap ${maxByNotional}) → deployed ₹${deployed.toFixed(0)}`);
 
     let orderId = `PAPER-${Date.now()}`;
-    if (!this.paperMode && this.securityId) {
+
+    /* TWO KEYS. docs/085, docs/089 §1D.
+         KEY 1  STOCK_TRADE_MODE — this component may act at all
+         KEY 2  STOCK_ALLOW_LIVE — it may reach a broker
+
+       One key gives you PAPER, not live: without key 2 the entry falls through
+       and is recorded as a paper trade, loudly. Returning instead would silently
+       drop a signal the engine believed in, and the operator would be debugging a
+       missing trade rather than a missing flag.
+
+       The EXIT path has no key 2, deliberately: an exit that needs a permission
+       is a position that cannot be closed during the incident that made closing
+       necessary — the same reason flatten.js is exempt. */
+    const _perm = !this.paperMode
+      ? maySendLive({ capability: true, capabilityFlag: 'STOCK_TRADE_MODE', liveFlag: 'STOCK_ALLOW_LIVE' })
+      : { allowed: false, reason: 'paper mode', key: 1 };
+    if (!this.paperMode && !_perm.allowed) {
+      console.warn(`[${this.symbol}] LIVE ENTRY BLOCKED — ${_perm.reason}. Recording as paper.`);
+    }
+
+    if (!this.paperMode && _perm.allowed && this.securityId) {
       try {
         const res = await this.live.placeOrder({
           securityId:      this.securityId,

@@ -411,7 +411,21 @@ class LiveConnector {
       boStopLossValue: 0
     };
 
-    const res = await this.client._post('/v2/orders', body);
+    /* retries: 0 — DELIBERATE, and not the client's default of 3.
+
+       `_post` was written for market-data reads, where retrying a failed GET is
+       free. An order is not a read. A 5xx or a dropped socket AFTER the exchange
+       has accepted the order is indistinguishable from one before, so a retry
+       can place the position a second, third and fourth time. Measured on
+       2026-07-31: one order intent against a 500 produced four submissions
+       (test/order-path-characterization.test.js §3).
+
+       Whether Dhan de-duplicates on `correlationId` is UNKNOWN and has not been
+       confirmed with the broker. Until it is confirmed in writing, an order is
+       sent exactly once and an ambiguous failure is escalated to a human rather
+       than resolved by guessing. Re-enabling retries requires a durable
+       idempotency key written BEFORE the call — see docs/073 DR-5. */
+    const res = await this.client._post('/v2/orders', body, { retries: 0 });
     return {
       status: res?.orderStatus || res?.status || 'SUBMITTED',
       orderId: res?.orderId,
@@ -419,14 +433,49 @@ class LiveConnector {
     };
   }
 
+  /* Same conflation as getPositions, same fix. An order book that reports "no
+     orders" when it could not ask is how a rejected leg goes unnoticed. */
   async getOrders() {
-    if (!this.connected) return [];
-    return this.client._post('/v2/orders', {}).catch(() => []);
+    if (!this.connected) {
+      throw Object.assign(
+        new Error('live connector is not connected — cannot ask the broker for orders'),
+        { code: 'BROKER_ORDERS_UNAVAILABLE' },
+      );
+    }
+    try {
+      return await this.client._post('/v2/orders', {});
+    } catch (e) {
+      throw Object.assign(
+        new Error(`live getOrders failed: ${e.message}`),
+        { code: 'BROKER_ORDERS_UNAVAILABLE', cause: e },
+      );
+    }
   }
 
+  /* Same defect as upstox (A5 / D-8), same fix, 2026-08-12. `.catch(() => [])`
+     turned a failed call into "no positions", and `!this.connected` turned a
+     dead session into the same thing.
+
+     Both now throw. Being disconnected is not evidence of being flat — it is the
+     absence of evidence, and the two must not share a return value. This
+     connector deliberately does NOT declare positionsDistinguishEmptyFromError
+     until it has been exercised against a live Dhan session; the marker is a
+     claim about observed behaviour, not about intent. */
   async getPositions() {
-    if (!this.connected) return [];
-    return this.client._post('/v2/positions', {}).catch(() => []);
+    if (!this.connected) {
+      throw Object.assign(
+        new Error('live connector is not connected — cannot ask the broker for positions'),
+        { code: 'BROKER_POSITIONS_UNAVAILABLE' },
+      );
+    }
+    try {
+      return await this.client._post('/v2/positions', {});
+    } catch (e) {
+      throw Object.assign(
+        new Error(`live getPositions failed: ${e.message}`),
+        { code: 'BROKER_POSITIONS_UNAVAILABLE', cause: e },
+      );
+    }
   }
 
   isMarketOpen() {

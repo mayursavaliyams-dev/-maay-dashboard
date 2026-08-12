@@ -231,4 +231,63 @@ const APP = pages.filter(f => f !== 'login.html');
     'puppeteer-core is a devDependency — no browser is downloaded, an installed one is driven');
 }
 
+// ── the rail is tabbed, and no tab may grow back into a scrolling list ────────
+{
+  /* MEASURED 2026-08-08, in a real browser, by SETTING scrollTop AND READING IT
+     BACK — scrollHeight reports content height on a flex column with
+     overflow-y:auto whether or not the element can actually move, so it cannot
+     answer this question.
+
+       old flat rail, 1440×900 : all 13 pages sampled scrolled the rail 68–164px
+       new tabbed rail         : 0px on every page, at 1440×900 and 2560×1330
+
+     Scrolling a navigation is worse than scrolling content: you cannot see what
+     you are choosing between, so the entries below the fold stop being used and
+     eventually stop being maintained — which is exactly how capture.html and
+     greeks.html came to ship reachable from nothing.
+
+     This ratchet is static because it pins the CAUSE. The rail cannot scroll if
+     no tab holds more entries than fit, and that is checkable without a browser. */
+  const rail = fs.readFileSync(path.join(PUB, 'js', 'rail.js'), 'utf8');
+
+  const tabKeys = [...rail.matchAll(/\{\s*k:\s*'([a-z]+)',\s*i:/g)].map(m => m[1]);
+  ok(tabKeys.length >= 6, `the rail declares ${tabKeys.length} subject tabs`);
+  ok(tabKeys.includes('stock') && tabKeys.includes('options'),
+    'stock and options are separate subjects — different instruments, lot sizes and strategies');
+  ok(tabKeys.includes('data') && tabKeys.includes('research'),
+    'data and research are separate subjects: data is what we HAVE, research is what we ' +
+    'CONCLUDE from it, and merging them is how a gap in the archive becomes a backtest ' +
+    'result nobody questions');
+
+  const pages = [...rail.matchAll(/\{\s*h:\s*'([^']+)',[^}]*k:\s*'([a-z]+)'/g)]
+    .map(m => ({ h: m[1], k: m[2] }));
+  ok(pages.length >= 19, `${pages.length} pages carry a tab key`);
+
+  const strays = pages.filter(p => !tabKeys.includes(p.k));
+  ok(strays.length === 0,
+    `every page names a tab that exists${strays.length ? ': ' + strays.map(p => p.h).join(', ') : ''}`);
+
+  const counts = {};
+  for (const p of pages) counts[p.k] = (counts[p.k] || 0) + 1;
+  const biggest = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+
+  /* THE RATCHET. At 210px wide with 30px rows, the tab grid plus header costs
+     about 150px, so ten entries reach ~450px — comfortably inside the shortest
+     viewport this shell supports. Eleven is not a catastrophe; it is the point at
+     which somebody must look again rather than let the list creep back.
+
+     Raising this number is not the fix for a failing build. Splitting the tab is. */
+  const MAX_PER_TAB = 10;
+  ok(biggest[1] <= MAX_PER_TAB,
+    `the largest tab (${biggest[0]}) holds ${biggest[1]} pages, cap ${MAX_PER_TAB} — ` +
+    'a tab past the cap is a flat list again. Split the subject; do not raise the cap.');
+
+  // The dashboard and the connection state open together: when a number looks
+  // wrong the first question is whether the feed is stale, and that answer must
+  // not be three clicks away in another subject.
+  const live = pages.filter(p => p.k === 'live').map(p => p.h);
+  ok(live.includes('/dashboard.html') && live.includes('/health-dashboard.html'),
+    'the connection view sits with the dashboard, not in a group of its own');
+}
+
 console.log(`\n${pass} assertions passed`);

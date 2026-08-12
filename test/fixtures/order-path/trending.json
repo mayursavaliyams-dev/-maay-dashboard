@@ -1,0 +1,245 @@
+{
+ "_generatedBy": "scripts/build-order-fixtures.js",
+ "_source": "data/warehouse/L0_raw/chain/NIFTY/2026-07-30.jsonl",
+ "_captured": "at, instrument, strike (= captured ATM), and every field under `market` — recorded live on the stated date",
+ "_constructed": "seq, side (SELL — the platform sells), lots (1), quantity (= registry lot size), and the CE/PE alternation. These describe a hypothetical order placed against real market state; they were not observed.",
+ "session": "2026-07-30",
+ "character": "trending",
+ "characterEvidence": "range 92.2 pts, net +41.3, 5-minute cadence held",
+ "lotSize": 65,
+ "snapshotCount": 50,
+ "windowIST": [
+  "2026-07-30T05:59:06.601Z",
+  "2026-07-30T10:04:07.042Z"
+ ],
+ "intents": [
+  {
+   "seq": 1,
+   "at": "2026-07-30T05:59:06.601Z",
+   "instrument": "NIFTY",
+   "strike": 24300,
+   "optionType": "CE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24275.9,
+    "ltp": 91.4,
+    "bid": 91.45,
+    "ask": 91.6,
+    "iv": 8.56,
+    "ivSource": "feed",
+    "oi": 9125350
+   }
+  },
+  {
+   "seq": 2,
+   "at": "2026-07-30T06:19:06.631Z",
+   "instrument": "NIFTY",
+   "strike": 24250,
+   "optionType": "PE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24257.25,
+    "ltp": 117.3,
+    "bid": 117.4,
+    "ask": 117.6,
+    "iv": 10.99,
+    "ivSource": "feed",
+    "oi": 8186360
+   }
+  },
+  {
+   "seq": 3,
+   "at": "2026-07-30T06:39:06.662Z",
+   "instrument": "NIFTY",
+   "strike": 24250,
+   "optionType": "CE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24258.75,
+    "ltp": 107.15,
+    "bid": 107.25,
+    "ask": 107.5,
+    "iv": 8.61,
+    "ivSource": "feed",
+    "oi": 6923605
+   }
+  },
+  {
+   "seq": 4,
+   "at": "2026-07-30T06:59:06.714Z",
+   "instrument": "NIFTY",
+   "strike": 24250,
+   "optionType": "PE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24258.25,
+    "ltp": 115.35,
+    "bid": 115.05,
+    "ask": 115.35,
+    "iv": 10.86,
+    "ivSource": "feed",
+    "oi": 8277230
+   }
+  },
+  {
+   "seq": 5,
+   "at": "2026-07-30T07:19:06.758Z",
+   "instrument": "NIFTY",
+   "strike": 24300,
+   "optionType": "CE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24301.95,
+    "ltp": 111.25,
+    "bid": 111.1,
+    "ask": 111.3,
+    "iv": 9.02,
+    "ivSource": "feed",
+    "oi": 8441355
+   }
+  },
+  {
+   "seq": 6,
+   "at": "2026-07-30T07:39:06.813Z",
+   "instrument": "NIFTY",
+   "strike": 24300,
+   "optionType": "PE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24282.65,
+    "ltp": 122.2,
+    "bid": 122,
+    "ask": 122.2,
+    "iv": 10.47,
+    "ivSource": "feed",
+    "oi": 8204690
+   }
+  },
+  {
+   "seq": 7,
+   "at": "2026-07-30T07:59:06.848Z",
+   "instrument": "NIFTY",
+   "strike": 24250,
+   "optionType": "CE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24271.45,
+    "ltp": 120.15,
+    "bid": 120.5,
+    "ask": 120.75,
+    "iv": 8.9,
+    "ivSource": "feed",
+    "oi": 5276700
+   }
+  },
+  {
+   "seq": 8,
+   "at": "2026-07-30T08:19:06.889Z",
+   "instrument": "NIFTY",
+   "strike": 24300,
+   "optionType": "PE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24284.3,
+    "ltp": 120.1,
+    "bid": 120.5,
+    "ask": 120.8,
+    "iv": 10.45,
+    "ivSource": "feed",
+    "oi": 7770295
+   }
+  },
+  {
+   "seq": 9,
+   "at": "2026-07-30T08:39:06.914Z",
+   "instrument": "NIFTY",
+   "strike": 24250,
+   "optionType": "CE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24270.05,
+    "ltp": 119.45,
+    "bid": 119.45,
+    "ask": 119.7,
+    "iv": 8.85,
+    "ivSource": "feed",
+    "oi": 5027490
+   }
+  },
+  {
+   "seq": 10,
+   "at": "2026-07-30T08:59:06.946Z",
+   "instrument": "NIFTY",
+   "strike": 24250,
+   "optionType": "PE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24239.3,
+    "ltp": 115.5,
+    "bid": 115.35,
+    "ask": 115.45,
+    "iv": 10.41,
+    "ivSource": "feed",
+    "oi": 7369505
+   }
+  },
+  {
+   "seq": 11,
+   "at": "2026-07-30T09:19:06.973Z",
+   "instrument": "NIFTY",
+   "strike": 24300,
+   "optionType": "CE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24281.55,
+    "ltp": 98.5,
+    "bid": 98.6,
+    "ask": 98.85,
+    "iv": 8.9,
+    "ivSource": "feed",
+    "oi": 9355190
+   }
+  },
+  {
+   "seq": 12,
+   "at": "2026-07-30T09:39:07.009Z",
+   "instrument": "NIFTY",
+   "strike": 24300,
+   "optionType": "PE",
+   "side": "SELL",
+   "lots": 1,
+   "quantity": 65,
+   "market": {
+    "spot": 24314.1,
+    "ltp": 112.75,
+    "bid": 113.1,
+    "ask": 113.3,
+    "iv": 11.03,
+    "ivSource": "feed",
+    "oi": 6889805
+   }
+  }
+ ]
+}

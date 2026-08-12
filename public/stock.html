@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock View · Antigravity Pro</title>
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg-wash); color:var(--text); font-family:var(--font-ui); }
+
+  .top{ display:flex; align-items:center; gap:10px; padding:8px 14px;
+        border-bottom:1px solid var(--border); background:var(--panel); }
+  .top .ttl{ font-weight:800; color:var(--blue); font-size:.95rem; }
+  .search{ display:flex; gap:6px; margin-left:6px; }
+  .search input{ background:var(--panel2); border:1px solid var(--border); color:var(--text);
+        border-radius:7px; padding:5px 10px; font-size:.9rem; width:230px; font-family:inherit; }
+  .search input:focus{ outline:none; border-color:var(--blue); }
+  .search button{ background:var(--blue); border:0; color:#08111f; font-weight:800;
+        border-radius:7px; padding:5px 13px; font-size:.88rem; cursor:pointer; }
+  .stale{ margin-left:auto; font-size:.8rem; color:var(--muted); }
+
+  /* ── autocomplete ─────────────────────────────────────────────────────────
+     Opens on the FIRST character. The list is 5,798 listed symbols served from
+     memory, so there is no reason to make the reader type three letters before
+     helping them. */
+  .search{ position:relative; }
+  .ac{ position:absolute; top:calc(100% + 4px); left:0; width:420px; max-height:340px;
+       overflow-y:auto; background:var(--panel); border:1px solid var(--border);
+       border-radius:9px; box-shadow:0 12px 32px rgba(0,0,0,.55); z-index:9500; display:none; }
+  .ac.on{ display:block; }
+  .ac-i{ display:flex; align-items:baseline; gap:9px; padding:6px 11px; cursor:pointer;
+         border-bottom:1px solid var(--panel2); }
+  .ac-i:last-child{ border-bottom:0; }
+  .ac-i:hover, .ac-i.sel{ background:rgba(91,156,255,.14); }
+  .ac-s{ font-weight:800; font-size:.86rem; color:var(--blue); min-width:96px;
+         font-family:var(--font-num); }
+  .ac-n{ font-size:.8rem; color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis;
+         white-space:nowrap; }
+  .ac-e{ font-size:.7rem; color:var(--muted); font-weight:700; }
+  .ac-fo{ font-size:.64rem; font-weight:800; padding:1px 5px; border-radius:4px;
+          background:rgba(38,208,160,.12); color:var(--green); border:1px solid rgba(38,208,160,.35); }
+  .ac-more{ padding:6px 11px; font-size:.74rem; color:var(--muted); border-top:1px solid var(--border); }
+  .ac-none{ padding:12px; font-size:.8rem; color:var(--muted); text-align:center; }
+
+  /* ── price header ─────────────────────────────────────────────────────── */
+  .hd{ display:flex; align-items:flex-end; gap:18px; padding:10px 14px 8px; flex-wrap:wrap;
+       border-bottom:1px solid var(--border); }
+  .hd .nm{ font-size:1.15rem; font-weight:800; line-height:1.15; }
+  .hd .sub{ font-size:.82rem; color:var(--muted); font-weight:600; }
+  .hd .px{ font-size:1.7rem; font-weight:800; font-family:var(--font-num); line-height:1; }
+  .hd .chg{ font-size:.95rem; font-weight:800; font-family:var(--font-num); }
+  .up{ color:var(--green); } .dn{ color:var(--red); } .flat{ color:var(--muted); }
+
+  /* range bars — where the price sits inside a band, which a number alone hides */
+  .bars{ display:flex; gap:20px; margin-left:auto; }
+  .bar{ min-width:210px; }
+  .bar .bl{ display:flex; justify-content:space-between; font-size:.74rem; color:var(--muted);
+            font-family:var(--font-num); margin-bottom:3px; }
+  .bar .tr{ height:6px; background:var(--panel2); border-radius:4px; position:relative;
+            border:1px solid var(--border); }
+  .bar .dot{ position:absolute; top:50%; width:9px; height:9px; border-radius:50%;
+             background:var(--blue); transform:translate(-50%,-50%); box-shadow:0 0 0 2px var(--panel); }
+  .bar .cap{ font-size:.7rem; color:var(--muted); margin-top:3px; }
+
+  /* ── tabs ─────────────────────────────────────────────────────────────── */
+  .tabs{ display:flex; gap:3px; padding:7px 14px 0; border-bottom:1px solid var(--border); }
+  .tabs button{ background:none; border:1px solid transparent; border-bottom:0; color:var(--muted);
+        font-family:inherit; font-size:.86rem; font-weight:700; padding:6px 14px; cursor:pointer;
+        border-radius:7px 7px 0 0; }
+  .tabs button:hover{ color:var(--text); }
+  .tabs button.on{ color:var(--blue); background:var(--panel); border-color:var(--border);
+        margin-bottom:-1px; padding-bottom:7px; }
+
+  /* ── panels ───────────────────────────────────────────────────────────── */
+  .body{ padding:10px 14px 12px; overflow-y:auto; }
+  .cols{ display:grid; gap:10px; align-items:start; }
+  .c3{ grid-template-columns:repeat(3,1fr); }
+  .c2{ grid-template-columns:repeat(2,1fr); }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:9px 11px; }
+  .card h3{ margin:0 0 7px; font-size:.78rem; font-weight:800; letter-spacing:.06em;
+        text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .card h3 .tag{ font-size:.68rem; font-weight:700; letter-spacing:0; text-transform:none;
+        padding:1px 6px; border-radius:5px; background:var(--panel2); color:var(--muted);
+        border:1px solid var(--border); }
+
+  .kv{ display:grid; grid-template-columns:1fr auto; gap:2px 10px; font-size:.86rem; }
+  .kv .k{ color:var(--muted); font-weight:600; padding:2px 0; }
+  .kv .v{ font-family:var(--font-num); font-weight:700; text-align:right; padding:2px 0; }
+  .kv .v.na{ color:#54607a; font-weight:600; font-family:var(--font-ui); font-size:.8rem; }
+
+  table{ border-collapse:collapse; width:100%; font-size:.84rem; }
+  th{ text-align:right; color:var(--muted); font-weight:700; font-size:.74rem; text-transform:uppercase;
+      letter-spacing:.04em; padding:3px 6px; border-bottom:1px solid var(--border); }
+  th:first-child, td:first-child{ text-align:left; }
+  td{ padding:3px 6px; border-bottom:1px solid var(--panel2); font-family:var(--font-num);
+      font-weight:700; text-align:right; }
+  td:first-child{ font-family:var(--font-ui); color:var(--muted); font-weight:600; }
+
+  .pill{ display:inline-block; font-size:.76rem; font-weight:800; padding:2px 9px; border-radius:20px;
+         border:1px solid var(--border); background:var(--panel2); }
+  .pill.up{ color:var(--green); border-color:rgba(38,208,160,.4); background:rgba(38,208,160,.1); }
+  .pill.dn{ color:var(--red); border-color:rgba(255,84,112,.4); background:rgba(255,84,112,.1); }
+  .pill.warn{ color:var(--amber); border-color:rgba(255,194,75,.4); background:rgba(255,194,75,.1); }
+
+  .prose{ font-size:.82rem; color:var(--muted); line-height:1.5; }
+  .note{ font-size:.74rem; color:#6d7a92; line-height:1.45; margin-top:6px; }
+
+  /* the analyst rating distribution bar */
+  .dist{ display:flex; height:16px; border-radius:5px; overflow:hidden; border:1px solid var(--border); }
+  .dist span{ display:block; font-size:.68rem; font-weight:800; color:#08111f; text-align:center;
+              line-height:16px; }
+  .dlg{ display:flex; gap:9px; flex-wrap:wrap; margin-top:6px; font-size:.74rem; color:var(--muted); }
+  .dlg i{ font-style:normal; width:8px; height:8px; border-radius:2px; display:inline-block; margin-right:3px; }
+
+  .chips{ display:flex; gap:6px; flex-wrap:wrap; }
+  .chip{ font-size:.82rem; font-weight:700; padding:4px 11px; border-radius:7px; cursor:pointer;
+         background:var(--panel2); border:1px solid var(--border); color:var(--text); }
+  .chip:hover{ border-color:var(--blue); color:var(--blue); }
+
+  .banner{ border:1px solid rgba(255,194,75,.35); background:rgba(255,194,75,.08); border-radius:9px;
+           padding:8px 11px; font-size:.82rem; color:#f0dcae; line-height:1.5; margin-bottom:10px; }
+  .banner b{ color:var(--amber); }
+
+  .msg{ padding:36px 14px; text-align:center; color:var(--muted); font-size:.93rem; }
+  .msg.err{ color:var(--red); }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="ttl">📊 Stock View</span>
+  <form class="search" onsubmit="go(event)" role="combobox" aria-expanded="false" aria-haspopup="listbox">
+    <input id="q" placeholder="Any listed stock — name or symbol" autocomplete="off"
+           aria-autocomplete="list" aria-controls="ac">
+    <button type="submit">Open</button>
+    <div class="ac" id="ac" role="listbox" aria-label="Matching stocks"></div>
+  </form>
+  <span class="stale" id="stale"></span>
+</div>
+
+<div id="shell" class="hidden">
+  <div class="hd">
+    <div>
+      <div class="nm" id="nm">—</div>
+      <div class="sub" id="sub">—</div>
+    </div>
+    <div>
+      <div class="px" id="px">—</div>
+    </div>
+    <div><span class="chg" id="chg">—</span></div>
+    <div class="bars">
+      <div class="bar" id="barDay"></div>
+      <div class="bar" id="bar52"></div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-t="overview" class="on">Overview</button>
+    <button data-t="technical">Technical</button>
+    <button data-t="fundamental">Fundamental</button>
+    <button data-t="ownership">Ownership &amp; Analysts</button>
+    <button data-t="news">News</button>
+    <button data-t="gaps">Not available</button>
+  </div>
+
+  <div class="body" data-fit id="body"></div>
+</div>
+
+<div class="msg" id="msg">Type a stock above, or open this page as <code>/stock.html?q=TCS</code>.</div>
+
+<script src="/js/rail.js"></script>
+<script src="/js/fit.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   The full stock view — everything the vendor actually returns, plus a named
+   list of what it does not.
+
+   THE RULE THIS PAGE IS BUILT ON: a blank means "not reported". It never means
+   zero. Every value below goes through n() or v(), which render an em dash for
+   null and a real number for a real number — including a real zero. A dividend
+   of 0 and a dividend that was never reported are different facts and they look
+   different here.
+
+   The panels this system cannot fill are not silently omitted. They are listed,
+   with the reason, on the last tab — because nine panels shown where a broker
+   shows sixteen invites the reader to assume the other seven were checked and
+   found empty.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const API = '';
+let DATA = null, TAB = 'overview';
+
+/* ── formatters. Every one of them treats null as "not reported". ─────────── */
+const NA = '<span class="na">not reported</span>';
+const isNum = v => v !== null && v !== undefined && isFinite(Number(v));
+const n = (v, d = 2, suf = '') => isNum(v) ? Number(v).toLocaleString('en-IN', {minimumFractionDigits: d, maximumFractionDigits: d}) + suf : null;
+const pc = (v, d = 2) => isNum(v) ? (Number(v) >= 0 ? '+' : '') + Number(v).toFixed(d) + '%' : null;
+const int = v => isNum(v) ? Math.round(Number(v)).toLocaleString('en-IN') : null;
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* Indian money scale. A market cap is read in crore and lakh crore here, not in
+   billions — and never rounded to a whole crore, which turned 1,49,22,511 into
+   "2 Cr" on an earlier screen. */
+function money(v) {
+  if (!isNum(v)) return null;
+  const a = Math.abs(Number(v));
+  if (a >= 1e12) return '₹' + (v / 1e12).toFixed(2) + ' L Cr';
+  if (a >= 1e7)  return '₹' + (v / 1e7).toFixed(2) + ' Cr';
+  if (a >= 1e5)  return '₹' + (v / 1e5).toFixed(2) + ' L';
+  return '₹' + Number(v).toLocaleString('en-IN');
+}
+const vol = v => { if (!isNum(v)) return null; const a = Math.abs(v);
+  return a >= 1e7 ? (v/1e7).toFixed(2) + ' Cr' : a >= 1e5 ? (v/1e5).toFixed(2) + ' L' : int(v); };
+
+/* One key/value row. `raw` may legitimately be 0 — the check is on null. */
+const row = (k, raw, cls) => `<div class="k">${esc(k)}</div><div class="v ${raw === null || raw === undefined ? 'na' : (cls||'')}">${raw === null || raw === undefined ? 'not reported' : raw}</div>`;
+const kv = rows => `<div class="kv">${rows.join('')}</div>`;
+const card = (title, inner, tag) =>
+  `<div class="card"><h3>${esc(title)}${tag ? `<span class="tag">${esc(tag)}</span>` : ''}</h3>${inner}</div>`;
+
+/* A position bar: low ─●─ high. Returns a plain message when the band is
+   unknown, rather than a bar with the dot parked at zero. */
+function rangeBar(label, lo, hi, at, caption) {
+  if (!isNum(lo) || !isNum(hi) || hi <= lo || !isNum(at)) {
+    return `<div class="bl"><span>${esc(label)}</span></div><div class="cap">${NA}</div>`;
+  }
+  const p = Math.min(100, Math.max(0, (at - lo) / (hi - lo) * 100));
+  return `<div class="bl"><span>${n(lo)}</span><span style="color:var(--text)">${esc(label)}</span><span>${n(hi)}</span></div>
+    <div class="tr"><span class="dot" style="left:${p}%"></span></div>
+    <div class="cap">${p.toFixed(0)}% of the band${caption ? ' · ' + esc(caption) : ''}</div>`;
+}
+
+/* ── load ─────────────────────────────────────────────────────────────────── */
+function go(e) { if (e) e.preventDefault(); const q = document.getElementById('q').value.trim();
+  if (q) { history.replaceState(null, '', '/stock.html?q=' + encodeURIComponent(q)); load(q); } }
+
+async function load(q) {
+  const msg = document.getElementById('msg'), shell = document.getElementById('shell');
+  msg.className = 'msg'; msg.textContent = 'fetching live market, fundamentals, technicals and news for "' + q + '"…';
+  msg.classList.remove('hidden'); shell.classList.add('hidden');
+  try {
+    const r = await (await fetch(`${API}/api/agents/stock?q=${encodeURIComponent(q)}&deep=1`, {cache:'no-store'})).json();
+    if (!r.ok) { msg.className = 'msg err'; msg.innerHTML = '⚠️ ' + esc(r.error || 'lookup failed'); return; }
+    DATA = r;
+    msg.classList.add('hidden'); shell.classList.remove('hidden');
+    header(); render();
+    document.title = (r.quote?.name || r.symbol) + ' · Stock View';
+    document.getElementById('stale').textContent = 'as of ' + new Date(r.generatedAt).toLocaleTimeString('en-IN');
+  } catch (err) {
+    msg.className = 'msg err'; msg.innerHTML = '⚠️ ' + esc(err.message) + ' — is the server running?';
+  }
+}
+
+function header() {
+  const q = DATA.quote || {}, up = (q.changePct || 0) >= 0;
+  document.getElementById('nm').textContent = q.name || DATA.symbol;
+  const prof = DATA.fundamentals?.deep?.profile;
+  document.getElementById('sub').textContent =
+    [DATA.symbol, prof?.sector || DATA.sector, prof?.industry].filter(Boolean).join(' · ');
+  document.getElementById('px').textContent = '₹' + (n(q.price) ?? '—');
+  const chg = document.getElementById('chg');
+  chg.className = 'chg ' + (up ? 'up' : 'dn');
+  chg.textContent = `${up ? '▲' : '▼'} ${n(Math.abs(q.change)) ?? '—'}  (${pc(q.changePct) ?? '—'})`;
+  document.getElementById('barDay').innerHTML = rangeBar('Day', q.dayLow, q.dayHigh, q.price);
+  document.getElementById('bar52').innerHTML = rangeBar('52 weeks', q.wk52Low, q.wk52High, q.price, 'vendor, intraday');
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  TAB = b.dataset.t;
+  [...document.querySelectorAll('#tabs button')].forEach(x => x.classList.toggle('on', x === b));
+  render();
+});
+
+function render() {
+  document.getElementById('body').innerHTML =
+    ({ overview, technical, fundamental, ownership, news: newsTab, gaps })[TAB]();
+}
+
+/* ── OVERVIEW ─────────────────────────────────────────────────────────────── */
+function overview() {
+  const q = DATA.quote || {}, f = DATA.fundamentals || {}, d = f.deep || {};
+  const v = DATA.verdict || {}, ev = d.events, p = d.profile;
+
+  const snap = kv([
+    row('Open', n(q.open) ?? null),
+    row('Previous close', isNum(q.price) && isNum(q.change) ? n(q.price - q.change) : null),
+    row('Volume', vol(q.volume)),
+    row('Market cap', money(f.valuation?.marketCap ?? q.marketCap)),
+    row('P/E (trailing)', n(f.valuation?.peTrailing ?? q.pe)),
+    row('Book value', n(f.perShare?.bookValue)),
+    row('EPS (trailing)', n(f.perShare?.eps)),
+    row('Dividend yield', pc(f.dividend?.yield)),
+    row('Beta', n(f.market?.beta)),
+    row('50-day avg', n(q.avg50)), row('200-day avg', n(q.avg200)),
+  ]);
+
+  const events = ev ? kv([
+    row('Next results', ev.nextEarnings
+      ? esc(ev.nextEarnings) + (ev.nextEarningsIsEstimate ? ' <span class="pill warn">estimated</span>' : ' <span class="pill">confirmed</span>')
+      : null),
+    row('EPS estimate', n(ev.epsEstimate)),
+    row('Estimate range', isNum(ev.epsEstimateLow) && isNum(ev.epsEstimateHigh) ? `${n(ev.epsEstimateLow)} – ${n(ev.epsEstimateHigh)}` : null),
+    row('Revenue estimate', money(ev.revenueEstimate)),
+    row('Ex-dividend', ev.exDividend ? esc(ev.exDividend) : null),
+    row('Dividend paid', ev.dividendPay ? esc(ev.dividendPay) : null),
+    row('Last earnings call', ev.lastEarningsCall ? esc(ev.lastEarningsCall) : null),
+  ]) + `<div class="note">An <b>estimated</b> results date is the vendor's guess from past filing dates, not an announced one. Planning around an estimate is a different decision from planning around a confirmed date, so the two are labelled apart.</div>`
+    : `<div class="prose">${NA}</div>`;
+
+  const verdictCard = card('This system’s read', `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span class="pill ${v.direction==='UP'?'up':v.direction==='DOWN'?'dn':''}">${esc(v.direction || 'NEUTRAL')} · ${isNum(v.probability) ? v.probability + '%' : '—'}</span>
+      <span class="prose">${esc(v.note || '')}</span>
+    </div>
+    <div class="note">A disclosed heuristic over price momentum and news sentiment — <b>not</b> a backtested signal, and no engine trades on it. Fundamentals, analyst ratings and the technical block on the other tabs are shown as context and are <b>not</b> inputs to this number.</div>`);
+
+  const about = p ? card('About the company',
+    `<div class="prose">${esc((p.summary || '').slice(0, 620))}${(p.summary || '').length > 620 ? '…' : ''}</div>` +
+    kv([
+      row('Sector', p.sector ? esc(p.sector) : null),
+      row('Industry', p.industry ? esc(p.industry) : null),
+      row('Employees', int(p.employees)),
+      row('Head office', [p.city, p.state, p.country].filter(Boolean).join(', ') || null),
+      row('Website', p.website ? `<a href="${esc(p.website)}" target="_blank" rel="noopener" style="color:var(--blue)">${esc(p.website.replace(/^https?:\/\//,''))}</a>` : null),
+    ]))
+    : card('About the company', `<div class="prose">${NA}</div>`);
+
+  return `<div class="cols c3">
+    ${card('Snapshot', snap)}
+    ${card('Calendar', events)}
+    ${verdictCard}
+  </div>
+  <div class="cols c2" style="margin-top:10px">
+    ${about}
+    ${card('Performance', perfTable(), 'from daily closes')}
+  </div>`;
+}
+
+function perfTable() {
+  const t = DATA.technicals;
+  if (!t || !t.ok) return `<div class="prose">${NA}</div>`;
+  const p = t.performance, cells = [['1 day','d1'],['1 week','w1'],['1 month','m1'],['3 months','m3'],['6 months','m6'],['1 year','y1']];
+  return `<table><thead><tr><th>Period</th><th>Change</th></tr></thead><tbody>${
+    cells.map(([lbl,k]) => `<tr><td>${lbl}</td><td class="${isNum(p[k]) ? (p[k]>=0?'up':'dn') : ''}">${pc(p[k]) ?? '<span class="na">—</span>'}</td></tr>`).join('')
+  }</tbody></table>${t.dataBreak ? breakNote(t.dataBreak) : ''}`;
+}
+
+/* The corporate-action banner. This is the difference between a blank that looks
+   like a bug and a blank that is the answer. */
+function breakNote(b) {
+  return `<div class="note" style="color:#f0dcae"><b>Why some periods are blank:</b> ${esc(b.note)}
+    Only <b>${b.usableBars}</b> trading days since ${esc(b.on)} are comparable with today's price.</div>`;
+}
+
+/* ── TECHNICAL ────────────────────────────────────────────────────────────── */
+function technical() {
+  const t = DATA.technicals;
+  if (!t || !t.ok) return `<div class="msg">${t && t.reason ? esc(t.reason) : 'No price history available for this symbol.'}</div>`;
+  const ma = t.movingAverages, os = t.oscillators, rg = t.range;
+
+  const banner = t.dataBreak ? `<div class="banner"><b>Corporate action detected.</b> ${esc(t.dataBreak.note)}
+    The break was a ${t.dataBreak.movePct}% move on ${esc(t.dataBreak.on)} (${n(t.dataBreak.from)} → ${n(t.dataBreak.to)}).
+    <b>${t.dataBreak.usableBars}</b> of ${t.bars} bars are usable.</div>` : '';
+
+  const trendCls = t.trend.label === 'UP' ? 'up' : t.trend.label === 'DOWN' ? 'dn' : 'warn';
+
+  return banner + `<div class="cols c3">
+    ${card('Moving averages', kv([
+      row('SMA 20', n(ma.sma20)), row('SMA 50', n(ma.sma50)), row('SMA 200', n(ma.sma200)),
+      row('EMA 20', n(ma.ema20)), row('EMA 50', n(ma.ema50)),
+      row('Price vs SMA 50', pc(ma.vsSma50Pct), isNum(ma.vsSma50Pct) ? (ma.vsSma50Pct>=0?'up':'dn') : ''),
+      row('Price vs SMA 200', pc(ma.vsSma200Pct), isNum(ma.vsSma200Pct) ? (ma.vsSma200Pct>=0?'up':'dn') : ''),
+    ]) + `<div style="margin-top:8px"><span class="pill ${trendCls}">TREND ${esc(t.trend.label)}</span>
+      <span class="note" style="display:inline;margin-left:6px">on ${t.trend.up} of ${t.trend.of} checks${t.trend.of < 3 ? ' — fewer than three because an average it needs is unavailable' : ''}</span></div>`)}
+
+    ${card('Oscillators', kv([
+      row('RSI (14)', isNum(os.rsi14) ? n(os.rsi14) + ' <span class="pill ' + (os.rsiZone==='OVERBOUGHT'?'dn':os.rsiZone==='OVERSOLD'?'up':'') + '">' + esc(os.rsiZone) + '</span>' : null),
+      row('MACD', n(os.macd, 3)), row('Signal', n(os.macdSignal, 3)),
+      row('Histogram', n(os.macdHistogram, 3), isNum(os.macdHistogram) ? (os.macdHistogram>=0?'up':'dn') : ''),
+      row('MACD cross', os.macdCross ? `<span class="pill ${os.macdCross==='BULLISH'?'up':'dn'}">${esc(os.macdCross)}</span>` : null),
+    ]) + `<div class="note">RSI is Wilder's, 14 periods; 70 and 30 are the conventional bands. MACD is 12/26/9. Both are computed here from ${t.bars} daily bars, not taken from a vendor field.</div>`)}
+
+    ${card('Range and risk', kv([
+      row('52-week high', n(rg.high52w)), row('52-week low', n(rg.low52w)),
+      row('Position in range', isNum(rg.positionPct) ? rg.positionPct + '%' : null),
+      row('ATR (14)', n(rg.atr14)), row('ATR as % of price', pc(rg.atrPct)),
+      row('Volatility (30d, annualised)', pc(rg.volatility30d, 1)),
+    ]) + `<div class="note">This 52-week band is built from daily <b>closes</b> in the usable window. The vendor's band in the header uses intraday extremes over a fixed year — the two disagreeing is expected, not a fault.</div>`)}
+  </div>
+
+  <div class="cols c2" style="margin-top:10px">
+    ${card('Performance', perfTable())}
+    ${card('Volume', kv([
+      row('Last session', vol(t.volume.last)),
+      row('20-day average', vol(t.volume.avg20)),
+      row('Ratio to average', isNum(t.volume.ratio) ? t.volume.ratio + '×' : null, isNum(t.volume.ratio) ? (t.volume.ratio>=1?'up':'') : ''),
+    ]) + `<div class="note">Computed from ${t.bars} bars ending ${esc(t.asOf || 'the last session')}.</div>`)}
+  </div>`;
+}
+
+/* ── FUNDAMENTAL ──────────────────────────────────────────────────────────── */
+function fundamental() {
+  const f = DATA.fundamentals;
+  if (!f) return `<div class="msg">Fundamentals were not returned for this symbol.</div>`;
+  const val = f.valuation||{}, ps = f.perShare||{}, rt = f.returns||{}, gr = f.growth||{},
+        bal = f.balance||{}, dv = f.dividend||{}, sh = f.shares||{};
+
+  const yearly = (f.yearly||[]).length ? `<table><thead><tr><th>Year</th><th>Revenue</th><th>Profit</th></tr></thead><tbody>${
+    f.yearly.map(r => `<tr><td>${esc(r.period)}</td><td>${money(r.revenue) ?? '—'}</td><td>${money(r.profit) ?? '—'}</td></tr>`).join('')
+  }</tbody></table>` : `<div class="prose">${NA}</div>`;
+
+  const quarterly = (f.quarterly||[]).length ? `<table><thead><tr><th>Quarter</th><th>Revenue</th><th>Profit</th></tr></thead><tbody>${
+    f.quarterly.map(r => `<tr><td>${esc(r.period)}</td><td>${money(r.revenue) ?? '—'}</td><td>${money(r.profit) ?? '—'}</td></tr>`).join('')
+  }</tbody></table>` : `<div class="prose">${NA}</div>`;
+
+  const eps = (f.quarterlyEps||[]).length ? `<table><thead><tr><th>Quarter</th><th>EPS</th><th>Estimate</th><th>Beat</th></tr></thead><tbody>${
+    f.quarterlyEps.map(r => { const beat = isNum(r.eps) && isNum(r.estimate) ? r.eps - r.estimate : null;
+      return `<tr><td>${esc(r.period)}</td><td>${n(r.eps)}</td><td>${n(r.estimate) ?? '—'}</td><td class="${beat===null?'':(beat>=0?'up':'dn')}">${beat===null?'—':(beat>=0?'+':'')+beat.toFixed(2)}</td></tr>`;
+    }).join('')
+  }</tbody></table>` : `<div class="prose">${NA}</div>`;
+
+  return `<div class="cols c3">
+    ${card('Valuation', kv([
+      row('Market cap', money(val.marketCap)), row('Enterprise value', money(val.enterpriseValue)),
+      row('P/E trailing', n(val.peTrailing)), row('P/E forward', n(val.peForward)),
+      row('PEG', n(val.peg)), row('Price to book', n(val.priceToBook)),
+      row('Price to sales', n(val.priceToSales)),
+      row('EV / revenue', n(val.evToRevenue)), row('EV / EBITDA', n(val.evToEbitda)),
+    ]))}
+    ${card('Per share', kv([
+      row('EPS trailing', n(ps.eps)), row('EPS forward', n(ps.epsForward)),
+      row('Book value', n(ps.bookValue)), row('Revenue per share', n(ps.revenuePerShare)),
+      row('Cash per share', n(ps.cashPerShare)),
+      row('Shares outstanding', vol(sh.outstanding)), row('Free float', vol(sh.float)),
+      row('Last split', sh.lastSplitFactor ? esc(sh.lastSplitFactor) + (sh.lastSplitDate ? ' · ' + esc(sh.lastSplitDate) : '') : null),
+    ]))}
+    ${card('Returns and margins', kv([
+      row('ROE (reported)', pc(rt.roe)),
+      row('ROE (derived)', isNum(rt.roeDerived) ? pc(rt.roeDerived) + ' <span class="pill warn">derived</span>' : null),
+      row('ROA', pc(rt.roa)), row('Net profit margin', pc(rt.profitMargin)),
+      row('Operating margin', pc(rt.operatingMargin)),
+      row('Gross margin', pc(rt.grossMargin)), row('EBITDA margin', pc(rt.ebitdaMargin)),
+    ]) + `<div class="note"><b>Derived</b> ROE is EPS ÷ book value — arithmetic from two reported figures, offered when the source publishes no ROE, and never merged with a reported one. Banks routinely report no gross or EBITDA margin; that blank is the source's silence, not a zero.</div>`)}
+  </div>
+
+  <div class="cols c3" style="margin-top:10px">
+    ${card('Growth', kv([
+      row('Revenue growth', pc(gr.revenue), isNum(gr.revenue)?(gr.revenue>=0?'up':'dn'):''),
+      row('Earnings growth', pc(gr.earnings), isNum(gr.earnings)?(gr.earnings>=0?'up':'dn'):''),
+      row('52-week change', pc(gr.change52w), isNum(gr.change52w)?(gr.change52w>=0?'up':'dn'):''),
+      row('Index over the same year', pc(gr.changeIndex52w)),
+    ]))}
+    ${card('Balance sheet', kv([
+      row('Total revenue', money(bal.totalRevenue)), row('Gross profit', money(bal.grossProfit)),
+      row('EBITDA', money(bal.ebitda)), row('Net income', money(bal.netIncome)),
+      row('Total cash', money(bal.totalCash)), row('Total debt', money(bal.totalDebt)),
+      row('Debt to equity', n(bal.debtToEquity)),
+      row('Current ratio', n(bal.currentRatio)), row('Quick ratio', n(bal.quickRatio)),
+      row('Operating cash flow', money(bal.operatingCashflow)), row('Free cash flow', money(bal.freeCashflow)),
+    ]))}
+    ${card('Dividend', kv([
+      row('Indicated rate', n(dv.rate)), row('Yield', pc(dv.yield)),
+      row('Payout ratio', pc(dv.payoutRatio)), row('5-year average yield', n(dv.fiveYearAvgYield)),
+      row('Last dividend', isNum(dv.lastValue) ? n(dv.lastValue) + (dv.lastDate ? ' · ' + esc(dv.lastDate) : '') : null),
+      row('Ex-dividend date', dv.exDate ? esc(dv.exDate) : null),
+    ]) + `<div class="note">The <b>indicated</b> rate, not the trailing one: a company that has declared a dividend but not yet paid a full year of them shows a trailing 0, which would read as paying nothing.</div>`)}
+  </div>
+
+  <div class="cols c3" style="margin-top:10px">
+    ${card('Yearly results', yearly, f.currency || 'INR')}
+    ${card('Quarterly results', quarterly, f.currency || 'INR')}
+    ${card('Quarterly EPS vs estimate', eps)}
+  </div>`;
+}
+
+/* ── OWNERSHIP & ANALYSTS ─────────────────────────────────────────────────── */
+function ownership() {
+  const f = DATA.fundamentals || {}, d = f.deep || {};
+  const h = d.holders, at = d.analystTrend, ia = d.insiderActivity, an = f.analysts || {}, ol = d.earningsOutlook;
+
+  const holders = h ? kv([
+    row('Insiders / promoter-like', pc(h.insidersPct)),
+    row('Institutions', pc(h.institutionsPct)),
+    row('Institutions as % of float', pc(h.institutionsOfFloatPct)),
+    row('Institutional holders', int(h.institutionsCount)),
+    row('Unclassified remainder', isNum(h.insidersPct) && isNum(h.institutionsPct) ? pc(100 - h.insidersPct - h.institutionsPct) : null),
+  ]) + `<div class="note">${esc(h.note)} The remainder is shown rather than hidden, because the parts do not sum to 100 and a reader is entitled to see that.</div>`
+    : `<div class="prose">${NA}</div>`;
+
+  /* The buy/hold/sell bar. Segments narrower than 6% carry no label rather than
+     overflowing it into a neighbour. */
+  let dist = `<div class="prose">${NA}</div>`;
+  if (at) {
+    const seg = [['Strong buy','strongBuy','#1f9e6f'],['Buy','buy','#26d0a0'],['Hold','hold','#ffc24b'],['Sell','sell','#ff8a5c'],['Strong sell','strongSell','#ff5470']];
+    dist = `<div class="dist">${seg.map(([lbl,k,c]) => { const w = at[k] / at.total * 100;
+        return w > 0 ? `<span style="width:${w}%;background:${c}">${w >= 6 ? at[k] : ''}</span>` : ''; }).join('')}</div>
+      <div class="dlg">${seg.map(([lbl,k,c]) => `<span><i style="background:${c}"></i>${lbl} ${at[k]}</span>`).join('')}</div>
+      <div class="note">${at.total} published ratings. ${esc(at.note)} — nothing in this system acts on them.</div>`;
+  }
+
+  const targets = kv([
+    row('Consensus', an.recommendation ? esc(String(an.recommendation).toUpperCase()) : null),
+    row('Mean score', n(an.mean)), row('Analysts covering', int(an.count)),
+    row('Target low', n(an.targetLow)), row('Target mean', n(an.targetMean)),
+    row('Target median', n(an.targetMedian)), row('Target high', n(an.targetHigh)),
+  ]) + `<div class="note">Price targets are <b>opinion published by banks</b>. They are shown because a broker screen shows them, and they carry no more standing here than a headline.</div>`;
+
+  const insider = (ia && ia.reported) ? kv([
+    row('Net 6-month shares', int(ia.netSixMonthShares)),
+    row('Net 6-month % of insider holding', pc(ia.netSixMonthPct)),
+    row('Bought', int(ia.boughtShares)), row('Sold', int(ia.soldShares)),
+    row('Filings listed', int(ia.rows.length)),
+  ]) + (ia.rows.length ? `<table style="margin-top:6px"><thead><tr><th>Holder</th><th>Transaction</th><th>Date</th></tr></thead><tbody>${
+      ia.rows.slice(0,6).map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.transaction || '—')}</td><td>${esc(r.date || '—')}</td></tr>`).join('')
+    }</tbody></table>` : '')
+    : `<div class="prose">No insider filings reported.</div><div class="note">${esc(ia?.note || '')}</div>`;
+
+  const outlook = ol ? `<table><thead><tr><th>Period</th><th>EPS est.</th><th>Growth</th><th>Revenue est.</th><th>Analysts</th></tr></thead><tbody>${
+    ol.map(r => `<tr><td>${esc(r.period)}</td><td>${n(r.epsEstimate) ?? '—'}</td>
+      <td class="${isNum(r.epsGrowthPct)?(r.epsGrowthPct>=0?'up':'dn'):''}">${pc(r.epsGrowthPct) ?? '—'}</td>
+      <td>${money(r.revenueEstimate) ?? '—'}</td><td>${int(r.analysts) ?? '—'}</td></tr>`).join('')
+  }</tbody></table><div class="note">Consensus <b>forecasts</b>, not results. 0q and 0y are the current quarter and year; +1q and +1y are the next.</div>`
+    : `<div class="prose">${NA}</div>`;
+
+  const peers = (DATA.peers && DATA.peers.length)
+    ? `<div class="chips">${DATA.peers.map(p => `<span class="chip" onclick="openStock('${esc(p.symbol)}')">${esc(p.symbol)}</span>`).join('')}</div>
+       <div class="note">The vendor's "people also viewed" list, not a sector-matched peer set. Click one to open it.</div>`
+    : `<div class="prose">${NA}</div>`;
+
+  return `<div class="cols c3">
+    ${card('Shareholding', holders, 'vendor split')}
+    ${card('Analyst ratings', dist, 'opinion')}
+    ${card('Price targets', targets, 'opinion')}
+  </div>
+  <div class="cols c3" style="margin-top:10px">
+    ${card('Insider activity', insider)}
+    ${card('Forward estimates', outlook, 'forecast')}
+    ${card('Similar stocks', peers)}
+  </div>`;
+}
+
+/* ── NEWS ─────────────────────────────────────────────────────────────────── */
+function newsTab() {
+  const hs = DATA.headlines || [], di = DATA.dealImpacts || [], nw = DATA.news || {};
+  const list = hs.length ? hs.map(h => `<div style="padding:6px 0;border-bottom:1px solid var(--panel2)">
+      <a href="${esc(h.url||'#')}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;font-size:.88rem;font-weight:700">${esc(h.title)}</a>
+      <div class="note" style="margin-top:2px">${esc(h.source || '')} · ${h.at ? new Date(h.at).toLocaleString('en-IN') : ''}
+        ${h.sentiment ? `· <span class="pill ${h.sentiment==='positive'?'up':h.sentiment==='negative'?'dn':''}">${esc(h.sentiment)}</span>` : ''}</div>
+    </div>`).join('')
+    : `<div class="prose">No headlines matched this stock in the last 48 hours. That is a statement about this system's news feed, not about the company.</div>`;
+
+  const deals = di.length ? di.map(d => `<div style="padding:6px 0;border-bottom:1px solid var(--panel2)">
+      <div style="font-size:.86rem;font-weight:700">${esc(d.title)}</div>
+      <div class="note">${esc(d.type||'')} · ${esc(d.direction||'')} · probability ${isNum(d.probability)?d.probability+'%':'—'}</div>
+    </div>`).join('')
+    : `<div class="prose">No deal-class events detected.</div>`;
+
+  return `<div class="cols c2">
+    ${card('Headlines (48 hours)', list + `<div class="note" style="margin-top:8px">Sentiment counts: ${int(nw.positive)??0} positive, ${int(nw.negative)??0} negative, ${int(nw.neutral)??0} neutral.</div>`)}
+    ${card('Deal-class events', deals, 'parameters disclosed')}
+  </div>`;
+}
+
+/* ── NOT AVAILABLE ────────────────────────────────────────────────────────── */
+function gaps() {
+  const na = DATA.notAvailable || [];
+  return `<div class="banner">These are panels a broker terminal shows that this system <b>cannot</b> fill from a
+    market-data vendor. They are named rather than quietly omitted: a page showing nine panels where a broker
+    shows sixteen invites the reader to assume the other seven were checked and found empty.</div>
+  <div class="cols c2">${na.map(x => card(x.panel, `<div class="prose">${esc(x.why)}</div>`)).join('')}</div>
+  <div class="note" style="margin-top:10px">Every entry above was tested against the vendor on 2026-07-29, for three
+    different issuer shapes — a 2026 demerger, an IT major and a state-owned bank — not assumed from documentation.</div>`;
+}
+
+function openStock(sym) {
+  document.getElementById('q').value = sym;
+  if (typeof acClose === 'function') acClose();
+  document.getElementById('q').blur();
+  history.replaceState(null, '', '/stock.html?q=' + encodeURIComponent(sym));
+  load(sym);
+}
+
+/* ── autocomplete ────────────────────────────────────────────────────────────
+   Opens on the first character typed. Every entry comes from the broker's own
+   instrument master — 5,798 listed NSE and BSE symbols — searched in memory on
+   the server, so a keystroke costs nothing at the broker.
+
+   Keyboard first: ↓ ↑ to move, Enter to open, Esc to dismiss. A dropdown you can
+   only click is a dropdown that slows down the person who knows what they want. */
+const acEl = document.getElementById('ac');
+const qEl = document.getElementById('q');
+let acRows = [], acSel = -1, acSeq = 0;
+
+function acClose() {
+  acEl.classList.remove('on');
+  acEl.parentElement.setAttribute('aria-expanded', 'false');
+  acRows = []; acSel = -1;
+}
+
+function acPaint(d) {
+  acRows = d.results || [];
+  acSel = -1;
+  if (!d.ok) {
+    // A universe that was never built says so, with the command that fixes it.
+    // An empty list here would claim no such stock is listed in India.
+    acEl.innerHTML = `<div class="ac-none">${esc(d.error || 'search unavailable')}</div>`;
+  } else if (!acRows.length) {
+    acEl.innerHTML = `<div class="ac-none">no listed stock matches “${esc(d.query)}”</div>`;
+  } else {
+    acEl.innerHTML = acRows.map((r, i) => `<div class="ac-i" role="option" data-i="${i}" aria-selected="false">
+        <span class="ac-s">${esc(r.symbol)}</span>
+        <span class="ac-n">${esc(r.name)}</span>
+        ${r.fno ? '<span class="ac-fo">F&amp;O</span>' : ''}
+        <span class="ac-e">${esc(r.exchange)}</span>
+      </div>`).join('')
+      // The count is the FULL match count, not the number shown. "20 of 38" and
+      // "20" are different statements and only one of them is true.
+      + (d.total > acRows.length ? `<div class="ac-more">showing ${acRows.length} of ${d.total} matches — keep typing to narrow</div>` : '');
+  }
+  acEl.classList.add('on');
+  acEl.parentElement.setAttribute('aria-expanded', 'true');
+}
+
+function acMove(step) {
+  if (!acRows.length) return;
+  acSel = (acSel + step + acRows.length) % acRows.length;
+  [...acEl.querySelectorAll('.ac-i')].forEach((el, i) => {
+    el.classList.toggle('sel', i === acSel);
+    el.setAttribute('aria-selected', i === acSel ? 'true' : 'false');
+    if (i === acSel) el.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+async function acSearch(term) {
+  const seq = ++acSeq;
+  try {
+    const d = await (await fetch(`${API}/api/stock/search?q=${encodeURIComponent(term)}&limit=20`, { cache: 'no-store' })).json();
+    // Out-of-order replies would otherwise repaint the list for a query the
+    // reader has already typed past.
+    if (seq !== acSeq) return;
+    acPaint(d);
+  } catch (e) {
+    if (seq !== acSeq) return;
+    acEl.innerHTML = `<div class="ac-none">search unreachable — ${esc(e.message)}</div>`;
+    acEl.classList.add('on');
+  }
+}
+
+qEl.addEventListener('input', () => {
+  const t = qEl.value.trim();
+  if (!t) { acClose(); return; }
+  acSearch(t);
+});
+
+qEl.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); acMove(1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); acMove(-1); }
+  else if (e.key === 'Escape') { acClose(); }
+  else if (e.key === 'Enter' && acSel >= 0 && acRows[acSel]) {
+    e.preventDefault();
+    openStock(acRows[acSel].symbol);
+  }
+});
+
+acEl.addEventListener('mousedown', (e) => {
+  // mousedown, not click: the input's blur would close the list first.
+  const row = e.target.closest('.ac-i');
+  if (!row) return;
+  e.preventDefault();
+  const r = acRows[Number(row.dataset.i)];
+  if (r) openStock(r.symbol);
+});
+
+qEl.addEventListener('blur', () => setTimeout(acClose, 120));
+qEl.addEventListener('focus', () => { if (qEl.value.trim()) acSearch(qEl.value.trim()); });
+
+const q0 = new URLSearchParams(location.search).get('q');
+if (q0) { document.getElementById('q').value = q0; load(q0); }
+else document.getElementById('q').focus();
+</script>
+</body>
+</html>

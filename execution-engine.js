@@ -7,6 +7,53 @@
  */
 
 const { roundTripCharges } = require('./charges');
+const { placeGuarded } = require('./place-guarded');
+const { maySendLive } = require('./live-permission');
+const { assertLimits } = require('./limits');
+
+/* RISK LIMITS THROUGH limits.js — docs/089 §1B.
+
+   Each of these was `parseInt(process.env.X || d)`. Measured against the real
+   engine on 2026-08-10:
+
+       AFTERNOON_MAX_TRADES=abc  ->  parseInt  ->  NaN
+       tradesToday >= NaN  is false for EVERY count — the cap does not exist
+
+   No error, no log, no test failure. Number() rather than parseInt, because
+   parseInt("12abc") is 12: a typo silently becomes a DIFFERENT valid limit.
+
+   A malformed value is a REFUSAL, not the default. Falling back to the default
+   feels safe and converts an operator's typo into a silent policy change.
+
+   Bounds are the operator's to set; these are the shipped defaults made
+   explicit. */
+  /* BOUNDS ARE A SANITY RAIL, NOT A POLICY.
+
+     The first version of this bounded AFTERNOON_MAX_TRADES at 50 and refused to
+     start: the deployed .env sets 100. The limits module was right and the bound
+     was a guess — so these are now set from what is ACTUALLY configured
+     (AFTERNOON_MAX_TRADES=100, MAX_TRADES_PER_DAY=100, MAX_CONSECUTIVE_LOSSES=8)
+     with headroom, and their job is to catch a fat finger — a stray zero, a
+     negative, a percentage written as a fraction — not to express an opinion
+     about how much the operator may trade.
+
+     A bound that refuses a real configuration is worse than no bound: it teaches
+     whoever hits it to widen the rail rather than read it. */
+const RISK_LIMITS = assertLimits({
+  MAX_DAILY_LOSS_PERCENT: { default: 2,  min: 0, max: 100 },
+  MAX_CONSECUTIVE_LOSSES: { default: 5,  min: 1, max: 1000, integer: true },
+  MAX_DRAWDOWN_PERCENT:   { default: 20, min: 0, max: 100 },
+});
+
+const _registry = require('./instrument-registry');
+
+/* The registry knows each instrument's expiry weekday and is broker-verified.
+   A failure here must not throw inside an order path — it returns null, the
+   risk layer's expiry-concentration check goes UNEVALUABLE, and the order
+   blocks. Failing closed on an unknown expiry is correct. */
+function safeExpiry(inst) {
+  try { return _registry.nextExpiry(inst) || null; } catch (_) { return null; }
+}
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const SQUARE_OFF_H  = 15;
@@ -23,9 +70,16 @@ function istMins(d) {
 class ExecutionEngine {
   constructor({ live, getSignal, getPrice, getOrbLevels, getOpenPosition, setOpenPosition,
                 pushClosedPosition, incrementTrades, getTradesToday, getMaxTrades, getVwap,
+                // Phase 2.3 — the chokepoint. `broker` is the RiskGuardedBroker.
+                // `live` remains for READS (quotes, chains); its placeOrder is
+                // neutralised by the guard and will throw if anything calls it.
+                broker, getRiskState, getMarginVerdict,
                 // Instrument params
                 lotSize, strikeInterval, atmRound, exchangeSegment, instrumentName }) {
     this.live             = live;
+    this.broker           = broker || null;
+    this.getRiskState     = getRiskState || null;
+    this.getMarginVerdict = getMarginVerdict || null;
     this.getSignal        = getSignal;
     this.getPrice         = getPrice;
     this.getOrbLevels     = getOrbLevels;
@@ -73,8 +127,8 @@ class ExecutionEngine {
       ? perInstrumentVal === 'true'
       : process.env.AUTO_TRADE_ENABLED === 'true';
 
-    this.maxDailyLossPct = parseFloat(process.env.MAX_DAILY_LOSS_PERCENT || 2) / 100;
-    this.maxConsecLosses = parseInt(process.env.MAX_CONSECUTIVE_LOSSES   || 5);
+    this.maxDailyLossPct = RISK_LIMITS.MAX_DAILY_LOSS_PERCENT / 100;
+    this.maxConsecLosses = RISK_LIMITS.MAX_CONSECUTIVE_LOSSES;
 
     // Per-instrument premium cap — skip the trade if option LTP exceeds this.
     // Forces deeper-OTM strikes that fit the user's per-trade ₹ budget.
@@ -96,7 +150,7 @@ class ExecutionEngine {
     // updated on each profitable close. Drawdown = (peak - current) / peak.
     // Halts when drawdown exceeds MAX_DRAWDOWN_PERCENT (default 20%).
     this._peakEquity         = this.capital;
-    this.maxDrawdownPct      = parseFloat(process.env.MAX_DRAWDOWN_PERCENT || 20) / 100;
+    this.maxDrawdownPct      = RISK_LIMITS.MAX_DRAWDOWN_PERCENT / 100;
   }
 
   // Runtime config update — called by /api/config PATCH to apply changes
@@ -535,20 +589,58 @@ class ExecutionEngine {
     }
 
     let orderId = `PAPER-${Date.now()}`;
-    if (!this.paperMode && securityId) {
+
+    /* TWO KEYS. docs/085, docs/089 §1D.
+         KEY 1  TRADE_MODE=live  — this engine may act at all  (this.paperMode)
+         KEY 2  ALLOW_LIVE       — it may reach a broker
+
+       One key gives you PAPER, not live: without ALLOW_LIVE the entry falls
+       through and is recorded as a paper trade, loudly. Returning instead would
+       be worse — it would silently drop a signal the engine believed in, and the
+       operator would be debugging a missing trade rather than a missing flag.
+
+       The EXIT path below deliberately has no key 2. An exit that needs a
+       permission is a position that cannot be closed during the incident that
+       made closing necessary — the same reason flatten.js is exempt. */
+    const _perm = !this.paperMode
+      ? maySendLive({ capability: true, capabilityFlag: 'TRADE_MODE', liveFlag: 'ALLOW_LIVE' })
+      : { allowed: false, reason: 'paper mode', key: 1 };
+    if (!this.paperMode && !_perm.allowed) {
+      console.warn(`[${this.instrumentName}] LIVE ENTRY BLOCKED — ${_perm.reason}. Recording as paper.`);
+    }
+
+    if (!this.paperMode && _perm.allowed && securityId) {
       try {
-        const res = await this.live.placeOrder({
-          securityId,
-          exchangeSegment: this.exchangeSegment,
-          transactionType: 'BUY',
-          productType:     'INTRADAY',
-          orderType:       'MARKET',
-          quantity
+        /* Phase 2.3 — through the chokepoint. This is an ENTRY: it adds risk,
+           so it is evaluated in full and may be refused. A refusal is a return,
+           not a fallback — there is no other way to the broker from here. */
+        const res = await placeGuarded({
+          broker: this.broker,
+          intent: {
+            strategy: 'ORB', instrument: this.instrumentName,
+            strike, optionType: type, side: 'BUY',
+            expiry: safeExpiry(this.instrumentName),
+            stopDistance: ltp * this.slPct,
+            lotSize: this.lotSize, requestedLots: lots,
+            // No verdict means the margin check is UNEVALUABLE and the order
+            // blocks. That is deliberate: this engine may not go live until a
+            // margin source is wired to it.
+            marginVerdict: this.getMarginVerdict ? this.getMarginVerdict({ instrument: this.instrumentName, strike, type, lots }) : null,
+          },
+          state: this.getRiskState ? this.getRiskState() : null,
+          order: {
+            securityId,
+            exchangeSegment: this.exchangeSegment,
+            transactionType: 'BUY',
+            productType:     'INTRADAY',
+            orderType:       'MARKET',
+            quantity
+          },
         });
         orderId = res.orderId || orderId;
         console.log(`[${this.instrumentName}] LIVE BUY order placed: ${orderId}`);
       } catch (err) {
-        console.error(`[${this.instrumentName}] Order placement failed:`, err.message);
+        console.error(`[${this.instrumentName}] Order placement failed (${err.code || 'ERROR'}):`, err.message);
         return;
       }
     } else {
@@ -675,17 +767,34 @@ class ExecutionEngine {
     const exitPrice = rawExitPrice * (1 - slipPct);
     if (!this.paperMode && pos.securityId) {
       try {
-        await this.live.placeOrder({
+        /* Phase 2.3 — through the chokepoint, but as a REDUCING order. It still
+           passes the gate, is recorded, and is counted by the breaker; it is
+           never refused by it. A kill switch or a breached limit that could
+           block an exit would hold the position open in precisely the
+           conditions that tripped it. */
+        if (!this.broker) throw Object.assign(new Error('no guarded broker wired for exit'), { code: 'ORDER_NO_BROKER' });
+        const d = this.broker.approveReducing({
+          strategy: 'ORB', instrument: this.instrumentName,
+          strike: pos.strike, optionType: pos.type, side: 'SELL',
+          requestedLots: pos.lots ?? null,
+        });
+        await this.broker.placeOrder({
+          instrument:      this.instrumentName,
+          strike:          pos.strike,
+          optionType:      pos.type,
+          side:            'SELL',
+          lots:            pos.lots ?? null,
           securityId:      pos.securityId,
           exchangeSegment: this.exchangeSegment,
           transactionType: 'SELL',
           productType:     'INTRADAY',
           orderType:       'MARKET',
-          quantity:        pos.quantity
+          quantity:        pos.quantity,
+          approval:        d.approval,
         });
         console.log(`[${this.instrumentName}] LIVE SELL order placed`);
       } catch (err) {
-        console.error(`[${this.instrumentName}] Exit order failed:`, err.message);
+        console.error(`[${this.instrumentName}] Exit order failed (${err.code || 'ERROR'}):`, err.message);
       }
     }
 

@@ -42,12 +42,28 @@ class EquityConnector {
     this._chartCache = new Map();   // securityId → { at, data }
     // Paper random-walk state per symbol (seeded from a plausible base price).
     this._paper = new Map();
-    this.paperMode = (process.env.TRADE_MODE || 'paper') !== 'live';
+    /* Arming is decided in ./arming.js, not here, and NOT by TRADE_MODE.
+       TRADE_MODE is the main bot's flag; this deployable reading it meant one
+       variable armed two bots, one of which has no controls at all. See
+       stock/arming.js for the full chain and both barriers. */
+    const _arm = require('./arming').armingState();
+    this.paperMode = _arm.paperMode;
+    this._armingReason = _arm.reason;
+    if (_arm.wanted && !_arm.live) console.warn(`[equity] REFUSING LIVE — ${_arm.reason}`);
   }
 
   async connect() {
-    const clientId    = this.config.dhanClientId    || process.env.DHAN_CLIENT_ID;
-    const accessToken = this.config.dhanAccessToken  || process.env.DHAN_ACCESS_TOKEN;
+    /* Order-capable credentials must be THIS deployable's own. Falling back to
+       DHAN_CLIENT_ID / DHAN_ACCESS_TOKEN from a shared .env is what made a flag
+       change sufficient to arm an uncontrolled order path. In paper the shared
+       ones are still used for READ-ONLY market data, which is all paper needs. */
+    const own = require('./arming').ownCredentials();
+    const clientId    = this.paperMode
+      ? (this.config.dhanClientId   || process.env.DHAN_CLIENT_ID)
+      : (this.config.dhanClientId   || own.clientId);
+    const accessToken = this.paperMode
+      ? (this.config.dhanAccessToken || process.env.DHAN_ACCESS_TOKEN)
+      : (this.config.dhanAccessToken || own.accessToken);
 
     // Paper mode with no creds → run the simulator. This is the default dev path.
     if (this.paperMode && (!clientId || !accessToken || !DhanClient)) {
@@ -164,7 +180,8 @@ class EquityConnector {
     if (this.paperMode || !this.client) {
       return { status: 'PAPER', orderId: `PAPER-${Date.now()}`, raw: null };
     }
-    const clientId = this.config.dhanClientId || process.env.DHAN_CLIENT_ID;
+    const clientId = this.config.dhanClientId
+      || (this.paperMode ? process.env.DHAN_CLIENT_ID : require('./arming').ownCredentials().clientId);
     const body = {
       dhanClientId: clientId,
       correlationId: params.correlationId || `ag-stk-${Date.now()}`,

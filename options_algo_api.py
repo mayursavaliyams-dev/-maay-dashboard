@@ -167,7 +167,40 @@ def execute_trade(req: ExecuteTradeRequest) -> dict[str, Any]:
     if req.client_order_tag:
         payload["tag"] = req.client_order_tag[:20]
 
-    if req.dry_run or not cfg.live_trading:
+    # ── ARMING IS SERVER-SIDE. THE REQUEST MAY ONLY MOVE TOWARDS SAFETY. ──
+    #
+    # These two lines used to be one expression, and one expression invites the
+    # wrong simplification. An environment flag requires host access to change;
+    # a request body field requires only reaching the endpoint — and this
+    # endpoint has no authentication of its own.
+    #
+    # So the decision is split and named:
+    #   server_permits_live  the ONLY thing that can allow a send. Environment.
+    #   caller_forces_dry    a one-way switch. It can turn a live send into a
+    #                        dry run. It can never turn a dry run into a send.
+    #
+    # `dry_run` is kept rather than deleted because it still does something
+    # real: on a server where live sending IS permitted, a caller can preview
+    # without sending. It cannot arm anything, and the guard below enforces
+    # that rather than trusting the boolean to stay correct.
+    #
+    # TWO KEYS. Neither alone is enough.
+    #   KEY 1  LIVE_TRADING           this API may trade live at all
+    #   KEY 2  OPTIONS_API_ALLOW_LIVE this API may reach a REAL broker
+    #
+    # Modelled on amibroker-bridge.js, the one path in this estate that already
+    # separated "may act" from "may send" (AMIBROKER_AUTO_TRADE +
+    # AMIBROKER_ALLOW_LIVE). Key 2 is read from its own variable — never derived
+    # from Key 1, never from the presence of KITE_* / ANGEL_* credentials.
+    # Only the string "true" grants it, any case, trimmed; "1" and "yes" do not.
+    _key2_raw = os.getenv("OPTIONS_API_ALLOW_LIVE")
+    key2_granted = isinstance(_key2_raw, str) and _key2_raw.strip().lower() == "true"
+
+    server_permits_live = bool(cfg.live_trading) and key2_granted
+    caller_forces_dry = bool(req.dry_run)
+    is_dry_run = caller_forces_dry or not server_permits_live
+
+    if is_dry_run:
         order_id = f"DRY-{broker.name.upper()}-{int(now_ist().timestamp())}"
         return {
             "ok": True,
@@ -176,8 +209,34 @@ def execute_trade(req: ExecuteTradeRequest) -> dict[str, Any]:
             "order_id": order_id,
             "payload": payload,
             "target": _contract_payload(selected, True),
-            "message": "Dry-run only. Set LIVE_TRADING=true and dry_run=false to send broker order.",
+            "blocked_by": (
+                None if not (bool(cfg.live_trading) and key2_granted)
+                and caller_forces_dry and bool(cfg.live_trading) and key2_granted
+                else "LIVE_TRADING" if not bool(cfg.live_trading)
+                else "OPTIONS_API_ALLOW_LIVE" if not key2_granted
+                else None
+            ),
+            "message": (
+                "Dry-run only. "
+                + (
+                    "blocked by LIVE_TRADING (key 1 of 2, default false)"
+                    if not bool(cfg.live_trading)
+                    else "blocked by OPTIONS_API_ALLOW_LIVE (key 2 of 2, default false)"
+                    if not key2_granted
+                    else "requested by the caller via dry_run"
+                )
+                + ". Both keys are required; dry_run=false alone can never send an order."
+            ),
         }
+
+    # Belt and braces. If the boolean above is ever edited into something that
+    # lets a request arm a send, this stops the order rather than the edit being
+    # discovered from a contract note. Not an assert — asserts vanish under -O.
+    if not server_permits_live:
+        raise HTTPException(
+            status_code=500,
+            detail="refusing to send: live path reached without both keys (LIVE_TRADING and OPTIONS_API_ALLOW_LIVE)",
+        )
 
     trade_log = place_and_log(broker, cfg, selected, req.lots, trend)
     tally_queue_id = _queue_tally_xml(cfg, asdict(trade_log))

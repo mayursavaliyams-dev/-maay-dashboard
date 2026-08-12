@@ -1,0 +1,701 @@
+{
+  "declared": {
+    "criteriaHash": "4da1dad76c6cbd81",
+    "declaredAt": "2026-07-30T17:45:20.788Z"
+  },
+  "results": [
+    {
+      "family": "SHORT_STRANGLE",
+      "strategy": "Short strangle → iron condor",
+      "running": "PAPER, ON",
+      "observedSharpe": null,
+      "backtest": "129 trades, 91% win, 600 days",
+      "sweepPatterns": [
+        "strangle"
+      ],
+      "scripts": 4,
+      "trials": {
+        "count": 26,
+        "source": "floor",
+        "exact": false,
+        "family": "SHORT_STRANGLE",
+        "evidence": [
+          "result-strangle-costs.json:sweep=8",
+          "result-strangle-regime.json:results=5",
+          "result-strangle-tailsafe.json:stress=5",
+          "result-strangle-trend.json:results=4",
+          "4 backtest script(s) as distinct ideas"
+        ],
+        "why": "reconstructed from artefacts. The TRUE trial count is at least this and is almost certainly higher, because discarded runs leave no artefact at all"
+      },
+      "result": {
+        "family": "SHORT_STRANGLE",
+        "strategy": "Short strangle → iron condor",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.792Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    },
+    {
+      "family": "SHORT_STRADDLE",
+      "strategy": "Short straddle",
+      "running": "backtest only",
+      "backtest": "129 trades, 86% win",
+      "sweepPatterns": [
+        "strategies"
+      ],
+      "scripts": 1,
+      "trials": {
+        "count": 11,
+        "source": "floor",
+        "exact": false,
+        "family": "SHORT_STRADDLE",
+        "evidence": [
+          "result-strategies.json:leaderboard=5",
+          "result-world-strategies.json:results=5",
+          "1 backtest script(s) as distinct ideas"
+        ],
+        "why": "reconstructed from artefacts. The TRUE trial count is at least this and is almost certainly higher, because discarded runs leave no artefact at all"
+      },
+      "result": {
+        "family": "SHORT_STRADDLE",
+        "strategy": "Short straddle",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.794Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    },
+    {
+      "family": "EXPIRY_STRADDLE",
+      "strategy": "Expiry-day straddle",
+      "running": "backtest only",
+      "backtest": "127 trades, 90% win, 470% CAGR",
+      "sweepPatterns": [
+        "strategies"
+      ],
+      "scripts": 1,
+      "trials": {
+        "count": 11,
+        "source": "floor",
+        "exact": false,
+        "family": "EXPIRY_STRADDLE",
+        "evidence": [
+          "result-strategies.json:leaderboard=5",
+          "result-world-strategies.json:results=5",
+          "1 backtest script(s) as distinct ideas"
+        ],
+        "why": "reconstructed from artefacts. The TRUE trial count is at least this and is almost certainly higher, because discarded runs leave no artefact at all"
+      },
+      "result": {
+        "family": "EXPIRY_STRADDLE",
+        "strategy": "Expiry-day straddle",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.795Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    },
+    {
+      "family": "POP_SELLER",
+      "strategy": "PoP seller",
+      "running": "screen only",
+      "backtest": "none",
+      "trials": {
+        "count": null,
+        "source": "unknown",
+        "exact": false,
+        "family": "POP_SELLER",
+        "why": "no trials were recorded for this family. A deflated Sharpe cannot be computed from an unknown trial count"
+      },
+      "result": {
+        "family": "POP_SELLER",
+        "strategy": "PoP seller",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.795Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    },
+    {
+      "family": "GAMMA_BLAST",
+      "strategy": "Gamma blast",
+      "running": "PAPER, ON",
+      "backtest": "none — not backtestable",
+      "trials": {
+        "count": null,
+        "source": "unknown",
+        "exact": false,
+        "family": "GAMMA_BLAST",
+        "why": "no trials were recorded for this family. A deflated Sharpe cannot be computed from an unknown trial count"
+      },
+      "result": {
+        "family": "GAMMA_BLAST",
+        "strategy": "Gamma blast",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.795Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    },
+    {
+      "family": "TREND_RIDE",
+      "strategy": "Trend ride",
+      "running": "PAPER, ON",
+      "backtest": "1,816 events, PF 0.84 raw; PF 1.34 out-of-sample on the underlying",
+      "sweepPatterns": [
+        "trend"
+      ],
+      "scripts": 2,
+      "trials": {
+        "count": 6,
+        "source": "floor",
+        "exact": false,
+        "family": "TREND_RIDE",
+        "evidence": [
+          "result-strangle-trend.json:results=4",
+          "2 backtest script(s) as distinct ideas"
+        ],
+        "why": "reconstructed from artefacts. The TRUE trial count is at least this and is almost certainly higher, because discarded runs leave no artefact at all"
+      },
+      "result": {
+        "family": "TREND_RIDE",
+        "strategy": "Trend ride",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.795Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    },
+    {
+      "family": "BOUNCE",
+      "strategy": "Bounce",
+      "running": "PAPER, ON",
+      "backtest": "one day",
+      "trials": {
+        "count": null,
+        "source": "unknown",
+        "exact": false,
+        "family": "BOUNCE",
+        "why": "no trials were recorded for this family. A deflated Sharpe cannot be computed from an unknown trial count"
+      },
+      "result": {
+        "family": "BOUNCE",
+        "strategy": "Bounce",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.795Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    },
+    {
+      "family": "ORB_AFTERNOON",
+      "strategy": "ORB / afternoon execution",
+      "running": "PAPER, ON",
+      "backtest": "1,200 trades, PF 0.94 / 0.89 / 0.97",
+      "sweepPatterns": [
+        "intraday"
+      ],
+      "scripts": 3,
+      "trials": {
+        "count": 3,
+        "source": "floor",
+        "exact": false,
+        "family": "ORB_AFTERNOON",
+        "evidence": [
+          "3 backtest script(s) as distinct ideas"
+        ],
+        "why": "reconstructed from artefacts. The TRUE trial count is at least this and is almost certainly higher, because discarded runs leave no artefact at all"
+      },
+      "result": {
+        "family": "ORB_AFTERNOON",
+        "strategy": "ORB / afternoon execution",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.801Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    },
+    {
+      "family": "AI_AGENTS",
+      "strategy": "AI agents news→equity",
+      "running": "PAPER, ON",
+      "backtest": "none",
+      "trials": {
+        "count": null,
+        "source": "unknown",
+        "exact": false,
+        "family": "AI_AGENTS",
+        "why": "no trials were recorded for this family. A deflated Sharpe cannot be computed from an unknown trial count"
+      },
+      "result": {
+        "family": "AI_AGENTS",
+        "strategy": "AI agents news→equity",
+        "criteriaHash": "4da1dad76c6cbd81",
+        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
+        "at": "2026-07-30T17:45:20.802Z",
+        "verdict": "CANNOT_VALIDATE",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "cannotValidate": 7
+        },
+        "tests": [
+          {
+            "name": "walkForward",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no walk-forward specification supplied. A single-period backtest is not a substitute and is not accepted as one",
+            "data": null
+          },
+          {
+            "name": "deflatedSharpe",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no out-of-sample Sharpe could be computed",
+            "data": null
+          },
+          {
+            "name": "pbo",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no per-trial per-block performance matrix supplied — PBO needs every trial evaluated on every block",
+            "data": null
+          },
+          {
+            "name": "robustness",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no run function supplied for the sensitivity battery",
+            "data": null
+          },
+          {
+            "name": "shuffledLabels",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no shuffled-label runner supplied. For a non-ML strategy this test does not apply, and that is stated rather than counted as a pass",
+            "data": null
+          },
+          {
+            "name": "randomEntryNull",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no random-entry sampler supplied — the null must use the caller's own cost model",
+            "data": null
+          },
+          {
+            "name": "oosBudget",
+            "status": "CANNOT_VALIDATE",
+            "detail": "no evaluation periods declared — the out-of-sample spend cannot be tracked",
+            "data": null
+          }
+        ],
+        "halted": false,
+        "plainly": "CANNOT BE VALIDATED. 7 test(s) could not run: walkForward, deflatedSharpe, pbo, robustness, shuffledLabels, randomEntryNull, oosBudget. This is NOT a pass — the evidence required to judge this strategy does not exist."
+      }
+    }
+  ]
+}

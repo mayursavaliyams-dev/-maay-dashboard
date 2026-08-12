@@ -17,7 +17,15 @@
     "pm2:status": "pm2 status",
     "gen:instrument-meta": "node scripts/gen-instrument-meta.js",
     "perf:report": "node scripts/perf-report.js",
-    "export:engine": "node scripts/export-engine.js"
+    "export:engine": "node scripts/export-engine.js",
+    "build:universe": "node scripts/build-stock-universe.js",
+    "replay:badday": "node scripts/replay-bad-day.js",
+    "margin:report": "node scripts/margin-report.js",
+    "validate:strategies": "node scripts/validate-strategies.js",
+    "smoke": "node scripts/smoke.js",
+    "fixtures:orders": "node scripts/build-order-fixtures.js",
+    "census": "node scripts/estate-census.js",
+    "ami:validate": "node scripts/validate-ami-signals.js"
   },
   "keywords": [
     "sensex",

@@ -88,6 +88,9 @@
   <span class="brand">📖 Documentation</span>
   <a href="/help.html?doc=manual" id="tabManual" class="tab">User Manual</a>
   <a href="/help.html?doc=strategies" id="tabStrat" class="tab">Strategy Guide</a>
+  <a href="/help.html?doc=stockview" id="tabStock" class="tab">Stock View &amp; Data Honesty</a>
+  <a href="/help.html?doc=whatsinside" id="tabInside" class="tab">What Is In The Bot</a>
+  <a href="/help.html?doc=worklog" id="tabWork" class="tab">Work Record</a>
   <span style="color:var(--muted);font-size:.82rem;margin-left:auto">rendered from docs/ — one source, not a second copy that drifts</span>
 </div>
 
@@ -104,7 +107,10 @@
 /* Which document to show. Defaults to the user manual; ?doc=<name> renders any other
    markdown file under docs/. The name is restricted to the shape of a filename so a
    query string cannot walk out of that directory. */
-const DOCS = { manual: '056-USER-MANUAL.md', strategies: '057-STRATEGY-GUIDE.md' };
+const DOCS = { manual: '056-USER-MANUAL.md', strategies: '057-STRATEGY-GUIDE.md',
+               stockview: '058-STOCK-VIEW-AND-INSTRUMENT-GUARD.md',
+               whatsinside: '064-WHAT-IS-IN-THE-BOT.md',
+               worklog:     '065-SESSION-WORK-RECORD.md' };
 const _q = new URLSearchParams(location.search).get('doc') || 'manual';
 const _file = DOCS[_q] || (/^[\w.-]+\.md$/.test(_q) && !_q.includes('..') ? _q : DOCS.manual);
 const MD = '/docs/' + _file;
@@ -176,8 +182,13 @@ function render(md) {
   return out.join('\n');
 }
 
-document.getElementById(_file === DOCS.strategies ? 'tabStrat' : 'tabManual').classList.add('on');
-document.title = (_file === DOCS.strategies ? 'Strategy Guide' : 'User Manual') + ' · Antigravity Pro';
+const _TABS = { [DOCS.strategies]:  ['tabStrat',  'Strategy Guide'],
+                [DOCS.stockview]:   ['tabStock',  'Stock View & Data Honesty'],
+                [DOCS.whatsinside]: ['tabInside', 'What Is In The Bot'],
+                [DOCS.worklog]:     ['tabWork',   'Work Record'] };
+const [_tabId, _title] = _TABS[_file] || ['tabManual', 'User Manual'];
+document.getElementById(_tabId).classList.add('on');
+document.title = _title + ' · Antigravity Pro';
 
 fetch(MD, { cache: 'no-store' })
   .then(r => { if (!r.ok) throw new Error(`${r.status} — is docs/ served?`); return r.text(); })
