@@ -1,7 +1,7 @@
 {
   "declared": {
     "criteriaHash": "4da1dad76c6cbd81",
-    "declaredAt": "2026-07-30T17:45:20.788Z"
+    "declaredAt": "2026-07-30T17:58:41.685Z"
   },
   "results": [
     {
@@ -32,8 +32,8 @@
         "family": "SHORT_STRANGLE",
         "strategy": "Short strangle → iron condor",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.792Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.689Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,
@@ -113,8 +113,8 @@
         "family": "SHORT_STRADDLE",
         "strategy": "Short straddle",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.794Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.691Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,
@@ -194,8 +194,8 @@
         "family": "EXPIRY_STRADDLE",
         "strategy": "Expiry-day straddle",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.795Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.692Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,
@@ -266,8 +266,8 @@
         "family": "POP_SELLER",
         "strategy": "PoP seller",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.795Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.692Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,
@@ -338,8 +338,8 @@
         "family": "GAMMA_BLAST",
         "strategy": "Gamma blast",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.795Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.692Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,
@@ -418,8 +418,8 @@
         "family": "TREND_RIDE",
         "strategy": "Trend ride",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.795Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.692Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,
@@ -490,8 +490,8 @@
         "family": "BOUNCE",
         "strategy": "Bounce",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.795Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.692Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,
@@ -569,8 +569,8 @@
         "family": "ORB_AFTERNOON",
         "strategy": "ORB / afternoon execution",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.801Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.698Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,
@@ -641,8 +641,8 @@
         "family": "AI_AGENTS",
         "strategy": "AI agents news→equity",
         "criteriaHash": "4da1dad76c6cbd81",
-        "criteriaDeclaredAt": "2026-07-30T17:45:20.788Z",
-        "at": "2026-07-30T17:45:20.802Z",
+        "criteriaDeclaredAt": "2026-07-30T17:58:41.685Z",
+        "at": "2026-07-30T17:58:41.699Z",
         "verdict": "CANNOT_VALIDATE",
         "counts": {
           "pass": 0,

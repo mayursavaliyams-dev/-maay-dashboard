@@ -63,6 +63,27 @@
   .eng-card td{ padding:5px 4px; border-bottom:1px solid #101827; }
   .eng-card .nm{ font-weight:800; } .eng-card .off{ opacity:.4; }
 
+  /* live positions */
+  .pos-hd{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .pos-sum{ font-size:0.62rem; letter-spacing:.5px; }
+  .pos-sum b{ font-weight:900; }
+  .pos-wrap{ overflow-x:auto; margin-top:8px; }
+  table.pos{ width:100%; border-collapse:collapse; font-size:0.62rem; white-space:nowrap; }
+  table.pos th{ font-size:0.5rem; letter-spacing:1px; text-transform:uppercase; color:var(--muted);
+                text-align:left; font-weight:700; padding:0 8px 5px 0; border-bottom:1px solid var(--border); }
+  table.pos td{ padding:6px 8px 6px 0; border-bottom:1px solid #101827; }
+  table.pos .r{ text-align:right; }
+  table.pos .eng{ color:var(--muted); font-size:0.54rem; letter-spacing:.5px; }
+  table.pos .nm{ font-weight:800; color:#cfe0ff; }
+  table.pos .kind{ color:var(--muted); font-size:0.52rem; letter-spacing:.5px; }
+  .side{ font-size:0.5rem; font-weight:900; letter-spacing:1px; padding:2px 6px; border-radius:4px; }
+  .side.long{ color:var(--green); border:1px solid rgba(0,224,138,.35); }
+  .side.short{ color:var(--violet); border:1px solid rgba(160,107,255,.35); }
+  .up{ color:var(--green); } .dn{ color:var(--red); }
+  /* a price that has not arrived is not a price of zero - it is said, not shown */
+  .wait{ color:#4a5670; font-style:italic; font-size:0.56rem; }
+  .pos-none{ font-size:0.62rem; color:var(--muted); padding:10px 2px 2px; }
+
   /* execution cycle */
   .cycle{ display:flex; gap:6px; margin:10px 0; flex-wrap:wrap; }
   .stage{ flex:1; min-width:90px; border:1px solid var(--border); border-radius:9px; padding:8px 6px; text-align:center; background:var(--panel); position:relative; }
@@ -150,6 +171,21 @@
     </div>
   </div>
 
+  <!-- live positions: what the running P&L is actually made of -->
+  <div class="card" style="margin-top:10px">
+    <div class="pos-hd">
+      <span class="k">◈ Live positions <span style="color:var(--muted)">· open right now</span></span>
+      <span class="pos-sum mono" id="posSum"></span>
+    </div>
+    <div class="pos-wrap"><table class="pos"><thead><tr>
+      <th>Engine</th><th>Position</th><th>Side</th><th class="r">Qty</th>
+      <th class="r">Entry</th><th class="r">Now</th>
+      <th class="r">Unrealised</th><th class="r">%</th>
+      <th class="r">Max loss</th><th>Since</th>
+    </tr></thead><tbody id="posBody"></tbody></table></div>
+    <div class="pos-none" id="posNone"></div>
+  </div>
+
   <!-- execution cycle -->
   <div class="card" style="margin-top:10px">
     <div class="k">Execution cycle <span style="color:var(--muted)">· live pipeline stage</span></div>
@@ -183,6 +219,64 @@ setInterval(tick, 1000); tick();
 
 const inr = v => (v < 0 ? '-' : '+') + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
 const inrPlain = v => '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+
+// ── live positions ─────────────────────────────────────────────────────────
+// What the running P&L is made of, one line per open position.
+//
+// The rule the engines already follow, kept here: a leg whose LTP has not
+// arrived is not a leg worth zero.  Such a row shows the reason instead of a
+// number, is left out of the running total, and the header says how many are
+// still waiting - so a partial total is never read as the whole book.
+function renderPositions(rows, book) {
+  const body = document.getElementById('posBody');
+  const none = document.getElementById('posNone');
+  const sum = document.getElementById('posSum');
+
+  if (!rows.length) {
+    body.innerHTML = '';
+    none.textContent = 'Nothing open. Every paper trade so far has been closed out — '
+      + 'the P&L above is realised, not floating.';
+    sum.innerHTML = '';
+    return;
+  }
+  none.textContent = '';
+
+  const cls = v => (v > 0 ? 'up' : v < 0 ? 'dn' : '');
+  const money = v => (v === null || v === undefined
+    ? '<span class="wait">—</span>'
+    : `<span class="${cls(v)}">${inr(v)}</span>`);
+  const px = v => (v === null || v === undefined
+    ? '<span class="wait">—</span>'
+    : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 }));
+
+  body.innerHTML = rows.map(p => `
+    <tr>
+      <td class="eng">${p.engine}</td>
+      <td><span class="nm">${p.label}</span><br><span class="kind">${p.kind}${p.extra ? ' · ' + p.extra : ''}</span></td>
+      <td><span class="side ${p.side === 'LONG' ? 'long' : 'short'}">${p.side}</span></td>
+      <td class="r mono">${p.qty ?? '—'}${p.units ? `<br><span class="kind">${p.units} units</span>` : ''}</td>
+      <td class="r mono">${px(p.entry)}</td>
+      <td class="r mono">${px(p.last)}</td>
+      <td class="r mono">${p.unrealizedPnl === null
+          ? `<span class="wait" title="${p.unrealizedReason || ''}">waiting for a price</span>`
+          : money(p.unrealizedPnl)}</td>
+      <td class="r mono">${p.unrealizedPct === null || p.unrealizedPct === undefined
+          ? '<span class="wait">—</span>'
+          : `<span class="${cls(p.unrealizedPct)}">${p.unrealizedPct > 0 ? '+' : ''}${p.unrealizedPct}%</span>`}</td>
+      <td class="r mono">${p.risk === null || p.risk === undefined
+          ? '<span class="wait">—</span>' : `<span class="dn">${inrPlain(p.risk)}</span>`}</td>
+      <td class="mono" style="color:var(--muted)">${p.openMins || '—'}</td>
+    </tr>`).join('');
+
+  const net = book.unrealizedPnl || 0;
+  sum.innerHTML =
+    `<span style="color:var(--muted)">${book.count} open · floating </span>`
+    + `<b class="${cls(net)}">${inr(net)}</b>`
+    + (book.pending
+        ? `<span class="wait"> · ${book.pending} still waiting for a price, `
+          + `not counted in that total</span>`
+        : '');
+}
 
 // count-up animation toward target
 function animate() {
@@ -250,6 +344,9 @@ async function load() {
       <td style="text-align:right" class="mono">${e.trades}<br><span style="color:var(--muted);font-size:0.54rem">${e.winRate != null ? e.winRate + '%' : '—'}</span></td>
       <td style="text-align:right" class="mono" style="color:${e.netPnl>=0?'var(--green)':'var(--red)'}"><span style="color:${e.netPnl>=0?'var(--green)':'var(--red)'}">${inr(e.netPnl)}</span><br><span style="color:var(--muted);font-size:0.54rem">${e.open} open</span></td>
     </tr>`).join('');
+
+  // live positions - what the running P&L is actually made of
+  renderPositions(d.positions || [], d.openBook || {});
 
   // execution cycle
   document.getElementById('cycle').innerHTML = (d.cycle || []).map((s, i) => `

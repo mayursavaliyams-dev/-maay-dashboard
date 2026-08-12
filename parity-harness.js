@@ -181,18 +181,39 @@ function report(result, labelA = 'A', labelB = 'B') {
 /* ── fixtures ────────────────────────────────────────────────────────────── */
 const FIXTURE_DIR = path.join(__dirname, 'test', 'fixtures', 'order-path');
 
+/* A fixture is the reference the whole phase is measured against. A truncated
+   or malformed one must stop the run, never silently become an empty replay
+   that reports perfect parity because nothing was compared. Read, parse and
+   SHAPE-CHECK, with the failure naming the file. */
+function readFixtureFile(file) {
+  let text;
+  try { text = fs.readFileSync(file, 'utf8'); }
+  catch (e) { throw new Error(`parity-harness: cannot read fixture ${file}: ${e.message}`); }
+
+  let obj;
+  try { obj = JSON.parse(text); }
+  catch (e) { throw new Error(`parity-harness: fixture ${file} is not valid JSON (${e.message}). Rebuild: node scripts/build-order-fixtures.js`); }
+
+  if (!obj || typeof obj !== 'object') throw new Error(`parity-harness: fixture ${file} is not an object`);
+  if (typeof obj.character !== 'string' || !obj.character) throw new Error(`parity-harness: fixture ${file} has no character`);
+  if (typeof obj.session !== 'string' || !obj.session) throw new Error(`parity-harness: fixture ${file} has no session date`);
+  if (!Array.isArray(obj.intents)) throw new Error(`parity-harness: fixture ${file} has no intents array`);
+  if (obj.intents.length === 0) throw new Error(`parity-harness: fixture ${file} has zero intents — an empty replay would report false parity`);
+  return obj;
+}
+
 function loadFixture(character) {
   const file = path.join(FIXTURE_DIR, `${character}.json`);
   if (!fs.existsSync(file)) {
     throw new Error(`parity-harness: fixture '${character}' not found. Run: node scripts/build-order-fixtures.js`);
   }
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
+  return readFixtureFile(file);
 }
 
 function allFixtures() {
   if (!fs.existsSync(FIXTURE_DIR)) return [];
   return fs.readdirSync(FIXTURE_DIR).filter(f => f.endsWith('.json'))
-    .map(f => JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, f), 'utf8')))
+    .map(f => readFixtureFile(path.join(FIXTURE_DIR, f)))
     .sort((a, b) => a.character.localeCompare(b.character));
 }
 

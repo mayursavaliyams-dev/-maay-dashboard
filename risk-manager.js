@@ -282,28 +282,51 @@ class RiskManager {
         r2(dd), cfg.RISK_DAY_TRAILING_DD_PCT);
     }
 
-    // ── 5. concentration ────────────────────────────────────────────────────
+    /* ── 5. concentration ──────────────────────────────────────────────────
+       ABSENT IS NOT THE SAME AS UNKNOWN, AND ONLY THE CALLER KNOWS WHICH.
+
+       These two checks ask "how much of my risk already sits in this expiry /
+       at this strike?". The answer comes from a map the caller supplies. If the
+       intent names a key the map does not contain, that means one of two very
+       different things:
+
+         · the map is built from the open book, so absent = nothing held = ZERO
+         · the map is partial or failed to build, so absent = we cannot tell
+
+       Until 2026-07-31 both resolved to UNEVALUABLE, which blocks under the
+       default fail mode. The consequence, found by the parity harness before
+       any call site was wired: the layer approved orders only at strikes and
+       expiries ALREADY HELD, and refused every genuinely new position. It had
+       never been observed because the guard sat in one of twelve order paths.
+
+       The fix does not guess. The caller declares `riskMapComplete: true` when
+       the maps are exhaustive, and only then does an absent key read as zero.
+       A caller that omits the flag gets the old fail-closed behaviour, so
+       forgetting it blocks orders rather than letting them through. */
+    const mapComplete = state.riskMapComplete === true;
     {
       const total = n(state.totalRisk);
       const byE = state.riskByExpiry || {};
-      const mine = n(byE[intent.expiry]);
+      const raw = n(byE[intent.expiry]);
+      const mine = raw ?? (mapComplete ? 0 : null);
       const measurable = total !== null && total > 0 && mine !== null;
       const pct = measurable ? mine / total * 100 : null;
       add('concentrationByExpiry', measurable, measurable && pct <= cfg.RISK_MAX_RISK_PER_EXPIRY_PCT,
         measurable ? `${pct.toFixed(1)}% of risk in expiry ${intent.expiry} (limit ${cfg.RISK_MAX_RISK_PER_EXPIRY_PCT}%)`
-                   : 'risk by expiry unknown — cannot evaluate concentration',
+                   : 'risk by expiry unknown — cannot evaluate concentration (set state.riskMapComplete when the map is exhaustive)',
         r2(pct), cfg.RISK_MAX_RISK_PER_EXPIRY_PCT);
     }
     {
       const total = n(state.totalRisk);
       const byS = state.riskByStrike || {};
       const key = `${intent.instrument}|${intent.strike}|${intent.optionType}`;
-      const mine = n(byS[key]) ?? n(byS[intent.strike]);
+      const raw = n(byS[key]) ?? n(byS[intent.strike]);
+      const mine = raw ?? (mapComplete ? 0 : null);
       const measurable = total !== null && total > 0 && mine !== null;
       const pct = measurable ? mine / total * 100 : null;
       add('concentrationByStrike', measurable, measurable && pct <= cfg.RISK_MAX_RISK_PER_STRIKE_PCT,
         measurable ? `${pct.toFixed(1)}% of risk at ${key} (limit ${cfg.RISK_MAX_RISK_PER_STRIKE_PCT}%)`
-                   : 'risk by strike unknown — cannot evaluate concentration',
+                   : 'risk by strike unknown — cannot evaluate concentration (set state.riskMapComplete when the map is exhaustive)',
         r2(pct), cfg.RISK_MAX_RISK_PER_STRIKE_PCT);
     }
 

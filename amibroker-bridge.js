@@ -15,6 +15,7 @@
  */
 
 const fs = require('fs');
+const { placeGuarded } = require('./place-guarded');
 const path = require('path');
 
 class AmiBrokerBridge {
@@ -618,16 +619,42 @@ class AmiBrokerBridge {
       // Execute via live connector if in live mode
       let result = { status: 'RECEIVED', orderId: `AMI-${Date.now()}` };
       
-      if (deps.getTradeMode() === 'live' && deps.liveConnector) {
+      if (deps.getTradeMode() === 'live' && deps.broker) {
         try {
-          const liveResult = await deps.liveConnector.placeOrder({
-            transactionType: order.action === 'BUY' ? 'BUY' : 'SELL',
-            exchangeSegment: 'BFO',
-            productType: 'INTRADAY',
-            orderType: order.orderType,
-            securityId: order.symbol,
-            quantity: order.quantity,
-            price: order.orderType === 'LIMIT' ? order.price : 0
+          /* Phase 2.3 — through the chokepoint.
+
+             An AmiBroker SELL is AMBIGUOUS: it may close a long or open a
+             short, and this bridge has no position book to tell them apart.
+             Both directions are therefore evaluated in full as entries rather
+             than waved through as reducing. Treating an ambiguous SELL as a
+             close would let a short entry past every limit, which is the
+             expensive way to be wrong; treating a genuine close as an entry
+             can at worst refuse an exit that the operator can still make
+             manually. Fail towards the recoverable error. */
+          const liveResult = await placeGuarded({
+            broker: deps.broker,
+            intent: {
+              strategy: 'AMIBROKER',
+              instrument: String(order.instrument || order.symbol || '').toUpperCase(),
+              strike: order.strike ?? null,
+              optionType: order.optionType || null,
+              side: order.action === 'BUY' ? 'BUY' : 'SELL',
+              expiry: order.expiry || null,
+              stopDistance: null,
+              lotSize: order.lotSize ?? null,
+              requestedLots: order.lots ?? null,
+              marginVerdict: deps.getMarginVerdict ? deps.getMarginVerdict(order) : null,
+            },
+            state: deps.getRiskState ? deps.getRiskState() : null,
+            order: {
+              transactionType: order.action === 'BUY' ? 'BUY' : 'SELL',
+              exchangeSegment: 'BFO',
+              productType: 'INTRADAY',
+              orderType: order.orderType,
+              securityId: order.symbol,
+              quantity: order.quantity,
+              price: order.orderType === 'LIMIT' ? order.price : 0
+            },
           });
           result = { status: liveResult.status || 'SENT', orderId: liveResult.orderId, raw: liveResult };
           console.log(`[amibroker] Order executed:`, result.status, result.orderId);
