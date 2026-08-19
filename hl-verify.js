@@ -203,6 +203,43 @@ class HLVerifier {
   }
 
   /** COND-2 — the EXCHANGE_RECONCILED tier: confirm or refute via a 1-minute candle. */
+  /** Forget every recorded extreme. Call this when the TRADING DAY rolls over.
+   *
+   *  MEASURED 2026-08-13 — this method did not exist, and its absence was a live
+   *  defect. `_purgeOptHLIfNewDay()` in server.js cleared `_optHL` at the day
+   *  boundary and left the verifier holding YESTERDAY's extremes, so today's
+   *  prices were judged against yesterday's range:
+   *
+   *      yesterday   50 → 120 → 200 → 205      verifier high = 200
+   *      new day      3 →  30 →  80            every tick is BELOW 200
+   *                                            → no HIGH candidate ever forms
+   *                                            → _optHL.high never rises
+   *
+   *  Observed on the live chain: 22 of 144 SENSEX strikes reporting `ltp > high`,
+   *  which is impossible for a same-day range. SENSEX 78,000 CE showed a high of
+   *  29.8 while trading at 79.8.
+   *
+   *  The pending map and the `_last` tick map go too: a candidate from yesterday
+   *  that is confirmed by today's first tick would write a stale extreme into a
+   *  fresh day, and a `_last` from yesterday makes today's first tick look
+   *  "older than the previous tick" if the clocks disagree.
+   *
+   *  The audit log is DELIBERATELY kept. It is the record of how extremes were
+   *  validated, and clearing it would erase the evidence at exactly the moment a
+   *  new day starts producing new evidence.
+   */
+  resetForNewDay(reason = 'trading day rollover') {
+    const n = this._rec.size;
+    this._rec.clear();
+    this._pending.clear();
+    this._last.clear();
+    this._logEntry({
+      key: '*', price: null, exchTs: null, status: 'RESET', level: null,
+      reason: `${reason} — ${n} instrument record(s) cleared`,
+    });
+    return { cleared: n };
+  }
+
   confirmByCandle(key, candle) {
     const p = this._pending.get(key);
     if (!p) return null;

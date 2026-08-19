@@ -2167,5 +2167,94 @@ setInterval(loadIndicators, 5000);
   show(start);
 })();
 </script>
+<!-- ── H/L TOUCH ALERTS ──────────────────────────────────────────────────────
+     A toggle and a browser notification for "the day high or low was touched".
+
+     It polls. This system has no push channel — no websocket, no SSE — so a
+     poller is what the architecture actually supports, and pretending otherwise
+     would mean building one for a single feature. `since` is carried so the
+     server returns only what is new: without it every poll re-delivers the whole
+     ring buffer and the same touch is announced forever.
+
+     The server-side suppression (cooldown, minimum move, warm-up) is in
+     hl-alerts.js. Nothing here re-filters: two filters in two places disagree,
+     and the disagreement always surfaces as "why did I not get an alert". -->
+<div id="hlAlertBox" style="position:fixed;right:14px;bottom:14px;z-index:9500;
+     background:#0d1420;border:1px solid #24304a;border-radius:10px;padding:9px 12px;
+     font:12px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#93a2b8;
+     display:flex;align-items:center;gap:10px;box-shadow:0 4px 18px rgba(0,0,0,.45);">
+  <span style="font-size:10px;letter-spacing:.7px;text-transform:uppercase;">H/L alerts</span>
+  <button id="hlAlertToggle" style="background:#16233a;border:1px solid #2a3547;color:#cfe0ff;
+    border-radius:999px;padding:3px 12px;font:700 11px system-ui;cursor:pointer;">…</button>
+  <span id="hlAlertLast" style="font-size:10.5px;color:#5a6577;max-width:280px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+</div>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var since = 0;          // 0 on load: the first poll seeds it and announces nothing
+  var seeded = false;
+  var enabled = null;
+
+  function paint() {
+    var b = $('hlAlertToggle');
+    if (enabled === null) { b.textContent = '…'; b.style.color = '#5a6577'; return; }
+    b.textContent = enabled ? 'ON' : 'OFF';
+    b.style.background = enabled ? '#1d3a6b' : '#16233a';
+    b.style.borderColor = enabled ? '#2f5fa8' : '#2a3547';
+    b.style.color = enabled ? '#cfe0ff' : '#7c8aa0';
+  }
+
+  function notify(ev) {
+    /* Desktop notification when the browser allows it; the strip always updates
+       either way, so a denied permission costs the interruption and not the
+       information. */
+    try {
+      if (window.Notification && Notification.permission === 'granted') {
+        new Notification(ev.title, { body: ev.message, tag: ev.id });
+      }
+    } catch (e) { /* a blocked Notification API must not stop the strip updating */ }
+    $('hlAlertLast').textContent = new Date(ev.at).toLocaleTimeString('en-IN', { hour12: false }) + '  ' + ev.message;
+    $('hlAlertLast').style.color = /HIGH/.test(ev.kind) ? '#4ade80' : '#f87171';
+  }
+
+  function poll() {
+    fetch('/api/hl-alerts?since=' + since)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) return;
+        enabled = j.enabled; paint();
+        var evs = j.events || [];
+        if (evs.length) since = evs[evs.length - 1].at;
+        /* The FIRST poll only seeds `since`. Announcing the backlog on page load
+           would fire a notification for a high made two hours ago, which is
+           noise wearing the costume of an alert. */
+        if (!seeded) { seeded = true; if (evs.length) $('hlAlertLast').textContent = 'last: ' + evs[evs.length - 1].message; return; }
+        evs.forEach(notify);
+      })
+      .catch(function () { /* a failed poll leaves the last state on screen rather than blanking it */ });
+  }
+
+  $('hlAlertToggle').onclick = function () {
+    if (enabled === null) return;
+    var want = !enabled;
+    fetch('/api/hl-alerts/toggle', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ enabled: want })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.ok) { enabled = j.enabled; paint(); }
+      /* Ask for permission on the way ON, not on page load: a browser that
+         prompts the moment a dashboard opens gets the prompt dismissed. */
+      if (enabled && window.Notification && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }).catch(function () {});
+  };
+
+  poll();
+  setInterval(poll, 10000);
+})();
+</script>
 </body>
 </html>

@@ -695,6 +695,20 @@ function _purgeOptHLIfNewDay() {
   _optHLPurgeDate = today;
   Object.values(_optHL).forEach(m => m.clear());
   Object.keys(_hlTouchAlerts).forEach(k => { _hlTouchAlerts[k] = []; });
+  /* THE VERIFIER HOLDS ITS OWN RECORD, AND IT WAS NEVER CLEARED HERE.
+
+     Measured 2026-08-13: clearing `_optHL` alone left hl-verify holding
+     yesterday's extremes, so every price today was judged against yesterday's
+     range. A strike trading below yesterday's high produced NO high candidate
+     all day, and `_optHL.high` therefore never rose above the first tick —
+     22 of 144 SENSEX strikes were reporting `ltp > high`, which cannot happen
+     within one day. SENSEX 78,000 CE showed a high of 29.8 while trading at
+     79.8, and a low of 3 that the page was not displaying at all.
+
+     Two records with one lifetime and only one of them reset is the whole
+     defect; they are reset together here so it cannot recur. */
+  try { _hlVerifier.resetForNewDay(`IST day rollover to ${today}`); }
+  catch (e) { console.error('[hl-verify] day reset failed:', e.message); }
 }
 function _optHLKey(strike, type) { return `${strike}_${type}`; }
 function _fmtHms(ms) {
@@ -1559,6 +1573,96 @@ function _detectReversals(inst, price) {
   }
 }
 
+
+/* ── H/L TOUCH ALERTS ─────────────────────────────────────────────────────────
+   "Tell me whenever the day high or low is touched", with a toggle.
+
+   Constructed HERE, above _updateHL, because _updateHL feeds it on every tick
+   and construction order is this file's dependency mechanism — a detector
+   defined below its caller is the defect that put the risk guard 2,300 lines
+   after the engines.
+
+   Delivery is Telegram when configured. The browser has no push channel in this
+   system, so the page polls /api/hl-alerts?since= and raises its own
+   notification: that is a fact about the architecture, not a shortcut.
+
+   The toggle persists through config-overrides.json, the same mechanism the
+   engine flags use, so it survives a restart. */
+/* ── LOW SIGNAL ───────────────────────────────────────────────────────────────
+   docs/095. Buy the session low, hold to the close, ON PAPER.
+
+   Fed from the same tick as the H/L alerter because both watch the same price.
+   The exit is deliberately NOT a reversal trail: the research measured every
+   trailing width from 0.15% to 1% and found the result monotonically worse the
+   tighter it gets, on all three indices. low-signal.js refuses one below 1%.
+
+   Paper only, and it says so in every response. The entry's best t-statistic is
+   1.99 across 96 signals with ~30 variants tried, which is what the best of a
+   pile of noise looks like — so this exists to be forward-tested, not traded. */
+const { LowSignal } = require('./low-signal');
+const _lowSignal = new LowSignal({
+  onSignal: (ev) => {
+    if (ev.kind !== 'ENTRY') return null;
+    if (!telegram || !telegram.enabled) return null;
+    const r = ev.research;
+    return telegram.sendAlert(
+      `${ev.inst} low signal (paper)`,
+      [
+        `${ev.inst} ${ev.entry} — new session low, holding to the close.`,
+        /* The expectation NEVER travels without its t. A message that says
+           "+0.079% mean" and stops is how a not-significant edge becomes a
+           belief. */
+        r ? `in-sample: ${r.meanPct > 0 ? '+' : ''}${r.meanPct}% mean, t=${r.t} on n=${r.n} — NOT significant` : null,
+        'PAPER. docs/095.',
+      ].filter(Boolean).join('\n'));
+  },
+});
+
+app.get('/api/low-signal', (req, res) => res.json({ ok: true, ..._lowSignal.status() }));
+
+app.post('/api/low-signal/toggle', control('low-signal-toggle'), (req, res) => {
+  const want = req.body && req.body.enabled;
+  if (typeof want !== 'boolean') return res.status(400).json({ ok: false, error: 'enabled must be true or false' });
+  _lowSignal.setEnabled(want);
+  _persistEngineOverride({ LOW_SIGNAL_ENABLED: want });
+  console.log(`[low-signal] ${want ? 'ENABLED' : 'disabled'} by request`);
+  res.json({ ok: true, enabled: _lowSignal.enabled });
+});
+
+const { HLAlerts } = require('./hl-alerts');
+const _hlAlerts = new HLAlerts({
+  onEvent: (ev) => {
+    /* Returned, not awaited: hl-alerts counts the resolution or rejection
+       itself, and _updateHL is on the price path and must not wait for a
+       network call. */
+    if (!telegram || !telegram.enabled) return null;
+    return telegram.sendAlert(ev.title, ev.message);
+  },
+});
+
+app.get('/api/hl-alerts', (req, res) => {
+  const since = Number(req.query.since);
+  res.json({
+    ok: true,
+    ...(Number.isFinite(since) ? { since, events: _hlAlerts.since(since) } : {}),
+    ...(_hlAlerts.status()),
+    /* Named so the page can tell "no alerts because it is off" from "no alerts
+       because nothing happened". They look identical on screen otherwise. */
+    deliveryChannel: (telegram && telegram.enabled) ? 'telegram+page' : 'page only (telegram not configured)',
+  });
+});
+
+app.post('/api/hl-alerts/toggle', control('hl-alerts-toggle'), (req, res) => {
+  const want = req.body && req.body.enabled;
+  if (typeof want !== 'boolean') {
+    return res.status(400).json({ ok: false, error: 'enabled must be true or false' });
+  }
+  _hlAlerts.setEnabled(want);
+  _persistEngineOverride({ HL_ALERTS_ENABLED: want });
+  console.log(`[hl-alerts] ${want ? 'ENABLED' : 'disabled'} by request`);
+  res.json({ ok: true, enabled: _hlAlerts.enabled });
+});
+
 function _updateHL(inst, price) {
   if (!price || price < 1) return;
   const rec = _hlRecord[inst];
@@ -1588,6 +1692,21 @@ function _updateHL(inst, price) {
   const newLow  = price < rec.low;
   if (newHigh) { rec.high = price; rec.highAt = now; }
   if (newLow)  { rec.low  = price; rec.lowAt  = now; }
+
+  /* H/L touch alerts. Fed AFTER the extremes are updated, so the record it sees
+     is the one that was just set — a detector reading the pre-tick record would
+     report the break of a level that no longer exists.
+
+     `_hlAlerts` does the suppression: a trending move sets a new high on every
+     tick, and this line is called on every tick. See hl-alerts.js. */
+  try { _hlAlerts.tick(inst, price, rec, { newHigh, newLow }); }
+  catch (e) { /* LOGGED: an alert must never break price tracking */ console.warn(`[hl-alerts] ${inst}: ${e.message}`); }
+  // The low-signal tracker sees the same tick. It keeps its own session low
+  // rather than reading rec.low: rec has already been updated above, and a
+  // detector that reads the post-update record cannot tell a new low from a
+  // price that merely equals one.
+  try { _lowSignal.tick(inst, price, now); }
+  catch (e) { /* LOGGED: a paper tracker must never break price tracking */ console.warn(`[low-signal] ${inst}: ${e.message}`); }
 
   // 5-min bucket rollup: one entry per 5-min window holding that window's
   // extreme. highPath = per-bucket highest, lowPath = per-bucket lowest.
@@ -8719,7 +8838,12 @@ app.listen(PORT, '0.0.0.0', async () => {
     // unless env says otherwise, so a restored AUTO ON can never re-arm LIVE.
     if (typeof _cfgOverrides?.NIFTY_DIRECTIONAL_AUTO === 'boolean' && niftyEngine?.setAutoEnabled) niftyEngine.setAutoEnabled(_cfgOverrides.NIFTY_DIRECTIONAL_AUTO);
     if (typeof _cfgOverrides?.SENSEX_DIRECTIONAL_AUTO === 'boolean' && engine?.setAutoEnabled) engine.setAutoEnabled(_cfgOverrides.SENSEX_DIRECTIONAL_AUTO);
-    console.log(`[config] engine-state applied → strangle=${strangleEngine.enabled} gammaBlast=${gammaBlastEngine.enabled} niftyAuto=${niftyEngine?.autoEnabled} sensexAuto=${engine?.autoEnabled}`);
+    // H/L touch alerts: absent means ON. The default is deliberate — an alert
+    // the operator asked for should not need re-enabling after every restart,
+    // and turning it off is one click that persists.
+    if (typeof _cfgOverrides?.HL_ALERTS_ENABLED === 'boolean') _hlAlerts.setEnabled(_cfgOverrides.HL_ALERTS_ENABLED);
+    if (typeof _cfgOverrides?.LOW_SIGNAL_ENABLED === 'boolean') _lowSignal.setEnabled(_cfgOverrides.LOW_SIGNAL_ENABLED);
+    console.log(`[config] engine-state applied → strangle=${strangleEngine.enabled} gammaBlast=${gammaBlastEngine.enabled} niftyAuto=${niftyEngine?.autoEnabled} sensexAuto=${engine?.autoEnabled} hlAlerts=${_hlAlerts.enabled} lowSignal=${_lowSignal.enabled}`);
   } catch (e) { console.warn('[config] engine-state apply failed:', e.message); }
 });
 

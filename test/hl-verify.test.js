@@ -257,4 +257,79 @@ const tick = (price, exchTs, extra = {}) => ({ price, exchTs, recvTs: exchTs + 5
   eq(b.auditLog().length, 0, 'not even the audit log');
 }
 
+/* ── THE DAY ROLLOVER — a live defect, found 2026-08-13 ──────────────────────
+   server.js's _purgeOptHLIfNewDay() cleared _optHL and left THIS record holding
+   yesterday's extremes. Today's prices were then judged against yesterday's
+   range, so a strike trading below yesterday's high produced no HIGH candidate
+   all day and the displayed high never rose above the first tick.
+
+   Observed on the live chain: 22 of 144 SENSEX strikes reporting `ltp > high`,
+   which cannot happen inside one day. SENSEX 78,000 CE showed a high of 29.8
+   while trading at 79.8.
+
+   Two records with one lifetime, and only one of them reset. */
+console.log('\nday rollover');
+{
+  const v = mk();
+  let t = 1_000_000;
+  const feed = (p) => { const r = v.ingest('K', tick(p, t)); t += 2500; return r; };
+
+  feed(50); feed(120); feed(200); feed(205);
+  eq(v.record('K').high, 200, 'yesterday established a high of 200');
+
+  /* THE CASE THE DEFECT PRODUCED. Without the reset, none of today's prices —
+     all far below 200 — can be a new high, so nothing is ever confirmed. */
+  const before = [3, 30, 80].map((p) => feed(p).kind);
+  ok(!before.includes('HIGH'),
+    `without a reset, today's rising prices produced ${JSON.stringify(before)} — no HIGH `
+    + 'candidate, which is exactly why the recorded high never moved');
+
+  const r = v.resetForNewDay('test rollover');
+  eq(r.cleared, 1, 'the reset reports how many records it cleared');
+  eq(v.record('K'), null, 'and the record is genuinely gone, not merely emptied');
+
+  // now the same prices behave like a fresh day
+  feed(3);
+  const k2 = feed(30).kind;
+  const c3 = feed(80).confirmed;
+  eq(k2, 'HIGH', 'after the reset a rising price IS a new-high candidate');
+  ok(c3 && c3.kind === 'HIGH' && c3.price === 30,
+    'and it confirms on the next tick, so the recorded high tracks the day');
+  eq(v.record('K').low, 3, 'the low is today\'s first price, not yesterday\'s');
+}
+
+{
+  /* The audit log survives on purpose: it is the evidence of how extremes were
+     validated, and a new day is when new evidence starts, not when the old is
+     thrown away. */
+  const v = mk();
+  v.ingest('K', tick(100, 1_000_000));
+  const before = v.auditLog().length;
+  v.resetForNewDay();
+  ok(v.auditLog().length > before, 'the reset is itself recorded in the audit log');
+  ok(v.auditLog().some((e) => e.status === 'RESET'), 'and is findable as a RESET entry');
+}
+
+{
+  // A pending candidate from yesterday must not be confirmable by today's first
+  // tick — that would write a stale extreme into a fresh day.
+  const v = mk();
+  let t = 1_000_000;
+  v.ingest('K', tick(100, t)); t += 2500;
+  v.ingest('K', tick(500, t)); t += 2500;          // candidate, pending
+  v.resetForNewDay();
+  const r = v.ingest('K', tick(505, t));
+  eq(r.confirmed, null, 'a candidate from before the rollover cannot be confirmed after it');
+}
+
+{
+  // server.js must actually call it. A method nobody calls is the defect it fixes.
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const purge = src.slice(src.indexOf('function _purgeOptHLIfNewDay'), src.indexOf('function _optHLKey'));
+  ok(/_hlVerifier\.resetForNewDay\(/.test(purge),
+    'the day purge clears _optHL but not the verifier — that WAS the defect');
+}
+
 console.log(`\n${n} assertions passed`);

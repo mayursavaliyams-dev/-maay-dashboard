@@ -1,0 +1,196 @@
+{
+  "_readme": [
+    "Categories for the silent catches in server.js. docs/094.",
+    "",
+    "This is a SIDECAR, not source annotation. Adding 79 comments to server.js would",
+    "be a large diff with no behaviour change to a file whose dependency mechanism is",
+    "construction order — churn with a risk attached. Keeping the categories as data",
+    "also enforces the rule the triage was written under: categorising a catch and",
+    "changing it are two different commits, and this file cannot change behaviour.",
+    "",
+    "EXPECTED-OPTIONAL  the failure is a normal state and the fallback IS the design.",
+    "                   A price read that falls back to the cached value is not hiding",
+    "                   anything: the cache is the answer when the feed is quiet.",
+    "LOGGED             it should say something and currently does not. These are the",
+    "                   ones worth changing, and every one of them is a place where a",
+    "                   persisted state silently reverts to a default.",
+    "TODO-TRIAGE        not decided. The default. An unexamined catch has not been",
+    "                   judged safe.",
+    "",
+    "Keyed by FINGERPRINT — the catch line plus its preceding non-empty line, hashed.",
+    "A catch that MOVES keeps its category; one that CHANGES loses it and is reported",
+    "as DRIFT. Line numbers rot: adding code above a catch used to hand it another catch's category, silently."
+  ],
+  "baseCommit": "91a318e (fingerprints; line numbers no longer used as identity)",
+  "categories": {
+    "EXPECTED-OPTIONAL": {
+      "priceReadWithCachedFallback": {
+        "why": "reads a live quote and keeps the previous value when the feed is quiet or refuses. The cached value IS the answer; the comments at 1648, 3267 and 4598 already say so.",
+        "keys": [
+          "ca32f1766efb#0",
+          "015e7f7e598b#0",
+          "1c910c7e084e#0",
+          "05bf6a980481#0",
+          "002d39d6bf76#0",
+          "c3a7efc83def#0",
+          "c146211b3718#1",
+          "10e8adaaf7b6#0"
+        ]
+      },
+      "optionalEngineStatus": {
+        "why": "reads a status field from an engine that may be off, unbuilt, or mid-restart. An engine that is not running has no status, and that is a fact rather than a failure.",
+        "keys": [
+          "439a8e14f166#0",
+          "ecc568fffc77#0",
+          "338aeab7587e#0",
+          "30d33c3e49f4#0",
+          "1b431205cc69#0",
+          "192390dce322#0",
+          "80ac60410a6c#0",
+          "a0c0480ac12d#0",
+          "ebee0c92d876#0",
+          "ca77d9bbed70#0",
+          "761b7ded43f0#0",
+          "36bcdc5e6516#0",
+          "64627f70ff15#0",
+          "0705f14dfd4e#0",
+          "2e657f80dcb4#0",
+          "f5c9831a7216#0",
+          "d61d17b3128a#0",
+          "d796ff904cb3#0",
+          "36bcdc5e6516#1"
+        ]
+      },
+      "derivedDataWithDocumentedFallback": {
+        "why": "a derivation whose fallback is stated beside it — previous day, default DTE, default step.",
+        "keys": [
+          "c146211b3718#2",
+          "ee1876a3cf5b#0",
+          "bfae92a36049#0",
+          "9d186fe65906#0",
+          "c146211b3718#3",
+          "8b2c18c01559#0",
+          "8b2c18c01559#1"
+        ]
+      },
+      "crashGuardOwnLog": {
+        "why": "server.js:70 writes the crash log from inside the crash handler. A failure here must not throw, or the process loses the original error to a second one about logging it.",
+        "keys": [
+          "9cc81e07e175#0"
+        ]
+      },
+      "notificationDelivery": {
+        "why": "telegram and alert delivery. A missed notification must never take down a monitor, and the inner catch at 2487 already logs the reason.",
+        "keys": [
+          "7db33c4d0eb6#0",
+          "a70c77737305#0"
+        ]
+      },
+      "registryExpiryFailsClosed": {
+        "why": "safeExpiry: an unknown expiry leaves the risk layer's concentration check UNEVALUABLE and the order BLOCKS. The catch is the fail-closed path, not a swallow.",
+        "keys": [
+          "eecbf8f9544f#0",
+          "509981941cc7#0"
+        ]
+      },
+      "featureDetection": {
+        "why": "an optional require or capability probe. Absence is the answer being asked for.",
+        "keys": [
+          "238f0d5e9c5b#0",
+          "45bb5aa08d6c#0",
+          "494620188de7#0",
+          "759edfb5123f#0",
+          "3e7948602c67#0"
+        ]
+      },
+      "fileMissingIsNormal": {
+        "why": "a per-day archive file that does not exist yet. ENOENT is the expected state on the first run of any day.",
+        "keys": [
+          "334e30dc0f94#0",
+          "dd965432d97f#0",
+          "ec68bfdf66aa#0"
+        ]
+      },
+      "numericDerivation": {
+        "why": "an IV solve, a vol calculation or an OI sum that legitimately has no answer for some inputs. Each already yields null rather than a number.",
+        "keys": [
+          "afb787ee76d8#0",
+          "4d321b57389d#0",
+          "bd674fce85be#0",
+          "fa9af32b03f0#0",
+          "423478b4b3db#0",
+          "69c90b313a28#0",
+          "0c3ae623948d#0"
+        ]
+      },
+      "bestEffortCacheWrite": {
+        "why": "a redis or market-state write whose only consumer re-derives the value anyway.",
+        "keys": [
+          "47f0f69f0ca5#0",
+          "5f8215f76eef#0",
+          "c9ca8094e4e6#0"
+        ]
+      },
+      "perEngineIndependence": {
+        "why": "emergency-stop disables each engine in its own try, so one missing engine cannot stop the others being stopped. That independence is the point.",
+        "keys": [
+          "efaeb270e00f#0",
+          "b8b8c802bef2#0"
+        ]
+      }
+    },
+    "LOGGED": {
+      "persistedStateSilentlyReverts": {
+        "why": "THE GROUP THAT MATTERS. Each of these reads or writes a file that carries state across restarts — engine config, VRP history, paper positions, signal-health calibration. A failure here does not lose a tick; it reverts a setting the operator chose, silently, and the system then runs a configuration nobody selected. This is the same shape as the trade counter resetting on restart (docs/089 s1C).",
+        "keys": [
+          "0633139c193b#0",
+          "faa6b966e009#0",
+          "f5b4c22c3794#0",
+          "b67395f3afe9#0",
+          "4fa2e0c7d8c9#0",
+          "2059cea37161#0",
+          "fcaeea565733#0",
+          "675e0b0c9b4b#0",
+          "b1ebd55b8fd8#0"
+        ]
+      },
+      "backgroundWorkThatCanStop": {
+        "why": "consolidation, learner credit assignment and outcome logging. If these stop, nothing breaks visibly and the data they produce simply thins out — which is indistinguishable from a quiet market.",
+        "keys": [
+          "375a629349f5#0",
+          "94004cd675ef#0",
+          "4baea895cc4e#0",
+          "6ccc390ac53f#0",
+          "cdedf3ec626e#0",
+          "60df488d0f25#0"
+        ]
+      },
+      "networkFetch": {
+        "why": "a call to yahoo, to the broker, or to this server's own port. A failure is worth a line: repeated failures are the signature of a token, a rate limit or a dead port, and none of those announces itself.",
+        "keys": [
+          "6d050badc68a#0",
+          "a4d6ac0a1f5d#0",
+          "871188ae71e7#0"
+        ]
+      },
+      "patternDetection": {
+        "why": "server.js:1325 catches around H/L pattern detection with `catch (err)` and discards err. The variable is bound and then dropped, which reads as an intention that was never finished.",
+        "keys": [
+          "ca92f8fd419a#0"
+        ]
+      },
+      "absentVersusUnreadable": {
+        "why": "server.js:964 wraps the whole opt-candles archive read. The INNER catch at 961 already handles a bad file, so this one only fires on the directory itself — and it cannot tell 'no archive yet, first run of the day' from 'the directory exists and cannot be read'. The first is normal; the second silently reduces the caller to today's live bars, and thinner history looks exactly like a quieter market. One line naming the errno separates them.",
+        "keys": [
+          "c146211b3718#0"
+        ]
+      }
+    },
+    "TODO-TRIAGE": {
+      "_none": {
+        "why": "Empty. Every silent catch in server.js has been read and placed. This group must stay in the file: an empty TODO-TRIAGE is a statement that the work was done, whereas a missing one is silence.",
+        "keys": []
+      }
+    }
+  }
+}

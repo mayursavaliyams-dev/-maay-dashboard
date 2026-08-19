@@ -411,7 +411,26 @@ function makeGammaPersist(f) {
     ok(Buffer.compare(liveBytes, fs.readFileSync(LIVE)) === 0,
       'data/config-overrides.json is byte-identical — this suite never wrote to production state');
     const live = JSON.parse(liveBytes.toString('utf8'));
-    eq(Object.keys(live).length, 13, 'and it still carries its thirteen keys (12 + TREND_RIDE_ENABLED)');
+    /* 13 → 14 on 2026-08-13: HL_ALERTS_ENABLED, the toggle for the day-high /
+       day-low touch alerts.
+
+       This count is a RATCHET on what persists across a restart, and it fired
+       correctly — a new persisted key is a new thing that survives a reboot and
+       can therefore be wrong for weeks without anyone noticing. Raising it is
+       part of adding the key, not a repair afterwards.
+
+       The list is written out so the next person can see WHAT persists rather
+       than only how many things do:
+         MAX_DAILY_LOSS_PERCENT · CAPITAL_TOTAL · STRANGLE_ENGINE_ENABLED
+         NIFTY_DIRECTIONAL_AUTO · SENSEX_DIRECTIONAL_AUTO · STRANGLE_CAPITAL
+         STRANGLE_FORCE_CONDOR · GAMMA_BLAST_ENGINE_ENABLED · AI_AGENTS_ENABLED
+         SENSEX_AFTERNOON_AUTO · NIFTY_AFTERNOON_AUTO · BOUNCE_ENGINE_ENABLED
+         TREND_RIDE_ENABLED · HL_ALERTS_ENABLED */
+    eq(Object.keys(live).length, 14,
+      'and it still carries its fourteen keys (13 + HL_ALERTS_ENABLED)');
+    ok(Object.prototype.hasOwnProperty.call(live, 'HL_ALERTS_ENABLED'),
+      'the H/L alert toggle persists — an alert the operator asked for must not need '
+      + 're-enabling after every restart');
     eq(live.STRANGLE_CAPITAL, 700000, 'including STRANGLE_CAPITAL');
   }
 }

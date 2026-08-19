@@ -288,6 +288,42 @@ tr.mp-row td.strike::before { content: "MP "; color: var(--orange); font-size: .
     });
   });
 
+  /* THE DAY RANGE FOR ONE LEG.
+
+     This printed `H ${ltp}` and `L ${ltp}` — the last traded price, three times,
+     labelled as three different things, with `@ ${now}` (the render clock) beside
+     it. Reported 2026-08-13: SENSEX 78,000 CE showed "H 79.90 L 79.90" while the
+     option had genuinely traded down to ₹3. The API had it right all along
+     (`high 29.8, low 3`); the page never asked.
+
+     WHERE IT DISAGREES WITH ITSELF, IT SAYS SO.
+     Measured on the same response: 22 of 144 strikes report `ltp > high`, which
+     is impossible for a same-day range — the recorded extreme lags a rising
+     price (see hl-verify's confirm-on-second-sighting rule). Those are marked
+     rather than clamped. Clamping to max(high, ltp) would produce a number that
+     looks like a measured high and is not one, and the reader would never learn
+     that the range is stale. */
+  function hlCell(leg, ltp) {
+    const hi = (leg && Number.isFinite(+leg.high) && +leg.high > 0) ? +leg.high : null;
+    const lo = (leg && Number.isFinite(+leg.low) && +leg.low > 0) ? +leg.low : null;
+    if (hi === null && lo === null) {
+      // Never fall back to the LTP. "No range recorded yet" is the honest answer,
+      // and it is a different thing from "the range is one price wide".
+      return '<span class="ltp-hl"><span style="color:var(--dimmer)">no range recorded yet</span></span>';
+    }
+    const stale = (hi !== null && ltp > hi) || (lo !== null && ltp < lo);
+    const at = leg && (leg.highAt || leg.lowAt)
+      ? new Date(leg.highAt || leg.lowAt).toLocaleTimeString('en-IN', { hour12: false })
+      : null;
+    return '<span class="ltp-hl">'
+      + `<span class="ltp-h">H ${hi === null ? '—' : hi.toFixed(2)}</span>`
+      + `<span class="ltp-l">L ${lo === null ? '—' : lo.toFixed(2)}</span>`
+      + (stale
+        ? '<span style="color:var(--amber)" title="The last traded price is outside the recorded range, so the range has not caught up. Not clamped — a clamped high would look measured.">⚠ stale</span>'
+        : (at ? `<span>@ ${at}</span>` : ''))
+      + '</span>';
+  }
+
   function heatCls(val, max, pfx) {
     if (!val || !max) return '';
     const r = val / max;
@@ -358,11 +394,7 @@ tr.mp-row td.strike::before { content: "MP "; color: var(--orange); font-size: .
         <td class="${isItmCe ? 'ce-itm' : 'ce'}">
           <div class="ltp-cell">
             <span class="ltp-main" style="color:var(--green)">₹${ceLtp.toFixed(2)}</span>
-            <span class="ltp-hl">
-              <span class="ltp-h">H ${ceLtp.toFixed(2)}</span>
-              <span class="ltp-l">L ${ceLtp.toFixed(2)}</span>
-              <span>@ ${now}</span>
-            </span>
+            ${hlCell(s.ce, ceLtp)}
           </div>
         </td>
         <td class="${isItmCe ? 'ce-itm' : 'ce'} ${ivCls(ceIV)}">${ceIV ? ceIV.toFixed(1)+'%' : '--'}</td>
@@ -373,11 +405,7 @@ tr.mp-row td.strike::before { content: "MP "; color: var(--orange); font-size: .
         <td class="${isItmPe ? 'pe-itm' : 'pe'}">
           <div class="ltp-cell">
             <span class="ltp-main" style="color:var(--red)">₹${peLtp.toFixed(2)}</span>
-            <span class="ltp-hl">
-              <span class="ltp-h">H ${peLtp.toFixed(2)}</span>
-              <span class="ltp-l">L ${peLtp.toFixed(2)}</span>
-              <span>@ ${now}</span>
-            </span>
+            ${hlCell(s.pe, peLtp)}
           </div>
         </td>
         <td class="${heatCls(peOI, maxPeOI, 'p')} ${isItmPe ? 'pe-itm' : 'pe'}">
