@@ -26,6 +26,32 @@ console.log('Ops health (#6)');
   ok(s.checks.length >= 2 && s.checks.every(c => typeof c.ok === 'boolean'), 'checklist present');
 }
 
+// ── live feed is actionable only while the market is open ──
+{
+  const s = opsHealthSnapshot({
+    getMarketSession: () => ({ status: 'MARKET_OPEN' }),
+    dataQuality: () => ({ feed: { level: 'OUTAGE', outage: true, msSinceLastSuccess: 61_000 } }),
+  });
+  ok(s.dataFeed.level === 'OUTAGE' && s.overall === 'ATTENTION', 'open-market feed outage needs attention');
+}
+
+{
+  const s = opsHealthSnapshot({
+    getMarketSession: () => ({ status: 'MARKET_CLOSED' }),
+    dataQuality: () => ({ feed: { level: 'OUTAGE', outage: true, msSinceLastSuccess: 61_000 } }),
+    heartbeat: () => ({ healthy: true, summary: { alive: 3, stale: 0, never: 0, total: 3 } }),
+  });
+  ok(s.overall === 'OK', 'after-hours feed pause is not an outage');
+  ok(s.heartbeat.alive === 3, 'warehouse and server heartbeat summary surfaced');
+}
+
+{
+  const s = opsHealthSnapshot({
+    heartbeat: () => ({ healthy: false, summary: { alive: 2, stale: 1, never: 0, total: 3 } }),
+  });
+  ok(s.overall === 'ATTENTION', 'stale capture heartbeat needs attention');
+}
+
 // ── DEGRADED health → ATTENTION ──
 {
   const s = opsHealthSnapshot({ signalHealth: () => ({ status: 'DEGRADED' }) });

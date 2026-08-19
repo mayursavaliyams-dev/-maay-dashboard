@@ -7413,6 +7413,8 @@ app.get('/api/ops/health', (req, res) => {
     bootAt: _bootAt,
     getMarketSession,
     signalHealth: () => signalHealth.assessHealth(_signalTracker),
+    dataQuality: () => dataGate.status(),
+    heartbeat: () => _heartbeat.status(EXPECTED_COMPONENTS),
     forwardTest: () => forwardTestReport.buildReport({ trades: (signalPaperEngine.closed || []).map(t => ({ pnl: t.pnl, won: t.won })) }),
     signalPaper: () => signalPaperEngine.status(),
     engines: () => [
