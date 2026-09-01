@@ -161,12 +161,139 @@ function generateStrikes(spot, inst, rangePercent = 10) {
 // ₹0.05, so a ₹0.50 option is ten ticks from worthless and its bid-ask straddles its own value.
 const MIN_PUBLISHABLE_PREMIUM = 0.5;
 
+const _PROFILE_FILE = require('path').join(__dirname, 'data', 'pop-seller-profiles.json');
+
+function _normaliseIvPct(iv) {
+  const n = Number(iv);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return +(n > 5 ? n : n * 100).toFixed(1);
+}
+
+function buildMarketProfile({ inst='NIFTY', spot, chainStrikes=[], atmIV=null, regime=null, indicators=null, now=undefined } = {}) {
+  const T = daysToExpiry(inst, now || new Date());
+  const ivPct = _normaliseIvPct(atmIV);
+  let ceOI = 0, peOI = 0, volume = 0;
+  for (const row of chainStrikes || []) {
+    ceOI += Number(row.ce?.oi || 0);
+    peOI += Number(row.pe?.oi || 0);
+    volume += Number(row.ce?.volume || 0) + Number(row.pe?.volume || 0);
+  }
+  const pcr = ceOI > 0 ? +(peOI / ceOI).toFixed(2) : null;
+  const dteDays = T != null ? +(T * 365).toFixed(1) : null;
+  const trend = String(indicators?.trend || indicators?.direction || 'UNKNOWN').toUpperCase();
+  const regimeVerdict = String(regime?.verdict || regime || 'UNKNOWN').toUpperCase();
+  const reasons = [];
+  let profile = 'BALANCED_PREMIUM';
+  let allowSelling = true;
+  let minPoP = 82;
+  let minPremium = MIN_PUBLISHABLE_PREMIUM;
+  let sizeScale = 1;
+
+  if (!lotSize(inst) || !strikeStep(inst) || T == null) {
+    profile = 'STAND_DOWN';
+    allowSelling = false;
+    minPoP = 100;
+    sizeScale = 0;
+    reasons.push('instrument or expiry metadata unavailable');
+  }
+  if (dteDays != null && dteDays < 0.5) {
+    profile = 'STAND_DOWN';
+    allowSelling = false;
+    reasons.push('expiry time too short');
+  }
+  if (regimeVerdict === 'STAND-DOWN' || regimeVerdict === 'STAND_DOWN') {
+    profile = 'STAND_DOWN';
+    allowSelling = false;
+    minPoP = 100;
+    sizeScale = 0;
+    reasons.push('regime says stand down');
+  } else if (regimeVerdict === 'REDUCE') {
+    profile = 'REDUCED_PREMIUM';
+    minPoP = Math.max(minPoP, 88);
+    sizeScale = Math.min(sizeScale, 0.5);
+    reasons.push('regime says reduce');
+  } else if (regimeVerdict === 'SELL-ON' || regimeVerdict === 'SELL_ON') {
+    profile = 'SELL_PREMIUM';
+    minPoP = Math.min(minPoP, 78);
+    reasons.push('regime supports premium selling');
+  }
+
+  if (ivPct != null && ivPct >= 22 && allowSelling) {
+    profile = profile === 'BALANCED_PREMIUM' ? 'SELL_PREMIUM' : profile;
+    minPoP = Math.min(minPoP, 80);
+    reasons.push(`IV ${ivPct}% is rich`);
+  } else if (ivPct != null && ivPct < 12) {
+    profile = profile === 'STAND_DOWN' ? profile : 'REDUCED_PREMIUM';
+    minPoP = Math.max(minPoP, 90);
+    sizeScale = Math.min(sizeScale, 0.5);
+    reasons.push(`IV ${ivPct}% is cheap`);
+  } else if (ivPct == null) {
+    minPoP = Math.max(minPoP, 88);
+    reasons.push('ATM IV unavailable');
+  }
+
+  if (pcr != null && (pcr < 0.55 || pcr > 1.8)) {
+    profile = allowSelling ? 'REDUCED_PREMIUM' : profile;
+    minPoP = Math.max(minPoP, 90);
+    sizeScale = Math.min(sizeScale, 0.5);
+    reasons.push(`PCR ${pcr} is extreme`);
+  }
+  if (trend === 'STRONG_UP' || trend === 'STRONG_DOWN' || trend === 'TRENDING') {
+    profile = allowSelling ? 'REDUCED_PREMIUM' : profile;
+    minPoP = Math.max(minPoP, 90);
+    sizeScale = Math.min(sizeScale, 0.5);
+    reasons.push(`market trend ${trend} increases short-premium risk`);
+  }
+  if (!chainStrikes.length) {
+    profile = allowSelling ? 'DATA_WEAK' : profile;
+    minPoP = Math.max(minPoP, 92);
+    sizeScale = Math.min(sizeScale, 0.25);
+    reasons.push('option chain unavailable');
+  }
+
+  return {
+    inst: String(inst || 'NIFTY').toUpperCase(),
+    profile,
+    allowSelling,
+    minPoP,
+    minPremium,
+    sizeScale,
+    conditions: { spot: Number(spot) || null, atmIV: ivPct, dteDays, pcr, ceOI, peOI, volume, regime: regimeVerdict, trend },
+    reasons: reasons.length ? reasons : ['balanced market profile'],
+    generatedAt: new Date().toISOString(),
+    paperOnly: true,
+  };
+}
+
+function saveMarketProfile(profile) {
+  const safe = require('./safe-write.js');
+  const doc = safe.readJsonSync(_PROFILE_FILE, { fallback: { version: 1, profiles: {} }, onRecover: () => {} });
+  if (!doc.profiles || typeof doc.profiles !== 'object') doc.profiles = {};
+  const inst = String(profile?.inst || 'NIFTY').toUpperCase();
+  const hist = Array.isArray(doc.profiles[inst]) ? doc.profiles[inst] : [];
+  hist.push(profile);
+  doc.profiles[inst] = hist.slice(-100);
+  doc.updatedAt = new Date().toISOString();
+  safe.writeJsonSync(_PROFILE_FILE, doc, { pretty: true, backup: true });
+  return profile;
+}
+
+function loadMarketProfiles(inst = null) {
+  const safe = require('./safe-write.js');
+  const doc = safe.readJsonSync(_PROFILE_FILE, { fallback: { version: 1, profiles: {} }, onRecover: () => {} });
+  if (!inst) return doc;
+  return { version: doc.version || 1, profiles: { [String(inst).toUpperCase()]: doc.profiles?.[String(inst).toUpperCase()] || [] }, updatedAt: doc.updatedAt || null };
+}
+
 /**
  * @param {Date} [now] - INJECT THE CLOCK. Without this, every caller and every test is at the
  *   mercy of the wall clock: `T` feeds Black-Scholes, so a suite that passes at 23:59 IST can
  *   fail at 00:01 when the expiry moves a day closer. That is exactly what happened.
  */
-function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30, atmIV=null, now=undefined }) {
+function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30, atmIV=null, now=undefined, marketProfile=null }) {
+  if (marketProfile && marketProfile.allowSelling === false) return [];
+  const effectiveMinPoP = marketProfile ? Math.max(Number(minPoP) || 0, Number(marketProfile.minPoP) || 0) : minPoP;
+  const effectiveMinPremium = marketProfile ? Math.max(MIN_PUBLISHABLE_PREMIUM, Number(marketProfile.minPremium) || 0) : MIN_PUBLISHABLE_PREMIUM;
   const T    = daysToExpiry(inst, now || new Date());
   const lot  = lotSize(inst);
   const step = strikeStep(inst);
@@ -207,11 +334,11 @@ function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30
     if (K > spot) {
       const iv = ivData.ceIV || estimatedATMIV;
       const { pop, delta, sigma } = realPoP(spot, K, T, iv, 'CE');
-      if (pop >= minPoP) {
+      if (pop >= effectiveMinPoP) {
         const ltp = ltpData.ceLtp || estimatePremium(spot, K, T, sigma/100, 'CE');
         // Filter the PUBLISHED premium, not the raw one. `ltp = 0.504` passed the raw filter and
         // was then published as `0.50` — a candidate that violated the very rule that admitted it.
-        if (+ltp.toFixed(2) > MIN_PUBLISHABLE_PREMIUM) {
+        if (+ltp.toFixed(2) > effectiveMinPremium) {
           out.push({
             side:'SELL_CE', strike:K, type:'CE',
             premium: +ltp.toFixed(2),
@@ -221,7 +348,10 @@ function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30
             distancePct: +(((K-spot)/spot)*100).toFixed(2),
             maxProfit: +(ltp*lot).toFixed(0),
             breakeven: +(K+ltp).toFixed(2),
-            lot, fromChain: !!ltpData.ceLtp
+            lot, fromChain: !!ltpData.ceLtp,
+            marketProfile: marketProfile ? marketProfile.profile : null,
+            profileMinPoP: marketProfile ? effectiveMinPoP : null,
+            sizeScale: marketProfile ? marketProfile.sizeScale : null,
           });
         }
       }
@@ -231,9 +361,9 @@ function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30
     if (K < spot) {
       const iv = ivData.peIV || estimatedATMIV;
       const { pop, delta, sigma } = realPoP(spot, K, T, iv, 'PE');
-      if (pop >= minPoP) {
+      if (pop >= effectiveMinPoP) {
         const ltp = ltpData.peLtp || estimatePremium(spot, K, T, sigma/100, 'PE');
-        if (+ltp.toFixed(2) > MIN_PUBLISHABLE_PREMIUM) {   // see the CE branch: publish what you filtered
+        if (+ltp.toFixed(2) > effectiveMinPremium) {   // see the CE branch: publish what you filtered
           out.push({
             side:'SELL_PE', strike:K, type:'PE',
             premium: +ltp.toFixed(2),
@@ -243,7 +373,10 @@ function scanPoP({ inst='NIFTY', spot, chainStrikes=[], minPoP=90, maxResults=30
             distancePct: +(((spot-K)/spot)*100).toFixed(2),
             maxProfit: +(ltp*lot).toFixed(0),
             breakeven: +(K-ltp).toFixed(2),
-            lot, fromChain: !!ltpData.peLtp
+            lot, fromChain: !!ltpData.peLtp,
+            marketProfile: marketProfile ? marketProfile.profile : null,
+            profileMinPoP: marketProfile ? effectiveMinPoP : null,
+            sizeScale: marketProfile ? marketProfile.sizeScale : null,
           });
         }
       }
@@ -271,11 +404,11 @@ function estimatePremium(S, K, T, sigma, type) {
 /**
  * Build Iron Condor from best equidistant CE+PE candidates.
  */
-function buildIronCondor({ inst, spot, chainStrikes, minPoP=90, atmIV=null, now=undefined }) {
+function buildIronCondor({ inst, spot, chainStrikes, minPoP=90, atmIV=null, now=undefined, marketProfile=null }) {
   const lot = lotSize(inst);
   if (!lot) return null;                          // C1c-3: unknown/disabled → refuse, never guess
 
-  const cands = scanPoP({ inst, spot, chainStrikes, minPoP, maxResults:60, atmIV, now });
+  const cands = scanPoP({ inst, spot, chainStrikes, minPoP, maxResults:60, atmIV, now, marketProfile });
   // Prefer nearest OTM on each side (most premium, still high PoP)
   const bestCE = cands.filter(c=>c.side==='SELL_CE').sort((a,b)=>a.distance-b.distance)[0];
   const bestPE = cands.filter(c=>c.side==='SELL_PE').sort((a,b)=>a.distance-b.distance)[0];
@@ -293,6 +426,9 @@ function buildIronCondor({ inst, spot, chainStrikes, minPoP=90, atmIV=null, now=
     ],
     credit, maxProfit: +(credit*lot).toFixed(0),
     combinedPoP: combPoP,
+    marketProfile: marketProfile ? marketProfile.profile : null,
+    sizeScale: marketProfile ? marketProfile.sizeScale : null,
+    profileReason: marketProfile ? marketProfile.reasons : null,
     upperBreakeven: +(bestCE.strike + credit).toFixed(2),
     lowerBreakeven: +(bestPE.strike - credit).toFixed(2),
     daysToExpiry: +(T*365).toFixed(1),
@@ -381,7 +517,7 @@ function _saveBook() {
   catch (e) { console.error(`[pop-seller] book save failed: ${e.message}`); }
 }
 
-function sellPoP({ inst, side, strike, type, premium, lot, pop, tradeMode='paper', confirmLive=false }) {
+function sellPoP({ inst, side, strike, type, premium, lot, pop, tradeMode='paper', confirmLive=false, source=null, auto=false, autoKey=null }) {
   const wantLive = tradeMode === 'live';
   if (wantLive && (!POP_LIVE_ENABLED || !confirmLive)) {
     return { ok:false, reason:'LIVE blocked — POP_LIVE_ENABLED=true + confirmLive required. (IC backtest 0/26 wins — validate paper first.)' };
@@ -404,6 +540,9 @@ function sellPoP({ inst, side, strike, type, premium, lot, pop, tradeMode='paper
     mode: wantLive ? 'LIVE' : 'PAPER',
     status: 'OPEN'
   };
+  if (source) pos.source = String(source).slice(0, 48);
+  if (auto) pos.auto = true;
+  if (autoKey) pos.autoKey = String(autoKey).slice(0, 200);
   _book.push(pos);
   _saveBook();
   return { ok:true, position:pos };
@@ -584,6 +723,7 @@ module.exports = {
   sellPoP, closePoP, getBook, popStatus,
   lotSize, popFromDelta: (d) => +(1-Math.abs(Number(d)||0))*100,
   daysToExpiry, realPoP, bsDelta,
+  buildMarketProfile, saveMarketProfile, loadMarketProfiles,
   verdict,
   service: _svc,
   // Exported as a testable seam. The rule that bounds the book is the rule that must never

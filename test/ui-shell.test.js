@@ -231,63 +231,66 @@ const APP = pages.filter(f => f !== 'login.html');
     'puppeteer-core is a devDependency — no browser is downloaded, an installed one is driven');
 }
 
-// ── the rail is tabbed, and no tab may grow back into a scrolling list ────────
+// ── the rail is fully open, not hidden behind tabs ────────────────────────────
 {
-  /* MEASURED 2026-08-08, in a real browser, by SETTING scrollTop AND READING IT
-     BACK — scrollHeight reports content height on a flex column with
-     overflow-y:auto whether or not the element can actually move, so it cannot
-     answer this question.
-
-       old flat rail, 1440×900 : all 13 pages sampled scrolled the rail 68–164px
-       new tabbed rail         : 0px on every page, at 1440×900 and 2560×1330
-
-     Scrolling a navigation is worse than scrolling content: you cannot see what
-     you are choosing between, so the entries below the fold stop being used and
-     eventually stop being maintained — which is exactly how capture.html and
-     greeks.html came to ship reachable from nothing.
-
-     This ratchet is static because it pins the CAUSE. The rail cannot scroll if
-     no tab holds more entries than fit, and that is checkable without a browser. */
   const rail = fs.readFileSync(path.join(PUB, 'js', 'rail.js'), 'utf8');
 
   const tabKeys = [...rail.matchAll(/\{\s*k:\s*'([a-z]+)',\s*i:/g)].map(m => m[1]);
-  ok(tabKeys.length >= 6, `the rail declares ${tabKeys.length} subject tabs`);
+  ok(tabKeys.length >= 6, `the rail declares ${tabKeys.length} navigation groups`);
   ok(tabKeys.includes('stock') && tabKeys.includes('options'),
-    'stock and options are separate subjects — different instruments, lot sizes and strategies');
+    'stock and options are separate groups — different instruments, lot sizes and strategies');
   ok(tabKeys.includes('data') && tabKeys.includes('research'),
-    'data and research are separate subjects: data is what we HAVE, research is what we ' +
+    'data and research are separate groups: data is what we HAVE, research is what we ' +
     'CONCLUDE from it, and merging them is how a gap in the archive becomes a backtest ' +
     'result nobody questions');
+  ok(/\/stock\.html\?tab=propicks/.test(rail),
+    'ProPicks is directly reachable from Research, not only hidden inside Stock View');
 
   const pages = [...rail.matchAll(/\{\s*h:\s*'([^']+)',[^}]*k:\s*'([a-z]+)'/g)]
     .map(m => ({ h: m[1], k: m[2] }));
-  ok(pages.length >= 19, `${pages.length} pages carry a tab key`);
+  ok(pages.length >= 19, `${pages.length} pages carry a group key`);
 
   const strays = pages.filter(p => !tabKeys.includes(p.k));
   ok(strays.length === 0,
-    `every page names a tab that exists${strays.length ? ': ' + strays.map(p => p.h).join(', ') : ''}`);
+    `every page names a group that exists${strays.length ? ': ' + strays.map(p => p.h).join(', ') : ''}`);
 
-  const counts = {};
-  for (const p of pages) counts[p.k] = (counts[p.k] || 0) + 1;
-  const biggest = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-
-  /* THE RATCHET. At 210px wide with 30px rows, the tab grid plus header costs
-     about 150px, so ten entries reach ~450px — comfortably inside the shortest
-     viewport this shell supports. Eleven is not a catastrophe; it is the point at
-     which somebody must look again rather than let the list creep back.
-
-     Raising this number is not the fix for a failing build. Splitting the tab is. */
-  const MAX_PER_TAB = 10;
-  ok(biggest[1] <= MAX_PER_TAB,
-    `the largest tab (${biggest[0]}) holds ${biggest[1]} pages, cap ${MAX_PER_TAB} — ` +
-    'a tab past the cap is a flat list again. Split the subject; do not raise the cap.');
+  ok(/WHY IT IS FULLY OPEN/.test(rail),
+    'the rail documents that every group is visible at once, not hidden inside a selected tab');
+  ok(!/role="tablist"|agrailTabs|selectTab|activeTab|TABKEY/.test(rail),
+    'the rail has no tablist, selected-tab state, or category-click navigation');
+  ok(/for \(var g = 0; g < TABS\.length; g\+\+\)/.test(rail) && /<section class="agrail-group">/.test(rail),
+    'renderPages walks every group and prints a section for each one');
 
   // The dashboard and the connection state open together: when a number looks
-  // wrong the first question is whether the feed is stale, and that answer must
-  // not be three clicks away in another subject.
+  // wrong the first question is whether the feed is stale.
   const live = pages.filter(p => p.k === 'live').map(p => p.h);
-  ok(live.includes('/dashboard.html') && live.includes('/health-dashboard.html'),
-    'the connection view sits with the dashboard, not in a group of its own');
+  ok(live.includes('/dashboard.html') && live.includes('/health-dashboard.html') && live.includes('/readiness.html'),
+    'the readiness and connection views sit with the dashboard, not inside a hidden group');
+  ok(/agrail-status/.test(rail) && /Readiness/.test(rail) && /Blocked/.test(rail),
+    'risky/live surfaces carry visible status chips in the open rail');
+  ok(/id="agrailCommand" href="\/dashboard\.html"/.test(rail) && /id="agrailFull"/.test(rail),
+    'the rail top has direct Command and Fullscreen buttons');
+  ok(/html\.agrail-min \.agrail-btn,html\.agrail-min \.agrail-tg\{display:grid/.test(rail),
+    'collapsed rail keeps command, fullscreen and expand buttons visible');
+  ok(/requestFullscreen/.test(rail) && /exitFullscreen/.test(rail) && /e\.key === 'f'/.test(rail),
+    'fullscreen can be toggled from the button or the f key');
+
+  ok(/var W = 276, WMIN = 64/.test(rail),
+    'the fully-open rail is wider and less cramped than the old 210px sidebar');
+  ok(/fully-open group navigation/.test(rail) && /agrail-group/.test(rail) && /agrail-section/.test(rail),
+    'the rail uses fully-open grouped sections, not an inside-tab view');
+  ok(/\.agrail-group\{display:grid;grid-template-columns:1fr 1fr/.test(rail),
+    'the open rail uses two compact columns so side options stay visible on a normal-height screen');
+}
+
+// ── dashboard health tab must not squeeze validation cards ───────────────────
+{
+  const dash = read('dashboard.html');
+  const healthSections = [...dash.matchAll(/<section data-tab="health" class="pane ([^"]+)"/g)].map(m => m[1]);
+  ok(healthSections.length === 1 && healthSections[0] === 'full',
+    `dashboard health tab is one full-width pane, not duplicated compact cards (${healthSections.join(', ')})`);
+  ok(/health-board/.test(dash) && /health-grid validation/.test(dash) && /plan-grid/.test(dash),
+    'health tab uses the redesigned board/grid layout so all validation points stay visible');
 }
 
 console.log(`\n${pass} assertions passed`);

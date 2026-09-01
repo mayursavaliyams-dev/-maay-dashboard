@@ -120,7 +120,21 @@ tbody tr{cursor:pointer;}
     is doing real work: without it the list fills with deep-ITM strikes whose entire day
     spanned 1% of their premium, which are not "at a low", they simply never moved.
     Highs and lows are <b>confirmed</b> extremes, so a live tick can sit fractionally
-    outside them for one poll.
+    outside them for one poll. <b>Past PoP</b> is a research-only bounce score from
+    the leg's own intraday range and how close it is to the low; it is not a calibrated
+    win rate and not a buy command. <b>OI Mix</b> and <b>OI Analysis</b> compare
+    same-strike CE/PE change-OI as SUPPORT / CONFLICT / NEUTRAL / UNKNOWN; they
+    are filter notes, not permission to trade. <b>Buy Start</b> appears only when
+    the leg is near the day low and adjusted probability clears the gate; it is still
+    paper/research context. <b>Retest</b> reads the live tick path: HELD_LOW means
+    price touched the low zone, bounced, retested it, and stayed above failure.
+    <b>Result</b> is a paper outcome tracker for shown setups: pending, target hit,
+    or stop/failed-low. <b>Setup</b> folds freshness, liquidity, OI, trap checks
+    and reward/risk into one research score. <b>Truth</b> checks time order: TRUE means today's
+    high came after today's low; PENDING means the low came after the high, so the
+    low-to-high path is not proven yet. <b>Accuracy</b> is TRUE / (TRUE + PENDING)
+    for the visible filtered rows; UNKNOWN rows are excluded because their timestamps
+    are incomplete.
   </div>
   <div class="note" id="noteHind">
     <b>This is perfect hindsight, not a strategy.</b> Each row is the best
@@ -157,6 +171,17 @@ tbody tr{cursor:pointer;}
           <th>Now</th><th>Day low</th>
           <th>Above low</th>
           <th>In range</th>
+          <th title="Research-only buy-start flag. START requires near-day-low, adjusted probability ≥75%, and no OI conflict.">Buy Start</th>
+          <th title="Tick-path retest state: FIRST_TOUCH, BOUNCING, RETESTING, HELD_LOW, FAILED_LOW or UNKNOWN.">Retest</th>
+          <th title="Paper outcome tracker for this shown setup. It records target/stop progress, not live P&L.">Result</th>
+          <th title="Research setup score after OI, freshness, liquidity, trap and reward/risk checks. AVOID blocks Buy Start.">Setup</th>
+          <th title="Price/OI freshness plus bid-ask/volume quality from cached memory only.">Data</th>
+          <th title="Same-strike CE/PE change-OI mix. SUPPORT means the opposite-side writing is favorable for this leg; CONFLICT means it is not.">OI Mix</th>
+          <th title="Same-strike CE/PE change-OI values used for OI Mix. Shows CE ΔOI / PE ΔOI and source.">OI Analysis</th>
+          <th title="Research-only bounce score from past intraday range, low proximity and distance above low. Not calibrated.">Past PoP</th>
+          <th title="TRUE means high happened after low today. PENDING means the current low is newer than the high.">Truth</th>
+          <th title="Per-row contribution to visible Low→High accuracy: TRUE=100%, PENDING=0%, UNKNOWN excluded.">Accuracy</th>
+          <th title="Paper/research sell-high ladder: 40%, 70%, and 90% recovery toward day high.">Sell Plan</th>
           <th>Day range ₹/lot</th>
           <th>Day range</th>
         </tr>
@@ -173,6 +198,7 @@ let SORT = 'gainPct', ROWS = [];
 const $ = id => document.getElementById(id);
 const fmtN = v => Number(v).toLocaleString('en-IN');
 const DASH = '<span class="tok-dash"></span>';
+const fmtSigned = v => v == null || !isFinite(Number(v)) ? '—' : (Number(v) > 0 ? '+' : '') + fmtN(Math.round(Number(v)));
 /* Lot from the registry only. Unknown lot ⇒ the rupee column is withheld, never
    filled with a literal — a per-lot figure built on a guessed contract size is a
    fabricated number wearing a currency symbol. */
@@ -369,12 +395,13 @@ async function loadNow(opts){
   const silent = !!(opts && opts.silent);
   const inst = $('iSel').value, min = $('minSel').value, rng = $('rngSel').value;
   const list = inst ? [inst] : ['NIFTY','SENSEX','BANKNIFTY'];
-  if (!silent) $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-loading"><b>Reading the live range…</b></div></td></tr>`;
+  if (!silent) $('tb').innerHTML = `<tr><td colspan="19"><div class="tok-loading"><b>Reading the live range…</b></div></td></tr>`;
   try {
     const parts = await Promise.all(list.map(i =>
       fetch(`${location.origin}/api/opt-at-low?inst=${i}&min=${encodeURIComponent(min)}&minRangePct=${encodeURIComponent(rng)}`,
             {cache:'no-store'}).then(r => r.json())));
-    const rows = [], c = { returned:0, tracked:0, belowFloor:0, thinRange:0, noRange:0 };
+    const rows = [], c = { returned:0, tracked:0, belowFloor:0, thinRange:0, noRange:0,
+      lowHighTrue:0, lowHighPending:0, lowHighUnknown:0 };
     for (const p of parts) {
       if (!p || !p.ok) continue;
       rows.push(...(p.rows || []));
@@ -387,12 +414,14 @@ async function loadNow(opts){
     });
     NOW_AT = Date.now();
     LAST_OK = Date.now(); LAST_ERR = null; DERIVED_AT = null;
-    const sig = NOW_ROWS.map(r => `${r.inst}${r.strike}${r.type}:${r.last}`).join(',');
+    const sig = NOW_ROWS.map(r => `${r.inst}${r.strike}${r.type}:${r.last}:${r.buyStartStatus}:${r.buyStartProbability}:${r.retest && r.retest.retestStatus}:${r.researchOutcome && r.researchOutcome.status}:${r.setupStatus}:${r.setupScore}:${r.oiMix}:${r.changeOI}:${r.oiAnalysis && r.oiAnalysis.ceChangeOI}:${r.oiAnalysis && r.oiAnalysis.peChangeOI}:${r.liquidity && r.liquidity.status}:${r.sellPlan && r.sellPlan.finalTarget}`).join(',');
     if (sig !== ROWS_SIG) { ROWS_SIG = sig; renderNow(); }
     // Same accounting discipline as the archive view: a list of survivors alone
     // would read as though the whole chain were sitting at its low.
     $('counts').innerHTML =
       `<span><b>${fmtN(c.returned)}</b> legs near today's low</span>` +
+      `<span><b>${c.lowHighTrue + c.lowHighPending ? ((c.lowHighTrue / (c.lowHighTrue + c.lowHighPending)) * 100).toFixed(1) : '—'}%</b> Low→High accuracy</span>` +
+      `<span><b>${fmtN(c.lowHighTrue)}</b> TRUE · <b>${fmtN(c.lowHighPending)}</b> PENDING · <b>${fmtN(c.lowHighUnknown)}</b> UNKNOWN</span>` +
       `<span><b>${fmtN(c.belowFloor)}</b> below the ₹${min} floor</span>` +
       `<span><b>${fmtN(c.thinRange)}</b> moved less than ${rng}% all day</span>` +
       `<span><b>${fmtN(c.noRange)}</b> with no range yet</span>` +
@@ -400,13 +429,13 @@ async function loadNow(opts){
     paintFreshness();
   } catch(e) {
     LAST_ERR = e.message; paintFreshness();
-    if (!silent) $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-error"><b>Live range unavailable</b>${e.message}</div></td></tr>`;
+    if (!silent) $('tb').innerHTML = `<tr><td colspan="19"><div class="tok-error"><b>Live range unavailable</b>${e.message}</div></td></tr>`;
   }
 }
 
 function renderNow(){
   if (!NOW_ROWS.length) {
-    $('tb').innerHTML = `<tr><td colspan="8"><div class="tok-empty"><b>Nothing clears both filters</b>Lower “Min day range %” or “Min buy ₹”. Early in a session almost nothing has built a range yet.</div></td></tr>`;
+    $('tb').innerHTML = `<tr><td colspan="19"><div class="tok-empty"><b>Nothing clears both filters</b>Lower “Min day range %” or “Min buy ₹”. Early in a session almost nothing has built a range yet.</div></td></tr>`;
     return;
   }
   const ago = t => { if (!t) return ''; const m = Math.round((Date.now() - t) / 60000);
@@ -422,6 +451,35 @@ function renderNow(){
             ? '<span class="buy">at the low</span>'
             : '+' + r.fromLowPct + '%'}</td>
       <td class="gain">${r.pos}%</td>
+      <td class="${r.buyStartStatus === 'START' || r.buyStartStatus === 'STRONG_START' ? 'gain' : r.buyStartStatus === 'AVOID' ? 'sell' : r.buyStartStatus === 'WATCH' ? '' : 'rank'}" title="${r.buyStartReason || 'Research-only buy-start gate.'}">
+        ${r.buyStartStatus || 'WAIT'}<span class="t">${r.buyStartProbability != null ? r.buyStartProbability + '%' : ''}</span>
+      </td>
+      <td class="${r.retest && r.retest.retestStatus === 'HELD_LOW' ? 'gain' : r.retest && r.retest.retestStatus === 'FAILED_LOW' ? 'sell' : 'rank'}" title="${r.retest && r.retest.retestReason || 'Tick-path retest status.'}">
+        ${r.retest && r.retest.retestStatus || 'UNKNOWN'}
+        <span class="t">${r.retest && r.retest.entryZone ? `zone ₹${r.retest.entryZone.low}-${r.retest.entryZone.high}` : ''}</span>
+      </td>
+      <td class="${r.researchOutcome && /TARGET/.test(r.researchOutcome.status || '') ? 'gain' : r.researchOutcome && /STOP|FAILED/.test(r.researchOutcome.status || '') ? 'sell' : 'rank'}" title="${r.researchOutcome && r.researchOutcome.reason || 'Paper outcome tracker.'}">
+        ${r.researchOutcome && r.researchOutcome.status || '—'}
+      </td>
+      <td class="${r.setupStatus === 'READY' ? 'gain' : r.setupStatus === 'AVOID' ? 'sell' : 'rank'}" title="${r.setupReason || 'Research setup score.'}">
+        ${r.setupStatus || 'WAIT'}<span class="t">${r.setupScore != null ? r.setupScore + '%' : ''}</span>
+      </td>
+      <td title="${[r.priceFreshness && r.priceFreshness.reason, r.oiFreshness && r.oiFreshness.reason, r.liquidity && r.liquidity.reason].filter(Boolean).join(' · ')}">
+        ${(r.priceFreshness && r.priceFreshness.status) || 'UNKNOWN'} / ${(r.liquidity && r.liquidity.status) || 'UNKNOWN'}
+        <span class="t">${r.liquidity && r.liquidity.spreadPct != null ? r.liquidity.spreadPct + '% spread' : 'spread unknown'}</span>
+      </td>
+      <td class="${r.oiMix === 'SUPPORT' ? 'gain' : r.oiMix === 'CONFLICT' ? 'sell' : 'rank'}" title="${r.oiMixReason || 'Same-strike CE/PE change-OI mix.'}">${r.oiMix || 'UNKNOWN'}</td>
+      <td title="${(r.oiAnalysis && r.oiAnalysis.note) || r.oiMixReason || 'Same-strike CE/PE change-OI analysis.'}">
+        CE ${fmtSigned(r.oiAnalysis && r.oiAnalysis.ceChangeOI)} / PE ${fmtSigned(r.oiAnalysis && r.oiAnalysis.peChangeOI)}
+        <span class="t">${(r.oiAnalysis && r.oiAnalysis.source) || 'none'}</span>
+      </td>
+      <td class="${r.bouncePoP >= 65 ? 'gain' : ''}" title="${r.popReason || 'Research-only bounce score from past intraday range and low proximity.'}">${r.bouncePoP != null ? r.bouncePoP + '%' : DASH}</td>
+      <td class="${r.lowHighTruth === 'TRUE' ? 'gain' : r.lowHighTruth === 'PENDING' ? '' : 'rank'}" title="${r.truthReason || 'Low-to-high path verification.'}">${r.lowHighTruth || 'UNKNOWN'}</td>
+      <td class="${r.lowHighAccuracyPct === 100 ? 'gain' : r.lowHighAccuracyPct === 0 ? '' : 'rank'}" title="${r.accuracyReason || 'Visible Low→High accuracy contribution.'}">${r.lowHighAccuracyPct == null ? DASH : r.lowHighAccuracyPct + '%'}</td>
+      <td title="${r.sellPlan ? `${r.sellPlan.basis}; stop ${r.sellPlan.stop}; R:R ${r.sellPlan.rewardRisk}` : 'Sell-high ladder unavailable.'}">
+        ${r.sellPlan ? `₹${r.sellPlan.target1} / ₹${r.sellPlan.target2} / ₹${r.sellPlan.finalTarget}` : DASH}
+        <span class="t">${r.sellPlan && r.sellPlan.rewardRisk != null ? 'R:R ' + r.sellPlan.rewardRisk : ''}</span>
+      </td>
       <td>${r.perLot != null ? '₹'+fmtN(Math.round(r.perLot)) : DASH}</td>
       <td style="color:var(--faint)">${r.low} – ${r.high} · ${r.rangePct}%</td>
     </tr>`).join('');

@@ -80,6 +80,9 @@ tbody tr:hover td{background:var(--panel2);}
   border-radius:var(--radius);padding:var(--sp-1) var(--sp-3);font-size:var(--fs-sm);font-weight:800;
   cursor:pointer;min-height:34px;font-family:var(--font-ui);}
 .sell-btn:hover{background:color-mix(in srgb,var(--warn) 26%,transparent);}
+.auto-toggle{border-color:var(--warn);color:var(--warn);font-weight:800;}
+.auto-toggle.on{background:color-mix(in srgb,var(--gain) 14%,transparent);border-color:var(--gain);color:var(--gain);}
+.auto-toggle.busy{background:color-mix(in srgb,var(--warn) 16%,transparent);}
 
 /* ── structure card ─────────────────────────────────────────────────────── */
 .struct-banner{border-radius:var(--radius);padding:var(--sp-3);margin-bottom:var(--sp-3);
@@ -144,6 +147,8 @@ tbody tr:hover td{background:var(--panel2);}
   <div class="chip"><div class="chip-l">ATM IV</div><div class="chip-v" id="ctxIV">—</div></div>
   <div class="chip"><div class="chip-l">DTE</div><div class="chip-v" id="ctxDTE">—</div></div>
   <div class="chip"><div class="chip-l">Mode</div><div class="chip-v" id="tbMode" style="color:var(--paper)">PAPER</div></div>
+  <div class="chip"><div class="chip-l">Auto</div><div class="chip-v" id="autoState" style="color:var(--paper)">ON</div></div>
+  <button class="btn auto-toggle on" id="autoPaperBtn" onclick="toggleAutoPaper()" aria-pressed="true">AUTO PAPER</button>
   <button class="btn" style="margin-left:auto" onclick="loadScan()">⟳ Scan</button>
 </div>
 
@@ -234,6 +239,10 @@ tbody tr:hover td{background:var(--panel2);}
   let scanData = null;
   let curIC = null;          // the engine's structure payload, verbatim
   let _pf = null;            // chart geometry for the tooltip
+  const AUTO_PREF_KEY = 'ag-pop-auto-paper';
+  const AUTO_SOLD_KEY = 'ag-pop-auto-sold-v1';
+  let autoPaper = readAutoPaperPref();
+  let autoBusy = false;
 
   const $ = id => document.getElementById(id);
   const fmtN = v => Number(v).toLocaleString('en-IN');
@@ -241,6 +250,57 @@ tbody tr:hover td{background:var(--panel2);}
   const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   /* A number the engine did not send is missing, not zero. */
   const has = v => v !== null && v !== undefined && v !== '' && !Number.isNaN(Number(v));
+
+  function readAutoPaperPref() {
+    try {
+      const saved = localStorage.getItem(AUTO_PREF_KEY);
+      if (saved === 'off') return false;
+      if (saved === 'on') return true;
+    } catch(_) {}
+    return true;
+  }
+
+  function todayIST() {
+    return new Date(Date.now() + 330*60000).toISOString().slice(0, 10);
+  }
+
+  function autoSoldMap() {
+    try { return JSON.parse(localStorage.getItem(AUTO_SOLD_KEY) || '{}') || {}; }
+    catch(_) { return {}; }
+  }
+
+  function structureKey(ic) {
+    const legs = ((ic && ic.legs) || [])
+      .map(l => `${String(l.action || 'SELL').toUpperCase()}:${l.type}:${l.strike}`)
+      .sort()
+      .join(',');
+    return `${todayIST()}|${activeInst}|${legs}`;
+  }
+
+  function markAutoSold(key) {
+    const m = autoSoldMap();
+    m[key] = Date.now();
+    for (const k of Object.keys(m)) if (!k.startsWith(todayIST() + '|')) delete m[k];
+    try { localStorage.setItem(AUTO_SOLD_KEY, JSON.stringify(m)); } catch(_) {}
+  }
+
+  function setAutoUi(state) {
+    const btn = $('autoPaperBtn'), st = $('autoState');
+    if (!btn || !st) return;
+    btn.classList.toggle('on', autoPaper);
+    btn.classList.toggle('busy', autoBusy);
+    btn.setAttribute('aria-pressed', String(autoPaper));
+    btn.textContent = autoPaper ? 'AUTO PAPER' : 'AUTO OFF';
+    st.textContent = state || (autoPaper ? 'ON' : 'OFF');
+    st.style.color = autoPaper ? 'var(--paper)' : 'var(--muted)';
+  }
+
+  function toggleAutoPaper() {
+    autoPaper = !autoPaper;
+    try { localStorage.setItem(AUTO_PREF_KEY, autoPaper ? 'on' : 'off'); } catch(_) {}
+    setAutoUi(autoPaper ? 'ARMED' : 'OFF');
+    if (autoPaper) maybeAutoPaperSell();
+  }
 
   /* PoP is 1−|delta|: a risk-neutral chance of finishing OTM, not a safety margin.
      It is never printed as a bare 100% — a certainty this platform cannot own. */
@@ -324,10 +384,12 @@ tbody tr:hover td{background:var(--panel2);}
     if (!ic) {
       card.innerHTML = `<div class="tok-empty"><b>No qualifying structure</b>No pair of strikes met the PoP floor.</div>`;
       btn.disabled = true; btn.style.opacity = .5;
+      if (autoPaper) setAutoUi('WAIT');
       _pf = null; drawPayoff(null);
       return;
     }
     btn.disabled = false; btn.style.opacity = 1;
+    if (autoPaper && !autoBusy) setAutoUi(autoSoldMap()[structureKey(ic)] ? 'DONE' : 'ARMED');
     const k = classify(ic);
 
     const banner = k.defined
@@ -483,16 +545,17 @@ tbody tr:hover td{background:var(--panel2);}
   async function sellOne(c) {
     const r = await fetch('/api/pop/sell', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ inst: activeInst, side: c.side, strike: c.strike, type: c.type,
-                             premium: c.premium, lot: c.lot, pop: c.pop }) });
+                             premium: c.premium, lot: c.lot, pop: c.pop, paperOnly: true,
+                             source: 'pop-manual' }) });
     const d = await r.json();
     if (d.ok) loadBook(); else alert(d.reason || 'Sell blocked');
   }
 
-  async function sellStructure() {
+  async function openStructure({ auto = false, key = null } = {}) {
     if (!curIC) return;
     const k = classify(curIC);
     // An undefined-risk structure requires the risk to be acknowledged, not just clicked.
-    if (!k.defined) {
+    if (!auto && !k.defined) {
       const ok = confirm(
         `${k.name} — UNDEFINED RISK\n\n` +
         `This is ${k.shorts} short leg(s) with ${k.longs} bought wing(s). There is no maximum loss:\n` +
@@ -502,13 +565,53 @@ tbody tr:hover td{background:var(--panel2);}
     }
     const btn = $('sellStructBtn'); btn.disabled = true; const old = btn.textContent; btn.textContent = 'placing…';
     try {
+      const results = [];
       for (const leg of curIC.legs) {
-        await fetch('/api/pop/sell', { method:'POST', headers:{'Content-Type':'application/json'},
+        const r = await fetch('/api/pop/sell', { method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ inst: activeInst, side: (String(leg.action).toUpperCase()==='BUY'?'BUY_':'SELL_')+leg.type,
-                                 strike: leg.strike, type: leg.type, premium: leg.premium, lot: curIC.lot, pop: leg.pop }) });
+                                 strike: leg.strike, type: leg.type, premium: leg.premium, lot: curIC.lot, pop: leg.pop,
+                                 paperOnly: true, source: auto ? 'pop-auto' : 'pop-manual',
+                                 auto: !!auto, autoKey: key }) });
+        const d = await r.json().catch(() => ({ ok:false, reason:'bad response' }));
+        results.push(d);
       }
       loadBook();
+      const failed = results.find(x => !x.ok);
+      if (failed) return { ok:false, reason: failed.reason || 'Sell blocked' };
+      return { ok:true };
     } finally { btn.disabled = false; btn.textContent = old; }
+  }
+
+  async function sellStructure() {
+    const r = await openStructure({ auto:false });
+    if (r && !r.ok) alert(r.reason || 'Sell blocked');
+  }
+
+  async function maybeAutoPaperSell() {
+    if (!autoPaper || autoBusy || !curIC) return;
+    const key = structureKey(curIC);
+    const sold = autoSoldMap();
+    if (sold[key]) { setAutoUi('DONE'); return; }
+    autoBusy = true; setAutoUi('CHECK');
+    try {
+      const d = await loadBook();
+      const open = ((d && d.book) || []).filter(p => p.status === 'OPEN' && String(p.inst).toUpperCase() === activeInst);
+      if (open.length) { setAutoUi('OPEN'); return; }
+      setAutoUi('PLACING');
+      const r = await openStructure({ auto:true, key });
+      if (r && r.ok) {
+        markAutoSold(key);
+        setAutoUi('DONE');
+        await loadBook();
+      } else {
+        setAutoUi('BLOCKED');
+      }
+    } catch(_) {
+      setAutoUi('WAIT');
+    } finally {
+      autoBusy = false;
+      setAutoUi($('autoState').textContent);
+    }
   }
 
   async function loadScan() {
@@ -526,6 +629,7 @@ tbody tr:hover td{background:var(--panel2);}
       $('scanInfo').textContent = `${scanData.count} candidates · ${activeInst}`;
       renderScan();
       renderIC(scanData.ironCondor);
+      maybeAutoPaperSell();
     } catch(e) {
       $('scanBody').innerHTML = `<tr><td colspan="8"><div class="tok-error"><b>Could not reach the scanner</b>${e.message}</div></td></tr>`;
     }
@@ -538,7 +642,7 @@ tbody tr:hover td{background:var(--panel2);}
       const open = (d.book || []).filter(p => p.status === 'OPEN');
       $('bookCredit').textContent = open.length && has(d.totalCredit) ? `credit ₹${fmtN(d.totalCredit)} (gross)` : '';
       const list = $('bookList');
-      if (!open.length) { list.innerHTML = '<div class="tok-empty"><b>No positions yet</b>Sell a strike from the scanner to open a paper position.</div>'; return; }
+      if (!open.length) { list.innerHTML = '<div class="tok-empty"><b>No positions yet</b>Sell a strike from the scanner to open a paper position.</div>'; return d; }
       list.innerHTML = open.map(p => {
         const naked = String(p.side||'').startsWith('SELL');
         return `<div class="book-item ${naked?'naked':''}">
@@ -549,6 +653,7 @@ tbody tr:hover td{background:var(--panel2);}
           <span style="font-weight:700;color:var(--gain);font-family:var(--font-num)">${has(p.creditCollected)?'₹'+fmtN(p.creditCollected):DASH}</span>
           <button class="sell-btn" style="padding:2px 10px" onclick="closePos(${p.id})" aria-label="Close paper position ${p.strike} ${p.type}">CLOSE</button>
         </div>`; }).join('');
+      return d;
     } catch(_) {}
   }
 
@@ -577,6 +682,7 @@ tbody tr:hover td{background:var(--panel2);}
   $('payoffChart').addEventListener('mouseleave', ()=>$('pfTip').classList.remove('show'));
   window.addEventListener('resize', ()=>{ if (curIC) drawPayoff(curIC); });
 
+  setAutoUi(autoPaper ? 'ARMED' : 'OFF');
   loadScan();
   loadBook();
   setInterval(loadScan, 15000);

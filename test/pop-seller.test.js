@@ -294,6 +294,79 @@ const registry = require('../instrument-registry.js');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  market profile — condition-based Pop Seller readiness
+// ════════════════════════════════════════════════════════════════════════════
+{
+  const NOW = new Date('2026-07-09T05:30:00.000Z');
+  const chain = [
+    { strike: 24500, ce: { ltp: 40, iv: 24, oi: 1000, volume: 100 }, pe: { ltp: 2, iv: 22, oi: 900, volume: 50 } },
+    { strike: 23500, ce: { ltp: 2, iv: 22, oi: 900, volume: 50 }, pe: { ltp: 38, iv: 23, oi: 1000, volume: 100 } },
+  ];
+  const rich = P.buildMarketProfile({
+    inst: 'NIFTY',
+    spot: 24000,
+    chainStrikes: chain,
+    atmIV: 24,
+    regime: { verdict: 'SELL-ON' },
+    indicators: { trend: 'RANGE' },
+    now: NOW,
+  });
+  ok(rich.profile === 'SELL_PREMIUM' && rich.allowSelling === true,
+    'market profile marks rich/calm conditions as SELL_PREMIUM');
+  ok(rich.minPoP <= 80 && rich.sizeScale === 1,
+    'SELL_PREMIUM lowers the readiness floor without changing default scan callers');
+  ok(rich.conditions.pcr > 0 && rich.conditions.volume > 0,
+    'market profile saves PCR and option volume conditions');
+
+  const reduce = P.buildMarketProfile({
+    inst: 'NIFTY',
+    spot: 24000,
+    chainStrikes: chain,
+    atmIV: 10,
+    regime: { verdict: 'REDUCE' },
+    indicators: { trend: 'TRENDING' },
+    now: NOW,
+  });
+  ok(reduce.profile === 'REDUCED_PREMIUM' && reduce.minPoP >= 90 && reduce.sizeScale <= 0.5,
+    'cheap IV / reduce / trending market raises Pop Seller filters');
+
+  const standDown = P.buildMarketProfile({
+    inst: 'NIFTY',
+    spot: 24000,
+    chainStrikes: chain,
+    atmIV: 24,
+    regime: { verdict: 'STAND-DOWN' },
+    now: NOW,
+  });
+  ok(standDown.allowSelling === false && standDown.minPoP === 100,
+    'STAND-DOWN profile blocks selling instead of merely hiding the reason');
+
+  const base = P.scanPoP({ inst: 'NIFTY', spot: 24000, chainStrikes: chain, minPoP: 80, maxResults: 50, now: NOW });
+  const blocked = P.scanPoP({ inst: 'NIFTY', spot: 24000, chainStrikes: chain, minPoP: 80, maxResults: 50, now: NOW, marketProfile: standDown });
+  ok(base.length > 0 && blocked.length === 0,
+    'profile-gated scan returns no candidates when market profile says stand down');
+
+  const profiled = P.scanPoP({ inst: 'NIFTY', spot: 24000, chainStrikes: chain, minPoP: 70, maxResults: 50, now: NOW, marketProfile: rich });
+  ok(profiled.every(r => r.marketProfile === rich.profile && r.profileMinPoP === rich.minPoP),
+    'profile-gated candidates carry profile name and effective min PoP');
+  const ic = P.buildIronCondor({ inst: 'NIFTY', spot: 24000, chainStrikes: chain, minPoP: 70, now: NOW, marketProfile: rich });
+  ok(ic && ic.marketProfile === rich.profile && Array.isArray(ic.profileReason),
+    'profile-gated structure carries profile context');
+  ok(typeof P.saveMarketProfile === 'function' && typeof P.loadMarketProfiles === 'function',
+    'market profiles can be saved and loaded for later review');
+
+  const fs = require('fs');
+  const path = require('path');
+  const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  ok(/\/api\/pop\/profile/.test(serverSource),
+    'server exposes saved market profiles for Pop Seller');
+  ok(/saveMarketProfile\(popSeller\.buildMarketProfile/.test(serverSource),
+    'Pop scan/auto-paper routes build and save a market profile');
+  ok(/effectiveMinPoP/.test(serverSource),
+    'Pop scan responses report the profile-adjusted minimum PoP');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  buildIronCondor — D6/D7 pinned
 // ════════════════════════════════════════════════════════════════════════════
 {

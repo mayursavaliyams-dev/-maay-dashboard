@@ -7,11 +7,11 @@
  *   2. NEWS    — the news-engine feed filtered to this stock (sentiment,
  *                weighted by impact × recency)
  *   3. DEALS   — deal-class events hitting this stock (agents-engine impact
- *                probability with parameters)
+ *                uncalibrated impact strength with parameters)
  *
- * Output: direction UP/DOWN/NEUTRAL + probability (5–90%) + every parameter
- * that produced it. HONEST: a disclosed-parameter heuristic, not a promise —
- * "high probability" means the inputs agree, not a guarantee.
+ * Output: direction UP/DOWN/NEUTRAL + strength (5–90%) + every parameter
+ * that produced it. HONEST: a disclosed-parameter heuristic, not a calibrated
+ * probability or recommendation.
  *
  * Pure math is separated (momentumScore / aggregateNewsSentiment / fuseVerdict)
  * so it unit-tests without network. Only analyze() touches yahoo (injected).
@@ -21,6 +21,7 @@ const { STOCKS } = require('./news-engine');
 const { detectDealEvents, computeImpact } = require('./agents-engine');
 const technicals = require('./stock-technicals');
 const universe = require('./stock-universe');
+const investingPro = require('./investing-pro');
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round = (v, d = 2) => +(+v).toFixed(d);
@@ -120,14 +121,17 @@ function fuseVerdict({ momentum, news, dealImpacts }) {
             + (news?.score || 0) * (haveNews ? 0.35 : 0)
             + dealScore * 0.2;
   const direction = net > 8 ? 'UP' : net < -8 ? 'DOWN' : 'NEUTRAL';
-  // probability: magnitude of agreement, honest 5–90 band
+  // probability: legacy field name; value is uncalibrated agreement strength.
   let probability = 50 + Math.abs(net) * 0.42;
   const agree = Math.sign(momentum?.score || 0) !== 0 && haveNews && Math.sign(momentum.score) === Math.sign(news.score);
   if (agree) probability += 6;                       // sources CONFIRM each other
   if (direction === 'NEUTRAL') probability = Math.min(probability, 55);
   probability = Math.round(clamp(probability, 5, 90));
   return {
-    direction, probability, net: round(net, 1),
+    direction, probability, strength: probability,
+    calibrationStatus: 'uncalibrated',
+    recommendationStatus: 'research_only',
+    net: round(net, 1),
     params: {
       momentumScore: momentum?.score ?? 0,
       newsScore: news?.score ?? 0, newsArticles: news?.articles ?? 0,
@@ -540,11 +544,12 @@ async function analyze(query, { newsItems, yf, deep = false } = {}) {
      time the page waits for no benefit. allSettled, not all: a peers lookup that
      fails must not take the technicals down with it. Each already returns null
      on its own failure, so a rejection here is the unexpected case. */
-  let technicalsOut = null, peers = null;
+  let technicalsOut = null, peers = null, investingProOut = null;
   if (deep) {
-    const [t, p] = await Promise.allSettled([_getTechnicals(yf, yahooSym), _getPeers(yf, yahooSym)]);
+    const [t, p, ip] = await Promise.allSettled([_getTechnicals(yf, yahooSym), _getPeers(yf, yahooSym), Promise.resolve(investingPro.forSymbol(sym.symbol))]);
     technicalsOut = t.status === 'fulfilled' ? t.value : null;
     peers = p.status === 'fulfilled' ? p.value : null;
+    investingProOut = ip.status === 'fulfilled' ? ip.value : { ok: false, reason: ip.reason?.message || 'Investing.com ProPicks lookup failed' };
   }
 
   const out = {
@@ -552,7 +557,7 @@ async function analyze(query, { newsItems, yf, deep = false } = {}) {
     // Deep panels are absent, not null, on the fast path — "not asked for" and
     // "asked for and unavailable" are different states and the page shows them
     // differently.
-    ...(deep ? { technicals: technicalsOut, peers, notAvailable: NOT_AVAILABLE, depth: 'full' } : { depth: 'card' }),
+    ...(deep ? { technicals: technicalsOut, peers, investingPro: investingProOut, notAvailable: NOT_AVAILABLE, depth: 'full' } : { depth: 'card' }),
     headlines: arts.slice(0, 6).map(a => ({ title: a.title, at: a.publishedAt, source: a.sourceName || a.source,
       sentiment: a.sentiment?.label, score: a.sentiment?.score, url: a.url })),
     dealImpacts: dealImpacts.map(d => ({ title: d.title, type: d.eventType, direction: d.direction, probability: d.probability, params: d.params })),

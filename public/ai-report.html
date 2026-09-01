@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Trading Deep Report | Antigravity Pro</title>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#071019;color:#edf5ff;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+    main{max-width:1680px;margin:0 auto;padding:18px 18px 40px}
+    .top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+    .tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    h1{margin:0;font-size:1.45rem;font-weight:950;letter-spacing:0}
+    .sub{color:#93a8c2;font-size:.82rem;margin-top:4px}
+    .btn{border:1px solid rgba(91,156,255,.38);background:#0f2135;color:#ecf5ff;border-radius:8px;padding:8px 12px;font-weight:900;cursor:pointer}
+    .grid{display:grid;gap:10px}
+    .kpis{grid-template-columns:repeat(6,minmax(0,1fr))}
+    .cols{grid-template-columns:1.1fr .9fr}
+    .tri{grid-template-columns:1fr 1fr 1fr}
+    .card{background:#0d1826;border:1px solid rgba(148,168,192,.18);border-radius:8px;padding:12px;min-width:0}
+    .card h2{margin:0 0 10px;font-size:.76rem;letter-spacing:.08em;text-transform:uppercase;color:#9fb2ca}
+    .kpi .v{font-size:1.35rem;font-weight:950;font-variant-numeric:tabular-nums}
+    .kpi .l{font-size:.68rem;color:#8da0b8;margin-top:2px}
+    .up{color:#25d09f}.dn{color:#ff5874}.warn{color:#ffc24b}.muted{color:#91a4bc}
+    .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(148,168,192,.22);border-radius:999px;padding:3px 8px;font-size:.68rem;font-weight:900}
+    .badge.on{color:#9ff0d9;background:rgba(37,208,159,.10);border-color:rgba(37,208,159,.28)}
+    .badge.paper{color:#ffe0a1;background:rgba(255,194,75,.10);border-color:rgba(255,194,75,.28)}
+    .agents{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+    .agent{background:#101d2e;border:1px solid rgba(148,168,192,.14);border-radius:8px;padding:10px;min-height:116px}
+    .agent .name{font-weight:950;font-size:.78rem}
+    .agent .role{font-size:.66rem;color:#8ea3bd;margin:4px 0 8px;line-height:1.35}
+    .agent .digest{font-size:.68rem;color:#c7d6e8;line-height:1.42}
+    table{width:100%;border-collapse:collapse;font-size:.72rem}
+    th{text-align:left;color:#8093ab;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;padding:7px;border-bottom:1px solid rgba(148,168,192,.16)}
+    td{padding:8px 7px;border-bottom:1px solid rgba(148,168,192,.10);vertical-align:top}
+    tr:last-child td{border-bottom:0}
+    .right{text-align:right}.mono{font-variant-numeric:tabular-nums}
+    .checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .check{background:#101d2e;border:1px solid rgba(148,168,192,.14);border-radius:8px;padding:9px}
+    .check b{font-size:.72rem}.check div{font-size:.68rem;color:#9fb2ca;margin-top:4px}
+    .actions{margin:0;padding-left:18px;color:#b8c7d9;font-size:.72rem;line-height:1.55}
+    .empty{color:#788aa1;font-size:.72rem;padding:8px 0}
+    @media(max-width:1200px){.kpis{grid-template-columns:repeat(3,1fr)}.cols,.tri{grid-template-columns:1fr}.agents{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:720px){main{padding:14px 12px 28px}.kpis,.agents{grid-template-columns:1fr}.top{flex-direction:column}}
+    @media(min-width:1900px){main{max-width:2400px}html{font-size:20px}}
+    @media(min-width:2560px){main{max-width:2800px}html{font-size:22px}}
+    @media print{body{background:#fff;color:#111}main{max-width:none;padding:0}.tools,.agrail{display:none!important}.card,.agent,.check{break-inside:avoid;border-color:#ccd3dc;background:#fff;color:#111}.sub,.muted,.agent .role,.agent .digest,.empty{color:#445}}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="top">
+      <div>
+        <h1>AI Agent Trading Deep Report</h1>
+        <div class="sub" id="stamp">Loading paper report...</div>
+      </div>
+      <div class="tools">
+        <button class="btn" id="refresh">Refresh</button>
+        <button class="btn" id="download">Download JSON</button>
+        <button class="btn" id="print">Print</button>
+      </div>
+    </div>
+
+    <section class="grid kpis" id="kpis"></section>
+
+    <section class="card" style="margin-top:10px">
+      <h2>Agent Pipeline</h2>
+      <div class="agents" id="agents"></div>
+    </section>
+
+    <section class="grid cols" style="margin-top:10px">
+      <div class="card">
+        <h2>Open Paper Book</h2>
+        <div id="positions"></div>
+      </div>
+      <div class="card">
+        <h2>Validation Gate</h2>
+        <div id="validation"></div>
+      </div>
+    </section>
+
+    <section class="grid tri" style="margin-top:10px">
+      <div class="card">
+        <h2>Strategy Mix</h2>
+        <div id="strategies"></div>
+      </div>
+      <div class="card">
+        <h2>Risk Config</h2>
+        <div id="config"></div>
+      </div>
+      <div class="card">
+        <h2>Next Actions</h2>
+        <ul class="actions" id="actions"></ul>
+      </div>
+    </section>
+
+    <section class="grid cols" style="margin-top:10px">
+      <div class="card">
+        <h2>Impact Radar</h2>
+        <div id="impact"></div>
+      </div>
+      <div class="card">
+        <h2>Recent AI Trades</h2>
+        <div id="trades"></div>
+      </div>
+    </section>
+  </main>
+  <script src="/js/rail.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const num = v => v == null || !Number.isFinite(Number(v)) ? 'not reported' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    const inr = v => v == null || !Number.isFinite(Number(v)) ? 'not reported' : (Number(v) < 0 ? '-' : '+') + '₹' + Math.abs(Math.round(Number(v))).toLocaleString('en-IN');
+    const pct = v => v == null || !Number.isFinite(Number(v)) ? 'not reported' : Number(v).toFixed(1) + '%';
+    const cls = v => Number(v) > 0 ? 'up' : Number(v) < 0 ? 'dn' : '';
+    const row = (a,b) => `<tr><td>${esc(a)}</td><td class="right mono">${b}</td></tr>`;
+    const table = (head, rows, empty) => rows.length ? `<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>` : `<div class="empty">${esc(empty)}</div>`;
+    let lastReport = null;
+
+    function render(d) {
+      lastReport = d;
+      const s = d.summary || {};
+      $('stamp').innerHTML = `<span class="badge paper">${esc(d.mode || 'PAPER')}</span> <span class="badge ${d.enabled?'on':''}">${d.enabled?'agents on':'agents off'}</span> generated ${esc(d.generatedAt || '')}`;
+      const k = [
+        ['Day P&L', inr(s.dayPnl), s.dayPnl],
+        ['All-time Net', inr(s.allTimeNet), s.allTimeNet],
+        ['Trades', num(s.trades), null],
+        ['Win Rate', pct(s.winRate), s.winRate],
+        ['Agent Open', num(s.openAgents), null],
+        ['All Paper Open', `${num(s.openAllPaper)} / ${num(s.pricedOpen)} priced`, null],
+      ];
+      $('kpis').innerHTML = k.map(x => `<article class="card kpi"><div class="v mono ${cls(x[2])}">${x[1]}</div><div class="l">${esc(x[0])}</div></article>`).join('');
+
+      $('agents').innerHTML = (d.agents || []).map(a => `<article class="agent">
+        <div class="name">${esc(a.name || a.key)} <span class="badge ${a.state==='ACTIVE'||a.state==='GO'?'on':''}">${esc(a.state || 'IDLE')}</span></div>
+        <div class="role">${esc(a.role || '')}</div>
+        <div class="digest">${esc(a.digest || '')}</div>
+      </article>`).join('') || '<div class="empty">No agent state reported.</div>';
+
+      $('positions').innerHTML = table(['Engine','Position','Qty','P&L','Note'], (d.openPositions || []).slice(0, 14).map(p => `<tr>
+        <td>${esc(p.engine || '')}</td><td>${esc([p.inst,p.structure || p.kind].filter(Boolean).join(' '))}</td>
+        <td class="right mono">${esc(p.qty ?? '')}</td><td class="right mono ${cls(p.pnl)}">${p.pnl == null ? 'price pending' : inr(p.pnl)}</td><td>${esc(p.note || p.unrealizedReason || '')}</td>
+      </tr>`), 'No open paper positions reported.');
+
+      const v = d.validation || {};
+      $('validation').innerHTML = `<div style="font-size:1.05rem;font-weight:950" class="${v.verdict==='PASS'?'up':'warn'}">${esc(v.verdict || 'UNKNOWN')}</div>
+        <div class="muted" style="font-size:.74rem;margin:5px 0 10px">${esc(v.headline || '')}</div>
+        <div class="checks">${(v.checks || []).map(c => `<div class="check"><b class="${c.pass?'up':'warn'}">${esc(c.name)}</b><div>${esc(c.detail)}</div></div>`).join('')}</div>`;
+
+      const st = d.strategies || {};
+      $('strategies').innerHTML = `<table><tbody>
+        ${row('Directional trades', num(st.directional?.trades))}
+        ${row('Directional win rate', pct(st.directional?.winRate))}
+        ${row('Directional net', `<span class="${cls(st.directional?.netPnl)}">${inr(st.directional?.netPnl)}</span>`)}
+        ${row('Condor trades', num(st.condor?.trades))}
+        ${row('Condor win rate', pct(st.condor?.winRate))}
+        ${row('Condor net', `<span class="${cls(st.condor?.netPnl)}">${inr(st.condor?.netPnl)}</span>`)}
+      </tbody></table>`;
+
+      const cfg = d.config || {};
+      $('config').innerHTML = `<table><tbody>
+        ${['minProb','maxTradesPerDay','maxDailyLoss','qty','sellEnabled','sellTpPct','sellStopMult','ivpMinSell','ivpMaxBuy'].map(x => row(x, esc(cfg[x]))).join('')}
+      </tbody></table>`;
+      $('actions').innerHTML = (d.nextActions || []).map(x => `<li>${esc(x)}</li>`).join('');
+
+      $('impact').innerHTML = table(['Event','Dir','Prob','Stocks'], (d.impact || []).map(x => `<tr>
+        <td>${esc(x.title || x.type || '')}</td><td>${esc(x.direction || '')}</td><td class="right mono">${pct(x.probability)}</td><td>${esc((x.stocks || []).join(', '))}</td>
+      </tr>`), 'No current impact rows.');
+
+      $('trades').innerHTML = table(['Inst','Kind','P&L','Exit','Calc'], (d.recentTrades || []).map(t => `<tr>
+        <td>${esc(t.inst || '')}</td><td>${esc(t.kind || '')}</td><td class="right mono ${cls(t.pnl)}">${inr(t.pnl)}</td><td>${esc(t.reason || '')}</td><td>${esc(t.lotSource || t.calcVersion || '')}</td>
+      </tr>`), 'No recent AI trades.');
+    }
+
+    async function load() {
+      const r = await fetch('/api/ai-agents/deep-report', { cache: 'no-store' });
+      if (!r.ok) throw new Error('deep report API failed: HTTP ' + r.status);
+      render(await r.json());
+    }
+    function downloadJson() {
+      if (!lastReport) return;
+      const stamp = String(lastReport.generatedAt || new Date().toISOString()).replace(/[:.]/g, '-');
+      const blob = new Blob([JSON.stringify(lastReport, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `ai-agents-deep-report-${stamp}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    $('refresh').addEventListener('click', load);
+    $('download').addEventListener('click', downloadJson);
+    $('print').addEventListener('click', () => window.print());
+    load().catch(e => { $('stamp').textContent = e.message; });
+    setInterval(load, 15000);
+  </script>
+</body>
+</html>

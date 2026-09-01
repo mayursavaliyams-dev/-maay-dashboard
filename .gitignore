@@ -118,3 +118,12 @@ data/route-usage.json
 # liveness of the running processes; machine state, regenerated every 15s
 data/heartbeats.json
 data/heartbeats.json.bak
+
+# scraped ProPicks rows; the tracked template is data/investing-propicks.example.json
+data/investing-propicks.json
+
+# headless-browser profile dirs left behind by the UI layout tests (~60 MB)
+.tmp-ptr-*/
+
+# screenshots taken while verifying UI work — evidence for a review, not source
+artifacts/

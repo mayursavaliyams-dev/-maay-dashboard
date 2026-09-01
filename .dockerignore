@@ -49,6 +49,14 @@ design-candidates
 terminal-candidates
 public/designs
 public/terminals
+artifacts
+.tmp-ptr-*
+
+# ── local logs / rendered reports ───────────────────────────────────────────
+logs
+*.log
+*.err
+*.pdf
 
 # ── tests and backtest CLIs are not part of the runtime image ───────────────
 test

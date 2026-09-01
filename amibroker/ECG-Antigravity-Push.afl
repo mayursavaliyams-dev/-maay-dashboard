@@ -1,0 +1,125 @@
+// ============================================================================
+//  ECG  ->  ANTIGRAVITY  PUSH
+//
+//  This file does NOT modify anything you bought. It runs the ECG formula
+//  exactly as 01_ECG_Trade.afl does — same two lines, verbatim — and then
+//  pushes whatever entry/exit signals it produces to the bot.
+//
+//  ── SAVE IT HERE, and nowhere else ──────────────────────────────────────
+//     C:\Program Files (x86)\AmiBroker\Formulas\00ECGTrade\ECG-Antigravity-Push.afl
+//
+//  The folder matters. `#include "01.exe"` is a RELATIVE path: it only
+//  resolves because 01_ECG_Trade.afl sits in 00ECGTrade. Put this file
+//  anywhere else and the include fails.
+//
+//  ── THEN ────────────────────────────────────────────────────────────────
+//   1. In AmiBroker, apply THIS file to your chart instead of 01_ECG_Trade.
+//      Everything ECG draws will still draw — it is the same code.
+//   2. Right-click chart -> Parameters -> "AG: Push Signals" = ON.
+//   3. Chart must be REAL-TIME, or run Analysis -> Scan with Auto-Repeat (RT).
+//      A formula merely open on a chart does not run every bar.
+//
+//  ── FIRST RUN: READ THE TITLE ───────────────────────────────────────────
+//  The last line of the chart title reports whether ECG actually fills
+//  AmiBroker's Buy / Short arrays. That is the one thing nobody can know in
+//  advance, because 01.exe is encrypted. See the note at the bottom.
+// ============================================================================
+
+// ── the ECG formula, exactly as 01_ECG_Trade.afl calls it ───────────────────
+ECG_f1();
+
+#include "01.exe";
+
+// ── settings ────────────────────────────────────────────────────────────────
+AG_Server   = ParamStr   ("AG: Server URL", "http://127.0.0.1:3000");
+AG_Key      = ParamStr   ("AG: API Key", "antigravity");
+AG_Inst     = ParamList  ("AG: Instrument", "NIFTY|SENSEX|BANKNIFTY", 0);
+AG_On       = ParamToggle("AG: Push Signals", "OFF|ON", 0);
+AG_Conf     = Param      ("AG: Confidence", 75, 1, 100, 1);
+AG_FixStrike= Param      ("AG: Strike (0=Auto ATM)", 0, 0, 100000, 50);
+
+// ── which arrays carry the ECG signal ───────────────────────────────────────
+// Standard AmiBroker trading arrays. If the diagnostic below says NO-ARRAYS,
+// ECG does not fill these and you must ask the vendor — see the bottom note.
+BuySig  = Buy;              // CALL entry
+PutSig  = Short;            // PUT entry
+ExitSig = Sell OR Cover;    // close
+
+// ── diagnostic: did ECG populate the arrays at all, anywhere on this chart? ──
+AG_hasArrays = (LastValue(Cum(Buy   != 0)) > 0)
+            OR (LastValue(Cum(Short != 0)) > 0)
+            OR (LastValue(Cum(Sell  != 0)) > 0)
+            OR (LastValue(Cum(Cover != 0)) > 0);
+AG_diag = WriteIf(AG_hasArrays, "arrays OK", "NO-ARRAYS - see note in file");
+
+// ── strike ──────────────────────────────────────────────────────────────────
+AG_step   = IIf(AG_Inst == "NIFTY", 50, 100);
+AG_strike = AG_FixStrike;
+if (AG_strike <= 0) AG_strike = round(LastValue(Close) / AG_step) * AG_step;
+
+// ── decide on the current bar ───────────────────────────────────────────────
+AG_sig = "WAIT";
+if (LastValue(BuySig))       AG_sig = "CALL";
+else if (LastValue(PutSig))  AG_sig = "PUT";
+else if (LastValue(ExitSig)) AG_sig = "EXIT";
+
+// ── push once per new signal per bar ────────────────────────────────────────
+AG_bar   = NumToStr(LastValue(BarIndex()), 1.0, False);
+AG_keyV  = AG_Inst + "|" + AG_sig + "|" + AG_bar;
+AG_prevK = "AG_PUSHED_ECG_" + AG_Inst;
+AG_resp  = "";
+
+if (AG_On AND AG_sig != "WAIT" AND AG_keyV != StaticVarGetText(AG_prevK))
+{
+    AG_url = AG_Server + "/api/amibroker/push-signal"
+        + "?key="      + AG_Key
+        + "&inst="     + AG_Inst
+        + "&sig="      + AG_sig
+        + "&strike="   + NumToStr(AG_strike, 1.0, False)
+        + "&conf="     + NumToStr(AG_Conf, 1.0, False)
+        + "&price="    + NumToStr(LastValue(Close), 1.2, False)
+        + "&barId="    + AG_bar
+        + "&strategy=ecg_trade";
+
+    AG_ih = InternetOpenURL(AG_url);
+    if (AG_ih)
+    {
+        while ((AG_line = InternetReadString(AG_ih)) != "")
+            AG_resp = AG_resp + AG_line;
+        InternetClose(AG_ih);
+    }
+    StaticVarSetText(AG_prevK, AG_keyV);
+    _TRACE("[AG PUSH] " + AG_sig + " " + AG_Inst + " " + NumToStr(AG_strike,1.0,False) + " -> " + AG_resp);
+}
+
+// ── status line, appended to the ECG title rather than replacing it ─────────
+Title = Title + "\n" + StrFormat("AG: %s  sig=%s  strike=%g  push=%s  [%s]  %s",
+        AG_Inst, AG_sig, AG_strike,
+        WriteIf(AG_On, "ON", "OFF"), AG_diag, AG_resp);
+
+// ============================================================================
+//  IF THE TITLE SAYS  "NO-ARRAYS"
+//
+//  It means ECG draws its signals but never assigns Buy / Short / Sell / Cover.
+//  It is an indicator with alerts, not a backtestable trading system, so there
+//  is nothing here for this file to read and nothing will ever be pushed.
+//  Because 01.exe is encrypted, this cannot be determined by reading the code —
+//  only by running it, which is what the diagnostic does.
+//
+//  What to do then, in order:
+//
+//   1. Ask ecgtrade.com directly: does the formula expose its signal via
+//      Buy/Short in Analysis mode, or via a StaticVar? Many vendors ship a
+//      "system" or "exploration" variant that does, precisely for this. This
+//      is one email and it is the only cheap answer.
+//
+//   2. If they expose a StaticVar, replace the three BuySig/PutSig/ExitSig
+//      lines above with StaticVarGet("theirName") and nothing else changes.
+//
+//   3. Try Analysis -> Scan on 01_ECG_Trade.afl. If the Analysis window lists
+//      signals, the arrays ARE being set and the problem is scope, not absence.
+//
+//   DO NOT rebuild the ECG logic by eye from the chart. A copy that matches
+//   today's chart will diverge on the day it matters, and you will not know
+//   which of the two was right.
+// ============================================================================

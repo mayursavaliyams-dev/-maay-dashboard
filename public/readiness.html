@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Readiness | Antigravity Pro</title>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:var(--bg-wash);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+    main{max-width:1180px;margin:0 auto;padding:24px 18px 40px}
+    .top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:18px}
+    h1{margin:0;font-size:1.55rem;letter-spacing:0;font-weight:950}.sub{color:var(--muted);font-size:.9rem;margin-top:5px}
+    .badge{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:8px;padding:7px 10px;font-weight:900;font-size:.78rem;white-space:nowrap}
+    .badge.bad{color:#ffc8d1;border-color:rgba(255,84,112,.28);background:rgba(255,84,112,.10)}.badge.warn{color:#ffe2a0;border-color:rgba(255,194,75,.28);background:rgba(255,194,75,.10)}.badge.ok{color:#a6f1dd;border-color:rgba(38,208,160,.26);background:rgba(38,208,160,.10)}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}.card h2{margin:0 0 10px;font-size:.92rem;letter-spacing:0;font-weight:900}.big{font-size:1.45rem;font-weight:950}.muted{color:var(--muted);font-size:.84rem;line-height:1.45}.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.check{border:1px solid var(--line);border-radius:8px;padding:12px;background:rgba(255,255,255,.02)}.check b{display:block;font-size:.88rem;margin-bottom:5px}.check .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.pill{border-radius:999px;padding:2px 7px;font-size:.72rem;font-weight:900;border:1px solid var(--line);color:var(--muted)}.pill.blocked{color:#ffc8d1;border-color:rgba(255,84,112,.28);background:rgba(255,84,112,.10)}.pill.ready,.pill.granted{color:#a6f1dd;border-color:rgba(38,208,160,.28);background:rgba(38,208,160,.10)}.pill.paper,.pill.research_only,.pill.armed_key_1,.pill.blocked_by_policy{color:#ffe2a0;border-color:rgba(255,194,75,.28);background:rgba(255,194,75,.10)}
+    ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:.86rem;line-height:1.5}code{color:#b9d7ff}button{border:1px solid rgba(91,156,255,.35);background:#0f2135;color:#eaf2ff;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer}
+    @media(max-width:900px){.grid,.checks{grid-template-columns:1fr}.top{flex-direction:column}}
+    @media(min-width:1920px){main{max-width:1680px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.checks{grid-template-columns:repeat(3,minmax(0,1fr))}body{font-size:17px}}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="top">
+      <div>
+        <h1>Readiness</h1>
+        <div class="sub">Real trade and recommendation gates. This page shows runtime blockers, not intention.</div>
+      </div>
+      <button id="refresh">Refresh</button>
+    </div>
+
+    <div class="grid">
+      <section class="card"><h2>Overall</h2><div class="big" id="overall">Loading</div><div class="muted" id="generated">-</div></section>
+      <section class="card"><h2>Real Trade</h2><div class="big" id="realTrade">-</div><div class="muted">Broker orders stay disabled until all live safety gates pass.</div></section>
+      <section class="card"><h2>Recommendations</h2><div class="big" id="reco">-</div><div class="muted">Signals stay research-only until calibration and compliance review pass.</div></section>
+    </div>
+
+    <section class="card" style="margin-top:12px">
+      <h2>Blockers</h2>
+      <div id="checks" class="checks"></div>
+    </section>
+
+    <section class="card" style="margin-top:12px">
+      <h2>Next Actions</h2>
+      <ul id="actions"></ul>
+    </section>
+
+    <section class="card" style="margin-top:12px">
+      <h2>Required APIs</h2>
+      <ul>
+        <li><code>GET /api/readiness</code> — main JSON payload for this page.</li>
+        <li><code>GET /api/execution/status</code> — broker order capability and execution mode.</li>
+        <li><code>GET /api/heartbeat</code> — server, capture, and reconciliation freshness.</li>
+        <li><code>GET /api/reconciliation</code> — internal book vs broker book status.</li>
+        <li><code>GET /api/signal-health</code> — calibration / recommendation readiness context.</li>
+      </ul>
+      <div class="muted" style="margin-top:8px">If <code>/api/readiness</code> returns HTML or 404, restart the Node server from this repository so the new route is loaded.</div>
+    </section>
+  </main>
+  <script src="/js/rail.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function badgeClass(v) {
+      v = String(v || '').toLowerCase();
+      if (v.includes('not') || v.includes('blocked') || v.includes('unavailable')) return 'bad';
+      if (v.includes('ready')) return 'ok';
+      return 'warn';
+    }
+    function pillClass(v) {
+      return String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    }
+    async function load() {
+      const res = await fetch('/api/readiness', { cache: 'no-store' });
+      const ct = res.headers.get('content-type') || '';
+      if (!res.ok) throw new Error(`/api/readiness returned HTTP ${res.status}. Restart server.js from this repo, then refresh.`);
+      if (!ct.includes('application/json')) {
+        const text = await res.text();
+        throw new Error(`/api/readiness returned ${ct || 'non-JSON'} (${text.slice(0, 24)}...). Required API: GET /api/readiness`);
+      }
+      const data = await res.json();
+      $('overall').innerHTML = `<span class="badge ${badgeClass(data.overall)}">${esc(data.overall)}</span>`;
+      $('realTrade').innerHTML = `<span class="badge ${badgeClass(data.realTradeStatus)}">${esc(data.realTradeStatus)}</span>`;
+      $('reco').innerHTML = `<span class="badge ${badgeClass(data.recommendationStatus)}">${esc(data.recommendationStatus)}</span>`;
+      $('generated').textContent = `${data.connector || 'connector'} · ${data.brokerOrderCapability || 'unknown'} · ${data.generatedAt || ''}`;
+      $('checks').innerHTML = (data.checks || []).map(c => `
+        <article class="check">
+          <b>${esc(c.label)}</b>
+          <div class="meta"><span class="pill ${pillClass(c.status)}">${esc(c.status)}</span><span class="pill">${esc(c.area)}</span></div>
+          <div class="muted">${esc(c.detail)}</div>
+          <div class="muted" style="margin-top:6px"><code>${esc(c.evidence || '')}</code></div>
+        </article>`).join('');
+      $('actions').innerHTML = (data.nextActions || []).map(x => `<li>${esc(x)}</li>`).join('');
+    }
+    $('refresh').addEventListener('click', load);
+    load().catch(e => {
+      $('overall').innerHTML = '<span class="badge bad">API_ERROR</span>';
+      $('realTrade').innerHTML = '<span class="badge warn">API NEEDED</span>';
+      $('reco').innerHTML = '<span class="badge warn">API NEEDED</span>';
+      $('generated').textContent = 'Required: GET /api/readiness';
+      $('checks').innerHTML = `<article class="check"><b>Readiness API failed</b><div class="muted">${esc(e.message)}</div></article>`;
+      $('actions').innerHTML = [
+        'Restart the backend from this repo: node server.js',
+        'Verify GET /api/readiness returns JSON',
+        'Then refresh this page'
+      ].map(x => `<li>${esc(x)}</li>`).join('');
+    });
+  </script>
+</body>
+</html>

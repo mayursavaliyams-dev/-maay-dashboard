@@ -1,0 +1,43 @@
+{
+  "updatedAt": "2026-08-24",
+  "market": "India",
+  "source": "Investing.com India / InvestingPro verified export",
+  "sourceLinks": {
+    "indiaShares": "https://in.investing.com/equities/india",
+    "propicks": "https://in.investing.com/pro/watchlist/w-78178381.iwl/v-68f5a6e5"
+  },
+  "stocks": {
+    "TCS": {
+      "sourceUrl": "https://in.investing.com/equities/tata-consultancy-services-consensus-estimates",
+      "propicksUrl": "https://in.investing.com/pro/watchlist/w-78178381.iwl/v-68f5a6e5",
+      "updatedAt": "2026-08-24",
+      "verifiedAt": "2026-08-24",
+      "priceRange": {
+        "period": "52 weeks",
+        "low": 0,
+        "current": 0,
+        "high": 0,
+        "updatedAt": "2026-08-24"
+      },
+      "fairValue": {
+        "label": "Unlock / verified manually",
+        "price": null,
+        "upsidePct": null,
+        "uncertainty": null,
+        "models": null
+      },
+      "propicks": [
+        {
+          "strategy": "India strategy name from ProPicks",
+          "action": "watchlist",
+          "priceWhenAdded": null,
+          "rank": null,
+          "pickedAt": "2026-08-24",
+          "returnPct": null,
+          "note": "Fill only from the logged-in InvestingPro page/export."
+        }
+      ],
+      "note": "Example only. Copy to data/investing-propicks.json and replace zeros with verified values."
+    }
+  }
+}

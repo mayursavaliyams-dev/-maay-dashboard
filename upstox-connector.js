@@ -52,7 +52,7 @@ class UpstoxConnector {
      must be able to ask the OBJECT, because the object is what it holds. A
      connector without this marker may still return [] for a failed call, and
      broker-positions.js refuses to read those as flat. */
-  static distinguishesEmptyFromError = true;
+  get positionsDistinguishEmptyFromError() { return true; }
   constructor(config = {}) {
     this.accessToken = config.accessToken || process.env.UPSTOX_ACCESS_TOKEN || '';
     this.connected = false;

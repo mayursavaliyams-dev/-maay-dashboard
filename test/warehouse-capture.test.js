@@ -23,10 +23,10 @@ const ok = (c, m) => { n++; assert.ok(c, m); };
 const eq = (a, b, m) => { n++; assert.strictEqual(a, b, m); };
 
 const CHAIN = {
-  source: 'upstox', spotPrice: 23767.45, atmStrike: 23750,
+  source: 'upstox', spotPrice: 23767.45, atmStrike: 23750, expiry: '2026-08-21',
   pcr: { pcrOI: '0.833' }, maxPain: { maxPain: 23900 },
   strikes: [
-    { strike: 23750, ce: { ltp: 152.1, oi: 1900000, iv: 10.8, ivSource: 'feed',
+    { strike: 23750, ce: { ltp: 152.1, oi: 1900000, iv: 10.8, ivSource: 'feed', securityId: 'NSE_FO|44983',
         delta: 0.62, gamma: 0.0014, theta: -12.84, vega: 9.51, pop: 39, bid: 151, ask: 153 },
       pe: { ltp: 81.8, oi: 4270000, iv: 11.99, ivSource: 'bsm',
         delta: -0.39, gamma: 0.0013, theta: -14.36, vega: 9.58, pop: 29 } },
@@ -173,6 +173,41 @@ const CHAIN = {
   eq(fs.existsSync(C.CHAIN_DIR), false, 'requiring the module writes nothing');
   eq(fs.existsSync(C.NAV_DIR), false, 'no NAV dir until a capture appends');
   eq(typeof C.captureOnce, 'function', 'the orchestrator is exposed for the CLI/tests');
+}
+
+/* ── @test:regression — contract identity reaches the archive ──────────────────
+ *
+ * Audited 2026-08-14 (docs/096): a stored row was {k, ce, pe}. No expiry on the row,
+ * none on the snapshot, no vendor key on the leg. On a day carrying two live series a
+ * row was ambiguous, and no later processing could disambiguate it. Both values were
+ * present upstream the whole time — `expiry` was computed in _buildOptionSnapshot for
+ * the Black-Scholes fill and dropped from its own return; `securityId` arrived on every
+ * leg and was dropped by legRow(). This block exists so neither can be dropped again. */
+{
+  const s = C.buildChainSnapshot('NIFTY', CHAIN, 1000);
+  eq(s.expiry, '2026-08-21', 'the snapshot records WHICH series it describes');
+  eq(s.strikes[0].ce.securityId, 'NSE_FO|44983',
+     'the vendor contract key survives as a string — num() would have stored null');
+
+  // A missing expiry must read as unknown, never as a plausible-looking default.
+  const noExp = C.buildChainSnapshot('NIFTY', { ...CHAIN, expiry: undefined }, 1000);
+  eq(noExp.expiry, null, 'an absent expiry is null, not an invented date');
+
+  // Rollover is a real market event, so it must not be suppressed as "nothing changed".
+  const rolled = C.buildChainSnapshot('NIFTY', { ...CHAIN, expiry: '2026-08-28' }, 1000);
+  ok(C.chainFingerprint(s) !== C.chainFingerprint(rolled),
+     'a new series fingerprints differently even when every price is identical');
+
+  // ...but identity must not reintroduce the clock drift that Greeks caused.
+  eq(C.chainFingerprint(s), C.chainFingerprint(C.buildChainSnapshot('NIFTY', CHAIN, 9999999)),
+     'same series, same market, later clock → still one fingerprint');
+
+  /* A field nobody publishes is the defect it fixes. legRow() can only carry identity
+   * that the HTTP response actually contains, so assert the producer, not just this
+   * consumer's fixture — the fixture is only ever my idea of the input. */
+  const serverSrc = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  ok(/expiry:\s*_bsmExp/.test(serverSrc),
+     '_buildOptionSnapshot publishes expiry instead of computing it and throwing it away');
 }
 
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (_) {}

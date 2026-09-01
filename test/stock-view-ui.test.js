@@ -115,14 +115,58 @@ for (const must of ['Market depth', 'Delivery', 'Circuit', 'SEBI']) {
 }
 ok(/data-t="gaps"/.test(PAGE), 'it has its own tab, so it is not a footnote nobody opens');
 
+/* ── company-inside verification surface ────────────────────────────────── */
+console.log('\ncompany inside');
+ok(/data-t="company"/.test(PAGE), 'it has a Company Inside tab for source-backed company facts');
+ok(/function companyInside\(\)/.test(PAGE), 'the company-inside section is rendered by its own function');
+ok(/Inside readiness/.test(PAGE) && /verifyGrid/.test(PAGE), 'it shows a readiness section instead of mixing verification into prose');
+ok(/Needs confirmation/.test(PAGE) && /Estimated result date ko verified nahi maana/.test(PAGE),
+  'estimated company events are explicitly not treated as verified');
+ok(/Missing values remain not reported/.test(PAGE),
+  'missing company-inside values stay unreported rather than becoming confident claims');
+
+/* ── high/low mapping ────────────────────────────────────────────────────── */
+console.log('\nhigh low map');
+ok(/data-t="highlow"/.test(PAGE), 'it has a dedicated High/Low Map tab');
+ok(/function highLowMap\(\)/.test(PAGE) && /function bandMap\(/.test(PAGE),
+  'high/low mapping is rendered by explicit mapping functions');
+ok(/LOW = left edge/.test(PAGE) && /CURRENT = white marker/.test(PAGE) && /HIGH = right edge/.test(PAGE),
+  'the visual mapping rule is stated on the surface');
+ok(/rawPct/.test(PAGE) && /Math\.min\(100, Math\.max\(0, rawPct\)\)/.test(PAGE),
+  'the marker is clamped visually while preserving the raw percent for distances');
+ok(/Above reported high by/.test(PAGE) && /Below reported low by/.test(PAGE),
+  'outside-band prices are warned about rather than silently hidden');
+ok(/vendor uses intraday extremes; computed uses daily closes/.test(PAGE),
+  'vendor and computed 52-week bands are not mixed together');
+
+/* ── Investing.com / ProPicks ────────────────────────────────────────────── */
+console.log('\npropicks');
+ok(/data-t="propicks"/.test(PAGE), 'it has a ProPicks tab');
+ok(/function propicksTab\(\)/.test(PAGE), 'ProPicks renders through its own tab function');
+ok(/VALID_TABS/.test(PAGE) && /get\('tab'\)/.test(PAGE) && /stockUrl/.test(PAGE),
+  'ProPicks can be opened directly from a research navigation URL');
+ok(/data\/investing-propicks\.json/.test(PAGE), 'the UI names the verified local export file');
+ok(/https:\/\/in\.investing\.com\/equities\/india/.test(PAGE) && /investing\.com\/pro\/watchlist\/w-78178381\.iwl\/v-68f5a6e5/.test(PAGE),
+  'the ProPicks tab displays Investing.com source links');
+ok(/Investing\.com India range/.test(PAGE) && /InvestingPro Fair Value/.test(PAGE),
+  'the tab separates price range from Fair Value opinion');
+ok(/Price added/.test(PAGE) && /priceWhenAdded/.test(PAGE),
+  'the ProPicks table shows the InvestingPro price-when-added field');
+ok(/Indian stocks only/.test(PAGE) && /not as a trading command/.test(PAGE),
+  'ProPicks is labelled India-only context rather than a trade command');
+ok(/Consensus view/.test(PAGE) && !/row\('Consensus'/.test(PAGE),
+  'analyst consensus is labelled as a view, not a recommendation field');
+
 /* ── opinion is labelled as opinion ──────────────────────────────────────── */
 console.log('\nevidence grades');
 ok(/class="tag">\$\{esc\(tag\)\}|'opinion'/.test(PAGE), 'panels can carry a grade tag');
 ok(/Analyst ratings[\s\S]{0,80}'opinion'/.test(PAGE) && /Price targets[\s\S]{0,60}'opinion'/.test(PAGE),
   'analyst ratings and price targets are both badged as opinion');
 ok(/opinion published by banks/.test(PAGE), 'and the card says outright what a price target is');
+ok(/Research signal/.test(PAGE) && /research context only/.test(PAGE) && /not advice/.test(PAGE),
+  'the verdict card is labelled as research context, not advice');
 ok(/not[\s\S]{0,40}inputs to this number/.test(PAGE),
-  'the verdict card says fundamentals and ratings do NOT feed the probability');
+  'the verdict card says fundamentals and ratings do NOT feed the legacy strength number');
 ok(/derived/.test(PAGE), 'a derived ROE is badged as derived rather than shown as reported');
 ok(/'forecast'/.test(PAGE), 'forward estimates are badged as forecasts, not results');
 

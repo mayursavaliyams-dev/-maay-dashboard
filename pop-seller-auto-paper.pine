@@ -1,0 +1,74 @@
+//@version=5
+indicator("Antigravity PoP Seller Auto Paper", overlay=true, max_labels_count=200)
+
+// This script does not choose option strikes. It detects a quiet/range regime and
+// sends a paper-only trigger to the Antigravity PoP Seller backend, which scans
+// the option chain and records the selected short structure in the paper book.
+// TradingView webhook URL: http://YOUR_PC_OR_TUNNEL:3000/api/pop/auto-paper
+
+groupSignal = "Selling Signal"
+emaFastLen = input.int(9, "EMA fast", minval=1, group=groupSignal)
+emaSlowLen = input.int(21, "EMA slow", minval=1, group=groupSignal)
+rsiLen = input.int(14, "RSI length", minval=1, group=groupSignal)
+adxLen = input.int(14, "ADX length", minval=1, group=groupSignal)
+adxMax = input.float(22.0, "Max ADX for range", minval=1, step=0.5, group=groupSignal)
+bbLen = input.int(20, "Bollinger length", minval=2, group=groupSignal)
+bbWidthMax = input.float(1.25, "Max BB width %", minval=0.1, step=0.05, group=groupSignal)
+atrLen = input.int(14, "ATR length", minval=1, group=groupSignal)
+atrPctMax = input.float(0.45, "Max ATR %", minval=0.05, step=0.05, group=groupSignal)
+cooldownBars = input.int(30, "Cooldown bars", minval=1, group=groupSignal)
+
+groupApi = "Webhook"
+indexName = input.string("NIFTY", "Index", options=["NIFTY", "BANKNIFTY", "SENSEX"], group=groupApi)
+webhookKey = input.string("antigravity", "Webhook key", group=groupApi)
+minPoP = input.float(75.0, "Backend min PoP", minval=50, maxval=99, step=0.5, group=groupApi)
+sendAlerts = input.bool(true, "Send alert() webhooks", group=groupApi)
+
+groupSession = "Session"
+useSession = input.bool(true, "Use NSE/BSE session", group=groupSession)
+tradeSession = input.session("0925-1455", "Entry window", group=groupSession)
+
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+vwapVal = ta.vwap
+rsiVal = ta.rsi(close, rsiLen)
+[_, _, adxVal] = ta.dmi(adxLen, adxLen)
+atrVal = ta.atr(atrLen)
+
+bbBasis = ta.sma(close, bbLen)
+bbDev = 2.0 * ta.stdev(close, bbLen)
+bbUpper = bbBasis + bbDev
+bbLower = bbBasis - bbDev
+bbWidthPct = bbBasis != 0 ? (bbUpper - bbLower) / bbBasis * 100 : na
+atrPct = close != 0 ? atrVal / close * 100 : na
+
+inSession = not useSession or not na(time(timeframe.period, tradeSession))
+nearVwap = math.abs(close - vwapVal) / close * 100 <= 0.25
+emaFlat = math.abs(emaFast - emaSlow) / close * 100 <= 0.12
+rsiNeutral = rsiVal >= 42 and rsiVal <= 58
+rangeOk = adxVal <= adxMax and bbWidthPct <= bbWidthMax and atrPct <= atrPctMax
+
+sellRegime = barstate.isconfirmed and inSession and nearVwap and emaFlat and rsiNeutral and rangeOk
+
+var int lastFire = na
+canFire = na(lastFire) or bar_index - lastFire >= cooldownBars
+fire = sellRegime and not sellRegime[1] and canFire
+
+if fire
+    lastFire := bar_index
+
+plot(emaFast, "EMA fast", color=color.aqua, linewidth=1)
+plot(emaSlow, "EMA slow", color=color.orange, linewidth=1)
+plot(vwapVal, "VWAP", color=color.fuchsia, linewidth=2)
+plot(bbUpper, "BB upper", color=color.new(color.gray, 60))
+plot(bbLower, "BB lower", color=color.new(color.gray, 60))
+
+bgcolor(sellRegime ? color.new(color.yellow, 88) : na, title="Selling regime")
+plotshape(fire, title="PoP Paper Sell Trigger", style=shape.labeldown, location=location.abovebar,
+     color=color.new(color.yellow, 0), textcolor=color.black, text="POP SELL\nPAPER", size=size.small)
+
+msg = '{"key":"' + webhookKey + '","action":"POP_SELL_AUTO","paperOnly":true,"index":"' + indexName + '","minPoP":' + str.tostring(minPoP, "#.0") + ',"source":"pine-pop-seller","ticker":"' + syminfo.ticker + '","tf":"' + timeframe.period + '","close":' + str.tostring(close, "#.##") + ',"reason":"RANGE_PREMIUM_SELL"}'
+
+alertcondition(fire, "POP SELL AUTO PAPER", "PoP Seller auto paper trigger")
+if fire and sendAlerts
+    alert(msg, alert.freq_once_per_bar_close)

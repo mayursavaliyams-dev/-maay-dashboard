@@ -7,22 +7,15 @@
      greeks.html shipped reachable from nothing. Adding a page now means one line
      in PAGES below, and every page that includes this script gets it.
 
-   WHY IT IS TABBED  (2026-08-08)
-     The flat list reached 22 entries across 6 groups and no longer fitted the
-     viewport — the rail itself scrolled, which is the one thing this shell is
-     supposed to prevent. Scrolling a navigation is worse than scrolling content:
-     you cannot see what you are choosing between, so the pages below the fold
-     stop being used and eventually stop being maintained. That is how pages come
-     to be reachable from nothing, which is the defect this file was written for
-     in the first place.
-
-     So the list is now a TAB per subject with a short table under it. Nothing was
-     removed; every page in the old flat list is still here, and three that were
-     never listed are recorded at the bottom with the reason.
+   WHY IT IS FULLY OPEN  (2026-08-24)
+     The tabbed rail hid pages inside subjects. The owner asked for every section
+     to be visible at once: no "inside", no category click before opening a page.
+     The rail is therefore an always-open grouped index. It may scroll as a rail,
+     but no page is hidden behind a selected tab.
 
    It injects its own CSS and its own markup, and sets the body offset inline so a
    page's existing body rule cannot fight it. It reads nothing and writes nothing
-   except the collapse preference and the last-open tab, so it is safe on every
+   except the collapse preference, so it is safe on every
    page including the read-only research ones.
    ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
@@ -53,13 +46,14 @@
        is the first thing you need when the dashboard looks wrong: the question
        "is this number stale?" is answered by the feed, not by the number. */
     { h: '/dashboard.html',        i: '⌂',  t: 'Command',        k: 'live' },
+    { h: '/readiness.html',        i: '🛡️', t: 'Readiness',      k: 'live', s: 'Blocked' },
     { h: '/health-dashboard.html', i: '🩺', t: 'Connections',    k: 'live' },
-    { h: '/trade.html',            i: '💼', t: 'Trade',          k: 'live' },
+    { h: '/trade.html',            i: '💼', t: 'Trade',          k: 'live', s: 'Paper' },
 
     /* STOCK — the equity side, kept apart from the index-option side because the
        instruments, the lot sizes and the strategies have nothing in common. */
     { h: '/stock.html',            i: '📊', t: 'Stock View',     k: 'stock' },
-    { h: '/universe.html',         i: '🗂️', t: 'Stock Universe', k: 'stock' },
+    { h: '/universe.html',         i: '🗂️', t: 'Stock Universe', k: 'stock', s: 'Research' },
 
     /* OPTIONS — every page whose subject is a strike, a chain or a Greek.
        These were previously scattered across Live, Research and Charts, so
@@ -81,6 +75,7 @@
 
     /* ENGINES — the things that decide, as opposed to the things that display. */
     { h: '/agents.html',           i: '🤖', t: 'AI Agents',      k: 'engines' },
+    { h: '/ai-report.html',        i: '▣',  t: 'AI Report',      k: 'engines', s: 'Deep' },
     { h: '/quant.html',            i: '⚡', t: 'Quant Center',   k: 'engines' },
     { h: '/strangle-monitor.html', i: '🎚️', t: 'Strangle',       k: 'engines' },
     { h: '/signals4.html',         i: '✅', t: '4 Engines',      k: 'engines' },
@@ -92,11 +87,13 @@
        is an honest reflection of the fact that the warehouse has no UI yet, not
        a placeholder to be padded out. */
     { h: '/screener.html',         i: '🔍', t: 'Screener',      k: 'data' },
+    { h: '/market-data.html',      i: '▦',  t: 'Market Data',   k: 'data' },
     { h: '/strike-history.html',   i: '🕘', t: 'Strike History', k: 'data' },
     { h: '/help.html?doc=stockview', i: '🔎', t: 'Data Honesty', k: 'data' },
 
     /* RESEARCH — hypotheses and what the evidence says about them. */
     { h: '/strategy.html',         i: '🧪', t: 'Strategy',       k: 'research' },
+    { h: '/stock.html?tab=propicks', i: '📊', t: 'ProPicks',     k: 'research', s: 'Research' },
     { h: '/help.html?doc=strategies', i: '🎯', t: 'Strategy Guide', k: 'research' },
 
     /* LEARN */
@@ -111,14 +108,12 @@
        command-pro.html  — superseded by dashboard.html
      test/ui-shell.test.js asserts this list stays the complete set. */
 
-  var W = 210, WMIN = 56;
-  var TABKEY = 'ag-rail-tab';
+  var W = 276, WMIN = 64;
 
   /* localStorage throws in private mode and under some embedded webviews. That is a
      real condition, not something to swallow: the rail still works, the preference
      simply stops persisting, and we stop TRYING rather than throwing on every
-     toggle. Declared here because the first read happens in activeTab(), well
-     above the toggle handler that used to own it.
+     toggle.
 
      Every catch below assigns to this rather than standing empty. An empty catch
      and a handled one look identical afterwards, which is the whole objection to
@@ -130,57 +125,64 @@
         tokens.css, so the colours are literal here rather than var()-only. ──── */
   var css = ''
     + '.agrail{position:fixed;left:0;top:0;bottom:0;width:' + W + 'px;z-index:9000;'
-    + 'background:#0d1420;border-right:1px solid #1c2735;display:flex;flex-direction:column;'
-    + 'overflow-y:auto;overflow-x:hidden;transition:width .16s ease;'
+    + 'background:linear-gradient(180deg,#08111d 0%,#0a1320 52%,#07101a 100%);'
+    + 'border-right:1px solid rgba(91,156,255,.18);display:flex;flex-direction:column;'
+    + 'overflow-y:auto;overflow-x:hidden;transition:width .16s ease;box-shadow:14px 0 34px rgba(0,0,0,.22);'
     + 'font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}'
     + 'html.agrail-min .agrail{width:' + WMIN + 'px;}'
-    + '.agrail-top{display:flex;align-items:center;gap:8px;padding:12px 12px 10px;'
-    + 'border-bottom:1px solid #1c2735;position:sticky;top:0;background:#0d1420;z-index:1;}'
-    + '.agrail-logo{font-size:15px;flex:none;}'
-    + '.agrail-name{font-size:12px;font-weight:800;letter-spacing:.4px;white-space:nowrap;'
-    + 'overflow:hidden;color:#dbe4f0;}'
-    + '.agrail-tg{margin-left:auto;background:none;border:1px solid #2a3547;color:#7c8aa0;'
-    + 'border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:11px;line-height:1;flex:none;}'
-    + '.agrail-tg:hover{color:#dbe4f0;border-color:#5b9cff;}'
+    + '.agrail-top{display:flex;align-items:center;gap:10px;padding:15px 12px 13px;'
+    + 'border-bottom:1px solid rgba(255,255,255,.06);position:sticky;top:0;'
+    + 'background:rgba(8,17,29,.95);backdrop-filter:blur(12px);z-index:1;}'
+    + '.agrail-logo{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;'
+    + 'font-size:16px;flex:none;background:linear-gradient(135deg,#3ad0e0,#ffc24b);box-shadow:0 8px 20px rgba(58,208,224,.16);}'
+    + '.agrail-name{font-size:11px;font-weight:950;letter-spacing:.3px;white-space:nowrap;'
+    + 'overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;color:#f3f7ff;text-shadow:0 0 18px rgba(91,156,255,.18);}'
+    + '.agrail-name b{color:#8fc2ff;font-weight:950;}'
+    + '.agrail-actions{margin-left:auto;display:flex;align-items:center;gap:6px;flex:none;}'
+    + '.agrail-btn,.agrail-tg{background:#0b1626;border:1px solid rgba(91,156,255,.28);color:#9fb4cf;'
+    + 'border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1;flex:none;}'
+    + '.agrail-btn{display:grid;place-items:center;text-decoration:none;font-size:13px;}'
+    + '.agrail-btn:hover,.agrail-tg:hover{color:#ffffff;border-color:#3ad0e0;background:#0f2135;}'
+    + '.agrail-btn:focus-visible,.agrail-tg:focus-visible{outline:2px solid #5b9cff;outline-offset:1px;}'
 
-    /* the tab table — two columns, so eight subjects cost four rows */
-    + '.agrail-tabs{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:8px 8px 6px;'
-    + 'border-bottom:1px solid #1c2735;}'
-    + '.agrail-tab{display:flex;align-items:center;gap:5px;padding:5px 6px;border-radius:6px;'
-    + 'background:none;border:1px solid transparent;color:#7c8aa0;font-size:9.5px;font-weight:800;'
-    + 'letter-spacing:.4px;text-transform:uppercase;cursor:pointer;white-space:nowrap;overflow:hidden;'
-    + 'font-family:inherit;text-align:left;}'
-    + '.agrail-tab i{font-style:normal;font-size:11px;flex:none;}'
-    + '.agrail-tab:hover{color:#cfe0ff;background:rgba(91,156,255,.08);}'
-    + '.agrail-tab.on{background:rgba(91,156,255,.18);color:#cfe0ff;border-color:#2a3547;}'
-    + '.agrail-tab:focus-visible{outline:2px solid #5b9cff;outline-offset:1px;}'
-    + '.agrail-count{margin-left:auto;font-size:8.5px;color:#5a6577;font-weight:700;}'
-
-    + '.agrail-nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px 22px;}'
-    + '.agrail-nav a{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;'
-    + 'color:#93a2b8;font-size:12px;font-weight:700;text-decoration:none;border:1px solid transparent;'
-    + 'white-space:nowrap;}'
-    + '.agrail-nav a i{font-style:normal;width:16px;text-align:center;flex:none;font-size:13px;}'
-    + '.agrail-nav a span{overflow:hidden;text-overflow:ellipsis;}'
-    + '.agrail-nav a:hover{background:rgba(91,156,255,.10);color:#cfe0ff;}'
-    + '.agrail-nav a.on{background:rgba(91,156,255,.16);color:#cfe0ff;border-color:#2a3547;}'
+    /* fully-open group navigation: every section is visible at once */
+    + '.agrail-nav{display:flex;flex-direction:column;gap:8px;padding:9px 8px 18px;}'
+    + '.agrail-group{display:grid;grid-template-columns:1fr 1fr;gap:4px;}'
+    + '.agrail-section{grid-column:1/-1;display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:6px;'
+    + 'padding:2px 4px;color:#7f94b0;font-size:9.5px;font-weight:950;letter-spacing:.11em;text-transform:uppercase;}'
+    + '.agrail-section i{font-style:normal;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;'
+    + 'font-size:12px;background:rgba(255,255,255,.035);color:#a6bdd8;}'
+    + '.agrail-section b{font-family:ui-monospace,Consolas,monospace;color:#52677f;font-size:10px;}'
+    + '.agrail-nav a{position:relative;display:flex;align-items:center;gap:7px;min-width:0;min-height:34px;padding:6px 8px 6px 30px;border-radius:8px;'
+    + 'color:#a3b7d1;font-size:10.6px;font-weight:780;text-decoration:none;border:1px solid transparent;'
+    + 'white-space:normal;background:rgba(255,255,255,.014);}'
+    + '.agrail-nav a i{font-style:normal;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;'
+    + 'flex:none;font-size:12px;background:rgba(255,255,255,.04);position:absolute;left:6px;}'
+    + '.agrail-nav a span{overflow:visible;min-width:0;line-height:1.12;}'
+    + '.agrail-status{margin-left:auto;border-radius:999px;padding:0;width:7px;height:7px;overflow:hidden;text-indent:0;font-size:0;line-height:0;flex:none;'
+    + 'color:#9fb4cf;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.08);}'
+    + '.agrail-status.blocked{color:#ffb9c6;background:rgba(255,84,112,.12);border-color:rgba(255,84,112,.22);}'
+    + '.agrail-status.paper{color:#f0dcae;background:rgba(255,194,75,.11);border-color:rgba(255,194,75,.22);}'
+    + '.agrail-status.research{color:#aee9f2;background:rgba(58,208,224,.10);border-color:rgba(58,208,224,.20);}'
+    + '.agrail-nav a:hover{background:rgba(91,156,255,.10);color:#eaf2ff;border-color:rgba(91,156,255,.18);}'
+    + '.agrail-nav a:hover i{background:rgba(91,156,255,.14);}'
+    + '.agrail-nav a.on{background:linear-gradient(90deg,rgba(255,194,75,.16),rgba(58,208,224,.10));'
+    + 'color:#ffffff;border-color:rgba(255,194,75,.24);}'
+    + '.agrail-nav a.on::after{content:"";position:absolute;right:8px;width:6px;height:6px;border-radius:50%;background:#ffc24b;}'
+    + '.agrail-nav a.on i{background:rgba(255,194,75,.16);}'
     + '.agrail-nav a:focus-visible{outline:2px solid #5b9cff;outline-offset:1px;}'
 
-    /* collapsed: the TABS become the rail. Clicking one expands and opens it, so
-       every page is still reachable at 56px — a collapsed rail that can only show
-       one tab's icons would hide the other seven subjects entirely. */
-    + 'html.agrail-min .agrail-name,html.agrail-min .agrail-nav,'
-    + 'html.agrail-min .agrail-count{display:none;}'
-    + 'html.agrail-min .agrail-tabs{grid-template-columns:1fr;gap:2px;padding:8px 6px;border-bottom:none;}'
-    + 'html.agrail-min .agrail-tab{justify-content:center;padding:9px 0;font-size:0;gap:0;}'
-    + 'html.agrail-min .agrail-tab i{font-size:15px;}'
-    + 'html.agrail-min .agrail-top{padding:12px 6px 10px;}'
+    + 'html.agrail-min .agrail-name,html.agrail-min .agrail-nav{display:none;}'
+    + 'html.agrail-min .agrail-top{padding:10px 7px 11px;flex-direction:column;gap:8px;}'
+    + 'html.agrail-min .agrail-logo{width:32px;height:32px;}'
+    + 'html.agrail-min .agrail-actions{margin-left:0;flex-direction:column;gap:6px;}'
+    + 'html.agrail-min .agrail-btn,html.agrail-min .agrail-tg{display:grid;width:34px;height:34px;}'
 
     + '@media(max-width:820px){.agrail{width:' + WMIN + 'px;}'
-    + '.agrail-name,.agrail-nav,.agrail-count{display:none;}'
-    + '.agrail-tabs{grid-template-columns:1fr;gap:2px;padding:8px 6px;border-bottom:none;}'
-    + '.agrail-tab{justify-content:center;padding:9px 0;font-size:0;gap:0;}'
-    + '.agrail-tab i{font-size:15px;}.agrail-tg{display:none;}}'
+    + '.agrail-name,.agrail-nav{display:none;}'
+    + '.agrail-top{padding:10px 7px 11px;flex-direction:column;gap:8px;}'
+    + '.agrail-actions{margin-left:0;flex-direction:column;gap:6px;}'
+    + '.agrail-logo{width:32px;height:32px;}.agrail-btn,.agrail-tg{display:grid;width:34px;height:34px;}}'
     + '@media (prefers-reduced-motion: reduce){.agrail{transition:none;}}';
 
   function injectCss() {
@@ -209,78 +211,46 @@
   function tabOf(p) { return tabKeys.indexOf(p.k) >= 0 ? p.k : 'live'; }
   function pagesIn(k) { return PAGES.filter(function (p) { return tabOf(p) === k; }); }
 
-  /** Which tab should be open?
-   *    1. the one containing the page we are on — always wins, because landing on
-   *       a page and seeing a different tab open is disorienting
-   *    2. the last one the operator chose
-   *    3. Live
-   */
-  function activeTab() {
-    for (var i = 0; i < PAGES.length; i++) if (isHere(PAGES[i])) return tabOf(PAGES[i]);
-    var saved = null;
-    try { saved = localStorage.getItem(TABKEY); } catch (e) { storageOk = false; }
-    return tabKeys.indexOf(saved) >= 0 ? saved : 'live';
-  }
-
-  var current = 'live';
-
-  function renderTabs() {
-    var h = '';
-    for (var i = 0; i < TABS.length; i++) {
-      var tb = TABS[i];
-      var n = pagesIn(tb.k).length;
-      h += '<button class="agrail-tab' + (tb.k === current ? ' on' : '') + '" data-tab="' + tb.k + '"'
-        + ' title="' + tb.t + ' (' + n + ')" aria-pressed="' + (tb.k === current) + '">'
-        + '<i>' + tb.i + '</i>' + tb.t + '<span class="agrail-count">' + n + '</span></button>';
-    }
-    return h;
-  }
-
   function renderPages() {
-    var list = pagesIn(current);
     var h = '';
-    for (var i = 0; i < list.length; i++) {
-      var p = list[i];
-      var on = isHere(p);
-      h += '<a href="' + p.h + '"' + (on ? ' class="on" aria-current="page"' : '')
-        + ' title="' + p.t + '"><i>' + p.i + '</i><span>' + p.t + '</span></a>';
+    for (var g = 0; g < TABS.length; g++) {
+      var tab = TABS[g];
+      var list = pagesIn(tab.k);
+      if (!list.length) continue;
+      h += '<section class="agrail-group">'
+        + '<div class="agrail-section"><i>' + tab.i + '</i><span>' + tab.t + '</span><b>' + list.length + '</b></div>';
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        var on = isHere(p);
+        h += '<a href="' + p.h + '"' + (on ? ' class="on" aria-current="page"' : '')
+          + ' title="' + p.t + '"><i>' + p.i + '</i><span>' + p.t + '</span>'
+          + (p.s ? '<em class="agrail-status ' + p.s.toLowerCase() + '">' + p.s + '</em>' : '')
+          + '</a>';
+      }
+      h += '</section>';
     }
     return h;
   }
 
   function paint() {
-    var t = document.getElementById('agrailTabs');
     var n = document.getElementById('agrailNav');
-    if (t) t.innerHTML = renderTabs();
     if (n) n.innerHTML = renderPages();
   }
 
-  function selectTab(k) {
-    if (tabKeys.indexOf(k) < 0) return;
-    current = k;
-    if (storageOk) { try { localStorage.setItem(TABKEY, k); } catch (e) { storageOk = false; } }
-    // Choosing a subject while collapsed means you want to see it.
-    if (document.documentElement.classList.contains('agrail-min')) {
-      document.documentElement.classList.remove('agrail-min');
-      if (storageOk) { try { localStorage.setItem('ag-rail-min', '0'); } catch (e) { storageOk = false; } }
-      applyOffset();
-      window.dispatchEvent(new Event('resize'));
-    }
-    paint();
-  }
-
   function build() {
-    current = activeTab();
     var aside = document.createElement('aside');
     aside.className = 'agrail';
-    aside.setAttribute('aria-label', 'Sections');
+    aside.setAttribute('aria-label', 'Navigation');
 
     aside.innerHTML = '<div class="agrail-top">'
       + '<span class="agrail-logo">🚀</span>'
       + '<span class="agrail-name">ANTIGRAVITY <b>PRO</b></span>'
-      + '<button class="agrail-tg" id="agrailTg" aria-label="Collapse or expand the sidebar">‹</button>'
+      + '<div class="agrail-actions">'
+      + '<a class="agrail-btn" id="agrailCommand" href="/dashboard.html" aria-label="Open Command dashboard" title="Command">⌂</a>'
+      + '<button class="agrail-btn" id="agrailFull" aria-label="Toggle fullscreen" title="Fullscreen (f)">⛶</button>'
+      + '<button class="agrail-tg" id="agrailTg" aria-label="Collapse or expand the sidebar" title="Collapse or expand">‹</button>'
       + '</div>'
-      + '<div class="agrail-tabs" id="agrailTabs" role="tablist" aria-label="Subjects"></div>'
+      + '</div>'
       + '<nav class="agrail-nav" id="agrailNav" aria-label="Pages"></nav>';
 
     document.body.insertBefore(aside, document.body.firstChild);
@@ -289,10 +259,9 @@
     // Inline offset so a page's own `body{padding}` cannot cancel it.
     applyOffset();
     document.getElementById('agrailTg').addEventListener('click', toggle);
-    document.getElementById('agrailTabs').addEventListener('click', function (e) {
-      var b = e.target.closest ? e.target.closest('.agrail-tab') : null;
-      if (b) selectTab(b.getAttribute('data-tab'));
-    });
+    document.getElementById('agrailFull').addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', applyFullscreenState);
+    applyFullscreenState();
   }
 
   function applyOffset() {
@@ -301,6 +270,28 @@
     document.body.style.paddingLeft = ((min || narrow) ? WMIN : W) + 'px';
     var b = document.getElementById('agrailTg');
     if (b) { b.textContent = min ? '›' : '‹'; b.title = (min ? 'Expand' : 'Collapse') + ' (b)'; }
+  }
+
+  function applyFullscreenState() {
+    var b = document.getElementById('agrailFull');
+    if (!b) return;
+    var on = !!document.fullscreenElement;
+    b.textContent = on ? '↙' : '⛶';
+    b.title = on ? 'Exit fullscreen (f)' : 'Fullscreen (f)';
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else {
+        var el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+      }
+    } catch (e) {
+      // Fullscreen can be refused by the browser or embedding shell; the button stays harmless.
+    }
   }
 
   function toggle() {
@@ -322,10 +313,11 @@
     build();
     window.addEventListener('resize', applyOffset);
     document.addEventListener('keydown', function (e) {
-      if (e.key !== 'b' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if ((e.key !== 'b' && e.key !== 'f') || e.ctrlKey || e.metaKey || e.altKey) return;
       var t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      toggle();
+      if (e.key === 'b') toggle();
+      if (e.key === 'f') toggleFullscreen();
     });
   }
 

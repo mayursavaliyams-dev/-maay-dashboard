@@ -47,6 +47,8 @@ console.log('Stock Analyst agent');
 {
   const bull = sa.fuseVerdict({ momentum: { score: 60 }, news: { score: 40, articles: 3 }, dealImpacts: [{ direction: 'UP', probability: 70 }] });
   ok(bull.direction === 'UP' && bull.probability > 60, `all sources bullish → UP high prob (${bull.probability}%)`);
+  ok(bull.strength === bull.probability && bull.calibrationStatus === 'uncalibrated' && bull.recommendationStatus === 'research_only',
+    'verdict exposes legacy probability as uncalibrated research strength');
   ok(bull.params.sourcesAgree === true, 'agreement flagged in parameters');
   const bear = sa.fuseVerdict({ momentum: { score: -55 }, news: { score: -30, articles: 2 }, dealImpacts: [] });
   ok(bear.direction === 'DOWN' && bear.probability > 55, 'bearish agreement → DOWN');

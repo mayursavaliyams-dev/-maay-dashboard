@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Market Data | Antigravity Pro</title>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:var(--bg-wash);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+    main{max-width:1380px;margin:0 auto;padding:22px 18px 42px}
+    .top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+    h1{margin:0;font-size:1.52rem;font-weight:950;letter-spacing:0}.sub{margin-top:5px;color:var(--muted);font-size:.9rem}
+    button{border:1px solid rgba(91,156,255,.34);background:#0f2135;color:#eef6ff;border-radius:8px;padding:8px 12px;font-weight:900;cursor:pointer}
+    .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}.card{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:13px;min-width:0}.k{font-size:.72rem;color:var(--muted);text-transform:uppercase;font-weight:900;letter-spacing:.09em}.v{font-size:1.18rem;font-weight:950;margin-top:5px;word-break:break-word}
+    .ok{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--amber)}.muted{color:var(--muted)}
+    .tablewrap{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:auto}table{width:100%;border-collapse:collapse;min-width:980px}th,td{padding:11px 10px;border-bottom:1px solid rgba(148,168,192,.12);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{font-size:.74rem;color:#8fa3be;text-transform:uppercase;letter-spacing:.08em;background:#101b2b}td{font-weight:850}.tag{display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--line);padding:3px 8px;font-size:.78rem;font-weight:950}.bull{color:#a6f1dd;border-color:rgba(38,208,160,.28);background:rgba(38,208,160,.08)}.bear{color:#ffc8d1;border-color:rgba(255,84,112,.28);background:rgba(255,84,112,.08)}.neutral{color:#ffe2a0;border-color:rgba(255,194,75,.28);background:rgba(255,194,75,.08)}
+    .note{margin-top:10px;border:1px solid rgba(255,194,75,.24);background:rgba(255,194,75,.08);color:#ffe4aa;border-radius:8px;padding:10px 12px;font-size:.86rem;line-height:1.45}
+    @media(max-width:900px){.top{flex-direction:column}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}main{padding:18px 12px 32px}}
+    @media(min-width:1920px){main{max-width:1680px}.cards{grid-template-columns:repeat(4,minmax(0,1fr))}body{font-size:17px}}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="top">
+      <div>
+        <h1>Market Data</h1>
+        <div class="sub">Regular index samples with VWAP, EMA, RSI, MACD and research-only bias.</div>
+      </div>
+      <button id="refresh">Refresh</button>
+    </div>
+
+    <section class="cards">
+      <article class="card"><div class="k">Poller</div><div class="v" id="poller">Loading</div></article>
+      <article class="card"><div class="k">Interval</div><div class="v" id="interval">-</div></article>
+      <article class="card"><div class="k">Last Read</div><div class="v" id="last">-</div></article>
+      <article class="card"><div class="k">Source</div><div class="v" id="source">-</div></article>
+    </section>
+
+    <section class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Index</th><th>Samples</th><th>Price</th><th>VWAP</th><th>EMA 9</th><th>EMA 21</th><th>RSI 14</th><th>MACD Hist</th><th>Momentum</th><th>Bias</th><th>Age</th>
+          </tr>
+        </thead>
+        <tbody id="rows"><tr><td colspan="11" class="muted">Loading</td></tr></tbody>
+      </table>
+    </section>
+
+    <div class="note">Bias is not a buy/sell recommendation. It is a research read from the server's regular samples; stale or short-history indicators stay blank.</div>
+  </main>
+  <script src="/js/rail.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmt = v => v == null ? '-' : String(v);
+    const age = ms => ms == null ? '-' : ms < 1000 ? `${ms}ms` : `${Math.round(ms/1000)}s`;
+    function cls(label){ label=String(label||'').toLowerCase(); return label.includes('bull')?'bull':label.includes('bear')?'bear':'neutral'; }
+    async function load(){
+      const res = await fetch('/api/market-data/indicators', { cache:'no-store' });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      $('poller').innerHTML = data.poller.enabled ? '<span class="ok">ON</span>' : '<span class="bad">OFF</span>';
+      $('interval').textContent = `${data.poller.pollMs || '-'} ms`;
+      $('last').textContent = data.poller.lastRunAt || 'waiting';
+      $('source').textContent = data.source || '-';
+      $('rows').innerHTML = (data.rows || []).map(r => {
+        const ind = r.indicators || {}, tr = r.trend || {};
+        return `<tr>
+          <td>${esc(r.inst)}</td><td>${fmt(r.samples)}</td><td>${fmt(r.price)}</td><td>${fmt(ind.vwap)}</td><td>${fmt(ind.ema9)}</td><td>${fmt(ind.ema21)}</td>
+          <td>${fmt(ind.rsi14)}</td><td>${fmt(ind.macdHistogram)}</td><td>${fmt(ind.momentumPct)}%</td>
+          <td><span class="tag ${cls(tr.label)}" title="${esc((tr.reasons || []).join(' | ') || r.reason || '')}">${esc(tr.actionBias || r.reason || 'WAIT')}</span></td>
+          <td class="${r.stale ? 'warn' : 'ok'}">${age(r.ageMs)}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="11" class="muted">No rows</td></tr>';
+    }
+    $('refresh').addEventListener('click', load);
+    load().catch(e => { $('poller').innerHTML = '<span class="bad">API ERROR</span>'; $('rows').innerHTML = `<tr><td colspan="11" class="bad">${esc(e.message)}</td></tr>`; });
+    setInterval(load, 15000);
+  </script>
+</body>
+</html>

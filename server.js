@@ -24,6 +24,7 @@ const candlestickPatterns = require("./candlestick-patterns");
 const smartMoney = require("./smart-money");
 const volContext = require("./vol-context");
 const payoffEngine = require("./payoff-engine");
+const marketIndicators = require("./market-indicators");
 // Signal-Engine Roadmap heads (docs/SIGNAL-ENGINE-ROADMAP.md)
 const tradePlanner = require("./trade-planner");   // Phase 4 — signal → structure → size
 const gexSkew = require("./gex-skew");             // Phase 2 — GEX/OI range/trend label + skew
@@ -189,6 +190,7 @@ const PORT = process.env.PORT || 3000;
    failure naming what is missing, and nothing is ever substituted for anything
    else. See connector-select.js. */
 const { selectConnector, orderCapability } = require('./connector-select');
+const { livePermission } = require('./live-permission');
 
 let live, CONNECTOR_NAME, CONNECTOR_ORDER_CAPABILITY;
 try {
@@ -631,6 +633,20 @@ let _yahooPriceAt = 0;
 let _yahooNiftyPrice = 0;
 let _yahooNiftyPriceAt = 0;
 const QUOTE_TIMEOUT_MS = Number(process.env.QUOTE_TIMEOUT_MS || 2500);
+const MARKET_DATA_POLL_MS = Math.max(5000, Number(process.env.MARKET_DATA_POLL_MS || 15000));
+const MARKET_DATA_SAMPLE_MAX = Math.max(60, Number(process.env.MARKET_DATA_SAMPLE_MAX || 500));
+const _marketSamples = {
+  SENSEX: [],
+  NIFTY: [],
+  BANKNIFTY: [],
+};
+const _marketPollState = {
+  enabled: process.env.MARKET_DATA_POLL_ENABLED !== 'false',
+  pollMs: MARKET_DATA_POLL_MS,
+  lastRunAt: null,
+  lastError: null,
+  reads: 0,
+};
 
 function _withTimeout(promise, ms, label = 'operation') {
   let timer;
@@ -754,7 +770,7 @@ const _hlVerifier = new HLVerifier({
   confirmTimeoutMs: 90_000,                // polls are seconds apart; give the candle tier a window
 });
 
-function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0) {
+function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0, oi = null, changeOI = null, meta = null) {
   // Before 09:15 Dhan may carry the previous session's option OHLC.
   // Today's candle reconciliation handles historical/after-close values.
   if (!getMarketSession().inMarketHours) return;
@@ -776,10 +792,22 @@ function _updateOptHL(inst, strike, type, ltp, quoteHigh = 0, quoteLow = 0) {
   if (!rec || rec.date !== today) {
     rec = { date: today, high: observedHigh, highAt: now, low: observedLow, lowAt: now,
             highPath: [], lowPath: [], tickPath: [] };
+    if (Number.isFinite(Number(oi))) rec.oi = Number(oi);
+    if (Number.isFinite(Number(changeOI))) rec.changeOI = Number(changeOI);
+    if (meta && Number.isFinite(Number(meta.bid))) rec.bid = Number(meta.bid);
+    if (meta && Number.isFinite(Number(meta.ask))) rec.ask = Number(meta.ask);
+    if (meta && Number.isFinite(Number(meta.volume))) rec.volume = Number(meta.volume);
+    rec.quoteAt = now;
     if (last > 0 && isFinite(last)) rec.tickPath.push({ t: now, at: now, p: last });
     store.set(key, rec);
     return;
   }
+  if (Number.isFinite(Number(oi))) rec.oi = Number(oi);
+  if (Number.isFinite(Number(changeOI))) rec.changeOI = Number(changeOI);
+  if (meta && Number.isFinite(Number(meta.bid))) rec.bid = Number(meta.bid);
+  if (meta && Number.isFinite(Number(meta.ask))) rec.ask = Number(meta.ask);
+  if (meta && Number.isFinite(Number(meta.volume))) rec.volume = Number(meta.volume);
+  rec.quoteAt = now;
 
   // R1: route the observation through the verifier. rec.high/low update ONLY on
   // a confirmed extreme — never on the raw observation. A new candidate waits
@@ -1266,7 +1294,9 @@ async function _backfillOptHLFromDhan(inst, strike, type, securityId) {
 function _withLegHistory(inst, strike, leg, type) {
   if (!leg) return null;
   const ltp = Number(leg.ltp || 0);
-  _updateOptHL(inst, strike, type, ltp, Number(leg.high || 0), Number(leg.low || 0));
+  _updateOptHL(inst, strike, type, ltp, Number(leg.high || 0), Number(leg.low || 0),
+    Number(leg.oi || 0), Number(leg.changeOI || 0),
+    { bid: leg.bid, ask: leg.ask, volume: leg.volume });
   const hl = _getOptHL(inst, strike, type) || {};
   const sessionHigh = Number(hl.high || 0) || null;
   const sessionLowCandidates = [Number(hl.low || 0)].filter(v => v > 0 && isFinite(v));
@@ -1767,6 +1797,60 @@ async function getLiveBankNiftyPrice() {
   } catch (_) { /* use cached */ }
   return _bankNiftyLivePrice;
 }
+
+function _recordMarketSample(inst, price, volume = 0, source = 'server-poller') {
+  const key = String(inst || '').toUpperCase();
+  if (!_marketSamples[key]) return;
+  const p = Number(price);
+  if (!Number.isFinite(p) || p <= 0) return;
+  const rows = _marketSamples[key];
+  rows.push({ t: Date.now(), price: p, volume: Number(volume || 0), source });
+  while (rows.length > MARKET_DATA_SAMPLE_MAX) rows.shift();
+}
+
+async function _pollMarketDataIndicators() {
+  if (!_marketPollState.enabled) return;
+  const session = getMarketSession();
+  if (!session.inMarketHours && process.env.MARKET_DATA_FORCE_OPEN !== 'true') return;
+
+  try {
+    const [sensex, nifty, banknifty] = await Promise.allSettled([
+      getLivePrice(),
+      getLiveNiftyPrice(),
+      getLiveBankNiftyPrice(),
+    ]);
+    if (sensex.status === 'fulfilled') _recordMarketSample('SENSEX', sensex.value, 0);
+    if (nifty.status === 'fulfilled') _recordMarketSample('NIFTY', nifty.value, 0);
+    if (banknifty.status === 'fulfilled') _recordMarketSample('BANKNIFTY', banknifty.value, 0);
+
+    const failed = [sensex, nifty, banknifty].filter(r => r.status === 'rejected');
+    _marketPollState.lastRunAt = new Date().toISOString();
+    _marketPollState.reads += 1;
+    _marketPollState.lastError = failed.length ? failed.map(r => r.reason?.message || String(r.reason)).join(' | ') : null;
+  } catch (e) {
+    _marketPollState.lastError = e.message;
+  }
+}
+
+function _marketIndicatorSnapshot(inst = null) {
+  const now = Date.now();
+  const make = (key) => ({
+    inst: key,
+    ...marketIndicators.compute(_marketSamples[key], { now, maxSamples: MARKET_DATA_SAMPLE_MAX }),
+  });
+  const wanted = inst ? [String(inst).toUpperCase()] : Object.keys(_marketSamples);
+  const rows = wanted.filter(k => _marketSamples[k]).map(make);
+  return {
+    ok: true,
+    source: 'server regular market-data poller',
+    poller: _marketPollState,
+    generatedAt: new Date(now).toISOString(),
+    rows,
+  };
+}
+
+setInterval(() => { _pollMarketDataIndicators().catch(() => {}); }, MARKET_DATA_POLL_MS).unref?.();
+setTimeout(() => { _pollMarketDataIndicators().catch(() => {}); }, 2500);
 
 function getSuggestedStrike(price, signalType) {
   const roundStrike = Math.round(price / 100) * 100;
@@ -2765,7 +2849,9 @@ async function _buildOptionSnapshot(instrument = 'NIFTY') {
     const normalizeLeg = (leg, type, strike) => {
       if (!leg) return {};
       const ltp = Number(leg.ltp || 0);
-      _updateOptHL(inst, strike, type, ltp, Number(leg.high || 0), Number(leg.low || 0));
+      _updateOptHL(inst, strike, type, ltp, Number(leg.high || 0), Number(leg.low || 0),
+        Number(leg.oi || 0), Number(leg.changeOI || 0),
+        { bid: leg.bid, ask: leg.ask, volume: leg.volume });
       const hl = _getOptHL(inst, strike, type) || {};
       // Black-Scholes fill (FREE, no extra API): Upstox leaves IV/greeks at 0 on many
       // strikes — solve implied vol from the live LTP, then derive greeks from it.
@@ -2845,6 +2931,11 @@ async function _buildOptionSnapshot(instrument = 'NIFTY') {
       spotPrice: +spot.toFixed(2),
       atmStrike,
       instrument: inst,
+      // Contract identity. Without it a stored chain row cannot say WHICH series it
+      // describes, and on a day carrying two live expiries it stays ambiguous forever.
+      // The value was already computed above for the Black-Scholes fill and then
+      // dropped here — it was never missing from the feed, only unpublished.
+      expiry: _bsmExp,
       source: chain?.source || DATA_SOURCE,
       timestamp: new Date(analyticsAt).toISOString(),
       ts: analyticsAt,
@@ -4520,7 +4611,12 @@ function _computeTrendFromHL(inst, currentPrice, orbHigh, orbLow, vwap) {
   ].sort((a, b) => a.t - b.t);
   if (events.length < 2) return {
     trend: 'RANGE', confidence: 10, reason: 'not enough breaks yet',
-    events: events.length, recommend: 'WAIT'
+    events: events.length,
+    researchBias: 'NEUTRAL',
+    actionLabel: 'WAIT',
+    paperOnly: true,
+    recommendationStatus: 'disabled_uncalibrated',
+    recommend: 'WAIT'
   };
 
   // Count tail consecutive same-direction events
@@ -4537,10 +4633,10 @@ function _computeTrendFromHL(inst, currentPrice, orbHigh, orbLow, vwap) {
     : null;
 
   // Base label
-  let trend, recommend;
-  if (consec >= 3 && tailDir === 'HIGH')     { trend = 'HIGH_TREND'; recommend = 'BUY_CALL'; }
-  else if (consec >= 3 && tailDir === 'LOW') { trend = 'LOW_TREND';  recommend = 'BUY_PUT';  }
-  else                                       { trend = 'RANGE';      recommend = 'WAIT';     }
+  let trend, researchBias, actionLabel;
+  if (consec >= 3 && tailDir === 'HIGH')     { trend = 'HIGH_TREND'; researchBias = 'UPSIDE_PRESSURE'; actionLabel = 'WATCH_UPSIDE'; }
+  else if (consec >= 3 && tailDir === 'LOW') { trend = 'LOW_TREND';  researchBias = 'DOWNSIDE_PRESSURE'; actionLabel = 'WATCH_DOWNSIDE'; }
+  else                                       { trend = 'RANGE';      researchBias = 'NEUTRAL'; actionLabel = 'WAIT'; }
 
   // Confidence scoring 0-100
   let conf = Math.min(40, consec * 12);                                                // structure
@@ -4565,7 +4661,13 @@ function _computeTrendFromHL(inst, currentPrice, orbHigh, orbLow, vwap) {
   return {
     inst,
     trend,
-    recommend,
+    researchBias,
+    actionLabel,
+    paperOnly: true,
+    recommendationStatus: 'disabled_uncalibrated',
+    recommendationNote: 'H/L trend is a structural research read only. It is not a broker order, recommendation, or calibrated probability.',
+    /* Deprecated compatibility field. New UI should read actionLabel. */
+    recommend: actionLabel,
     confidence: conf,
     consec,
     tailDir,
@@ -4735,8 +4837,8 @@ app.get('/api/pop/scan', async (req, res) => {
     const chain = await meta.chainGetter(spot);
     const chainStrikes = (chain.strikes || []).map(s => ({
       strike: Number(s.strike),
-      ce: s.ce ? { ltp: Number(s.ce.ltp), delta: Number(s.ce.delta), iv: s.ce.iv } : null,
-      pe: s.pe ? { ltp: Number(s.pe.ltp), delta: Number(s.pe.delta), iv: s.pe.iv } : null
+      ce: s.ce ? { ltp: Number(s.ce.ltp), delta: Number(s.ce.delta), iv: s.ce.iv, oi: Number(s.ce.oi || 0), volume: Number(s.ce.volume || 0) } : null,
+      pe: s.pe ? { ltp: Number(s.pe.ltp), delta: Number(s.pe.delta), iv: s.pe.iv, oi: Number(s.pe.oi || 0), volume: Number(s.pe.volume || 0) } : null
     }));
 
     // Extract ATM IV from chain (best available IV near ATM)
@@ -4744,18 +4846,117 @@ app.get('/api/pop/scan', async (req, res) => {
     const atmRow = chainStrikes.find(s => s.strike === atm) || chainStrikes[Math.floor(chainStrikes.length/2)];
     const rawIV = atmRow?.ce?.iv || atmRow?.pe?.iv;
     const atmIV = rawIV && !isNaN(Number(rawIV)) ? Number(rawIV) : null;
+    let regime = null;
+    try {
+      regime = await _computeRegime(inst);
+    } catch (profileErr) {
+      console.warn('[pop-profile] regime unavailable:', profileErr.message);
+    }
+    let indicators = null;
+    try {
+      indicators = (_marketIndicatorSnapshot(inst).rows || [])[0] || null;
+    } catch (profileErr) {
+      console.warn('[pop-profile] indicator snapshot unavailable:', profileErr.message);
+    }
+    const marketProfile = popSeller.saveMarketProfile(popSeller.buildMarketProfile({
+      inst, spot, chainStrikes, atmIV, regime, indicators,
+    }));
 
-    const candidates = popSeller.scanPoP({ inst, spot, chainStrikes, minPoP, maxResults: 40, atmIV });
-    const ironCondor = popSeller.buildIronCondor({ inst, spot, chainStrikes, minPoP, atmIV });
+    const candidates = popSeller.scanPoP({ inst, spot, chainStrikes, minPoP, maxResults: 40, atmIV, marketProfile });
+    const ironCondor = popSeller.buildIronCondor({ inst, spot, chainStrikes, minPoP, atmIV, marketProfile });
     const dte = popSeller.daysToExpiry(inst);
     res.json({
-      inst, spot: +Number(spot).toFixed(2), minPoP,
+      inst, spot: +Number(spot).toFixed(2), minPoP, effectiveMinPoP: marketProfile.minPoP,
+      marketProfile,
       atmIV: atmIV ? +(Number(atmIV) > 5 ? Number(atmIV) : Number(atmIV)*100).toFixed(1) : null,
       daysToExpiry: +(dte*365).toFixed(1),
       count: candidates.length, candidates, ironCondor
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// TradingView Pine trigger -> scan current chain -> open one paper-only PoP structure.
+app.post('/api/pop/auto-paper', express.json(), async (req, res) => {
+  const b = req.body || {};
+  const key = b.key || req.headers['x-api-key'];
+  const expectedKey = process.env.AMIBROKER_API_KEY || 'antigravity';
+  if (key !== expectedKey) return res.status(401).json({ ok: false, error: 'unauthorized' });
+
+  const inst = String(b.index || b.inst || 'NIFTY').toUpperCase();
+  const minPoP = Math.max(50, Number(b.minPoP || 75));
+  const openForInst = popSeller.getBook().filter((p) => p.status === 'OPEN' && String(p.inst).toUpperCase() === inst);
+  if (openForInst.length) {
+    return res.json({ ok: false, action: 'SKIP', reason: 'open_position_exists', inst, openPositions: openForInst.length });
+  }
+
+  try {
+    const meta = getInstrumentMeta(inst);
+    const spot = await meta.priceGetter();
+    const chain = await meta.chainGetter(spot);
+    const chainStrikes = (chain.strikes || []).map(s => ({
+      strike: Number(s.strike),
+      ce: s.ce ? { ltp: Number(s.ce.ltp), delta: Number(s.ce.delta), iv: s.ce.iv, oi: Number(s.ce.oi || 0), volume: Number(s.ce.volume || 0) } : null,
+      pe: s.pe ? { ltp: Number(s.pe.ltp), delta: Number(s.pe.delta), iv: s.pe.iv, oi: Number(s.pe.oi || 0), volume: Number(s.pe.volume || 0) } : null
+    }));
+    const atm = Math.round(spot / (inst === 'NIFTY' ? 50 : 100)) * (inst === 'NIFTY' ? 50 : 100);
+    const atmRow = chainStrikes.find(s => s.strike === atm) || chainStrikes[Math.floor(chainStrikes.length / 2)];
+    const rawIV = atmRow?.ce?.iv || atmRow?.pe?.iv;
+    const atmIV = rawIV && !isNaN(Number(rawIV)) ? Number(rawIV) : null;
+    let regime = null;
+    try {
+      regime = await _computeRegime(inst);
+    } catch (profileErr) {
+      console.warn('[pop-profile] regime unavailable:', profileErr.message);
+    }
+    let indicators = null;
+    try {
+      indicators = (_marketIndicatorSnapshot(inst).rows || [])[0] || null;
+    } catch (profileErr) {
+      console.warn('[pop-profile] indicator snapshot unavailable:', profileErr.message);
+    }
+    const marketProfile = popSeller.saveMarketProfile(popSeller.buildMarketProfile({
+      inst, spot, chainStrikes, atmIV, regime, indicators,
+    }));
+    if (!marketProfile.allowSelling) {
+      return res.json({ ok: false, action: 'SKIP', reason: 'market_profile_stand_down', inst, minPoP, marketProfile });
+    }
+    const structure = popSeller.buildIronCondor({ inst, spot, chainStrikes, minPoP, atmIV, marketProfile });
+    if (!structure || !Array.isArray(structure.legs) || !structure.legs.length) {
+      return res.json({ ok: false, action: 'SKIP', reason: 'no_qualifying_structure', inst, minPoP, marketProfile });
+    }
+
+    const day = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+    const legKey = structure.legs
+      .map((l) => `${String(l.action || 'SELL').toUpperCase()}:${l.type}:${l.strike}`)
+      .sort()
+      .join(',');
+    const autoKey = String(b.alertId || `${day}|${inst}|${legKey}`).slice(0, 200);
+    const source = String(b.source || 'pine-pop-seller').slice(0, 48);
+    const positions = [];
+    for (const leg of structure.legs) {
+      const action = String(leg.action).toUpperCase() === 'BUY' ? 'BUY_' : 'SELL_';
+      const result = popSeller.sellPoP({
+        inst,
+        side: action + leg.type,
+        strike: leg.strike,
+        type: leg.type,
+        premium: leg.premium,
+        lot: structure.lot,
+        pop: leg.pop,
+        tradeMode: 'paper',
+        source,
+        auto: true,
+        autoKey
+      });
+      if (!result.ok) return res.status(403).json({ ok: false, action: 'BLOCKED', inst, reason: result.reason });
+      positions.push(result.position);
+    }
+
+    res.json({ ok: true, action: 'PAPER_OPEN', inst, spot: +Number(spot).toFixed(2), minPoP, effectiveMinPoP: marketProfile.minPoP, marketProfile, autoKey, positions });
+  } catch (e) {
+    res.status(500).json({ ok: false, action: 'ERROR', inst, error: e.message });
   }
 });
 
@@ -4775,8 +4976,11 @@ app.post('/api/pop/sell', express.json(), (req, res) => {
   const result = popSeller.sellPoP({
     inst: b.inst, side: b.side, strike: b.strike, type: b.type,
     premium: b.premium, lot: b.lot, pop: b.pop,
-    tradeMode: process.env.TRADE_MODE || 'paper',
-    confirmLive: b.confirmLive === true
+    tradeMode: b.paperOnly === true ? 'paper' : (process.env.TRADE_MODE || 'paper'),
+    confirmLive: b.confirmLive === true,
+    source: b.source,
+    auto: b.auto === true,
+    autoKey: b.autoKey
   });
   res.status(result.ok ? 200 : 403).json(result);
 });
@@ -4789,6 +4993,12 @@ app.post('/api/pop/close', express.json(), (req, res) => {
 
 // PoP book + status.
 app.get('/api/pop/status', (_req, res) => res.json(popSeller.popStatus()));
+app.get('/api/pop/profile', (req, res) => {
+  try {
+    const inst = req.query.inst ? String(req.query.inst).toUpperCase() : null;
+    res.json({ ok: true, ...popSeller.loadMarketProfiles(inst) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
 
 // ── Extra indices (BANKEX, MIDCPNIFTY, FINNIFTY, VIX) via Yahoo Finance ───────
 const _extraCache = { data: null, at: 0 };
@@ -6576,6 +6786,168 @@ app.get('/api/execution/status', (req, res) => {
   });
 });
 
+/* The one ledger in this repository that stores a shown probability beside the
+ * outcome it predicted. The result is named after it in the payload on purpose:
+ * this measures the AI-agents signal, not every number the platform displays.
+ *
+ * `outcomeOf` states the assumption out loud rather than burying it. The ledger's
+ * `probability` is a directional-impact estimate; `pnl` is what that estimate AND
+ * the +40%/-20% exit rule produced together. Scoring one against the other is a
+ * modelling choice, and it is the caller's to declare. */
+let _calibCache = { at: 0, val: null };
+function _calibrationStatus() {
+  if (_calibCache.val && Date.now() - _calibCache.at < 60_000) return _calibCache.val;
+  const val = calibrateFile(path.join(__dirname, 'data', 'ai-agents-trades.json'), {
+    predictedOf: (x) => x.probability,
+    outcomeOf: (x) => (x.exitAt != null && Number.isFinite(Number(x.pnl))) ? Number(x.pnl) > 0 : null,
+  });
+  _calibCache = { at: Date.now(), val };
+  return val;
+}
+
+function _readinessSnapshot() {
+  const _calib = _calibrationStatus();
+  const mode = process.env.TRADE_MODE || 'paper';
+  const genericLive = livePermission('ALLOW_LIVE');
+  const optionsLive = livePermission('OPTIONS_ALLOW_LIVE');
+  const amiLive = livePermission('AMIBROKER_ALLOW_LIVE');
+  const cap = CONNECTOR_ORDER_CAPABILITY;
+  const hb = typeof _heartbeat !== 'undefined'
+    ? _heartbeat.status(EXPECTED_COMPONENTS)
+    : { ok: false, components: [], reason: 'heartbeat module not initialised' };
+  const reconcileHb = (hb.components || []).find((c) => c.name === 'reconcile') || null;
+  const recon = typeof _lastReconcile !== 'undefined'
+    ? reconciliation.verdict(_lastReconcile, reconcileHb)
+    : { verdict: 'UNAVAILABLE', blocking: true, reason: 'reconciliation not initialised' };
+
+  const checks = [
+    {
+      id: 'broker-place-order',
+      area: 'real_trade',
+      label: 'Broker order path',
+      status: cap === 'live-capable' ? 'blocked_by_policy' : 'blocked',
+      blocking: true,
+      evidence: cap,
+      detail: cap === 'live-capable'
+        ? 'Connector can place orders, but live enablement still depends on safety gates.'
+        : `Connector placeOrder is ${cap}; no broker order can be sent.`,
+    },
+    {
+      id: 'trade-mode',
+      area: 'real_trade',
+      label: 'TRADE_MODE',
+      status: mode === 'live' ? 'armed_key_1' : 'paper',
+      blocking: mode !== 'live',
+      evidence: mode,
+      detail: mode === 'live' ? 'Capability key is live.' : 'Platform is intentionally in paper mode.',
+    },
+    {
+      id: 'generic-live-key',
+      area: 'real_trade',
+      label: 'Generic ALLOW_LIVE',
+      status: genericLive.granted ? 'granted' : 'blocked',
+      blocking: !genericLive.granted,
+      evidence: genericLive.reason,
+      detail: 'Second key for generic Node execution paths.',
+    },
+    {
+      id: 'options-live-key',
+      area: 'real_trade',
+      label: 'Options ALLOW_LIVE',
+      status: optionsLive.granted ? 'granted' : 'blocked',
+      blocking: !optionsLive.granted,
+      evidence: optionsLive.reason,
+      detail: 'Dedicated second key for options live paths; default false.',
+    },
+    {
+      id: 'amibroker-live-key',
+      area: 'real_trade',
+      label: 'AmiBroker ALLOW_LIVE',
+      status: amiLive.granted ? 'granted' : 'blocked',
+      blocking: !amiLive.granted,
+      evidence: amiLive.reason,
+      detail: 'Dedicated second key for AmiBroker bridge.',
+    },
+    {
+      id: 'heartbeat',
+      area: 'real_trade',
+      label: 'Heartbeat',
+      status: hb.ok ? 'ready' : 'blocked',
+      blocking: !hb.ok,
+      evidence: hb.ok ? 'all expected components fresh' : (hb.reason || 'one or more expected components stale/missing'),
+      detail: 'Server, warehouse capture, and reconciliation must report alive.',
+    },
+    {
+      id: 'reconciliation',
+      area: 'real_trade',
+      label: 'Broker reconciliation',
+      status: recon.verdict || 'UNAVAILABLE',
+      blocking: recon.blocking !== false,
+      evidence: recon.reason || recon.operatorAction || '',
+      detail: 'Internal open book and broker positions must agree before live entries.',
+    },
+    {
+      id: 'calibration',
+      area: 'recommendation',
+      label: 'Recommendation calibration',
+      /* This used to be status:'blocked' with a fixed sentence, on a page whose own
+       * subtitle promises "runtime blockers, not intention". A constant reads the
+       * same whether the evidence is missing, thin or damning, so it could never
+       * stop being true. It is measured now — and UNEVALUABLE is kept distinct from
+       * BLOCKED, because only one of the two is fixed by collecting more outcomes. */
+      status: _calib.verdict === 'PASS' ? 'ready'
+            : _calib.verdict === 'BLOCKED' ? 'blocked' : 'UNEVALUABLE',
+      blocking: _calib.verdict !== 'PASS',
+      evidence: _calib.reason,
+      detail: 'Product outputs stay research/paper-only until probability calibration exists.',
+      measured: {
+        n: _calib.n,
+        brier: _calib.brier === null ? null : +_calib.brier.toFixed(4),
+        coinFlip: 0.25,
+        gate: _calib.gate,
+        bins: (_calib.bins || []).filter((b) => b.n > 0).map((b) => ({
+          range: `${(b.lo * 100).toFixed(0)}-${(b.hi * 100).toFixed(0)}%`,
+          n: b.n,
+          evaluable: b.evaluable,
+          predicted: b.predicted === null ? null : +(b.predicted * 100).toFixed(1),
+          observed: b.observed === null ? null : +(b.observed * 100).toFixed(1),
+          gapPts: b.gapPts === null ? null : +b.gapPts.toFixed(1),
+        })),
+      },
+    },
+    {
+      id: 'compliance',
+      area: 'recommendation',
+      label: 'India IA/RA compliance',
+      status: 'blocked',
+      blocking: true,
+      evidence: 'SEBI IA/RA review required before personalized/public buy-sell recommendations.',
+      detail: 'Use research context language until registration, disclosures, suitability, and audit controls are approved.',
+    },
+  ];
+
+  const blockers = checks.filter((c) => c.blocking);
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    mode,
+    connector: CONNECTOR_NAME,
+    brokerOrderCapability: cap,
+    realTradeStatus: blockers.some((c) => c.area === 'real_trade') ? 'BLOCKED' : 'READY_FOR_MANUAL_TEST',
+    recommendationStatus: blockers.some((c) => c.area === 'recommendation') ? 'RESEARCH_ONLY' : 'READY_FOR_REVIEW',
+    overall: blockers.length ? 'NOT_READY' : 'READY_FOR_REVIEW',
+    checks,
+    blockers: blockers.map((c) => c.id),
+    nextActions: [
+      'Keep broker order placement disabled until position truth, reconciliation, heartbeat, and two-key checks pass.',
+      'Use Research Signal / Market Context wording instead of recommendations.',
+      'Persist shown confidence/probability with outcomes before publishing calibrated probabilities.',
+    ],
+  };
+}
+
+app.get('/api/readiness', (_req, res) => res.json(_readinessSnapshot()));
+
 /* Dry-run one order through the whole path — gate, slice, ladder — WITHOUT
    sending anything, so the thresholds can be tuned against the real book
    before any engine is switched on. */
@@ -6841,6 +7213,31 @@ app.get('/api/indices', async (req, res) => {
     _idxCache.at = Date.now(); _idxCache.data = out;
     res.json(out);
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/market-data/indicators', (req, res) => {
+  const inst = req.query.inst || req.query.instrument || null;
+  const snap = _marketIndicatorSnapshot(inst);
+  if (inst && snap.rows.length === 0) {
+    return res.status(400).json({ ok: false, error: `unknown instrument "${inst}"`, allowed: Object.keys(_marketSamples) });
+  }
+  res.json(snap);
+});
+
+app.get('/api/market-data/status', (_req, res) => {
+  res.json({
+    ok: true,
+    ..._marketPollState,
+    instruments: Object.fromEntries(Object.entries(_marketSamples).map(([k, rows]) => [
+      k,
+      {
+        samples: rows.length,
+        lastAt: rows.length ? new Date(rows[rows.length - 1].t).toISOString() : null,
+        lastPrice: rows.length ? rows[rows.length - 1].price : null,
+      },
+    ])),
+    generatedAt: new Date().toISOString(),
+  });
 });
 
 // QUANT COMMAND CENTER — one aggregate feed powering /quant.html: merges every
@@ -7443,6 +7840,104 @@ app.get('/api/forward-test-report', (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+function _agentDigest(agent) {
+  const out = agent && agent.output ? agent.output : {};
+  const bits = [];
+  if (out.events != null) bits.push(`${out.events} events`);
+  if (out.analyzed != null) bits.push(`${out.analyzed} analyzed`);
+  if (out.withStocks != null) bits.push(`${out.withStocks} with stocks`);
+  if (out.decision) bits.push(`decision ${out.decision}`);
+  if (out.verdict) bits.push(`verdict ${out.verdict}`);
+  if (out.reason) bits.push(String(out.reason));
+  if (out.latest && out.latest.title) bits.push(`latest: ${out.latest.title}`);
+  return bits.slice(0, 3).join(' · ') || 'waiting for next cycle';
+}
+
+function _aiAgentsDeepReportSnapshot() {
+  const A = agentsEngine.status();
+  const book = positionsBook.build({
+    'signal-paper': () => signalPaperEngine.status(),
+    'ai-agents': () => A,
+  });
+  const signalTrades = (signalPaperEngine.closed || []).map(t => ({ pnl: t.pnl, won: t.won, structure: t.structure, inst: t.inst, reason: t.reason }));
+  const validation = forwardTestReport.buildReport({
+    trades: signalTrades,
+    calibration: metaLabel.health(_metaCalibrator),
+    vrp: { positiveShare: null },
+    nTrials: 5,
+  });
+  const allTrades = Array.isArray(agentsEngine._allTrades) ? agentsEngine._allTrades : [];
+  const openAgents = (A.open || []).length + (A.condors || []).length;
+  const topImpact = (((A.agents || {}).impact || {}).output || {}).top || [];
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    mode: A.mode || 'PAPER',
+    enabled: !!A.enabled,
+    summary: {
+      dayPnl: A.dayPnl || 0,
+      allTimeNet: A.allTime?.netPnl || 0,
+      trades: A.allTime?.trades || 0,
+      wins: A.allTime?.wins || 0,
+      winRate: A.allTime?.winRate ?? null,
+      openAgents,
+      openAllPaper: (book.positions || []).length,
+      pricedOpen: (book.positions || []).filter(p => p.pnl != null).length,
+    },
+    strategies: {
+      directional: A.allTime?.directional || { trades: 0, winRate: null, netPnl: 0 },
+      condor: A.allTime?.condor || { trades: 0, winRate: null, netPnl: 0 },
+      calc: A.allTime?.calc || null,
+    },
+    agents: Object.values(A.agents || {}).map(a => ({
+      key: a.key,
+      name: a.name,
+      role: a.role,
+      state: a.state,
+      lastRun: a.lastRun || null,
+      digest: _agentDigest(a),
+    })),
+    config: A.config || {},
+    impact: topImpact.slice(0, 8).map(x => ({
+      title: x.title,
+      type: x.type,
+      direction: x.direction,
+      probability: x.probability,
+      expectedMovePct: x.expectedMovePct,
+      stocks: x.stocks || [],
+    })),
+    openPositions: book.positions || [],
+    recentTrades: allTrades.slice(-16).reverse().map(t => ({
+      inst: t.inst,
+      kind: t.kind || t.strategy || 'DIR',
+      side: t.side || null,
+      pnl: t.pnl,
+      reason: t.reason,
+      openedAt: t.openedAt || null,
+      exitAt: t.exitAt || null,
+      calcVersion: t.calcVersion || null,
+      lotSource: t.lotSource || null,
+    })),
+    validation: {
+      verdict: validation.verdict,
+      headline: validation.headline,
+      metrics: validation.metrics,
+      checks: validation.checks,
+    },
+    nextActions: [
+      'Keep AI agents in PAPER until forward-test sample size, calibration, reconciliation, and compliance gates pass.',
+      'Review impact rows with stocks and probabilities before trusting an agent cycle.',
+      'Use open-position and recent-trade sections as the audit trail; missing prices stay unreported, never zero.',
+    ],
+    disclaimer: 'PAPER research report. This is not investment advice and does not authorize live broker orders.',
+  };
+}
+
+app.get('/api/ai-agents/deep-report', (_req, res) => {
+  try { res.json(_aiAgentsDeepReportSnapshot()); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // Signal-engine PAPER executor — status + on/off (the forward-test loop)
 app.get('/api/signal-paper/status', (req, res) => res.json({ ok: true, ...signalPaperEngine.status(), generatedAt: new Date().toISOString() }));
 app.post('/api/signal-paper/enable', (req, res) => {
@@ -8006,7 +8501,8 @@ app.get('/api/option-chain-full', async (req, res) => {
         const ltp       = Number(leg.ltp || 0);
         const prevClose = Number(leg.prevClose || leg.close || 0);
         const chng      = prevClose ? ltp - prevClose : 0;
-        _updateOptHL(inst, strike, type, ltp);
+        _updateOptHL(inst, strike, type, ltp, 0, 0, Number(leg.oi || 0), Number(leg.changeOI || 0),
+          { bid: leg.bid, ask: leg.ask, volume: leg.volume });
         const hl = _getOptHL(inst, strike, type) || {};
         const pathOut = (arr) => (arr || []).map(e => ({ time: fmtT(e.t), price: +e.p.toFixed(2), ts: e.t, tier: e.tier || null }));
         return {
@@ -8091,6 +8587,390 @@ app.get('/api/opthl-archive', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+function _latestNoFetchDoi(inst, store, strike) {
+  const now = Date.now();
+  const fromRecord = (type) => store.get(_optHLKey(strike, type)) || {};
+  const ceRec = fromRecord('CE');
+  const peRec = fromRecord('PE');
+  let ce = Number(ceRec.changeOI);
+  let pe = Number(peRec.changeOI);
+  if (Number.isFinite(ce) && Number.isFinite(pe) && (Math.abs(ce) + Math.abs(pe) > 0)) {
+    const sourceAt = Math.max(Number(ceRec.quoteAt || 0), Number(peRec.quoteAt || 0), Number(ceRec.lowAt || 0), Number(peRec.lowAt || 0));
+    return { ce, pe, source: 'hl-tracker', sourceAt: sourceAt || null, ageMs: sourceAt ? now - sourceAt : null, confidence: 90 };
+  }
+
+  const cached = _optionSnapshotCache.get(inst);
+  const snap = cached?.data;
+  const row = (snap?.strikes || []).find((s) => Number(s.strike) === Number(strike));
+  ce = Number(row?.ce?.changeOI);
+  pe = Number(row?.pe?.changeOI);
+  if (Number.isFinite(ce) && Number.isFinite(pe) && (Math.abs(ce) + Math.abs(pe) > 0)) {
+    const sourceAt = Number(cached?.at || snap?.at || 0);
+    return { ce, pe, source: 'option-snapshot-cache', sourceAt: sourceAt || null, ageMs: sourceAt ? now - sourceAt : null, confidence: 80 };
+  }
+
+  const snaps = _oiSnaps[inst] || [];
+  if (snaps.length >= 2) {
+    const first = snaps[0]?.byStrike?.[strike];
+    const last = snaps[snaps.length - 1]?.byStrike?.[strike];
+    ce = Number(last?.ce) - Number(first?.ce);
+    pe = Number(last?.pe) - Number(first?.pe);
+    if (Number.isFinite(ce) && Number.isFinite(pe) && (Math.abs(ce) + Math.abs(pe) > 0)) {
+      const sourceAt = Number(snaps[snaps.length - 1]?.t || snaps[snaps.length - 1]?.at || 0);
+      return { ce, pe, source: 'oi-snapshot-memory', sourceAt: sourceAt || null, ageMs: sourceAt ? now - sourceAt : null, confidence: 70 };
+    }
+  }
+
+  return null;
+}
+
+function _freshnessStatus(ageMs, staleMs = 120_000) {
+  if (!Number.isFinite(Number(ageMs))) return { status: 'UNKNOWN', ageMs: null, penalty: 4, reason: 'freshness timestamp unavailable' };
+  const age = Math.max(0, Number(ageMs));
+  if (age <= staleMs) return { status: 'FRESH', ageMs: age, penalty: 0, reason: `fresh ${Math.round(age / 1000)}s ago` };
+  if (age <= staleMs * 3) return { status: 'AGING', ageMs: age, penalty: 5, reason: `aging ${Math.round(age / 1000)}s ago` };
+  return { status: 'STALE', ageMs: age, penalty: 12, reason: `stale ${Math.round(age / 1000)}s ago` };
+}
+
+function _latestNoFetchLiquidity(inst, store, strike, type, last) {
+  const rec = store.get(_optHLKey(strike, type)) || {};
+  const cached = _optionSnapshotCache.get(inst);
+  const row = (cached?.data?.strikes || []).find((s) => Number(s.strike) === Number(strike));
+  const leg = type === 'CE' ? row?.ce : row?.pe;
+  const bid = Number.isFinite(Number(rec.bid)) && Number(rec.bid) > 0 ? Number(rec.bid) : Number(leg?.bid || 0);
+  const ask = Number.isFinite(Number(rec.ask)) && Number(rec.ask) > 0 ? Number(rec.ask) : Number(leg?.ask || 0);
+  const volume = Number.isFinite(Number(rec.volume)) && Number(rec.volume) > 0 ? Number(rec.volume) : Number(leg?.volume || 0);
+  const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : Number(last || 0);
+  const spreadPct = bid > 0 && ask > 0 && ask >= bid && mid > 0 ? +(((ask - bid) / mid) * 100).toFixed(2) : null;
+  let status = 'UNKNOWN', penalty = 4;
+  if (spreadPct !== null) {
+    if (spreadPct <= 4 && volume > 0) { status = 'GOOD'; penalty = 0; }
+    else if (spreadPct <= 8) { status = 'OK'; penalty = 4; }
+    else { status = 'WIDE'; penalty = 12; }
+  } else if (volume > 0) {
+    status = 'VOLUME_ONLY'; penalty = 3;
+  }
+  return {
+    status,
+    bid: bid > 0 ? +bid.toFixed(2) : null,
+    ask: ask > 0 ? +ask.toFixed(2) : null,
+    spreadPct,
+    volume: volume > 0 ? volume : null,
+    penalty,
+    reason: spreadPct === null
+      ? (volume > 0 ? `volume ${volume}, bid/ask unavailable` : 'bid/ask and volume unavailable')
+      : `spread ${spreadPct}%, volume ${volume || 'unknown'}`,
+  };
+}
+
+function _oiMixForLowLeg(type, ceDoi, peDoi, source = 'unknown', meta = null) {
+  const support = type === 'CE' ? ceDoi : peDoi;
+  const resistance = type === 'CE' ? peDoi : ceDoi;
+  const sideDoi = type === 'CE' ? ceDoi : peDoi;
+  const oppositeDoi = type === 'CE' ? peDoi : ceDoi;
+  let oiMix = 'NEUTRAL';
+  let oiMixReason = `CE change-OI ${ceDoi} and PE change-OI ${peDoi} are balanced for this strike.`;
+  if (support > Math.max(0, resistance) * 1.2 && support > 0) {
+    oiMix = 'SUPPORT';
+    oiMixReason = type === 'CE'
+      ? `CE change-OI ${ceDoi} is stronger than PE change-OI ${peDoi}; OI mix suggests call-side buildup support, not a buy command.`
+      : `PE change-OI ${peDoi} is stronger than CE change-OI ${ceDoi}; OI mix suggests put-side buildup support, not a buy command.`;
+  } else if (resistance > Math.max(0, support) * 1.2 && resistance > 0) {
+    oiMix = 'CONFLICT';
+    oiMixReason = type === 'CE'
+      ? `PE change-OI ${peDoi} dominates CE change-OI ${ceDoi}; OI mix may conflict with a CE bounce.`
+      : `CE change-OI ${ceDoi} dominates PE change-OI ${peDoi}; OI mix may conflict with a PE bounce.`;
+  }
+  return {
+    oiMix,
+    oiMixScore: +(support - resistance).toFixed(0),
+    oiMixReason: `${oiMixReason} Source: ${source}.`,
+    oiAnalysis: {
+      verdict: oiMix,
+      source,
+      sourceConfidence: Number(meta?.confidence || 0) || null,
+      sourceAgeMs: Number.isFinite(Number(meta?.ageMs)) ? Number(meta.ageMs) : null,
+      ceChangeOI: Math.round(ceDoi),
+      peChangeOI: Math.round(peDoi),
+      sideChangeOI: Math.round(sideDoi),
+      oppositeChangeOI: Math.round(oppositeDoi),
+      supportScore: +(support - resistance).toFixed(0),
+      basis: 'same-strike CE/PE change-OI',
+      note: 'Research context for buy-low/high-sell rows; not a broker order or recommendation.',
+    },
+  };
+}
+
+function _sellHighPlanForLowLeg({ last, low, high }) {
+  const lo = Number(low), hi = Number(high), now = Number(last);
+  if (!(hi > lo && now > 0)) return { sellPlan: null };
+  const t1 = +(lo + (hi - lo) * 0.4).toFixed(2);
+  const t2 = +(lo + (hi - lo) * 0.7).toFixed(2);
+  const final = +(lo + (hi - lo) * 0.9).toFixed(2);
+  const stop = +(Math.max(0.05, lo * 0.98).toFixed(2));
+  const reward = Math.max(0, final - now);
+  const risk = Math.max(0.01, now - stop);
+  return {
+    sellPlan: {
+      target1: t1,
+      target2: t2,
+      finalTarget: final,
+      stop,
+      rewardRisk: +(reward / risk).toFixed(2),
+      basis: '40% / 70% / 90% recovery toward the recorded day high',
+      paperOnly: true,
+    },
+  };
+}
+
+const _optLowOutcomeFile = require('path').join(__dirname, 'data', 'opt-low-outcomes.json');
+function _readOptLowOutcomes() {
+  try { return require('./safe-write.js').readJsonSync(_optLowOutcomeFile, { fallback: { version: 1, rows: [] }, onRecover: () => {} }); }
+  catch (_) { return { version: 1, rows: [] }; }
+}
+function _writeOptLowOutcomes(doc) {
+  try { require('./safe-write.js').writeJsonSync(_optLowOutcomeFile, doc, { pretty: true, backup: true }); }
+  catch (e) { console.warn(`[opt-low-outcomes] save failed: ${e.message}`); }
+}
+function _resolveOptLowOutcome(row, existing = null) {
+  const last = Number(row.last);
+  const sp = row.sellPlan || {};
+  const retestStatus = row.retest?.retestStatus || row.retestStatus || null;
+  let status = existing?.status || 'PENDING';
+  let reason = existing?.reason || 'waiting for target, stop, or failed-low evidence';
+  if (retestStatus === 'FAILED_LOW' || (sp.stop != null && last > 0 && last <= Number(sp.stop))) {
+    status = 'STOP_OR_FAILED_LOW';
+    reason = retestStatus === 'FAILED_LOW' ? 'retest failed below low zone' : `last price reached stop ${sp.stop}`;
+  } else if (sp.finalTarget != null && last >= Number(sp.finalTarget)) {
+    status = 'FINAL_TARGET';
+    reason = `last price reached final target ${sp.finalTarget}`;
+  } else if (sp.target2 != null && last >= Number(sp.target2)) {
+    status = 'TARGET2';
+    reason = `last price reached target2 ${sp.target2}`;
+  } else if (sp.target1 != null && last >= Number(sp.target1)) {
+    status = 'TARGET1';
+    reason = `last price reached target1 ${sp.target1}`;
+  }
+  return { status, reason };
+}
+function _trackOptLowResearchOutcome(row) {
+  const status = String(row.buyStartStatus || row.setupStatus || 'WAIT');
+  if (!['STRONG_START', 'START', 'WATCH', 'AVOID'].includes(status)) return null;
+  const day = row.date || _istDateStr();
+  const lowAt = Number(row.lowAt || 0);
+  const id = [day, row.inst, row.strike, row.type, lowAt || 'nolow', status].join('|');
+  const doc = _readOptLowOutcomes();
+  if (!Array.isArray(doc.rows)) doc.rows = [];
+  let rec = doc.rows.find(x => x.id === id);
+  const now = Date.now();
+  const resolved = _resolveOptLowOutcome(row, rec);
+  if (!rec) {
+    rec = {
+      id,
+      day,
+      inst: row.inst,
+      strike: row.strike,
+      type: row.type,
+      signal: status,
+      openedAt: now,
+      lowAt: row.lowAt || null,
+      entry: row.last,
+      low: row.low,
+      high: row.high,
+      setupScore: row.setupScore,
+      probability: row.buyStartProbability,
+      oiMix: row.oiMix,
+      retestStatus: row.retest?.retestStatus || null,
+      sellPlan: row.sellPlan || null,
+      paperOnly: true,
+      status: resolved.status,
+      reason: resolved.reason,
+      lastSeenAt: now,
+      last: row.last,
+    };
+    doc.rows.push(rec);
+  } else {
+    rec.lastSeenAt = now;
+    rec.last = row.last;
+    rec.setupScore = row.setupScore;
+    rec.probability = row.buyStartProbability;
+    rec.retestStatus = row.retest?.retestStatus || rec.retestStatus || null;
+    rec.status = resolved.status;
+    rec.reason = resolved.reason;
+  }
+  doc.rows = doc.rows.slice(-1000);
+  doc.updatedAt = now;
+  _writeOptLowOutcomes(doc);
+  return { id: rec.id, status: rec.status, reason: rec.reason, paperOnly: true };
+}
+
+function _retestStatusForLowLeg({ tickPath, low, high, last }) {
+  const lo = Number(low), hi = Number(high), now = Number(last);
+  const ticks = (Array.isArray(tickPath) ? tickPath : [])
+    .map(x => ({ t: Number(x.at || x.t || 0), p: Number(x.p) }))
+    .filter(x => Number.isFinite(x.t) && Number.isFinite(x.p) && x.p > 0)
+    .sort((a, b) => a.t - b.t);
+  if (!(hi > lo && now > 0) || ticks.length < 3) {
+    return {
+      retestStatus: 'UNKNOWN',
+      retestScore: 0,
+      retestPenalty: 4,
+      retestReason: 'not enough intraday ticks to classify a low retest',
+      entryZone: null,
+    };
+  }
+
+  const range = hi - lo;
+  const zoneWidth = Math.max(0.05, range * 0.08, lo * 0.02);
+  const zoneTop = +(lo + zoneWidth).toFixed(2);
+  const bounceLevel = +(lo + range * 0.25).toFixed(2);
+  const failLevel = +Math.max(0.01, lo - zoneWidth * 0.5).toFixed(2);
+  const firstTouchIdx = ticks.findIndex(x => x.p <= zoneTop);
+  if (firstTouchIdx < 0) {
+    return {
+      retestStatus: 'NO_TOUCH',
+      retestScore: 0,
+      retestPenalty: 3,
+      retestReason: `price has not entered the low retest zone <= ${zoneTop}`,
+      entryZone: { low: lo, high: zoneTop, bounceLevel, failLevel },
+    };
+  }
+
+  const bounceIdxRel = ticks.slice(firstTouchIdx + 1).findIndex(x => x.p >= bounceLevel);
+  if (bounceIdxRel < 0) {
+    return {
+      retestStatus: 'FIRST_TOUCH',
+      retestScore: 0,
+      retestPenalty: 6,
+      retestReason: `low touched, but no bounce to ${bounceLevel} before retest`,
+      entryZone: { low: lo, high: zoneTop, bounceLevel, failLevel },
+    };
+  }
+
+  const bounceIdx = firstTouchIdx + 1 + bounceIdxRel;
+  const retestIdxRel = ticks.slice(bounceIdx + 1).findIndex(x => x.p <= zoneTop);
+  if (retestIdxRel < 0) {
+    return {
+      retestStatus: 'BOUNCING',
+      retestScore: 3,
+      retestPenalty: 0,
+      retestReason: `price bounced above ${bounceLevel}; waiting for low-zone retest`,
+      entryZone: { low: lo, high: zoneTop, bounceLevel, failLevel },
+    };
+  }
+
+  const retestIdx = bounceIdx + 1 + retestIdxRel;
+  const afterRetest = ticks.slice(retestIdx);
+  const broke = afterRetest.some(x => x.p < failLevel) || now < failLevel;
+  if (broke) {
+    return {
+      retestStatus: 'FAILED_LOW',
+      retestScore: -15,
+      retestPenalty: 18,
+      retestReason: `retest failed: price broke below ${failLevel}`,
+      entryZone: { low: lo, high: zoneTop, bounceLevel, failLevel },
+    };
+  }
+
+  const status = now > zoneTop ? 'HELD_LOW' : 'RETESTING';
+  return {
+    retestStatus: status,
+    retestScore: status === 'HELD_LOW' ? 10 : 4,
+    retestPenalty: 0,
+    retestReason: status === 'HELD_LOW'
+      ? `low retest held and price is back above ${zoneTop}`
+      : `price is retesting the low zone ${lo}-${zoneTop}`,
+    entryZone: { low: lo, high: zoneTop, bounceLevel, failLevel },
+  };
+}
+
+function _setupQualityForLowLeg({ pos, fromLowPct, bouncePoP, oiMix, truth, priceFreshness, oiFreshness, liquidity, sellPlan, retest }) {
+  const flags = [];
+  if (oiMix === 'CONFLICT') flags.push('OI_CONFLICT');
+  if (priceFreshness?.status === 'STALE') flags.push('STALE_PRICE');
+  if (oiFreshness?.status === 'STALE') flags.push('STALE_OI');
+  if (liquidity?.status === 'WIDE') flags.push('WIDE_SPREAD');
+  if (retest?.retestStatus === 'FAILED_LOW') flags.push('FAILED_LOW');
+  if (truth === 'PENDING' && Number(fromLowPct) <= 2) flags.push('FALLING_KNIFE');
+  if (sellPlan?.rewardRisk != null && sellPlan.rewardRisk < 1.2) flags.push('POOR_RR');
+
+  let score = Number(bouncePoP || 0);
+  if (oiMix === 'SUPPORT') score += 8;
+  if (truth === 'TRUE') score += 5;
+  score += Number(retest?.retestScore || 0);
+  score -= Number(priceFreshness?.penalty || 0);
+  score -= Number(oiFreshness?.penalty || 0);
+  score -= Number(liquidity?.penalty || 0);
+  score -= Number(retest?.retestPenalty || 0);
+  score -= flags.includes('FALLING_KNIFE') ? 8 : 0;
+  score = +Math.max(0, Math.min(100, score)).toFixed(1);
+
+  const status = flags.length ? 'AVOID'
+    : (Number(pos) <= 12 || Number(fromLowPct) <= 8) && score >= 78 ? 'READY'
+    : (Number(pos) <= 20 || Number(fromLowPct) <= 12) && score >= 68 ? 'WATCH'
+    : 'WAIT';
+  return {
+    setupStatus: status,
+    setupScore: score,
+    trapFlags: flags,
+    setupReason: flags.length
+      ? `Avoid: ${flags.join(', ')}.`
+      : `${status}: score ${score} from PoP, OI, retest, freshness, liquidity and reward/risk.`,
+  };
+}
+
+function _buyStartForLowLeg({ pos, fromLowPct, bouncePoP, oiMix, truth, priceFreshness, oiFreshness, liquidity, setupStatus, retest }) {
+  const nearLow = Number(pos) <= 12 || Number(fromLowPct) <= 8;
+  let probability = Number(bouncePoP || 0);
+  if (oiMix === 'SUPPORT') probability += 6;
+  else if (oiMix === 'CONFLICT') probability -= 14;
+  else if (oiMix === 'UNKNOWN') probability -= 4;
+  if (truth === 'PENDING') probability -= 6;
+  if (retest?.retestStatus === 'HELD_LOW') probability += 8;
+  else if (retest?.retestStatus === 'RETESTING') probability += 3;
+  else if (retest?.retestStatus === 'FIRST_TOUCH') probability -= 5;
+  else if (retest?.retestStatus === 'FAILED_LOW') probability -= 18;
+  probability -= Number(priceFreshness?.penalty || 0);
+  probability -= Number(oiFreshness?.penalty || 0);
+  probability -= Number(liquidity?.penalty || 0);
+  probability -= Number(retest?.retestPenalty || 0);
+  probability = +Math.max(0, Math.min(95, probability)).toFixed(1);
+
+  const blocked = oiMix === 'CONFLICT' || setupStatus === 'AVOID';
+  const status = blocked
+    ? 'AVOID'
+    : nearLow && probability >= 82 && retest?.retestStatus === 'HELD_LOW'
+    ? 'STRONG_START'
+    : nearLow && probability >= 75
+    ? 'START'
+    : nearLow && probability >= 68
+      ? 'WATCH'
+      : 'WAIT';
+  const reason = status === 'STRONG_START'
+    ? `Strong buy-start research flag: low retest held, adjusted probability ${probability}%, OI ${oiMix}.`
+    : status === 'START'
+    ? `Buy-start research flag: near day low, adjusted probability ${probability}%, OI ${oiMix}.`
+    : status === 'WATCH'
+      ? `Watch only: near day low but adjusted probability ${probability}% has not cleared 75%.`
+      : status === 'AVOID'
+        ? `Avoid: trap/data-quality gate blocks this low-buy setup at adjusted probability ${probability}%.`
+      : `No buy-start flag: ${nearLow ? 'probability/OI gate not clear' : 'not close enough to the day low'}.`;
+  return {
+    buyStart: status === 'START' || status === 'STRONG_START',
+    buyStartStatus: status,
+    buyStartProbability: probability,
+    buyStartReason: reason + ' Paper/research context only; no live order is authorised.',
+    buyStartGate: {
+      minProbability: 75,
+      maxPosPct: 12,
+      maxFromLowPct: 8,
+      strongStartRequiresRetest: 'HELD_LOW',
+      oiConflictBlocks: true,
+      paperOnly: true,
+    },
+  };
+}
+
 /* Where each leg is sitting inside TODAY'S range, right now.
  *
  * WHY IT READS MEMORY AND NOT THE CHAIN
@@ -8119,6 +8999,7 @@ app.get('/api/opt-at-low', (req, res) => {
 
     const rows = [];
     let noTick = 0, noRange = 0, belowFloor = 0, thinRange = 0, staleDay = 0;
+    let trueCount = 0, pendingCount = 0, unknownTruthCount = 0;
     for (const [key, rec] of store) {
       if (!rec || rec.date !== today) { staleDay++; continue; }
       const us = key.lastIndexOf('_');
@@ -8133,13 +9014,17 @@ app.get('/api/opt-at-low', (req, res) => {
       // survives, and between them the endpoint answers immediately either way.
       const tail = rec.tickPath && rec.tickPath.length ? rec.tickPath[rec.tickPath.length - 1] : null;
       let last = tail && Number.isFinite(tail.p) ? tail.p : null;
+      let lastAt = tail && Number.isFinite(Number(tail.at || tail.t)) ? Number(tail.at || tail.t) : null;
       if (last === null) {
         const d = _optMin.get(`${inst}|${strike}|${type}`);
         if (d && d.day === today && d.bars && d.bars.size) {
           let newest = -1;
           for (const m of d.bars.keys()) if (m > newest) newest = m;
           const bar = d.bars.get(newest);
-          if (bar && Number.isFinite(bar[3])) last = bar[3];
+          if (bar && Number.isFinite(bar[3])) {
+            last = bar[3];
+            lastAt = newest > 0 ? newest * 60_000 : null;
+          }
         }
       }
       if (last === null) { noTick++; continue; }          // never traded here today
@@ -8153,24 +9038,121 @@ app.get('/api/opt-at-low', (req, res) => {
       const rangePct = ((high - low) / low) * 100;
       if (rangePct < minRangePct) { thinRange++; continue; }
 
-      rows.push({
+      const pos = +Math.min(100, Math.max(0, ((last - low) / (high - low)) * 100)).toFixed(1);
+      const fromLowPct = +Math.max(0, ((last - low) / low) * 100).toFixed(2);
+      const lowProximity = 100 - pos;
+      const pastReturnPct = Math.min(150, rangePct);
+      const bouncePoP = +Math.max(5, Math.min(85,
+        25 + lowProximity * 0.35 + pastReturnPct * 0.18 - fromLowPct * 0.12
+      )).toFixed(1);
+      const lowAtMs = Number(rec.lowAt || 0);
+      const highAtMs = Number(rec.highAt || 0);
+      const truth = lowAtMs > 0 && highAtMs > 0
+        ? (highAtMs > lowAtMs ? 'TRUE' : 'PENDING')
+        : 'UNKNOWN';
+      const truthReason = truth === 'TRUE'
+        ? 'The session high happened after the session low, so a low-to-high path exists today.'
+        : truth === 'PENDING'
+          ? 'The latest low happened after the recorded high; a future bounce is not proven yet.'
+          : 'The low/high timestamps are incomplete, so the low-to-high path is not verified.';
+      if (truth === 'TRUE') trueCount++;
+      else if (truth === 'PENDING') pendingCount++;
+      else unknownTruthCount++;
+      const lowHighAccuracyPct = truth === 'TRUE' ? 100 : truth === 'PENDING' ? 0 : null;
+      const accuracyReason = truth === 'TRUE'
+        ? 'Counts as correct for the visible low-to-high accuracy because the high happened after the low.'
+        : truth === 'PENDING'
+          ? 'Counts as pending/not-correct for the visible low-to-high accuracy because the high has not happened after this latest low yet.'
+          : 'Excluded from visible low-to-high accuracy because timestamps are incomplete.';
+      const doi = _latestNoFetchDoi(inst, store, strike);
+      const oiRead = doi
+        ? _oiMixForLowLeg(type, doi.ce, doi.pe, doi.source, doi)
+        : {
+            oiMix: 'UNKNOWN',
+            oiMixScore: null,
+            oiMixReason: 'OI mix unavailable: no H/L OI, cached option snapshot, or in-memory OI snapshot exists for this strike yet.',
+            oiAnalysis: {
+              verdict: 'UNKNOWN',
+              source: 'none',
+              ceChangeOI: null,
+              peChangeOI: null,
+              sideChangeOI: null,
+              oppositeChangeOI: null,
+              supportScore: null,
+              basis: 'same-strike CE/PE change-OI',
+              note: 'No cached/in-memory OI context exists for this strike yet.',
+            },
+          };
+      const priceFreshness = _freshnessStatus(lastAt ? Date.now() - lastAt : null);
+      const oiFreshness = doi ? _freshnessStatus(doi.ageMs, 180_000) : _freshnessStatus(null, 180_000);
+      const liquidity = _latestNoFetchLiquidity(inst, store, strike, type, last);
+      const sellPlanRead = _sellHighPlanForLowLeg({ last, low, high });
+      const retest = _retestStatusForLowLeg({ tickPath: rec.tickPath, low, high, last });
+      const setupRead = _setupQualityForLowLeg({
+        pos,
+        fromLowPct,
+        bouncePoP,
+        oiMix: oiRead.oiMix,
+        truth,
+        priceFreshness,
+        oiFreshness,
+        liquidity,
+        sellPlan: sellPlanRead.sellPlan,
+        retest,
+      });
+      const buyStartRead = _buyStartForLowLeg({
+        pos,
+        fromLowPct,
+        bouncePoP,
+        oiMix: oiRead.oiMix,
+        truth,
+        priceFreshness,
+        oiFreshness,
+        liquidity,
+        setupStatus: setupRead.setupStatus,
+        retest,
+      });
+
+      const outRow = {
         inst, strike, type, last, high, low,
+        date: today,
+        oi: Number(rec.oi || 0), changeOI: Number(rec.changeOI || 0),
         highAt: rec.highAt || null, lowAt: rec.lowAt || null,
         points: +(high - low).toFixed(2),
         rangePct: +rangePct.toFixed(2),
+        pastReturnPct: +rangePct.toFixed(2),
+        bouncePoP,
+        popReason: `research-only: ${+rangePct.toFixed(2)}% past intraday range, ${pos}% inside range, ${fromLowPct}% above low`,
+        lowHighTruth: truth,
+        truthReason,
+        lowHighAccuracyPct,
+        accuracyReason,
+        oiMix: oiRead.oiMix,
+        oiMixScore: oiRead.oiMixScore,
+        oiMixReason: oiRead.oiMixReason,
+        oiAnalysis: oiRead.oiAnalysis,
+        priceFreshness,
+        oiFreshness,
+        liquidity,
+        retest,
+        ...sellPlanRead,
+        ...setupRead,
+        ...buyStartRead,
         // 0 = trading at the session low, 100 = at the session high. Clamped, because
         // rec.high only advances on a CONFIRMED extreme — the verifier makes a
         // candidate wait a poll — so a live tick can legitimately sit just above the
         // confirmed high and produce 100.8%. That is the verifier working, not an
         // error, but a percentage over 100 reads as a bug.
-        pos: +Math.min(100, Math.max(0, ((last - low) / (high - low)) * 100)).toFixed(1),
+        pos,
         // Clamped for the same reason as `pos`: a tick below the confirmed low means
         // the leg is MAKING a new low that the verifier has not ratified yet. It is
         // at its low, not minus two percent away from it.
-        fromLowPct: +Math.max(0, ((last - low) / low) * 100).toFixed(2),
+        fromLowPct,
         // Stated plainly so the page does not have to infer it from a zero.
         atLow: last <= low,
-      });
+      };
+      outRow.researchOutcome = _trackOptLowResearchOutcome(outRow);
+      rows.push(outRow);
     }
     rows.sort((a, b) => a.pos - b.pos || b.rangePct - a.rangePct);
 
@@ -8180,9 +9162,31 @@ app.get('/api/opt-at-low', (req, res) => {
       // Every leg is accounted for: a list that showed only the survivors would read
       // as though the whole chain were sitting at its low.
       counts: { returned: rows.length, tracked: store.size, noTick, noRange,
-                belowFloor, thinRange, otherDay: staleDay },
+                belowFloor, thinRange, otherDay: staleDay,
+                lowHighTrue: trueCount, lowHighPending: pendingCount,
+                lowHighUnknown: unknownTruthCount,
+                lowHighAccuracyPct: (trueCount + pendingCount)
+                  ? +(trueCount / (trueCount + pendingCount) * 100).toFixed(1)
+                  : null },
       rows,
     });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/opt-at-low/outcomes', (req, res) => {
+  try {
+    const inst = req.query.inst ? String(req.query.inst).toUpperCase() : null;
+    const day = req.query.date ? String(req.query.date).slice(0, 10) : null;
+    const doc = _readOptLowOutcomes();
+    let rows = Array.isArray(doc.rows) ? doc.rows : [];
+    if (inst) rows = rows.filter(r => r.inst === inst);
+    if (day) rows = rows.filter(r => r.day === day);
+    const summary = rows.reduce((m, r) => {
+      const k = r.status || 'UNKNOWN';
+      m[k] = (m[k] || 0) + 1;
+      return m;
+    }, {});
+    res.json({ ok: true, updatedAt: doc.updatedAt || null, count: rows.length, summary, rows: rows.slice(-250) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -8328,7 +9332,14 @@ app.get('/api/watchlist', async (req, res) => {
       // Feed the live tick into the session H/L tracker, then read it back. Upstox
       // option quotes don't carry intraday OHLC (ohlc.high/low come back empty),
       // so without this the watchlist Low/High columns stay 0 → render as "--".
-      if (ltp > 0) _updateOptHL(inst, m.strike, m.type, ltp);
+      if (ltp > 0) _updateOptHL(inst, m.strike, m.type, ltp, 0, 0,
+        Number(d.oi ?? d.open_interest ?? c.oi ?? 0),
+        Number(d.changeOI ?? d.change_oi ?? c.changeOI ?? 0),
+        {
+          bid: Number(d.buy_price ?? d.best_bid_price ?? c.bid ?? 0),
+          ask: Number(d.sell_price ?? d.best_ask_price ?? c.ask ?? 0),
+          volume: Number(d.volume ?? c.volume ?? 0),
+        });
       const hl = _getOptHL(inst, m.strike, m.type) || {};
       // Prefer the broker quote/chain OHLC, but those come back as 0 for Upstox
       // options (not null), so `??` wouldn't fall through — use the session
@@ -8719,6 +9730,7 @@ console.log(`[attestation] sealed ${ATTESTATION_SEAL.hash.slice(0, 16)} over ${A
    judged against what it promised rather than against one global threshold that
    would call the 300s capture loop dead. */
 const { Heartbeat } = require('./heartbeat');
+const { calibrateFile } = require('./calibration');
 const reconciliation = require('./reconciliation');
 const _heartbeat = new Heartbeat();
 _heartbeat.start('server', {

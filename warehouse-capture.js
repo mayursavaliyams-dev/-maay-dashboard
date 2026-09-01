@@ -181,13 +181,20 @@ async function jgetJson(url, source) { return (await jget(url, source)).json; }
    1. CHAIN SNAPSHOT  —  every column the feed gives, verbatim, unknown stays null
    ══════════════════════════════════════════════════════════════════════════════ */
 const LEG_COLS = ['ltp','oi','changeOI','volume','iv','ivSource','open','high','low','close',
-                  'prevClose','bid','ask','bidQty','askQty','delta','gamma','theta','vega','pop'];
+                  'prevClose','bid','ask','bidQty','askQty','delta','gamma','theta','vega','pop',
+                  // The vendor's own contract key, e.g. 'NSE_FO|44983'. A string, so it
+                  // must bypass num() — which would silently store null for every leg.
+                  'securityId'];
+
+/* Columns that are text, not measurements. num() would turn each of them into null,
+ * and a null identity reads exactly like an absent one. */
+const LEG_STR_COLS = new Set(['ivSource', 'securityId']);
 
 function legRow(leg) {
   if (!leg) return null;
   const o = {};
   for (const c of LEG_COLS) {
-    o[c] = (c === 'ivSource') ? (leg[c] ?? null) : num(leg[c]);
+    o[c] = LEG_STR_COLS.has(c) ? (leg[c] ?? null) : num(leg[c]);
   }
   return o;
 }
@@ -199,6 +206,10 @@ function buildChainSnapshot(inst, chain, now = Date.now()) {
     v: 1, kind: 'chain', inst,
     at: new Date(now).toISOString(), ts: now, tradingDay: istDate(now),
     source: chain.source ?? null,
+    /* The series this whole snapshot belongs to. Every row under it is
+     * (inst, expiry, k, right) — a resolvable contract. Without this line the
+     * archive holds prices whose contract is unknowable after the fact. */
+    expiry: chain.expiry ?? null,
     spot: num(chain.spotPrice), atm: num(chain.atmStrike),
     pcrOI: num(chain.pcr?.pcrOI), maxPain: num(chain.maxPain?.maxPain),
     strikes: chain.strikes.map(s => ({ k: num(s.strike), ce: legRow(s.ce), pe: legRow(s.pe) })),
@@ -220,8 +231,13 @@ const OBSERVED_COLS = ['ltp','oi','changeOI','volume','bid','ask','bidQty','askQ
                        'open','high','low','close','prevClose'];
 function chainFingerprint(snap) {
   const pick = leg => leg ? OBSERVED_COLS.map(c => leg[c]) : null;
+  /* `expiry` belongs here even though it is not a price. It is an OBSERVED identity,
+   * not a model output: it is constant inside a series, so it cannot drift with the
+   * clock the way gamma/theta/vega did. Including it means a rollover to the next
+   * series always writes a row, instead of being suppressed as "nothing changed"
+   * whenever the new series happens to open near the old one's numbers. */
   return sha(JSON.stringify({
-    spot: snap.spot, atm: snap.atm,
+    expiry: snap.expiry, spot: snap.spot, atm: snap.atm,
     strikes: (snap.strikes || []).map(s => [s.k, pick(s.ce), pick(s.pe)]),
   }));
 }

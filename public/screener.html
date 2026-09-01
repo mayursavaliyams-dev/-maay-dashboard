@@ -78,6 +78,9 @@
   </div>
 
   <div class="chips" id="chips"></div>
+  <div style="margin-bottom:8px;"><button id="fieldsToggle" class="chip" style="cursor:pointer;">📋 All fields / parameters ▾</button>
+    <span style="font-size:10.5px;color:#7c8aa0;margin-left:8px;">click any field to insert it into the query</span></div>
+  <div id="fieldsPanel" style="display:none;border:1px solid #24304a;border-radius:8px;background:#0b1119;padding:10px 12px;margin-bottom:10px;"></div>
   <div id="err" class="err" style="display:none"></div>
 
   <div class="verdicts">
@@ -134,11 +137,68 @@
     $('chips').appendChild(c);
   });
 
+  // insert a field name into the query at the caret (so users can build a query by clicking)
+  function insertField(name) {
+    var ta = $('q'), s = ta.selectionStart, e = ta.selectionEnd;
+    var before = ta.value.slice(0, s), after = ta.value.slice(e);
+    var pad = (before && !/\s$/.test(before)) ? ' ' : '';
+    ta.value = before + pad + name + ' ' + after;
+    var pos = (before + pad + name + ' ').length;
+    ta.focus(); ta.setSelectionRange(pos, pos);
+  }
+  function fieldChip(f) {
+    var c = document.createElement('span');
+    c.className = 'chip'; c.style.cursor = 'pointer';
+    c.textContent = f.name;
+    var u = document.createElement('span');
+    u.style.cssText = 'color:#6b7a90;margin-left:5px;font-size:9.5px;';
+    u.textContent = f.unit + (f.computed ? ' ·calc' : '');
+    c.appendChild(u);
+    if (f.note) c.title = f.note; else if (f.alias && f.alias.length) c.title = 'aka: ' + f.alias.join(', ');
+    c.onclick = function () { insertField(f.name); };
+    return c;
+  }
   fetch('/api/screener/fields').then(function (r) { return r.json(); }).then(function (j) {
     if (!j.ok) return;
     $('fieldcount').textContent = j.available.length + ' available, ' + j.unavailable.length
       + ' deliberately absent (' + j.unavailable.map(function (u) { return u.name; }).slice(0, 3).join(', ') + '…)';
     $('fieldcount').title = j.available.map(function (f) { return f.name + '  [' + f.unit + ', ' + f.source + ']'; }).join('\n');
+    // build the clickable fields panel, grouped
+    var groups = [
+      ['Price & fundamentals', j.available.filter(function (f) { return f.source !== 'bars' && f.type !== 'text'; })],
+      ['Technicals (computed from bars)', j.available.filter(function (f) { return f.source === 'bars' && f.type !== 'text'; })],
+      ['Text (use with = or IN)', j.available.filter(function (f) { return f.type === 'text'; })]
+    ];
+    var panel = $('fieldsPanel');
+    groups.forEach(function (g) {
+      if (!g[1].length) return;
+      var h = document.createElement('div');
+      h.style.cssText = 'font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#7c8aa0;margin:6px 0 5px;';
+      h.textContent = g[0] + '  (' + g[1].length + ')';
+      panel.appendChild(h);
+      var row = document.createElement('div'); row.className = 'chips';
+      g[1].forEach(function (f) { row.appendChild(fieldChip(f)); });
+      panel.appendChild(row);
+    });
+    if (j.unavailable.length) {
+      var uh = document.createElement('div');
+      uh.style.cssText = 'font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#8a5a5a;margin:8px 0 5px;';
+      uh.textContent = 'Deliberately absent — refused by name, never silently zero  (' + j.unavailable.length + ')';
+      panel.appendChild(uh);
+      var urow = document.createElement('div'); urow.className = 'chips';
+      j.unavailable.forEach(function (u) {
+        var c = document.createElement('span');
+        c.className = 'chip'; c.style.cssText = 'opacity:.5;cursor:help;border-style:dashed;';
+        c.textContent = u.name; c.title = u.why;
+        urow.appendChild(c);
+      });
+      panel.appendChild(urow);
+    }
+    $('fieldsToggle').onclick = function () {
+      var open = panel.style.display === 'none';
+      panel.style.display = open ? 'block' : 'none';
+      $('fieldsToggle').textContent = '📋 All fields / parameters ' + (open ? '▴' : '▾');
+    };
   }).catch(function () { $('fieldcount').textContent = '(field list unavailable)'; });
 
   document.querySelectorAll('.tab').forEach(function (b) {

@@ -47,6 +47,21 @@ function sma(values, n) {
   return s / n;
 }
 
+/* Anchored VWAP over the last n sessions of daily bars: Σ(close·volume)/Σ(volume).
+   Honest scope: this is a DAILY-bar VWAP (each session weighted by its own volume),
+   NOT the intraday session VWAP a chart draws — we have no intraday ticks here. A
+   session with null/zero volume is skipped; null if no volume survives. */
+function vwap(rows, n) {
+  if (!Array.isArray(rows) || n <= 0 || rows.length < n) return null;
+  let pv = 0, v = 0;
+  for (const b of rows.slice(-n)) {
+    const c = num(b.close), vol = num(b.volume);
+    if (c === null || vol === null || vol <= 0) continue;
+    pv += c * vol; v += vol;
+  }
+  return v > 0 ? pv / v : null;
+}
+
 /* Full EMA series, SMA-seeded. Returns [] below n so callers cannot read a
    partially warmed value by indexing. */
 function emaSeries(values, n) {
@@ -273,6 +288,9 @@ function compute(bars) {
     movingAverages: {
       sma20: r2(s20), sma50: r2(s50), sma200: r2(s200),
       ema20: r2(win(20, () => ema(close, 20))), ema50: r2(win(50, () => ema(close, 50))),
+      // Anchored VWAP from daily bars (session close weighted by session volume).
+      vwap20: r2(win(20, () => vwap(rows.slice(-usable), 20))),
+      vwap50: r2(win(50, () => vwap(rows.slice(-usable), 50))),
       // Distance from each average, which is what a reader actually compares.
       vsSma50Pct: s50 ? r2((last - s50) / s50 * 100) : null,
       vsSma200Pct: s200 ? r2((last - s200) / s200 * 100) : null,
@@ -309,5 +327,5 @@ function compute(bars) {
   };
 }
 
-module.exports = { compute, sma, ema, emaSeries, rsi, macd, atr, changePct, volatility,
+module.exports = { compute, sma, ema, emaSeries, vwap, rsi, macd, atr, changePct, volatility,
   trendFromMAs, positionInRange, findDiscontinuity };

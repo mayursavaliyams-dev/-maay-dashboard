@@ -130,8 +130,8 @@ console.log('stock-fundamentals');
   const a = SACODE.slice(SACODE.indexOf('async function analyze'));
   ok(/if \(deep\) \{[\s\S]{0,400}Promise\.allSettled/.test(a),
     'the technical and peer fetches are inside `if (deep)`, so the fast path never pays for them');
-  ok(/Promise\.allSettled\(\[_getTechnicals\(yf, yahooSym\), _getPeers\(yf, yahooSym\)\]\)/.test(a),
-    'and run together, so the page waits for the slower of the two rather than for their sum');
+  ok(/Promise\.allSettled\(\[_getTechnicals\(yf, yahooSym\), _getPeers\(yf, yahooSym\), Promise\.resolve\(investingPro\.forSymbol\(sym\.symbol\)\)\]\)/.test(a),
+    'and run together, so the page waits for the slowest parallel source rather than for their sum');
   ok(/const ck = yahooSym \+ \(deep \? '\|deep' : ''\)/.test(a),
     'the cache key carries the depth — a card-depth result must not be served to the full view');
 }
